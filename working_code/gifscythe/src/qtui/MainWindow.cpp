@@ -1,111 +1,140 @@
-// MainWindow.cpp - implementation of the Gifscythe GUI shell.
-
 #include "MainWindow.h"
 
 #include <QAction>
+#include <QApplication>
 #include <QFileDialog>
+#include <QFileInfo>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPlainTextEdit>
+#include <QProcess>
 #include <QPushButton>
+#include <QSpinBox>
+#include <QStandardPaths>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QWidget>
 
-MainWindow::MainWindow(QWidget* parent)
-    : QMainWindow(parent) {
+MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   setWindowTitle(QStringLiteral("Gifscythe 0.1.0"));
-  resize(720, 480);
+  resize(980, 620);
+  enginePath_ = QCoreApplication::applicationDirPath() + QStringLiteral("/gifsicle");
 
-  // Actions
   auto* openAct = new QAction(QStringLiteral("&Open GIF files..."), this);
   openAct->setShortcut(QKeySequence::Open);
   connect(openAct, &QAction::triggered, this, &MainWindow::chooseInputs);
   auto* quitAct = new QAction(QStringLiteral("&Quit"), this);
   quitAct->setShortcut(QKeySequence::Quit);
   connect(quitAct, &QAction::triggered, this, &QWidget::close);
-  QMenu* fileMenu = menuBar()->addMenu(QStringLiteral("&File"));
-  fileMenu->addAction(openAct);
-  fileMenu->addSeparator();
-  fileMenu->addAction(quitAct);
+  auto* fileMenu = menuBar()->addMenu(QStringLiteral("&File"));
+  fileMenu->addAction(openAct); fileMenu->addSeparator(); fileMenu->addAction(quitAct);
 
-  // Central widget: inputs on the left, live command pane + actions on the right.
   auto* central = new QWidget(this);
   auto* root = new QVBoxLayout(central);
+  auto* content = new QHBoxLayout();
 
-  auto* topRow = new QHBoxLayout();
+  auto* left = new QVBoxLayout();
+  left->addWidget(new QLabel(QStringLiteral("Animation queue"), central));
   inputList_ = new QListWidget(central);
-  inputList_->setMinimumWidth(220);
-  topRow->addWidget(inputList_, 1);
-  root->addLayout(topRow);
+  inputList_->setAcceptDrops(true);
+  inputList_->setMinimumWidth(300);
+  left->addWidget(inputList_, 1);
+  auto* addButton = new QPushButton(QStringLiteral("Add GIF files…"), central);
+  connect(addButton, &QPushButton::clicked, this, &MainWindow::chooseInputs);
+  left->addWidget(addButton);
+  content->addLayout(left, 1);
 
+  auto* settingsBox = new QGroupBox(QStringLiteral("Optimize"), central);
+  auto* form = new QFormLayout(settingsBox);
+  optimizeSpin_ = new QSpinBox(settingsBox);
+  optimizeSpin_->setRange(0, 3); optimizeSpin_->setValue(3);
+  optimizeSpin_->setToolTip(QStringLiteral("Higher levels usually produce smaller GIFs."));
+  form->addRow(QStringLiteral("Optimization level"), optimizeSpin_);
+  lossySpin_ = new QSpinBox(settingsBox);
+  lossySpin_->setRange(0, 200); lossySpin_->setSpecialValueText(QStringLiteral("Off"));
+  lossySpin_->setValue(0);
+  form->addRow(QStringLiteral("Lossy compression"), lossySpin_);
+  auto* outputRow = new QHBoxLayout();
+  outputEdit_ = new QLineEdit(settingsBox);
+  outputEdit_->setPlaceholderText(QStringLiteral("Output file (optional)"));
+  auto* browse = new QPushButton(QStringLiteral("Browse…"), settingsBox);
+  connect(browse, &QPushButton::clicked, this, &MainWindow::chooseOutput);
+  outputRow->addWidget(outputEdit_); outputRow->addWidget(browse);
+  form->addRow(QStringLiteral("Save as"), outputRow);
+  auto* hint = new QLabel(QStringLiteral("The command preview is always kept in sync."), settingsBox);
+  hint->setWordWrap(true); form->addRow(hint);
+  content->addWidget(settingsBox, 1);
+  root->addLayout(content, 2);
+
+  root->addWidget(new QLabel(QStringLiteral("Generated gifsicle command"), central));
   commandPane_ = new QPlainTextEdit(central);
   commandPane_->setReadOnly(true);
-  commandPane_->setPlainText(QStringLiteral("# choose GIF files to begin"));
-  root->addWidget(commandPane_);
+  commandPane_->setPlaceholderText(QStringLiteral("Add a GIF to generate a command…"));
+  root->addWidget(commandPane_, 1);
 
-  auto* btnRow = new QHBoxLayout();
-  runButton_ = new QPushButton(QStringLiteral("Run command"), central);
+  auto* actions = new QHBoxLayout();
+  runButton_ = new QPushButton(QStringLiteral("Optimize GIF"), central);
+  runButton_->setEnabled(false);
   connect(runButton_, &QPushButton::clicked, this, &MainWindow::runCommand);
-  auto* refreshBtn = new QPushButton(QStringLiteral("Refresh command"), central);
-  connect(refreshBtn, &QPushButton::clicked, this, &MainWindow::refreshCommand);
-  btnRow->addWidget(runButton_);
-  btnRow->addWidget(refreshBtn);
-  root->addLayout(btnRow);
-
+  actions->addWidget(runButton_);
+  actions->addStretch();
+  statusLabel_ = new QLabel(QStringLiteral("Ready — add an animated GIF to begin."), central);
+  actions->addWidget(statusLabel_);
+  root->addLayout(actions);
+  connect(optimizeSpin_, qOverload<int>(&QSpinBox::valueChanged), this, &MainWindow::refreshCommand);
+  connect(lossySpin_, qOverload<int>(&QSpinBox::valueChanged), this, &MainWindow::refreshCommand);
   setCentralWidget(central);
 }
 
 void MainWindow::chooseInputs() {
-  QStringList files = QFileDialog::getOpenFileNames(
-      this, QStringLiteral("Open GIF files"), QString(),
-      QStringLiteral("GIF files (*.gif);;All files (*)"));
+  const auto files = QFileDialog::getOpenFileNames(this, QStringLiteral("Open GIF files"), QString(), QStringLiteral("GIF files (*.gif);;All files (*)"));
   if (files.isEmpty()) return;
-  inputs_ = files;
-  inputList_->clear();
-  for (const auto& f : files) inputList_->addItem(f);
+  inputs_ = files; inputList_->clear();
+  for (const auto& file : files) inputList_->addItem(QFileInfo(file).fileName());
+  runButton_->setEnabled(true); updateStatus(QStringLiteral("%1 GIF file(s) ready.").arg(files.size()));
   refreshCommand();
 }
 
+void MainWindow::chooseOutput() {
+  const auto file = QFileDialog::getSaveFileName(this, QStringLiteral("Save optimized GIF"), QString(), QStringLiteral("GIF files (*.gif)"));
+  if (!file.isEmpty()) { outputEdit_->setText(file); refreshCommand(); }
+}
+
 gs::Settings MainWindow::currentSettings() const {
-  gs::Settings s;
-  s.mode = gs::Mode::Merge;
-  s.inputs = inputs_.toStdVector();
-  // Default friendly settings (these would be bound to sliders/checkboxes):
-  s.optimize_level = 3;
-  s.loopcount = 0;
-  s.delay_cs = 5;
+  gs::Settings s; s.mode = gs::Mode::Merge; s.inputs = inputs_.toStdVector();
+  s.optimize_level = optimizeSpin_->value();
+  if (lossySpin_->value() > 0) s.lossy = lossySpin_->value();
+  s.output = outputEdit_->text().toStdString();
   return s;
 }
 
 void MainWindow::refreshCommand() {
-  gs::Settings s = currentSettings();
-  gs::GifsicleCommand cmd(s);
-  // Show the engine + the generated command (the "show me the command" pane).
-  commandPane_->setPlainText(
-      QStringLiteral("%1 %2").arg(enginePath_,
-                                   QString::fromStdString(cmd.toString())));
+  const auto settings = currentSettings();
+  gs::GifsicleCommand cmd(settings);
+  commandPane_->setPlainText(enginePath_ + QStringLiteral(" ") + QString::fromStdString(cmd.toString()));
 }
 
 void MainWindow::runCommand() {
-  gs::Settings s = currentSettings();
-  gs::GifsicleCommand cmd(s);
-  QString program = enginePath_;
-  QStringList args = QStringList::fromStdVector(cmd.args());
-
-  QProcess proc(this);
-  proc.setProgram(program);
-  proc.setArguments(args);
+  const auto settings = currentSettings();
+  gs::GifsicleCommand cmd(settings);
+  QProcess proc(this); proc.setProgram(enginePath_); proc.setArguments(QStringList::fromStdVector(cmd.args()));
   proc.start();
   if (!proc.waitForStarted(3000)) {
-    QMessageBox::critical(this, QStringLiteral("Gifscythe"),
-                          QStringLiteral("Could not start gifsicle engine.\n%1")
-                              .arg(proc.errorString()));
-    return;
+    QMessageBox::critical(this, QStringLiteral("Gifscythe"), QStringLiteral("Could not start gifsicle: %1").arg(proc.errorString())); return;
   }
   proc.waitForFinished(60000);
-  QString text = QString::fromLatin1(proc.readAllStandardOutput());
-  QString err = QString::fromLatin1(proc.readAllStandardError());
-  commandPane_->setPlainText(text + ((err.isEmpty()) ? QString() : (QStringLiteral("\n") + err)));
+  const auto err = QString::fromLocal8Bit(proc.readAllStandardError());
+  if (proc.exitStatus() != QProcess::NormalExit || proc.exitCode() != 0) {
+    updateStatus(QStringLiteral("Optimization failed."));
+    QMessageBox::warning(this, QStringLiteral("Gifscythe"), err.isEmpty() ? QStringLiteral("gifsicle returned an error.") : err);
+  } else {
+    updateStatus(QStringLiteral("Optimization complete."));
+  }
 }
+
+void MainWindow::updateStatus(const QString& message) { statusLabel_->setText(message); }

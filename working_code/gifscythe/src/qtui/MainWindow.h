@@ -21,6 +21,9 @@
 class QListWidget;
 class QPlainTextEdit;
 class QPushButton;
+class QSpinBox;
+class QLineEdit;
+class QLabel;
 
 #include "core/GifsicleSettings.h"
 #include "core/GifsicleCommand.h"
@@ -42,8 +45,16 @@ class MainWindow : public QMainWindow {
   QListWidget* inputList_;
   QPlainTextEdit* commandPane_;
   QPushButton* runButton_;
+  QSpinBox* optimizeSpin_;
+  QSpinBox* lossySpin_;
+  QLineEdit* outputEdit_;
+  QLabel* statusLabel_;
 
-  QString enginePath_ = QStringLiteral("../working_code/gifscythe/release/0.1.0/gifsicle");
+  QString enginePath_;
+
+  void chooseOutput();
+  void updateStatus(const QString& message);
+
   QStringList inputs_;
 };
 
