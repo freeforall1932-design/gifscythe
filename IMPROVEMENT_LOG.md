@@ -4,6 +4,20 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## 2026-09-06 — GUI MVP and packaging follow-up
+
+- Improved the Qt GUI with an animation queue, optimization and lossy controls,
+  output selection, generated command preview, status messages, and process
+  error handling.
+- Added portable and system-dependent packaging scripts.
+- Fixed clean engine builds by creating the versioned release directory.
+- Added SettingsIO parser coverage to the Qt-independent tests.
+- Added GitHub Actions CI. Linux passes with Qt6; Windows currently fails and is
+  the next investigation target.
+- Confirmed WebP/APNG remain deferred until the GIF UI/UX retrofit is complete.
+
+---
+
 ## 2026-09-06
 - **Created** `FEASIBILITY_REVIEW.md` — feasibility verdict for the 4 product
   asks (Caesium GUI base, XNConvert-like ease-of-use + terminal control,

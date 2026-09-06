@@ -1,0 +1,38 @@
+name: Build Gifscythe
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt6
+        run: sudo apt-get update && sudo apt-get install -y qt6-base-dev
+
+      - name: Build engine, CLI, tests, and GUI
+        working-directory: working_code/gifscythe
+        run: ./build.sh --all
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt6 and MinGW
+        shell: bash
+        run: |
+          choco install qt6-base mingw -y --no-progress
+
+      - name: Build native Windows engine
+        shell: bash
+        working-directory: working_code/gifscythe
+        run: ./scripts/build_gifsicle.sh --windows
+
+      - name: Build CLI and tests
+        shell: bash
+        working-directory: working_code/gifscythe
+        run: ./build.sh
