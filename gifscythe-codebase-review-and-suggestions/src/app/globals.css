@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #07080c;
+  --bg-2: #0c1018;
+  --panel: rgba(14, 18, 28, 0.78);
+  --line: rgba(232, 237, 247, 0.1);
+  --ink: #e8edf7;
+  --muted: #8b97ad;
+  --magenta: #ff2d6a;
+  --phosphor: #7dffb3;
+  --gold: #ffb020;
+  --steel: #9aa8c2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+code,
+pre,
+.mono {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.display {
+  font-family: var(--font-display), Georgia, serif;
+}
+
+.film-perforation {
+  background-image: radial-gradient(circle at 12px 12px, #07080c 6px, transparent 7px),
+    radial-gradient(circle at 12px calc(100% - 12px), #07080c 6px, transparent 7px);
+  background-size: 28px 100%;
+  background-repeat: repeat-x;
+}
+
+.scanlines::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.015),
+    rgba(255, 255, 255, 0.015) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(16px);
+}
+
+.sev-critical {
+  color: #ff6b8a;
+  background: rgba(255, 45, 106, 0.12);
+  border-color: rgba(255, 45, 106, 0.35);
+}
+
+.sev-major {
+  color: #ffd27a;
+  background: rgba(255, 176, 32, 0.12);
+  border-color: rgba(255, 176, 32, 0.35);
+}
+
+.sev-minor {
+  color: #b9c6dc;
+  background: rgba(154, 168, 194, 0.12);
+  border-color: rgba(154, 168, 194, 0.3);
+}
+
+.sev-advisory {
+  color: #8ef0c0;
+  background: rgba(125, 255, 179, 0.08);
+  border-color: rgba(125, 255, 179, 0.28);
+}
+
+.cat-broken {
+  color: #ff6b8a;
+}
+
+.cat-misaligned {
+  color: #ffd27a;
+}
+
+.cat-missing {
+  color: #8bb4ff;
+}
+
+.cat-refuted {
+  color: #8ef0c0;
+}
+
+.cat-new {
+  color: #ff8ad0;
+}
