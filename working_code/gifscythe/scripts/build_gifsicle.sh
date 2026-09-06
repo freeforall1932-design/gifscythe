@@ -76,6 +76,7 @@ else
 fi
 
 echo "==> Compiling gifsicle..."
+mkdir -p "$OUT/$VERSION"
 SRCS=
 for o in $OBJS; do
   SRCS="$SRCS src/$o.c"

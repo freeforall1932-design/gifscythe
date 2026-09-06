@@ -25,7 +25,12 @@ reference material (see the repo root `reference_code/`).
 ./scripts/build_gifsicle.sh          # engine (native) -> release/<version>/gifsicle
 ./scripts/build_gifsicle.sh --windows # Windows gifsicle.exe (needs mingw-w64)
 ./scripts/test_engine.sh             # verify engine (info/optimize/lossy/resize/explode)
+./scripts/package_portable.sh         # create release/<version>/Gifscythe
 ```
+
+`package_portable.sh` assembles a portable folder containing the engine, CLI,
+and documentation. After building the Qt GUI on Windows, use `windeployqt` to
+place the Qt runtime DLLs beside the GUI executable; no installer is required.
 
 ## Layout
 ```

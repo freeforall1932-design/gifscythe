@@ -3,7 +3,9 @@
 // Qt-independent; compiles with plain g++.
 
 #include "../src/core/GifsicleCommand.h"
+#include "../src/core/SettingsIO.h"
 #include <cassert>
+#include <sstream>
 #include <cstdio>
 #include <string>
 
@@ -108,6 +110,16 @@ int main() {
     CHECK(has(args, "--background"));
     CHECK(has(args, "#ffffff"));
     CHECK(has(args, "--transparent"));
+  }
+
+  // 6. Settings text format is case-insensitive and ignores unknown keys.
+  {
+    std::istringstream input("MODE = merge\noptimize=3\nlossy=40\ninput=one.gif\nunknown=value\n");
+    Settings s = load_settings(input);
+    CHECK(s.mode == Mode::Merge);
+    CHECK(s.optimize_level == 3);
+    CHECK(s.lossy == 40);
+    CHECK(s.inputs.size() == 1 && s.inputs[0] == "one.gif");
   }
 
   if (failures == 0) {
