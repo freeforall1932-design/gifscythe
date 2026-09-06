@@ -1,8 +1,0 @@
-id,claim,source,verdict,note,sort_order
-"P1-engine","P1 engine control layer complete","WORKLIST","holds","Core compiles clean with -Wall -Wextra -pedantic. 35/35 unit assertions pass. Flag mapping is faithful vs man page + committed gifsicle.c (loopcount=0, -O0, gamma sentinel all correct).","1"
-"gui-mvp","Qt6 GUI MVP scaffold + first retrofit","WORKLIST","partial","Window drives the core layer, but run flow is broken (U-B3 merge-weld, U-B4 stdout loss, U-B5 timeout lie) and the engine locator cannot find the default build output (NEW-2).","2"
-"linux-ci","Linux CI passes with Qt6 GUI","IMPROVEMENT_LOG / HANDOFF","partial","Job is green, but GUI build attempts are silenced/failure-tolerant (U-B7, U-M5) and no artifact proves a GUI was built. Green ≠ GUI built.","3"
-"cli-tests","CLI driver + integration tests","IMPROVEMENT_LOG","fails","CLI exists, but --run works from one CWD only and exits 0 on failure (U-B1, U-B2). No automated integration test exists (U-MISS-6). Reproduced this pass.","4"
-"packaging","Packaging scripts done","WORKLIST","partial","Scripts exist and pass bash -n, but expect the GUI where cmake never puts it and never copy gifsicle.exe (U-M6, NEW-5). A 'GUI release' can ship GUI-less and engine-less on Windows.","5"
-"no-1.0","Don't bump to 1.0.0 before UI/UX retrofit","VERSION / HANDOFF / WORKLIST","holds","Still 0.1.0. The criticals above are exactly why the rule must keep holding.","6"
-"webp-deferred","WebP/APNG deferred until GIF UI stable","VISION / bucket list","holds","Scope clean — no premature codec code in working_code/gifscythe/src.","7"
