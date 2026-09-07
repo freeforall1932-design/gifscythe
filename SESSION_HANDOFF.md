@@ -4,36 +4,31 @@
 **Branch:** `verify/windows-ci-fixes` (local; **push blocked — see §0**) ·
 **Product version:** 0.1.0 (unchanged — do not bump to 1.0.0 yet)
 
-## 0. BLOCKER FIRST: the push token is dead
+## 0. Push/CI status — RESOLVED 2026-09-07 (token #3 worked)
 
-**Two** fine-grained PATs handed to session S4 were **rejected by GitHub**
-(the second one too): API → `401 Bad credentials`; `git push` → `Invalid
-username or token` (tried all auth forms). Both are format-valid (93 chars,
-22+59 segments) — so they are expired/revoked at the source, not mis-copied.
-Reads work only because the repo is **public** (garbage-credential clone
-succeeds — do not mistake that for token health). When generating a new one:
-create it fresh, copy immediately (fine-grained PATs show once), and grant
-**Contents: R/W + Workflows: R/W + Pull requests: R/W** on this repo.
+Tokens #1 and #2 were rejected by GitHub (format-valid but expired/revoked).
+**Token #3 (provided later the same day) worked**: branch
+`verify/windows-ci-fixes` pushed, **PR #5 opened and MERGED** into `main`
+(merge commit `0ad1ff5`), and **main run #23 is GREEN on both jobs** with
+downloadable artifacts (`gifscythe-windows` 27.8 MB, `gifscythe-linux`
+0.7 MB). Lesson kept: generate PATs fresh, copy immediately, grant
+Contents/Workflows/Pull-requests R/W.
 
-**Everything sessions S4+S4b produced is committed locally on
-`verify/windows-ci-fixes`** (based on `main` @ `821a310`): the Windows CI
-fixes, the GUI harness, the full UI retrofit, and all doc updates. To land
-it, a new fine-grained PAT needs: **Contents: Read & write**, **Workflows:
-Read & write** (the branch touches `.github/workflows/build.yml`), **Pull
-requests: Read & write**, Metadata: Read (forced). Then:
+**Everything sessions S4+S4b produced is MERGED on `main`** (PR #5, merge
+`0ad1ff5`): the Windows CI fixes, the GUI harness, the full UI retrofit,
+and all doc updates. CI on main: linux ✅ + windows ✅ (run #23).
 
-```bash
-git push -u origin verify/windows-ci-fixes
-# open PR -> merge -> watch Actions run for the windows job (C2)
-```
+Next-session gates (audit §6): C4/D3/D4 clean-Windows windeployqt smoke from
+the `gifscythe-windows` artifact; desktop probes B5 / B6-plumbing /
+B14-engine-missing; then optional polish (naming templates, queue reorder,
+release-procedure doc) and the version decision (0.2.0 vs 1.0.0).
 
 ## TL;DR for the next session
 
-1. **Get a WORKING token and push the branch** (§0) — both PATs provided so
-   far were rejected by GitHub (format-valid but expired/revoked). Then
-   confirm **GitHub Actions windows job green** with downloadable
-   `gifscythe-windows` artifact (audit §6.C C2), and linux green **with the
-   new GUI offscreen steps**.
+1. **Clean-Windows smoke from the CI artifact** (audit C4/D3/D4): download
+   `gifscythe-windows` (run #23 or later), run `gifscythe.exe` +
+   `gifscythe-cli.exe` on a machine without Qt/MinGW — no missing-DLL
+   dialog, engine found beside the exe.
 2. From the artifact (or a real Windows box): clean-machine **windeployqt**
    smoke — GUI double-click finds `gifsicle.exe`, no missing-DLL dialog
    (C4/D3/D4).
