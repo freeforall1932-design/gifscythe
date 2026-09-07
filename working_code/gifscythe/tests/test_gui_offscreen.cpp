@@ -59,8 +59,10 @@
 #include <QTimer>
 #include <QUrl>
 
+#include <chrono>
 #include <cstdio>
 #include <filesystem>
+#include <thread>
 #include <string>
 #include <vector>
 
@@ -272,13 +274,32 @@ QString rowPath(DropListWidget* list, int row) {
 
 }  // namespace
 
+// Stage tracker + watchdog: on Windows CI the harness once hung with ZERO
+// output before its first printf (run #20). The watchdog thread starts
+// before QApplication exists, so even a hang inside platform-plugin init
+// reports where we got stuck, then exits 124 instead of burning CI hours.
+static std::string g_stage = "process start";
+
 int main(int argc, char** argv) {
   setbuf(stdout, nullptr);  // unbuffered: crash diagnostics keep our trace
+  setvbuf(stderr, nullptr, _IONBF, 0);
+  std::thread watchdog([] {
+    std::this_thread::sleep_for(std::chrono::seconds(480));
+    std::fprintf(stderr, "[harness] WATCHDOG (8 min): stuck at stage: %s\n",
+                 g_stage.c_str());
+    std::fflush(stderr);
+    _exit(124);
+  });
+  watchdog.detach();
+
+  g_stage = "constructing QApplication (platform plugin init)";
   qputenv("QT_QPA_PLATFORM", "offscreen");  // force offscreen even if unset
   QApplication app(argc, argv);
+  g_stage = "DialogKiller + header print";
   DialogKiller killer;
 
   std::printf("==> GUI offscreen tests (COMPILED_AUDIT 6.B + retrofit harness)\n");
+  g_stage = "engine/ref discovery";
 
   g_engine = QString::fromStdString(
       gs::locate_engine(QCoreApplication::applicationFilePath().toStdString()));
@@ -300,7 +321,7 @@ int main(int argc, char** argv) {
 
   // ================= T1: defaults (E4, B14, tabs) ========================
   {
-    std::printf("== T1 defaults + tabs ==\n");
+    g_stage = "T1"; std::printf("== T1 defaults + tabs ==\n");
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
     CHECK(x.list && x.pane && x.mode && x.optimize && x.lossy && x.output &&
@@ -327,7 +348,7 @@ int main(int argc, char** argv) {
 
   // ================= T2: live command pane sync (B13) ====================
   {
-    std::printf("== T2 live pane ==\n");
+    g_stage = "T2"; std::printf("== T2 live pane ==\n");
     QTemporaryDir tmp;
     CHECK(tmp.isValid());
     const QString a = tmp.path() + QStringLiteral("/a.gif");
@@ -367,7 +388,7 @@ int main(int argc, char** argv) {
 
   // ================= T3: queue ops (B6/B7/B8/B9) =========================
   {
-    std::printf("== T3 queue ops ==\n");
+    g_stage = "T3"; std::printf("== T3 queue ops ==\n");
     QTemporaryDir tmp;
     const QString a = tmp.path() + QStringLiteral("/a.gif");
     const QString b = tmp.path() + QStringLiteral("/b.gif");
@@ -414,7 +435,7 @@ int main(int argc, char** argv) {
 
   // ================= T4: Batch E2E (B10) + explicit output (E1) ==========
   {
-    std::printf("== T4 batch E2E ==\n");
+    g_stage = "T4"; std::printf("== T4 batch E2E ==\n");
     QTemporaryDir tmp;
     const QString a = tmp.path() + QStringLiteral("/a.gif");   // 12 frames
     const QString b = tmp.path() + QStringLiteral("/b.gif");   // 1 frame
@@ -461,7 +482,7 @@ int main(int argc, char** argv) {
 
   // ================= T5: Merge E2E (B11) =================================
   {
-    std::printf("== T5 merge E2E ==\n");
+    g_stage = "T5"; std::printf("== T5 merge E2E ==\n");
     QTemporaryDir tmp;
     const QString a = tmp.path() + QStringLiteral("/a.gif");
     const QString b = tmp.path() + QStringLiteral("/b.gif");
@@ -484,7 +505,7 @@ int main(int argc, char** argv) {
 
   // ================= T6: Merge empty output refuses (B12) ================
   {
-    std::printf("== T6 merge refuse ==\n");
+    g_stage = "T6"; std::printf("== T6 merge refuse ==\n");
     QTemporaryDir tmp;
     const QString a = tmp.path() + QStringLiteral("/a.gif");
     const QString b = tmp.path() + QStringLiteral("/b.gif");
@@ -509,7 +530,7 @@ int main(int argc, char** argv) {
 
   // ================= T7: Explode auto-prefix (E2) ========================
   {
-    std::printf("== T7 explode ==\n");
+    g_stage = "T7"; std::printf("== T7 explode ==\n");
     QTemporaryDir tmp;
     const QString a = tmp.path() + QStringLiteral("/a.gif");
     CHECK(copyFile(logo, a));
@@ -530,7 +551,7 @@ int main(int argc, char** argv) {
 
   // ================= T8: failed run is honest (B4) =======================
   {
-    std::printf("== T8 failure honesty ==\n");
+    g_stage = "T8"; std::printf("== T8 failure honesty ==\n");
     QTemporaryDir tmp;
     const QString ghost = tmp.path() + QStringLiteral("/ghost.gif");  // missing
 
@@ -550,7 +571,7 @@ int main(int argc, char** argv) {
 
   // ================= T9: busy UI + cancel mid-run (B1/B2/B3) =============
   {
-    std::printf("== T9 cancel mid-run ==\n");
+    g_stage = "T9"; std::printf("== T9 cancel mid-run ==\n");
     QTemporaryDir tmp;
     const QString big = tmp.path() + QStringLiteral("/big.gif");
     std::printf("  (building 4800-frame GIF for a multi-second run...)\n");
@@ -595,7 +616,7 @@ int main(int argc, char** argv) {
 
   // ================= T10: close while running (B15) ======================
   {
-    std::printf("== T10 close while running ==\n");
+    g_stage = "T10"; std::printf("== T10 close while running ==\n");
     QTemporaryDir tmp;
     const QString big = tmp.path() + QStringLiteral("/big.gif");
     CHECK_MSG(makeBigGif(logo, big, 400), "big.gif generated");
@@ -616,7 +637,7 @@ int main(int argc, char** argv) {
 
   // ================= T11: Actions controls -> gifsicle flags =============
   {
-    std::printf("== T11 control mapping ==\n");
+    g_stage = "T11"; std::printf("== T11 control mapping ==\n");
     QTemporaryDir tmp;
     const QString a = tmp.path() + QStringLiteral("/a.gif");
     CHECK(copyFile(logo, a));
@@ -833,7 +854,7 @@ int main(int argc, char** argv) {
 
   // ================= T12: preview pipeline (S3-7) ========================
   {
-    std::printf("== T12 preview ==\n");
+    g_stage = "T12"; std::printf("== T12 preview ==\n");
     QTemporaryDir tmp;
     const QString a = tmp.path() + QStringLiteral("/a.gif");
     CHECK(copyFile(logo, a));
@@ -869,7 +890,7 @@ int main(int argc, char** argv) {
 
   // ================= T13: Output tab (batch folder + summary) ============
   {
-    std::printf("== T13 output tab ==\n");
+    g_stage = "T13"; std::printf("== T13 output tab ==\n");
     QTemporaryDir tmp;
     const QString a = tmp.path() + QStringLiteral("/a.gif");
     const QString b = tmp.path() + QStringLiteral("/b.gif");

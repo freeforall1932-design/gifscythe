@@ -439,7 +439,7 @@ void SettingsPanel::buildUi() {
 }
 
 QString SettingsPanel::pickColor(const QString& current) {
-  QColor initial = QColor::isValidColor(current) ? QColor(current) : Qt::white;
+  QColor initial = QColor::isValidColorName(current) ? QColor(current) : Qt::white;
   const QColor c = QColorDialog::getColor(initial, this, QStringLiteral("Choose color"));
   if (!c.isValid()) return {};
   return c.name(QColor::HexRgb);  // #rrggbb — gifsicle color syntax
