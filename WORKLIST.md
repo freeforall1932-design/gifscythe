@@ -22,14 +22,30 @@
       live pane sync, `save_settings`/`validate`, packaging, `shell_quote`,
       Settings-by-value
 - [x] Smoke suite + engine tests scripts; CI recipe proposed in `docs/ci/build.yml.proposed`
-- [ ] Apply `docs/ci/build.yml.proposed` → `.github/workflows/build.yml` (needs `workflows` permission on the GitHub App / manual commit)
+- [x] Apply `docs/ci/build.yml.proposed` → `.github/workflows/build.yml` — applied
+      by maintainer in `821a310`; S4 hardened both copies (static-link CLI/tests,
+      Ninja generator, native Windows E2E smoke, GUI offscreen steps).
+      **Push of S4 hardening blocked: provided PAT is invalid (see HANDOFF).**
 - [x] Merged compiled audit (S1+S2+S3) → `COMPILED_AUDIT.md`
 
 ### Gates before more features
-- [ ] **Verify fixes** (`COMPILED_AUDIT.md` §6) — CLI/GUI/CI/packaging + new-pit probes
+- [x] **Verify fixes** (`COMPILED_AUDIT.md` §6) — executed 2026-09-07 (S4) with
+      evidence: §6.A 12/12 + new A13 (Wine), §6.B via 81-check offscreen harness,
+      §6.C local items, §6.D local items, §6.E 8/8. One-command rerun:
+      `working_code/gifscythe/scripts/verify_audit.sh` (21 PASS / 0 FAIL / 2 SKIP)
+- [x] Windows engine + CLI **proven under Wine**: `gifsicle.exe` runs
+      (`1.96 (Windows)`), CLI E2E with `C:\` paths + spaces + honest exit 1;
+      found & fixed two Windows-only bugs (engine `-I.` recipe, `_spawnvp`
+      space-splitting → CreateProcessA + quoting; static-linked exes)
+- [ ] **Get a valid push token** — provided PAT rejected by GitHub (Bad
+      credentials / Invalid token); all S4 work sits on local branch
+      `verify/windows-ci-fixes`
 - [ ] Windows GitHub Actions job **green** with downloadable artifact
-- [ ] Full GUI verification on Qt6 (Linux + Windows desktop)
-- [ ] Clean-machine portable smoke (esp. Windows + `windeployqt`)
+      (fix staged; rerun after push = C2)
+- [ ] Clean-machine portable smoke (esp. Windows + `windeployqt`) — from CI
+      artifact after C2 (C4/D3/D4)
+- [ ] One-time real-desktop GUI probes: B5 (kill engine mid-run), B6 physical
+      drag-drop, B14 engine-missing GUI variant
 
 ### GIF UI/UX → 1.0.0
 - [ ] Input / Actions / Output tab flow (XNConvert feel)
@@ -42,9 +58,12 @@
 
 ## Next actions (ordered)
 
-1. Run `COMPILED_AUDIT.md` §6 on Linux (and Windows when available).
-2. Confirm rewritten Windows CI (aqtinstall + win32cfg engine + windeployqt).
-3. Finish XNConvert-style tabs + preview + remaining controls.
+1. **Obtain a valid fine-grained PAT** (Contents R/W, Workflows R/W, Pull
+   requests R/W) → push `verify/windows-ci-fixes` → PR → merge.
+2. Watch Actions: windows job must go green (C2); download artifact; clean-VM
+   windeployqt smoke (C4/D3/D4).
+3. Finish XNConvert-style tabs + preview + remaining controls (harness now
+   guards batch/merge/cancel/pane invariants — extend it per new feature).
 4. Clean portable package on a machine without Qt installed.
 5. **Only then** 1.0.0. WebP/APNG stay blocked.
 
@@ -65,9 +84,12 @@ cd working_code/gifscythe
 ./build.sh --all           # also GUI (requires Qt6; fails honestly if missing)
 ./scripts/test_engine.sh
 ./scripts/smoke_cli.sh
+./scripts/verify_audit.sh  # whole COMPILED_AUDIT §6 suite in one command
 ./scripts/package_portable.sh
 ./scripts/package_system.sh
 ./scripts/build_gifsicle.sh --windows   # needs mingw-w64
+# GUI harness (needs Qt6): cmake -S . -B build-cmake && cmake --build build-cmake
+#   && QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
 ```
 
 ## Do not
