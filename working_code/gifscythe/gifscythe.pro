@@ -18,11 +18,15 @@ VERSION = 0.1.0
 
 SOURCES += \
     src/qtui/main.cpp \
-    src/qtui/MainWindow.cpp
+    src/qtui/MainWindow.cpp \
+    src/qtui/SettingsPanel.cpp \
+    src/qtui/PreviewPanel.cpp
 
 HEADERS += \
     src/qtui/MainWindow.h \
     src/qtui/DropListWidget.h \
+    src/qtui/SettingsPanel.h \
+    src/qtui/PreviewPanel.h \
     src/core/GifsicleSettings.h \
     src/core/GifsicleCommand.h \
     src/core/SettingsIO.h \

@@ -54,6 +54,10 @@ if(BUILD_GUI)
       src/qtui/MainWindow.cpp
       src/qtui/MainWindow.h
       src/qtui/DropListWidget.h
+      src/qtui/SettingsPanel.cpp
+      src/qtui/SettingsPanel.h
+      src/qtui/PreviewPanel.cpp
+      src/qtui/PreviewPanel.h
     )
     target_link_libraries(gifscythe PRIVATE gifscythe_core Qt6::Widgets)
     target_include_directories(gifscythe PRIVATE src "${CMAKE_BINARY_DIR}/generated")
@@ -64,6 +68,10 @@ if(BUILD_GUI)
       src/qtui/MainWindow.cpp
       src/qtui/MainWindow.h
       src/qtui/DropListWidget.h
+      src/qtui/SettingsPanel.cpp
+      src/qtui/SettingsPanel.h
+      src/qtui/PreviewPanel.cpp
+      src/qtui/PreviewPanel.h
     )
     target_link_libraries(test_gui_offscreen PRIVATE gifscythe_core Qt6::Widgets)
     target_include_directories(test_gui_offscreen PRIVATE src "${CMAKE_BINARY_DIR}/generated")
