@@ -1,34 +1,57 @@
 // GifsicleCommand.h - Builds a gifsicle command line from GifsicleSettings.
 //
 // Two outputs:
-//   1. args()    - argv vector (ready to exec a gifsicle subprocess)
-//   2. toString()- the raw CLI string shown in the live "show me the command"
-//                   pane, keeping full terminal control visible to power users.
+//   1. args()    - argv vector (ready to exec a gifsicle subprocess — NEVER shell)
+//   2. toString()- shell-quoted CLI string for the live "show me the command" pane
 //
-// Qt-independent (STL only).
+// Qt-independent (STL only). Settings are stored BY VALUE (no dangling refs).
 
-#ifndef GIFSYCYTHE_CORE_GIFSICLE_COMMAND_H
-#define GIFSYCYTHE_CORE_GIFSICLE_COMMAND_H
+#ifndef GIFSCYTHE_CORE_GIFSICLE_COMMAND_H
+#define GIFSCYTHE_CORE_GIFSICLE_COMMAND_H
 
 #include "GifsicleSettings.h"
 #include <sstream>
+#include <cctype>
 
 namespace gs {
 
+// Quote a single argument for safe display / copy-paste into a POSIX shell.
+// Used ONLY for display — execution always goes through argv (no shell).
+inline std::string shell_quote(const std::string& a) {
+  if (a.empty()) return "''";
+  bool safe = true;
+  for (unsigned char c : a) {
+    if (!(std::isalnum(c) || c == '/' || c == '.' || c == '_' || c == '-' ||
+          c == '+' || c == '=' || c == ':' || c == '@' || c == '%' || c == ',')) {
+      safe = false;
+      break;
+    }
+  }
+  if (safe) return a;
+  std::string out = "'";
+  for (char c : a) {
+    if (c == '\'') out += "'\\''";
+    else out += c;
+  }
+  out += "'";
+  return out;
+}
+
 class GifsicleCommand {
  public:
-  explicit GifsicleCommand(const Settings& s) : settings_(s) {}
+  // Store by value so temporaries (GifsicleCommand(currentSettings())) are safe.
+  explicit GifsicleCommand(Settings s) : settings_(std::move(s)) {}
 
   // Build the argv vector (without the program name).
   const std::vector<std::string>& args();
 
-  // Build a shell-friendly command line string for display.
+  // Build a shell-quoted command line string for display (not for system()).
   std::string toString();
 
  private:
   void build();
 
-  const Settings& settings_;
+  Settings settings_;
   std::vector<std::string> args_;
   bool built_ = false;
 };
@@ -44,12 +67,13 @@ inline std::string i2s(int x) { return std::to_string(x); }
 
 inline std::string f2s(double x) {
   std::ostringstream o;
+  o.precision(10);
   o << x;
   return o.str();
 }
 
 inline std::string optimization_opt(int level) {
-  // -O is fine without a value (=1), but we pass the explicit level attached.
+  // -O0 is valid ("no optimization"); -O without value = 1.
   if (level == 1) return "-O";
   return "-O" + std::to_string(level);
 }
@@ -79,12 +103,26 @@ inline void GifsicleCommand::build() {
   if (s.color_count >= 2 && s.color_count <= 256) {
     add(args_, "-k"); add(args_, i2s(s.color_count));
   }
-  if (s.dither) add(args_, "-f");
+  // Dither: prefer explicit method string; fall back to bare -f when bool set.
+  if (!s.dither_method.empty()) {
+    if (s.dither_method == "none") {
+      // emit nothing
+    } else {
+      add(args_, "--dither=" + s.dither_method);
+    }
+  } else if (s.dither) {
+    add(args_, "-f");
+  }
   if (s.lossy >= 0 && s.lossy <= 200) {
     // --lossy takes an OPTIONAL value; gifsicle wants it attached (=N).
     add(args_, "--lossy=" + i2s(s.lossy));
   }
-  if (s.gamma >= 0) { add(args_, "--gamma"); add(args_, f2s(s.gamma)); }
+  // Gamma: prefer string form (supports srgb|oklab|NUM); legacy double as fallback.
+  if (!s.gamma_str.empty()) {
+    add(args_, "--gamma=" + s.gamma_str);
+  } else if (s.gamma >= 0) {
+    add(args_, "--gamma=" + f2s(s.gamma));
+  }
   if (!s.color_method.empty()) {
     add(args_, "--color-method"); add(args_, s.color_method);
   }
@@ -134,7 +172,7 @@ inline void GifsicleCommand::build() {
     add(args_, u2s(s.position_x) + "," + u2s(s.position_y));
   }
 
-  // Crop
+  // Crop — gifsicle wants X,Y+WIDTHxHEIGHT (plus form), NOT comma before size.
   if (s.crop) {
     add(args_, "--crop");
     add(args_, u2s(s.crop_x) + "," + u2s(s.crop_y) + "+" +
@@ -153,18 +191,19 @@ inline void GifsicleCommand::build() {
   for (const auto& c : s.comments) { add(args_, "--comment"); add(args_, c); }
 
   // Animation options
+  // delay_cs is in 1/100 s (gifsicle -d units), NOT milliseconds.
   if (s.delay_cs >= 0) { add(args_, "-d"); add(args_, i2s(s.delay_cs)); }
   if (s.disposal >= 0 && s.disposal <= 7) {
     add(args_, "--disposal"); add(args_, i2s(s.disposal));
   }
   if (s.loopcount == 0) {
-    // --loopcount requires attached value; 0 = loop forever.
+    // --loopcount=0 is equivalent to forever (man page confirmed).
     add(args_, "--loopcount=0");
   } else if (s.loopcount > 0) {
     add(args_, "--loopcount=" + i2s(s.loopcount));
   }
   if (s.optimize_level >= 0 && s.optimize_level <= 3) {
-    // -O takes an OPTIONAL level; attach it (-O3).
+    // -O0 is valid ("off"); attach the level (-O3).
     add(args_, optimization_opt(s.optimize_level));
   }
   if (s.unoptimize) add(args_, "-U");
@@ -184,11 +223,11 @@ inline std::string GifsicleCommand::toString() {
   std::ostringstream o;
   for (size_t i = 0; i < args_.size(); ++i) {
     if (i) o << " ";
-    o << args_[i];
+    o << shell_quote(args_[i]);
   }
   return o.str();
 }
 
 }  // namespace gs
 
-#endif  // GIFSYCYTHE_CORE_GIFSICLE_COMMAND_H
+#endif  // GIFSCYTHE_CORE_GIFSICLE_COMMAND_H

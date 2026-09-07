@@ -2,83 +2,138 @@
 #
 # build.sh - One-command build for Gifscythe.
 #
-#   ./build.sh            build engine + CLI + run unit tests (always)
-#                         + GUI (only where Qt6 is installed)
-#   ./build.sh --gui      build only the Qt6 GUI (skip engine/tests)
-#   ./build.sh --all      build engine + GUI (requires Qt6)
-#
-# Designed so the next session needs no explanation:
-#   - The gifsicle ENGINE always builds natively (or --windows cross-compile).
-#   - The CORE + CLI always build.
-#   - The Qt6 GUI builds only where Qt6 is present; otherwise a clear message
-#     is printed and the rest still succeeds.
+#   ./build.sh            build engine + CLI + unit tests (always)
+#   ./build.sh --gui      also build the Qt6 GUI (fail if Qt6 missing)
+#   ./build.sh --all      same as --gui (engine + CLI + tests + GUI)
 #
 # Output:
-#   build/core/    cli driver (gifscythe-cli)
-#   build/gui/     GUI binary (gifscythe) if Qt6 present
-#   release/<v>/   engine binary
+#   build/gifscythe-cli
+#   build/test_gifsicle_command
+#   build/gifscythe          (GUI, if requested and Qt6 present — cmake path)
+#   build/gui/gifscythe      (GUI, if built via qmake)
+#   release/<v>/gifsicle     (engine)
 #
-# Everything compiles/links with whatever is available (gcc/g++ + Qt). No
-# autotools needed. This runs on a machine with Qt6, or a bare one (GUI skipped).
-
-set -uo pipefail
+set -euo pipefail
 self="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-root="$(cd "$self/../.." && pwd)"
 BUILD_DIR="$self/build"
 mkdir -p "$BUILD_DIR"
+LOG="$BUILD_DIR/build.log"
+: > "$LOG"
+
+version="$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' "$self/VERSION.md" \
+  | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+version="${version:-0.1.0}"
 
 want_gui=0
-case "${1:-}" in
-  --gui)  want_gui=1;;
-  --all)  want_gui=1;;
-  "")     want_gui=auto;;
-esac
-[[ "${want_gui}" == "auto" ]] && want_gui=0
+engine_arg=""
+for arg in "$@"; do
+  case "$arg" in
+    --gui|--all) want_gui=1 ;;
+    --windows)   engine_arg="--windows" ;;
+  esac
+done
 
-# 1. Build the gifsicle ENGINE.
+fail() { echo "ERROR: $*" >&2; exit 1; }
+
+# Keep src/core/version.h in sync with VERSION.md for direct g++ builds.
+cat > "$self/src/core/version.h" <<EOF
+// Auto-synced from VERSION.md by build.sh — do not edit by hand.
+#ifndef GIFSCYTHE_CORE_VERSION_H
+#define GIFSCYTHE_CORE_VERSION_H
+
+#define GS_VERSION "$version"
+#define GS_VERSION_STR "$version"
+
+#endif  // GIFSCYTHE_CORE_VERSION_H
+EOF
+
+# 1. Engine
 echo "==> [1/4] Building gifsicle engine..."
-"$self/scripts/build_gifsicle.sh" "${2:-}" || { echo "engine build failed"; exit 1; }
+"$self/scripts/build_gifsicle.sh" $engine_arg || fail "engine build failed"
 
-# 2. Build the CLI driver (engine control layer).
+# 2. CLI
 echo "==> [2/4] Building CLI driver (gifscythe-cli)..."
-g++ -std=c++17 -O2 -I"$self/src" -o "$BUILD_DIR/gifscythe-cli" "$self/src/cli/main.cpp" \
-  || { echo "CLI build failed"; exit 1; }
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/gifscythe-cli" "$self/src/cli/main.cpp" \
+  || fail "CLI build failed"
 
-# 3. Run unit tests.
+# 3. Unit tests
 echo "==> [3/4] Running unit tests..."
-g++ -std=c++17 -O2 -I"$self/src" -o "$BUILD_DIR/test_gifsicle_command" \
-  "$self/tests/test_gifsicle_command.cpp" && "$BUILD_DIR/test_gifsicle_command" \
-  || { echo "unit tests failed"; exit 1; }
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/test_gifsicle_command" "$self/tests/test_gifsicle_command.cpp" \
+  || fail "unit test compile failed"
+"$BUILD_DIR/test_gifsicle_command" || fail "unit tests failed"
 
-# 4. Build the Qt6 GUI, only if Qt6 is available (or explicitly requested).
-echo "==> [4/4] Checking for Qt6 to build the GUI..."
-qt_found=0
-if command -v qmake6 >/dev/null 2>&1; then
-  qt_found=1
-elif command -v qmake >/dev/null 2>&1; then
-  qt_found=1
-elif command -v cmake >/dev/null 2>&1; then
-  # cmake path: let CMake find Qt6; if absent the target is skipped.
-  ( cd "$BUILD_DIR" && cmake -S "$self" -B . -DBUILD_GUI=ON >/dev/null 2>&1 \
-    && cmake --build . >/dev/null 2>&1 ) \
-    && { echo "   GUI built via cmake"; qt_found=1; }
-fi
+# 4. GUI (only when requested)
+echo "==> [4/4] Qt6 GUI..."
+gui_built=0
+gui_path=""
 
-if [[ "$qt_found" == "1" && "$want_gui" == "1" ]]; then
-  echo "   Qt6 present; building GUI with qmake..."
-  ( cd "$BUILD_DIR/gui" 2>/dev/null || mkdir -p "$BUILD_DIR/gui"; \
-    cd "$BUILD_DIR/gui" && qmake6 "$self/gifscythe.pro" >/dev/null 2>&1 \
-    && make >/dev/null 2>&1 ) \
-    && echo "   GUI built: $BUILD_DIR/gui/gifscythe" \
-    || echo "   GUI build failed (see Qt errors above)."
-elif [[ "$want_gui" == "1" ]]; then
-  echo "   Qt6 NOT found; GUI skipped. Install Qt6 (e.g. 'sudo apt install qt6-base-dev') or build on a Qt machine."
+build_gui_cmake() {
+  local bdir="$BUILD_DIR/cmake"
+  mkdir -p "$bdir"
+  if cmake -S "$self" -B "$bdir" -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON >>"$LOG" 2>&1 \
+     && cmake --build "$bdir" >>"$LOG" 2>&1; then
+    if [[ -x "$bdir/gifscythe" ]]; then
+      cp "$bdir/gifscythe" "$BUILD_DIR/gifscythe"
+      gui_path="$BUILD_DIR/gifscythe"
+      return 0
+    elif [[ -x "$bdir/gifscythe.exe" ]]; then
+      cp "$bdir/gifscythe.exe" "$BUILD_DIR/gifscythe.exe"
+      gui_path="$BUILD_DIR/gifscythe.exe"
+      return 0
+    fi
+    # cmake may have skipped GUI if Qt missing
+    if grep -q "Qt6 NOT found" "$LOG" 2>/dev/null; then
+      return 1
+    fi
+  fi
+  return 1
+}
+
+build_gui_qmake() {
+  local qmake_bin=""
+  if command -v qmake6 >/dev/null 2>&1; then qmake_bin=qmake6
+  elif command -v qmake >/dev/null 2>&1; then qmake_bin=qmake
+  else return 1
+  fi
+  mkdir -p "$BUILD_DIR/gui"
+  (
+    cd "$BUILD_DIR/gui"
+    "$qmake_bin" "$self/gifscythe.pro" >>"$LOG" 2>&1
+    # Prefer make, fall back to mingw32-make
+    if command -v make >/dev/null 2>&1; then make >>"$LOG" 2>&1
+    elif command -v mingw32-make >/dev/null 2>&1; then mingw32-make >>"$LOG" 2>&1
+    else return 1
+    fi
+  ) || return 1
+  if [[ -x "$BUILD_DIR/gui/gifscythe" ]]; then
+    gui_path="$BUILD_DIR/gui/gifscythe"; return 0
+  fi
+  if [[ -x "$BUILD_DIR/gui/gifscythe.exe" ]]; then
+    gui_path="$BUILD_DIR/gui/gifscythe.exe"; return 0
+  fi
+  return 1
+}
+
+if [[ "$want_gui" == "1" ]]; then
+  if build_gui_qmake || build_gui_cmake; then
+    gui_built=1
+    echo "   GUI built: $gui_path"
+  else
+    echo "   GUI build FAILED. Last log lines:" >&2
+    tail -n 40 "$LOG" >&2 || true
+    fail "Qt6 GUI was requested (--gui/--all) but could not be built. Install Qt6 (qt6-base-dev) or see $LOG"
+  fi
 else
-  echo "   Done (GUI not requested; pass --all or --gui to build it)."
+  # Opportunistic attempt is NOT done — default path is engine+CLI+tests only.
+  echo "   GUI not requested (pass --all or --gui to build it)."
 fi
 
 echo ""
-echo "==> Build complete."
-echo "   Engine:  $self/release/$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' "$self/VERSION.md" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')/gifsicle"
+echo "==> Build complete (v$version)."
+echo "   Engine:  $self/release/$version/gifsicle"
 echo "   CLI:     $BUILD_DIR/gifscythe-cli"
-echo "   (GUI:    $BUILD_DIR/gui/gifscythe   if Qt6 was present)"
+if [[ "$gui_built" == "1" ]]; then
+  echo "   GUI:     $gui_path"
+fi

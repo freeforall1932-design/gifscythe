@@ -1,0 +1,23 @@
+Gifscythe License Notice
+========================
+
+Gifscythe (the GUI and control-layer code under working_code/gifscythe/) is
+intended to be distributed under the GNU General Public License version 3
+(or, at your option, any later version), consistent with the Caesium UI/UX
+base (GPLv3) that the product adapts.
+
+The bundled gifsicle engine is a SEPARATE PROGRAM, invoked as a subprocess.
+gifsicle is Copyright (C) Eddie Kohler and is licensed under the GNU General
+Public License, Version 2 ONLY. See COPYING.gifsicle and
+reference_code/gifsicle/COPYING.
+
+Because gifsicle is GPL v2-only, it is NEVER linked into the Gifscythe binary.
+Shipping gifsicle alongside Gifscythe requires redistributing its license text
+(COPYING.gifsicle) and offering its corresponding source (the reference_code/
+gifsicle tree, or upstream https://github.com/kohler/gifsicle).
+
+Qt is used under the LGPL v3 (or a commercial Qt license, if you have one).
+
+For the full GPLv2 text covering the engine, see COPYING.gifsicle.
+For the full GPLv3 text, see https://www.gnu.org/licenses/gpl-3.0.html
+(or the COPYING file shipped with a full source release).

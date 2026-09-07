@@ -1,20 +1,25 @@
 # Build outputs
 /build/
+/build-win/
 build/
 *.o
 *.a
 *.so
 gifscythe-cli
+gifscythe
 
 # Compiled engine binaries (built, not committed)
 release/*/gifsicle
 release/*/gifsicle.exe
+release/*/Gifscythe/
+release/*/Gifscythe-system/
 
 # Qt / CMake
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 Makefile
+*.user
 
 # Editor/OS
 .DS_Store
