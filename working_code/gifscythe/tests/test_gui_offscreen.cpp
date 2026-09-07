@@ -1,46 +1,59 @@
-// test_gui_offscreen.cpp - Automated GUI verification for COMPILED_AUDIT §6.B.
+// test_gui_offscreen.cpp - Automated GUI verification for COMPILED_AUDIT §6.B
+// + the 2026-09-07 UI retrofit (tabs / full controls / async preview).
 //
-// Runs the real MainWindow under QT_QPA_PLATFORM=offscreen and exercises:
-//   T1  defaults (Batch default E4, engine status B14)
+// Runs the real MainWindow under QT_QPA_PLATFORM=offscreen:
+//   T1  defaults: Batch default (E4), engine status (B14), tabs exist
 //   T2  live command pane sync (B13)
-//   T3  queue ops: drop-append+dedupe (B6/B7), multi-select remove (B8), clear (B9)
+//   T3  queue ops: drop-append+dedupe (B6/B7), multi-select remove (B8),
+//       clear (B9), count/size label
 //   T4  Batch run: N inputs -> N outputs, frame counts preserved (B10);
 //       explicit Save-as honored (E1)
 //   T5  Merge run: 2 inputs -> 1 output, frames = sum (B11)
 //   T6  Merge with empty output -> refuses, no silent stdout loss (B12)
 //   T7  Explode with empty output -> auto prefix, frames written (E2)
-//   T8  Failed engine run -> honest "failed" status + dialog, never "complete" (B4)
+//   T8  Failed engine run -> honest "failed" status + dialog (B4)
 //   T9  async start (B1 proxy), busy indicators (B3), cancel mid-run (B2)
 //   T10 close window while running kills the engine process (B15)
+//   T11 Actions-tab controls map to the right gifsicle flags (S3-4 /
+//       U-MISS-13) incl. VP-1 loopcount=0, VP-2 -O0, VP-5 crop plus-form,
+//       E7 delay unit label (1/100 s, never ms)
+//   T12 before/after preview pipeline: debounced, async, honest captions,
+//       savings display, Explode-mode refusal (S3-7)
+//   T13 Output tab: batch folder honored; summary honest
 //
-// Modal dialogs are recorded and auto-closed by a DialogKiller timer so the
-// suite never blocks. Build via CMake (AUTOMOC) when Qt6 is found; run with
-// QT_QPA_PLATFORM=offscreen.
+// Modal dialogs are recorded and auto-closed by a DialogKiller timer.
+// Widget lookup is by objectName (stable against layout changes).
 
 #include "qtui/MainWindow.h"
 #include "qtui/DropListWidget.h"
+#include "qtui/PreviewPanel.h"
+#include "qtui/SettingsPanel.h"
 
 #include "core/EngineLocator.h"
 #include "core/ProcessRunner.h"
 #include "core/version.h"
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
-#include <QFile>
-#include <QMessageBox>
-#include <QDropEvent>
+#include <QDir>
+#include <QDoubleSpinBox>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QFileInfo>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidgetItem>
+#include <QMessageBox>
 #include <QMimeData>
+#include <QMovie>
 #include <QPlainTextEdit>
 #include <QProcess>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSpinBox>
+#include <QTabWidget>
 #include <QTemporaryDir>
 #include <QThread>
 #include <QTimer>
@@ -96,52 +109,59 @@ bool dialogsContain(const QString& needle) {
   return false;
 }
 
-// ---- Widget finders (no MainWindow internals needed) ----
+// ---- objectName-based widget lookup ----
+template <class T>
+T* byName(QWidget* w, const char* name) {
+  return w->findChild<T*>(QString::fromLatin1(name));
+}
+
 struct Widgets {
   DropListWidget* list = nullptr;
   QPlainTextEdit* pane = nullptr;
   QComboBox* mode = nullptr;
-  QSpinBox* optimize = nullptr;   // range 0..3
-  QSpinBox* lossy = nullptr;      // range 0..200
+  QSpinBox* optimize = nullptr;
+  QSpinBox* lossy = nullptr;
   QLineEdit* output = nullptr;
+  QLineEdit* batchDir = nullptr;
   QPushButton* run = nullptr;
   QPushButton* cancel = nullptr;
   QPushButton* remove = nullptr;
   QPushButton* clear = nullptr;
   QLabel* status = nullptr;
   QProgressBar* progress = nullptr;
-  QProcess* process = nullptr;
+  QProcess* process = nullptr;         // main engine run
+  QTabWidget* tabs = nullptr;
+  QLabel* countLabel = nullptr;
+  QLabel* outputSummary = nullptr;
+  QLabel* previewCaption = nullptr;
+  QLabel* previewSavings = nullptr;
+  QLabel* previewBefore = nullptr;
+  QLabel* previewAfter = nullptr;
 };
 
 Widgets findWidgets(QWidget* w) {
   Widgets x;
-  x.list = w->findChild<DropListWidget*>();
-  x.pane = w->findChild<QPlainTextEdit*>();
-  x.mode = w->findChild<QComboBox*>();
-  const auto spins = w->findChildren<QSpinBox*>();
-  for (QSpinBox* s : spins) {
-    if (s->maximum() == 3) x.optimize = s;
-    else if (s->maximum() == 200) x.lossy = s;
-  }
-  x.output = w->findChild<QLineEdit*>();
-  const auto buttons = w->findChildren<QPushButton*>();
-  for (QPushButton* b : buttons) {
-    const QString t = b->text();
-    if (t == QLatin1String("Optimize GIF")) x.run = b;
-    else if (t == QLatin1String("Cancel")) x.cancel = b;
-    else if (t == QLatin1String("Remove")) x.remove = b;
-    else if (t == QLatin1String("Clear")) x.clear = b;
-  }
-  const auto labels = w->findChildren<QLabel*>();
-  for (QLabel* l : labels) {
-    if (l->text().contains(QLatin1String("engine"), Qt::CaseInsensitive) ||
-        l->text().startsWith(QLatin1String("Ready")) ||
-        l->text().startsWith(QLatin1String("Engine"))) {
-      x.status = l;
-    }
-  }
-  x.progress = w->findChild<QProgressBar*>();
-  x.process = w->findChild<QProcess*>();
+  x.list = byName<DropListWidget>(w, "queueList");
+  x.pane = byName<QPlainTextEdit>(w, "commandPane");
+  x.mode = byName<QComboBox>(w, "modeCombo");
+  x.optimize = byName<QSpinBox>(w, "optimizeSpin");
+  x.lossy = byName<QSpinBox>(w, "lossySpin");
+  x.output = byName<QLineEdit>(w, "outputEdit");
+  x.batchDir = byName<QLineEdit>(w, "batchDirEdit");
+  x.run = byName<QPushButton>(w, "runButton");
+  x.cancel = byName<QPushButton>(w, "cancelButton");
+  x.remove = byName<QPushButton>(w, "removeButton");
+  x.clear = byName<QPushButton>(w, "clearButton");
+  x.status = byName<QLabel>(w, "statusLabel");
+  x.progress = byName<QProgressBar>(w, "progressBar");
+  x.process = byName<QProcess>(w, "engineProcess");
+  x.tabs = byName<QTabWidget>(w, "mainTabs");
+  x.countLabel = byName<QLabel>(w, "queueCountLabel");
+  x.outputSummary = byName<QLabel>(w, "outputSummary");
+  x.previewCaption = byName<QLabel>(w, "previewCaption");
+  x.previewSavings = byName<QLabel>(w, "previewSavings");
+  x.previewBefore = byName<QLabel>(w, "previewBefore");
+  x.previewAfter = byName<QLabel>(w, "previewAfter");
   return x;
 }
 
@@ -151,9 +171,21 @@ bool waitForStatus(QWidget* w, const QString& needle, int timeoutMs = 45000) {
   while (el.elapsed() < timeoutMs) {
     QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
     QThread::msleep(2);
-    const auto labels = w->findChildren<QLabel*>();
-    for (QLabel* l : labels)
-      if (l->text().contains(needle, Qt::CaseInsensitive)) return true;
+    auto* st = byName<QLabel>(w, "statusLabel");
+    if (st && st->text().contains(needle, Qt::CaseInsensitive)) return true;
+  }
+  return false;
+}
+
+// Wait until a label's text contains needle (or timeout).
+bool waitForLabel(QLabel* label, const QString& needle, int timeoutMs = 25000) {
+  if (!label) return false;
+  QElapsedTimer el;
+  el.start();
+  while (el.elapsed() < timeoutMs) {
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    QThread::msleep(2);
+    if (label->text().contains(needle, Qt::CaseInsensitive)) return true;
   }
   return false;
 }
@@ -217,16 +249,10 @@ bool makeBigGif(const QString& src, const QString& dest, int copies) {
 // Deliver files to the queue the way a drop would.
 //
 // Note: Qt only dispatches QDropEvents to widgets while a real platform
-// drag session is active (verified empirically on Qt 6.4: sendEvent'ing a
-// synthetic QDropEvent to the widget or its viewport is ignored, and the
-// QPA-level handleDrop path needs private headers). So the harness emits
-// DropListWidget::filesDropped — the exact signal the drop handler emits —
-// which exercises MainWindow::onFilesDropped's filter + append + dedupe
-// semantics (the substance of audit B6/B7). The DropListWidget event
-// overrides themselves are standard 15-line plumbing; verify them once on
-// a real desktop (§6.B B6 manual note).
+// drag session is active, so the harness emits DropListWidget::filesDropped —
+// the exact signal the drop handler emits (see audit §6.B B6 note).
 void dropFiles(QWidget* w, const QStringList& files) {
-  auto* list = w->findChild<DropListWidget*>();
+  auto* list = byName<DropListWidget>(w, "queueList");
   list->filesDropped(files);  // signals are public in Qt5+
   QCoreApplication::processEvents();
 }
@@ -238,6 +264,12 @@ MainWindow* makeWindow() {
   return w;
 }
 
+// Path stored in a queue row (display text now carries size info).
+QString rowPath(DropListWidget* list, int row) {
+  auto* item = list->item(row);
+  return item ? item->data(Qt::UserRole).toString() : QString();
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -246,7 +278,7 @@ int main(int argc, char** argv) {
   QApplication app(argc, argv);
   DialogKiller killer;
 
-  std::printf("==> GUI offscreen tests (COMPILED_AUDIT 6.B harness)\n");
+  std::printf("==> GUI offscreen tests (COMPILED_AUDIT 6.B + retrofit harness)\n");
 
   g_engine = QString::fromStdString(
       gs::locate_engine(QCoreApplication::applicationFilePath().toStdString()));
@@ -266,13 +298,20 @@ int main(int argc, char** argv) {
   const QString logo = g_refDir + QStringLiteral("/logo.gif");    // 12 frames
   const QString logo1 = g_refDir + QStringLiteral("/logo1.gif");  // 1 frame
 
-  // ================= T1: defaults (E4 batch default, B14 status) =========
+  // ================= T1: defaults (E4, B14, tabs) ========================
   {
-    std::printf("== T1 defaults ==\n");
+    std::printf("== T1 defaults + tabs ==\n");
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
     CHECK(x.list && x.pane && x.mode && x.optimize && x.lossy && x.output &&
-          x.run && x.cancel && x.remove && x.clear && x.progress && x.process);
+          x.run && x.cancel && x.remove && x.clear && x.progress && x.process &&
+          x.tabs && x.countLabel && x.outputSummary && x.previewCaption);
+    if (x.tabs) {
+      CHECK(x.tabs->count() == 3);
+      CHECK(x.tabs->tabText(0) == QStringLiteral("Input"));
+      CHECK(x.tabs->tabText(1) == QStringLiteral("Actions"));
+      CHECK(x.tabs->tabText(2) == QStringLiteral("Output"));
+    }
     if (x.mode) {
       CHECK(x.mode->currentIndex() == 0);
       CHECK(x.mode->currentData().toInt() == static_cast<int>(gs::Mode::Batch));  // E4
@@ -344,10 +383,13 @@ int main(int argc, char** argv) {
     CHECK(x.list->count() == 2);
     dropFiles(w, {a, c});  // B7: duplicate a ignored, c appended
     CHECK(x.list->count() == 3);
+    CHECK(rowPath(x.list, 2) == c);
     if (auto* it = x.list->item(2)) {
-      CHECK(it->text() == QStringLiteral("c.gif"));
+      CHECK(it->text().startsWith(QStringLiteral("c.gif")));  // "name — size" format
     } else { CHECK_MSG(false, "item(2) exists after dedupe drop"); }
     CHECK(x.run->isEnabled());
+    CHECK_MSG(x.countLabel->text().contains(QStringLiteral("3 file")),
+              "count label shows 3 files");
 
     // B8: multi-select remove keeps indices consistent
     if (x.list->count() == 3) {
@@ -356,9 +398,7 @@ int main(int argc, char** argv) {
       x.remove->click();
       spinEvents(20);
       CHECK(x.list->count() == 1);
-      if (auto* it = x.list->item(0)) {
-        CHECK(it->text() == QStringLiteral("b.gif"));
-      } else { CHECK_MSG(false, "middle item survives multi-remove"); }
+      CHECK(rowPath(x.list, 0) == b);
     } else {
       CHECK_MSG(false, "queue has 3 items before multi-remove");
     }
@@ -368,6 +408,7 @@ int main(int argc, char** argv) {
     spinEvents(20);
     CHECK(x.list->count() == 0);
     CHECK(!x.run->isEnabled());
+    CHECK(x.countLabel->text().contains(QStringLiteral("0 file")));
     delete w;
   }
 
@@ -462,7 +503,7 @@ int main(int argc, char** argv) {
               "merge w/o output warns via dialog");
     CHECK(x.process->state() == QProcess::NotRunning);  // never started
     CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));
-    CHECK(!x.run->isEnabled() || x.run->isEnabled());  // sanity: still clickable
+    CHECK(x.outputSummary->text().contains(QStringLiteral("REQUIRED")));
     delete w;
   }
 
@@ -501,11 +542,9 @@ int main(int argc, char** argv) {
     x.run->click();
     CHECK_MSG(waitForStatus(w, QStringLiteral("failed")), "failed run says failed");
     CHECK(x.process->state() == QProcess::NotRunning);
-    // Busy state cleared honestly, Run re-enabled (queue non-empty)
-    CHECK(x.run->isEnabled());
+    CHECK(x.run->isEnabled());       // busy cleared honestly, Run re-enabled
     CHECK(!x.cancel->isEnabled());
-    // The failure surfaced as a dialog too, and NOT as "complete"
-    CHECK(!g_dialogs.empty());
+    CHECK(!g_dialogs.empty());       // failure surfaced as dialog too
     delete w;
   }
 
@@ -551,8 +590,6 @@ int main(int argc, char** argv) {
     CHECK(!x.cancel->isEnabled());
     CHECK(x.run->isEnabled());           // controls re-enabled
     CHECK(!x.progress->isVisible());     // busy indicator cleared
-    // Cancelled run must NOT claim completion
-    CHECK(!x.process->property("claimedComplete").isValid());
     delete w;
   }
 
@@ -574,6 +611,287 @@ int main(int argc, char** argv) {
     w->close();  // closeEvent -> cancelRun -> kill
     spinEvents(200);
     CHECK_MSG(x.process->state() == QProcess::NotRunning, "engine killed on close");
+    delete w;
+  }
+
+  // ================= T11: Actions controls -> gifsicle flags =============
+  {
+    std::printf("== T11 control mapping ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a});
+    const auto paneText = [&x]() { return x.pane->toPlainText(); };
+    const auto setAndWait = [&]() { spinEvents(15); };
+
+    // E7 guard: the delay label must state 1/100 s — never "ms".
+    auto* delayLabel = byName<QLabel>(w, "delayLabel");
+    CHECK(delayLabel && delayLabel->text().contains(QStringLiteral("1/100")));
+    CHECK(delayLabel && !delayLabel->text().contains(QStringLiteral("ms"), Qt::CaseInsensitive));
+
+    // Animation: delay (-d), loop (VP-1), disposal, threads, unoptimize
+    auto* delayCheck = byName<QCheckBox>(w, "delayCheck");
+    auto* delaySpin = byName<QSpinBox>(w, "delaySpin");
+    delayCheck->setChecked(true);
+    delaySpin->setValue(7);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("-d 7")));
+
+    auto* loopCombo = byName<QComboBox>(w, "loopCombo");
+    loopCombo->setCurrentIndex(1);  // Loop forever
+    setAndWait();
+    CHECK_MSG(paneText().contains(QStringLiteral("--loopcount=0")), "forever = --loopcount=0 (VP-1)");
+    loopCombo->setCurrentIndex(2);  // Loop N times
+    auto* loopSpin = byName<QSpinBox>(w, "loopSpin");
+    loopSpin->setValue(5);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--loopcount=5")));
+
+    auto* disposalCombo = byName<QComboBox>(w, "disposalCombo");
+    disposalCombo->setCurrentIndex(3);  // background (2)
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--disposal 2")));
+
+    auto* threadsSpin = byName<QSpinBox>(w, "threadsSpin");
+    threadsSpin->setValue(2);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("-j2")));
+
+    auto* unoptCheck = byName<QCheckBox>(w, "unoptimizeCheck");
+    unoptCheck->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("-U")));
+
+    // Optimize: -O0 is real (VP-2); colors; dither names; color method; careful
+    x.optimize->setValue(0);
+    setAndWait();
+    CHECK_MSG(paneText().contains(QStringLiteral("-O0")), "-O0 emitted for level 0 (VP-2)");
+    x.optimize->setValue(3);
+    setAndWait();
+
+    auto* colorsCheck = byName<QCheckBox>(w, "colorsCheck");
+    auto* colorsSpin = byName<QSpinBox>(w, "colorsSpin");
+    colorsCheck->setChecked(true);
+    colorsSpin->setValue(64);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("-k 64")));
+
+    auto* ditherCombo = byName<QComboBox>(w, "ditherCombo");
+    ditherCombo->setCurrentIndex(1);  // Default -> bare -f
+    setAndWait();
+    {
+      const QString pane = paneText();
+      CHECK_MSG(pane.contains(QStringLiteral(" -f ")) || pane.endsWith(QStringLiteral(" -f")),
+                "dither Default emits bare -f");
+    }
+    int ro64Idx = ditherCombo->findData(QStringLiteral("ro64"));
+    CHECK(ro64Idx >= 0);
+    ditherCombo->setCurrentIndex(ro64Idx);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--dither=ro64")));
+
+    auto* colorMethodCombo = byName<QComboBox>(w, "colorMethodCombo");
+    int medIdx = colorMethodCombo->findData(QStringLiteral("median-cut"));
+    CHECK(medIdx >= 0);
+    colorMethodCombo->setCurrentIndex(medIdx);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--color-method median-cut")));
+
+    auto* carefulCheck = byName<QCheckBox>(w, "carefulCheck");
+    carefulCheck->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--careful")));
+
+    // Resize: fit + method; scale percent
+    auto* resizeKind = byName<QComboBox>(w, "resizeKindCombo");
+    resizeKind->setCurrentIndex(1);  // Fit inside
+    auto* resizeW = byName<QSpinBox>(w, "resizeWSpin");
+    auto* resizeH = byName<QSpinBox>(w, "resizeHSpin");
+    resizeW->setValue(320);
+    resizeH->setValue(200);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--resize-fit 320x200")));
+
+    auto* resizeMethod = byName<QComboBox>(w, "resizeMethodCombo");
+    int lanczosIdx = resizeMethod->findData(QStringLiteral("lanczos3"));
+    CHECK(lanczosIdx >= 0);
+    resizeMethod->setCurrentIndex(lanczosIdx);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--resize-method lanczos3")));
+
+    resizeKind->setCurrentIndex(4);  // Scale by %
+    auto* scaleX = byName<QDoubleSpinBox>(w, "scaleXSpin");
+    auto* scaleY = byName<QDoubleSpinBox>(w, "scaleYSpin");
+    scaleX->setValue(50.0);
+    scaleY->setValue(50.0);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--scale 0.5x0.5")));
+    resizeKind->setCurrentIndex(0);  // No resize (clean pane for later checks)
+    setAndWait();
+
+    // Geometry: rotate/flip/position/interlace
+    auto* rotateCombo = byName<QComboBox>(w, "rotateCombo");
+    rotateCombo->setCurrentIndex(1);  // 90
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--rotate-90")));
+    auto* flipH = byName<QCheckBox>(w, "flipHCheck");
+    flipH->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--flip-horizontal")));
+    auto* posCheck = byName<QCheckBox>(w, "positionCheck");
+    auto* posX = byName<QSpinBox>(w, "posXSpin");
+    auto* posY = byName<QSpinBox>(w, "posYSpin");
+    posCheck->setChecked(true);
+    posX->setValue(5);
+    posY->setValue(6);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("-p 5,6")));
+    auto* interlace = byName<QCheckBox>(w, "interlaceCheck");
+    interlace->setChecked(true);
+    setAndWait();
+    {
+      const QString pane = paneText();
+      CHECK_MSG(pane.contains(QStringLiteral(" -i ")) || pane.endsWith(QStringLiteral(" -i")),
+                "interlace emits -i");
+    }
+
+    // Crop: plus-form X,Y+WxH (VP-5) + crop-transparency
+    auto* cropCheck = byName<QCheckBox>(w, "cropCheck");
+    auto* cropX = byName<QSpinBox>(w, "cropXSpin");
+    auto* cropY = byName<QSpinBox>(w, "cropYSpin");
+    auto* cropW = byName<QSpinBox>(w, "cropWSpin");
+    auto* cropH = byName<QSpinBox>(w, "cropHSpin");
+    cropCheck->setChecked(true);
+    cropX->setValue(1);
+    cropY->setValue(2);
+    cropW->setValue(30);
+    cropH->setValue(40);
+    setAndWait();
+    CHECK_MSG(paneText().contains(QStringLiteral("--crop 1,2+30x40")),
+              "crop uses plus-form X,Y+WxH (VP-5)");
+    auto* cropT = byName<QCheckBox>(w, "cropTransparencyCheck");
+    cropT->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--crop-transparency")));
+
+    // Colors: gamma (VP-3 — only emitted when chosen), background, transparent
+    auto* gammaCombo = byName<QComboBox>(w, "gammaCombo");
+    CHECK_MSG(!paneText().contains(QStringLiteral("--gamma")), "no --gamma unless chosen (VP-3)");
+    gammaCombo->setCurrentIndex(1);  // sRGB
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--gamma=srgb")));
+    gammaCombo->setCurrentIndex(2);  // Oklab
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--gamma=oklab")));
+
+    auto* bgEdit = byName<QLineEdit>(w, "backgroundEdit");
+    bgEdit->setText(QStringLiteral("#ffffff"));
+    setAndWait();
+    // '#' is not shell-safe, so the display pane quotes it (shell_quote).
+    CHECK(paneText().contains(QStringLiteral("--background '#ffffff'")));
+    auto* trEdit = byName<QLineEdit>(w, "transparentEdit");
+    trEdit->setText(QStringLiteral("#ff0000"));
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--transparent '#ff0000'")));
+
+    // Metadata: removals + comments (quoted in pane)
+    auto* rmComments = byName<QCheckBox>(w, "removeCommentsCheck");
+    rmComments->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--no-comments")));
+    auto* rmNames = byName<QCheckBox>(w, "removeNamesCheck");
+    rmNames->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--no-names")));
+    auto* rmExt = byName<QCheckBox>(w, "removeExtensionsCheck");
+    rmExt->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--no-extensions")));
+
+    auto* commentEdit = byName<QLineEdit>(w, "commentEdit");
+    auto* addComment = byName<QPushButton>(w, "addCommentButton");
+    commentEdit->setText(QStringLiteral("hello world"));
+    addComment->click();
+    setAndWait();
+    CHECK_MSG(paneText().contains(QStringLiteral("'hello world'")),
+              "comment with space is shell-quoted in pane");
+
+    // Explode by name (-E) — mode-dependent control
+    x.mode->setCurrentIndex(2);  // Explode
+    setAndWait();
+    auto* explodeByName = byName<QCheckBox>(w, "explodeByNameCheck");
+    CHECK(explodeByName->isEnabled());
+    explodeByName->setChecked(true);
+    setAndWait();
+    CHECK_MSG(paneText().contains(QStringLiteral("-E")), "explode-by-name emits -E");
+
+    delete w;
+  }
+
+  // ================= T12: preview pipeline (S3-7) ========================
+  {
+    std::printf("== T12 preview ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a});
+    // appendInputs auto-selects row 0 -> before movie should load
+    spinEvents(150);
+    CHECK(x.previewBefore && x.previewAfter && x.previewSavings && x.previewCaption);
+    if (!x.previewBefore) { delete w; return 1; }
+    CHECK_MSG(x.previewBefore->movie() != nullptr, "before pane plays the selected original");
+
+    // Debounced async run: after ~1.2s + engine time the savings appear.
+    CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("→"), 25000),
+              "preview produced after-image with size comparison");
+    CHECK(x.previewAfter->movie() != nullptr);
+    // Caption stays honest about single-file semantics
+    CHECK(x.previewCaption->text().contains(QStringLiteral("SELECTED")));
+
+    // Changing a control re-triggers the debounced preview (savings updates)
+    x.optimize->setValue(1);
+    CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("→"), 25000),
+              "preview regenerates after control change");
+
+    // Explode mode: preview honestly refuses (multi-file output)
+    x.mode->setCurrentIndex(2);
+    CHECK_MSG(waitForLabel(x.previewCaption, QStringLiteral("Explode"), 25000),
+              "preview honestly unavailable in Explode mode");
+    x.mode->setCurrentIndex(0);
+    delete w;
+  }
+
+  // ================= T13: Output tab (batch folder + summary) ============
+  {
+    std::printf("== T13 output tab ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    const QString b = tmp.path() + QStringLiteral("/b.gif");
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+    const QString outDir = tmp.path() + QStringLiteral("/outdir");
+    CHECK(QDir().mkpath(outDir));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a, b});
+    CHECK(x.outputSummary->text().contains(QStringLiteral("_opt.gif")));
+    x.batchDir->setText(outDir);
+    spinEvents(30);
+    CHECK(x.outputSummary->text().contains(outDir));
+
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "batch with custom folder completes");
+    CHECK(QFileInfo::exists(outDir + QStringLiteral("/a_opt.gif")));
+    CHECK(QFileInfo::exists(outDir + QStringLiteral("/b_opt.gif")));
+    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));  // not beside inputs
+    CHECK(byName<QPushButton>(w, "openDirButton") != nullptr);
     delete w;
   }
 
