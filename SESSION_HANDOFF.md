@@ -25,10 +25,11 @@ release-procedure doc) and the version decision (0.2.0 vs 1.0.0).
 
 ## TL;DR for the next session
 
-1. **Clean-Windows smoke from the CI artifact** (audit C4/D3/D4): download
-   `gifscythe-windows` (run #23 or later), run `gifscythe.exe` +
-   `gifscythe-cli.exe` on a machine without Qt/MinGW — no missing-DLL
-   dialog, engine found beside the exe.
+1. **Clean-Windows smoke from the CI artifact** (audit C4/D3/D4) — step-by-step
+   checklist: `docs/ci/CLEAN_WINDOWS_SMOKE.md`. Asset banked on Release
+   `snapshot-2026-09-07` (also Actions artifact, 14-day retention): run
+   `gifscythe.exe` + `gifscythe-cli.exe` on a machine without Qt/MinGW — no
+   missing-DLL dialog, engine found beside the exe.
 2. From the artifact (or a real Windows box): clean-machine **windeployqt**
    smoke — GUI double-click finds `gifsicle.exe`, no missing-DLL dialog
    (C4/D3/D4).

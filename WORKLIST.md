@@ -68,7 +68,9 @@
 
 1. ~~Obtain a valid PAT / push / merge~~ **DONE** — PR #5 merged, main run
    #23 green on both jobs with artifacts (2026-09-07).
-2. Clean-VM windeployqt smoke from the `gifscythe-windows` artifact (C4/D3/D4).
+2. Clean-VM windeployqt smoke from the `gifscythe-windows` artifact (C4/D3/D4)
+   — checklist: `docs/ci/CLEAN_WINDOWS_SMOKE.md` (asset banked on Release
+   `snapshot-2026-09-07`).
 4. One-time real-desktop GUI probes: B5 (kill engine mid-run), B6 physical
    drag-drop, B14 engine-missing GUI variant.
 5. Remaining 1.0.0 polish: naming templates, queue reorder (both optional),
