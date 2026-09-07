@@ -54,12 +54,49 @@ if(BUILD_GUI)
       src/qtui/MainWindow.cpp
       src/qtui/MainWindow.h
       src/qtui/DropListWidget.h
+      src/qtui/SettingsPanel.cpp
+      src/qtui/SettingsPanel.h
+      src/qtui/PreviewPanel.cpp
+      src/qtui/PreviewPanel.h
     )
     target_link_libraries(gifscythe PRIVATE gifscythe_core Qt6::Widgets)
     target_include_directories(gifscythe PRIVATE src "${CMAKE_BINARY_DIR}/generated")
+
+    # Offscreen GUI test harness (COMPILED_AUDIT 6.B evidence; runs in CI).
+    qt_add_executable(test_gui_offscreen
+      tests/test_gui_offscreen.cpp
+      src/qtui/MainWindow.cpp
+      src/qtui/MainWindow.h
+      src/qtui/DropListWidget.h
+      src/qtui/SettingsPanel.cpp
+      src/qtui/SettingsPanel.h
+      src/qtui/PreviewPanel.cpp
+      src/qtui/PreviewPanel.h
+    )
+    target_link_libraries(test_gui_offscreen PRIVATE gifscythe_core Qt6::Widgets)
+    target_include_directories(test_gui_offscreen PRIVATE src "${CMAKE_BINARY_DIR}/generated")
+    add_test(NAME gui_offscreen COMMAND test_gui_offscreen)
+    set_tests_properties(gui_offscreen PROPERTIES
+      ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+      TIMEOUT 600)
   else()
     message(STATUS "Qt6 NOT found -> GUI skipped. Build it where Qt6 is installed.")
   endif()
+endif()
+
+# ---- MinGW: static C++ runtime so binaries run without MinGW DLLs ----
+# (libgcc_s_seh-1.dll / libstdc++-6.dll / libwinpthread-1.dll). Qt itself
+# stays dynamic — windeployqt ships those DLLs for the GUI; the CLI and the
+# unit tests must be fully self-contained. Verified under Wine 2026-09-07:
+# dynamically linked exes fail silently on a machine without the runtime.
+if(MINGW)
+  target_link_options(gifscythe-cli PRIVATE -static)
+  target_link_options(test_gifsicle_command PRIVATE -static)
+  foreach(gui_tgt gifscythe test_gui_offscreen)
+    if(TARGET ${gui_tgt})
+      target_link_options(${gui_tgt} PRIVATE -static-libgcc -static-libstdc++)
+    endif()
+  endforeach()
 endif()
 
 # ---- Engine build hook (bash required; skipped cleanly on pure Windows generators) ----

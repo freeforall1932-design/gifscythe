@@ -73,17 +73,30 @@ for o in $OBJS; do
 done
 
 if [[ "$TARGET" == "windows" ]]; then
-  # Force Windows config via -include win32cfg.h and DO NOT define HAVE_CONFIG_H
-  # (which would pull in the Linux config.h through gifsicle's includes).
-  # win32cfg.h provides SIZEOF_UNSIGNED_LONG=4, PATHNAME_SEPARATOR='\\', RANDOM=rand.
+  # Windows config recipe (mirrors upstream src/Makefile.mingw):
+  #   * -include src/win32cfg.h defines GIFSICLE_CONFIG_H FIRST, providing
+  #     SIZEOF_UNSIGNED_LONG=4 (Win64 is LLP64!), PATHNAME_SEPARATOR='\\', etc.
+  #   * Several 1.96 sources (support.c, kcolor.c, gifsicle.c, merge.c,
+  #     optimize.c, quantize.c, xform.c) do an UNCONDITIONAL #include
+  #     <config.h>, so -I. MUST be on the search path or the compile dies
+  #     with "config.h: No such file or directory" (this was the CI Windows
+  #     failure, run #18 step 4). The root config.h shares the
+  #     GIFSICLE_CONFIG_H guard, so its Linux values are skipped and
+  #     win32cfg.h wins. Do not remove -I. and do not put config.h ahead
+  #     of win32cfg.h in the include order.
+  #   * -DHAVE_UINTPTR_T -DHAVE_INTTYPES_H -DHAVE_CONFIG_H=1 follow upstream
+  #     Makefile.mingw (MinGW lacks the _MSC_VER guards win32cfg.h uses).
+  #   * No -DVERSION here: win32cfg.h already defines VERSION as
+  #     "1.96 (Windows)" (upstream Windows identity); passing -DVERSION
+  #     only caused a redefinition warning and never took effect.
   if [[ ! -f "$SRC/src/win32cfg.h" ]]; then
     echo "ERROR: missing $SRC/src/win32cfg.h" >&2
     exit 1
   fi
   # shellcheck disable=SC2086
-  "$CC" -O2 -DVERSION=\"$ENGINE_VERSION\" \
+  "$CC" -O2 -DHAVE_CONFIG_H=1 -DHAVE_UINTPTR_T -DHAVE_INTTYPES_H \
     -include src/win32cfg.h \
-    -Iinclude -Isrc \
+    -I. -Iinclude -Isrc \
     $SRCS -o "$OUT/$VERSION/$EXE" || {
       echo "ERROR: Windows engine compile failed" >&2
       exit 1

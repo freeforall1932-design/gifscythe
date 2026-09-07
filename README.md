@@ -1,9 +1,15 @@
 # Gifscythe — work-in-progress (GIF / APNG / WebP animation tool)
 
 **Current product version:** 0.1.0 (see `working_code/gifscythe/VERSION.md`)  
-**Status:** Engine + control layer + CLI + GUI MVP shippable as pre-release.
-P0/P1 silent-failure and honesty fixes landed 2026-09-07. Full GIF UI/UX
-retrofit still required before **1.0.0**. WebP/APNG deferred.
+**Status:** Engine + control layer + CLI + GUI shippable as pre-release.
+P0/P1 silent-failure and honesty fixes landed 2026-09-07 and were **verified
+with evidence the same day** (audit §6: CLI/unit/engine/smoke green, offscreen
+GUI harness green, Windows engine+CLI proven under Wine). The **XNConvert-style
+UI retrofit also landed the same day (S4b)**: Input/Actions/Output tabs, ~30
+engine-truth controls, debounced async before/after preview, batch output
+folder — harness now at **143 checks**. Windows CI rerun + desktop probes still
+pending a valid push token (see `SESSION_HANDOFF.md`); then the 1.0.0 decision.
+WebP/APNG deferred.
 
 This repository deliberately separates **reference code** from **working code**
 so the finished product is never confused with source-material we copied or

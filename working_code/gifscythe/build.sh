@@ -117,6 +117,13 @@ build_gui_qmake() {
 }
 
 if [[ "$want_gui" == "1" ]]; then
+  # Remove stale GUI binaries FIRST: otherwise a leftover binary from an
+  # earlier successful build would pass the -x probe and build.sh would
+  # claim "GUI built" even when Qt6 is now missing and the target was
+  # skipped (silent-failure class; found during COMPILED_AUDIT C7 verify).
+  rm -f "$BUILD_DIR/gifscythe" "$BUILD_DIR/gifscythe.exe" \
+        "$BUILD_DIR/cmake/gifscythe" "$BUILD_DIR/cmake/gifscythe.exe" \
+        "$BUILD_DIR/gui/gifscythe" "$BUILD_DIR/gui/gifscythe.exe"
   if build_gui_qmake || build_gui_cmake; then
     gui_built=1
     echo "   GUI built: $gui_path"

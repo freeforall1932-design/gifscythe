@@ -1,5 +1,7 @@
 #include "MainWindow.h"
 #include "DropListWidget.h"
+#include "PreviewPanel.h"
+#include "SettingsPanel.h"
 
 #include "core/EngineLocator.h"
 #include "core/Validate.h"
@@ -10,8 +12,10 @@
 #include <QAction>
 #include <QApplication>
 #include <QCloseEvent>
-#include <QComboBox>
 #include <QCoreApplication>
+#include <QDateTime>
+#include <QDesktopServices>
+#include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
@@ -26,27 +30,57 @@
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
-#include <QSpinBox>
+#include <QSplitter>
+#include <QStandardPaths>
+#include <QTabWidget>
+#include <QTimer>
+#include <QUrl>
 #include <QVBoxLayout>
-#include <QWidget>
 
 #include <algorithm>
 #include <functional>
 #include <string>
 #include <vector>
 
+namespace {
+
+QString humanSize(qint64 bytes) {
+  if (bytes >= 1024 * 1024)
+    return QStringLiteral("%1 MB").arg(double(bytes) / (1024.0 * 1024.0), 0, 'f', 2);
+  if (bytes >= 1024)
+    return QStringLiteral("%1 KB").arg(double(bytes) / 1024.0, 0, 'f', 1);
+  return QStringLiteral("%1 B").arg(bytes);
+}
+
+}  // namespace
+
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   setWindowTitle(QStringLiteral("Gifscythe %1").arg(QStringLiteral(GS_VERSION)));
-  resize(980, 640);
+  resize(1180, 720);
 
   enginePath_ = QString::fromStdString(
       gs::locate_engine(QCoreApplication::applicationFilePath().toStdString()));
 
   process_ = new QProcess(this);
+  process_->setObjectName(QStringLiteral("engineProcess"));
   connect(process_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
           this, &MainWindow::onProcessFinished);
   connect(process_, &QProcess::errorOccurred, this, &MainWindow::onProcessError);
 
+  // previewProcess_ is created fresh per preview run (see startPreview) so a
+  // killed stale run can never be misread as the newest run's completion.
+
+  previewTimer_ = new QTimer(this);
+  previewTimer_->setSingleShot(true);
+  previewTimer_->setInterval(1200);  // debounce: never re-encode per keystroke
+  connect(previewTimer_, &QTimer::timeout, this, &MainWindow::startPreview);
+
+  previewDir_ = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+                    .filePath(QStringLiteral("gifscythe-preview-%1")
+                                  .arg(QCoreApplication::applicationPid()));
+  QDir().mkpath(previewDir_);
+
+  // ---- Menu ----
   auto* openAct = new QAction(QStringLiteral("&Open GIF files..."), this);
   openAct->setShortcut(QKeySequence::Open);
   connect(openAct, &QAction::triggered, this, &MainWindow::chooseInputs);
@@ -58,132 +92,187 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   fileMenu->addSeparator();
   fileMenu->addAction(quitAct);
 
+  // ---- Central layout ----
   auto* central = new QWidget(this);
   auto* root = new QVBoxLayout(central);
-  auto* content = new QHBoxLayout();
 
-  // ---- Left: animation queue ----
-  auto* left = new QVBoxLayout();
-  left->addWidget(new QLabel(QStringLiteral("Animation queue"), central));
-  inputList_ = new DropListWidget(central);
+  auto* splitter = new QSplitter(Qt::Horizontal, central);
+  splitter->setObjectName(QStringLiteral("mainSplitter"));
+
+  tabs_ = new QTabWidget(splitter);
+  tabs_->setObjectName(QStringLiteral("mainTabs"));
+  tabs_->addTab(buildInputTab(), QStringLiteral("Input"));
+  settingsPanel_ = new SettingsPanel(tabs_);
+  settingsPanel_->setObjectName(QStringLiteral("settingsPanel"));
+  tabs_->addTab(settingsPanel_, QStringLiteral("Actions"));
+  tabs_->addTab(buildOutputTab(), QStringLiteral("Output"));
+  splitter->addWidget(tabs_);
+
+  previewPanel_ = new PreviewPanel(splitter);
+  previewPanel_->setObjectName(QStringLiteral("previewPanel"));
+  splitter->addWidget(previewPanel_);
+  splitter->setStretchFactor(0, 3);
+  splitter->setStretchFactor(1, 2);
+  root->addWidget(splitter, 1);
+
+  buildBottomBar(central, root);
+  setCentralWidget(central);
+
+  // ---- Wiring: everything that changes settings refreshes the live pane,
+  //      the output summary, and (debounced) the preview. ----
+  connect(settingsPanel_, &SettingsPanel::changed, this, [this]() {
+    refreshCommand();
+    refreshOutputSummary();
+    schedulePreview();
+  });
+  connect(outputEdit_, &QLineEdit::textChanged, this, [this]() {
+    refreshCommand();
+    refreshOutputSummary();
+  });
+  connect(batchDirEdit_, &QLineEdit::textChanged, this, [this]() {
+    refreshCommand();
+    refreshOutputSummary();
+  });
+  connect(inputList_, &DropListWidget::filesDropped, this, &MainWindow::onFilesDropped);
+  connect(inputList_, &QListWidget::itemSelectionChanged, this,
+          &MainWindow::onSelectionChanged);
+  connect(inputList_->model(), &QAbstractItemModel::rowsInserted, this,
+          &MainWindow::refreshCommand);
+  connect(inputList_->model(), &QAbstractItemModel::rowsRemoved, this,
+          &MainWindow::refreshCommand);
+
+  ensureEngine();
+  refreshCommand();
+  refreshOutputSummary();
+  refreshQueueLabel();
+}
+
+MainWindow::~MainWindow() {
+  killPreview();
+  if (process_ && process_->state() != QProcess::NotRunning) {
+    process_->kill();
+    process_->waitForFinished(2000);
+  }
+  QDir(previewDir_).removeRecursively();
+}
+
+QWidget* MainWindow::buildInputTab() {
+  auto* page = new QWidget(tabs_);
+  auto* left = new QVBoxLayout(page);
+  left->addWidget(new QLabel(QStringLiteral("Animation queue — drop GIFs here"), page));
+
+  inputList_ = new DropListWidget(page);
+  inputList_->setObjectName(QStringLiteral("queueList"));
   inputList_->setMinimumWidth(300);
   inputList_->setSelectionMode(QAbstractItemView::ExtendedSelection);
-  connect(inputList_, &DropListWidget::filesDropped, this, &MainWindow::onFilesDropped);
   left->addWidget(inputList_, 1);
 
+  queueCountLabel_ = new QLabel(QStringLiteral("0 files"), page);
+  queueCountLabel_->setObjectName(QStringLiteral("queueCountLabel"));
+  left->addWidget(queueCountLabel_);
+
   auto* queueBtns = new QHBoxLayout();
-  auto* addButton = new QPushButton(QStringLiteral("Add GIF files…"), central);
+  auto* addButton = new QPushButton(QStringLiteral("Add GIF files…"), page);
+  addButton->setObjectName(QStringLiteral("addButton"));
   connect(addButton, &QPushButton::clicked, this, &MainWindow::chooseInputs);
-  removeButton_ = new QPushButton(QStringLiteral("Remove"), central);
+  removeButton_ = new QPushButton(QStringLiteral("Remove"), page);
+  removeButton_->setObjectName(QStringLiteral("removeButton"));
   connect(removeButton_, &QPushButton::clicked, this, &MainWindow::removeSelected);
-  clearButton_ = new QPushButton(QStringLiteral("Clear"), central);
+  clearButton_ = new QPushButton(QStringLiteral("Clear"), page);
+  clearButton_->setObjectName(QStringLiteral("clearButton"));
   connect(clearButton_, &QPushButton::clicked, this, &MainWindow::clearQueue);
   queueBtns->addWidget(addButton);
   queueBtns->addWidget(removeButton_);
   queueBtns->addWidget(clearButton_);
   left->addLayout(queueBtns);
-  content->addLayout(left, 1);
+  return page;
+}
 
-  // ---- Right: settings ----
-  auto* settingsBox = new QGroupBox(QStringLiteral("Optimize"), central);
-  auto* form = new QFormLayout(settingsBox);
+QWidget* MainWindow::buildOutputTab() {
+  auto* page = new QWidget(tabs_);
+  auto* lay = new QVBoxLayout(page);
 
-  modeCombo_ = new QComboBox(settingsBox);
-  modeCombo_->addItem(QStringLiteral("Batch (each file)"), static_cast<int>(gs::Mode::Batch));
-  modeCombo_->addItem(QStringLiteral("Merge into one"), static_cast<int>(gs::Mode::Merge));
-  modeCombo_->addItem(QStringLiteral("Explode frames"), static_cast<int>(gs::Mode::Explode));
-  modeCombo_->addItem(QStringLiteral("Auto"), static_cast<int>(gs::Mode::Auto));
-  modeCombo_->setCurrentIndex(0);  // Batch default
-  modeCombo_->setToolTip(QStringLiteral(
-      "Batch optimizes each GIF separately. Merge concatenates all into one animation."));
-  form->addRow(QStringLiteral("Mode"), modeCombo_);
-
-  optimizeSpin_ = new QSpinBox(settingsBox);
-  optimizeSpin_->setRange(0, 3);
-  optimizeSpin_->setValue(3);
-  optimizeSpin_->setSpecialValueText(QStringLiteral("Off"));
-  optimizeSpin_->setToolTip(QStringLiteral(
-      "0 = off, 1–3 = higher levels usually produce smaller GIFs."));
-  form->addRow(QStringLiteral("Optimization level"), optimizeSpin_);
-
-  lossySpin_ = new QSpinBox(settingsBox);
-  lossySpin_->setRange(0, 200);
-  lossySpin_->setSpecialValueText(QStringLiteral("Off"));
-  lossySpin_->setValue(0);
-  form->addRow(QStringLiteral("Lossy compression"), lossySpin_);
+  auto* box = new QGroupBox(QStringLiteral("Output"), page);
+  box->setObjectName(QStringLiteral("outputGroup"));
+  auto* form = new QFormLayout(box);
 
   auto* outputRow = new QHBoxLayout();
-  outputEdit_ = new QLineEdit(settingsBox);
+  outputEdit_ = new QLineEdit(box);
+  outputEdit_->setObjectName(QStringLiteral("outputEdit"));
   outputEdit_->setPlaceholderText(
-      QStringLiteral("Output file (required for Merge; auto <name>_opt.gif in Batch)"));
-  auto* browse = new QPushButton(QStringLiteral("Browse…"), settingsBox);
+      QStringLiteral("Save as… (required for Merge; single-file Batch honors it)"));
+  auto* browse = new QPushButton(QStringLiteral("Browse…"), box);
+  browse->setObjectName(QStringLiteral("browseOutputButton"));
   connect(browse, &QPushButton::clicked, this, &MainWindow::chooseOutput);
   outputRow->addWidget(outputEdit_);
   outputRow->addWidget(browse);
   form->addRow(QStringLiteral("Save as"), outputRow);
 
-  auto* hint = new QLabel(
-      QStringLiteral("Command preview stays in sync with the controls above."),
-      settingsBox);
-  hint->setWordWrap(true);
-  form->addRow(hint);
-  content->addWidget(settingsBox, 1);
-  root->addLayout(content, 2);
+  auto* batchRow = new QHBoxLayout();
+  batchDirEdit_ = new QLineEdit(box);
+  batchDirEdit_->setObjectName(QStringLiteral("batchDirEdit"));
+  batchDirEdit_->setPlaceholderText(
+      QStringLiteral("Batch folder — default: next to each input"));
+  auto* browseDir = new QPushButton(QStringLiteral("Browse…"), box);
+  browseDir->setObjectName(QStringLiteral("browseBatchDirButton"));
+  connect(browseDir, &QPushButton::clicked, this, &MainWindow::chooseBatchDir);
+  batchRow->addWidget(batchDirEdit_);
+  batchRow->addWidget(browseDir);
+  form->addRow(QStringLiteral("Batch outputs"), batchRow);
 
-  root->addWidget(new QLabel(QStringLiteral("Generated gifsicle command"), central));
+  openDirButton_ = new QPushButton(QStringLiteral("Open output folder"), box);
+  openDirButton_->setObjectName(QStringLiteral("openDirButton"));
+  connect(openDirButton_, &QPushButton::clicked, this, &MainWindow::openOutputFolder);
+  form->addRow(QString(), openDirButton_);
+
+  lay->addWidget(box);
+
+  outputSummaryLabel_ = new QLabel(page);
+  outputSummaryLabel_->setObjectName(QStringLiteral("outputSummary"));
+  outputSummaryLabel_->setWordWrap(true);
+  lay->addWidget(outputSummaryLabel_);
+  lay->addStretch();
+  return page;
+}
+
+void MainWindow::buildBottomBar(QWidget* central, QVBoxLayout* root) {
+  root->addWidget(new QLabel(QStringLiteral("Generated gifsicle command (one-way: controls → command)"),
+                             central));
   commandPane_ = new QPlainTextEdit(central);
+  commandPane_->setObjectName(QStringLiteral("commandPane"));
   commandPane_->setReadOnly(true);
   commandPane_->setPlaceholderText(QStringLiteral("Add a GIF to generate a command…"));
   root->addWidget(commandPane_, 1);
 
   progressBar_ = new QProgressBar(central);
+  progressBar_->setObjectName(QStringLiteral("progressBar"));
   progressBar_->setRange(0, 0);  // indeterminate while running
   progressBar_->setVisible(false);
   root->addWidget(progressBar_);
 
   auto* actions = new QHBoxLayout();
   runButton_ = new QPushButton(QStringLiteral("Optimize GIF"), central);
+  runButton_->setObjectName(QStringLiteral("runButton"));
   runButton_->setEnabled(false);
   connect(runButton_, &QPushButton::clicked, this, &MainWindow::runCommand);
   cancelButton_ = new QPushButton(QStringLiteral("Cancel"), central);
+  cancelButton_->setObjectName(QStringLiteral("cancelButton"));
   cancelButton_->setEnabled(false);
   connect(cancelButton_, &QPushButton::clicked, this, &MainWindow::cancelRun);
   actions->addWidget(runButton_);
   actions->addWidget(cancelButton_);
   actions->addStretch();
   statusLabel_ = new QLabel(central);
+  statusLabel_->setObjectName(QStringLiteral("statusLabel"));
   actions->addWidget(statusLabel_);
   root->addLayout(actions);
-
-  // Keep the live pane honest: every control that affects settings refreshes it.
-  connect(optimizeSpin_, qOverload<int>(&QSpinBox::valueChanged),
-          this, &MainWindow::refreshCommand);
-  connect(lossySpin_, qOverload<int>(&QSpinBox::valueChanged),
-          this, &MainWindow::refreshCommand);
-  connect(outputEdit_, &QLineEdit::textChanged, this, &MainWindow::refreshCommand);
-  connect(modeCombo_, qOverload<int>(&QComboBox::currentIndexChanged),
-          this, &MainWindow::refreshCommand);
-  connect(inputList_->model(), &QAbstractItemModel::rowsInserted,
-          this, &MainWindow::refreshCommand);
-  connect(inputList_->model(), &QAbstractItemModel::rowsRemoved,
-          this, &MainWindow::refreshCommand);
-
-  setCentralWidget(central);
-  ensureEngine();
-  refreshCommand();
-}
-
-MainWindow::~MainWindow() {
-  if (process_ && process_->state() != QProcess::NotRunning) {
-    process_->kill();
-    process_->waitForFinished(2000);
-  }
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {
   if (busy_) {
     cancelRun();
   }
+  killPreview();
   QMainWindow::closeEvent(event);
 }
 
@@ -209,14 +298,43 @@ void MainWindow::appendInputs(const QStringList& files) {
   for (const auto& f : files) {
     if (inputs_.contains(f)) continue;
     inputs_.append(f);
-    inputList_->addItem(QFileInfo(f).fileName());
+    const QFileInfo fi(f);
+    auto* item = new QListWidgetItem(
+        fi.exists()
+            ? QStringLiteral("%1 — %2").arg(fi.fileName(), humanSize(fi.size()))
+            : QStringLiteral("%1 — (missing)").arg(fi.fileName()));
+    item->setData(Qt::UserRole, f);
+    item->setToolTip(f);
+    inputList_->addItem(item);
     ++added;
   }
   if (added > 0) {
     runButton_->setEnabled(!busy_ && ensureEngine() && !inputs_.isEmpty());
+    refreshQueueLabel();
     updateStatus(QStringLiteral("%1 GIF file(s) in queue.").arg(inputs_.size()));
     refreshCommand();
+    refreshOutputSummary();
+    if (inputList_->currentRow() < 0) inputList_->setCurrentRow(0);
+    schedulePreview();
   }
+}
+
+void MainWindow::refreshQueueLabel() {
+  qint64 total = 0;
+  int existing = 0;
+  for (const auto& f : inputs_) {
+    const QFileInfo fi(f);
+    if (fi.exists()) {
+      total += fi.size();
+      ++existing;
+    }
+  }
+  queueCountLabel_->setText(QStringLiteral("%1 file(s) · %2 on disk%3")
+                                .arg(inputs_.size())
+                                .arg(humanSize(total),
+                                     existing == inputs_.size()
+                                         ? QString()
+                                         : QStringLiteral(" (%1 missing)").arg(inputs_.size() - existing)));
 }
 
 void MainWindow::chooseInputs() {
@@ -250,16 +368,23 @@ void MainWindow::removeSelected() {
     delete inputList_->takeItem(row);
   }
   runButton_->setEnabled(!busy_ && !inputs_.isEmpty() && ensureEngine());
+  refreshQueueLabel();
   updateStatus(QStringLiteral("%1 GIF file(s) in queue.").arg(inputs_.size()));
   refreshCommand();
+  refreshOutputSummary();
+  onSelectionChanged();
 }
 
 void MainWindow::clearQueue() {
   inputs_.clear();
   inputList_->clear();
   runButton_->setEnabled(false);
+  refreshQueueLabel();
   updateStatus(QStringLiteral("Queue cleared."));
   refreshCommand();
+  refreshOutputSummary();
+  previewPanel_->setBefore(QString());
+  previewPanel_->clearAfter(QStringLiteral("queue empty"));
 }
 
 void MainWindow::chooseOutput() {
@@ -272,25 +397,89 @@ void MainWindow::chooseOutput() {
   }
 }
 
+void MainWindow::chooseBatchDir() {
+  const auto dir = QFileDialog::getExistingDirectory(
+      this, QStringLiteral("Choose batch output folder"), batchDirEdit_->text());
+  if (!dir.isEmpty()) batchDirEdit_->setText(dir);
+}
+
+QString MainWindow::batchDir() const {
+  return batchDirEdit_->text().trimmed();
+}
+
+void MainWindow::openOutputFolder() {
+  QString dir = batchDir();
+  if (dir.isEmpty()) {
+    const QString out = outputEdit_->text().trimmed();
+    if (!out.isEmpty()) {
+      dir = QFileInfo(out).absolutePath();
+    } else if (!inputs_.isEmpty()) {
+      dir = QFileInfo(inputs_.front()).absolutePath();
+    }
+  }
+  if (dir.isEmpty()) return;
+  QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
+}
+
 QString MainWindow::defaultOutputFor(const QString& input) const {
-  QFileInfo fi(input);
-  return fi.absolutePath() + QLatin1Char('/') + fi.completeBaseName()
-       + QStringLiteral("_opt.gif");
+  const QFileInfo fi(input);
+  const QString dir = batchDir().isEmpty() ? fi.absolutePath() : batchDir();
+  return dir + QLatin1Char('/') + fi.completeBaseName() + QStringLiteral("_opt.gif");
+}
+
+void MainWindow::refreshOutputSummary() {
+  if (!outputSummaryLabel_) return;
+  const gs::Mode mode = settingsPanel_->mode();
+  const QString explicitOut = outputEdit_->text().trimmed();
+  QString text;
+  switch (mode) {
+    case gs::Mode::Batch:
+      if (inputs_.size() == 1 && !explicitOut.isEmpty()) {
+        text = QStringLiteral("Batch (1 file) → %1").arg(explicitOut);
+      } else if (inputs_.isEmpty()) {
+        text = QStringLiteral("Batch → each input writes <name>_opt.gif%1")
+                   .arg(batchDir().isEmpty() ? QStringLiteral(" next to it")
+                                             : QStringLiteral(" into %1").arg(batchDir()));
+      } else {
+        text = QStringLiteral("Batch (%1 files) → %2 … %3")
+                   .arg(inputs_.size())
+                   .arg(defaultOutputFor(inputs_.front()),
+                        defaultOutputFor(inputs_.back()));
+      }
+      break;
+    case gs::Mode::Merge:
+      text = explicitOut.isEmpty()
+                 ? QStringLiteral("Merge → output file REQUIRED (run is refused without one)")
+                 : QStringLiteral("Merge (all inputs welded) → %1").arg(explicitOut);
+      break;
+    case gs::Mode::Explode:
+      text = explicitOut.isEmpty()
+                 ? (inputs_.isEmpty()
+                        ? QStringLiteral("Explode → frames write as <stem>_frame.000, .001, … next to the input")
+                        : QStringLiteral("Explode → frames write as %1_frame.000, .001, …")
+                              .arg(QFileInfo(inputs_.front()).absolutePath() + QLatin1Char('/') +
+                                   QFileInfo(inputs_.front()).completeBaseName()))
+                 : QStringLiteral("Explode → frames write as %1.000, .001, …").arg(explicitOut);
+      break;
+    case gs::Mode::Auto:
+      text = explicitOut.isEmpty()
+                 ? QStringLiteral("Auto → gifsicle merges inputs to stdout UNLESS an output is set; "
+                                   "set Save-as (auto-naming does not apply in Auto mode)")
+                 : QStringLiteral("Auto → %1").arg(explicitOut);
+      break;
+  }
+  outputSummaryLabel_->setText(text);
 }
 
 gs::Settings MainWindow::currentSettings() const {
   gs::Settings s;
-  const int modeData = modeCombo_ ? modeCombo_->currentData().toInt()
-                                  : static_cast<int>(gs::Mode::Batch);
-  s.mode = static_cast<gs::Mode>(modeData);
+  settingsPanel_->writeInto(s);
 
   // Build inputs as a std::vector without deprecated toStdVector().
   s.inputs.clear();
   s.inputs.reserve(static_cast<size_t>(inputs_.size()));
   for (const auto& in : inputs_) s.inputs.push_back(in.toStdString());
 
-  s.optimize_level = optimizeSpin_->value();
-  if (lossySpin_->value() > 0) s.lossy = lossySpin_->value();
   s.output = outputEdit_->text().trimmed().toStdString();
   return s;
 }
@@ -318,11 +507,14 @@ void MainWindow::setBusy(bool busy) {
   cancelButton_->setEnabled(busy);
   removeButton_->setEnabled(!busy);
   clearButton_->setEnabled(!busy);
-  modeCombo_->setEnabled(!busy);
-  optimizeSpin_->setEnabled(!busy);
-  lossySpin_->setEnabled(!busy);
+  settingsPanel_->setEnabled(!busy);
   outputEdit_->setEnabled(!busy);
+  batchDirEdit_->setEnabled(!busy);
   progressBar_->setVisible(busy);
+  if (busy) {
+    previewTimer_->stop();
+    killPreview();
+  }
 }
 
 void MainWindow::runCommand() {
@@ -352,17 +544,22 @@ void MainWindow::runCommand() {
   batchMode_ = settings.mode;
 
   if (settings.mode == gs::Mode::Batch) {
+    // Ensure the chosen batch folder exists (honest failure, no silent skip).
+    const QString dir = batchDir();
+    if (!dir.isEmpty() && !QDir().mkpath(dir)) {
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QStringLiteral("Cannot create the batch output folder:\n%1").arg(dir));
+      return;
+    }
     // Process one file at a time with auto output names.
     batchQueue_ = inputs_;
     batchIndex_ = 0;
     setBusy(true);
     updateStatus(QStringLiteral("Optimizing 1/%1…").arg(batchQueue_.size()));
-    // Kick off first file via a synthetic "finished" that starts the next.
-    // Directly start:
     QString in = batchQueue_.at(0);
     QString out = outputEdit_->text().trimmed();
     if (batchQueue_.size() == 1 && !out.isEmpty()) {
-      pendingOutput_ = out;
+      pendingOutput_ = out;  // E1: explicit Save-as honored for a single file
     } else {
       pendingOutput_ = defaultOutputFor(in);
     }
@@ -489,11 +686,13 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     batchIndex_ = -1;
     setBusy(false);
     updateStatus(QStringLiteral("Optimization complete — %1 file(s).").arg(n));
+    schedulePreview();  // refresh preview with final settings
     return;
   }
 
   setBusy(false);
   updateStatus(QStringLiteral("Optimization complete."));
+  schedulePreview();
 }
 
 void MainWindow::onProcessError(QProcess::ProcessError error) {
@@ -504,6 +703,104 @@ void MainWindow::onProcessError(QProcess::ProcessError error) {
     updateStatus(QStringLiteral("Failed to start gifsicle."));
   }
   // Crashes are also reported via finished().
+}
+
+// ===================== Preview pipeline =====================
+
+QString MainWindow::selectedInput() const {
+  const int row = inputList_->currentRow();
+  if (row < 0 || row >= inputs_.size()) return {};
+  return inputs_.at(row);
+}
+
+void MainWindow::onSelectionChanged() {
+  const QString sel = selectedInput();
+  previewPanel_->setBefore(sel);
+  previewPanel_->clearAfter(sel.isEmpty() ? QStringLiteral("select a file to preview")
+                                          : QStringLiteral("waiting for changes…"));
+  schedulePreview();
+}
+
+void MainWindow::schedulePreview() {
+  if (busy_) return;  // main run active; preview resumes after it finishes
+  previewTimer_->start();  // restart debounce
+}
+
+void MainWindow::killPreview() {
+  previewTimer_->stop();
+  if (previewProcess_ && previewProcess_->state() != QProcess::NotRunning) {
+    previewProcess_->kill();
+    previewProcess_->waitForFinished(1000);
+  }
+}
+
+void MainWindow::startPreview() {
+  if (busy_) return;
+  const QString input = selectedInput();
+  if (input.isEmpty() || !QFileInfo::exists(input)) {
+    previewPanel_->clearAfter(QStringLiteral("select an existing file to preview"));
+    return;
+  }
+  if (!gs::path_is_executable(enginePath_.toStdString())) {
+    previewPanel_->clearAfter(QStringLiteral("engine not found — preview unavailable"));
+    return;
+  }
+  if (settingsPanel_->mode() == gs::Mode::Explode) {
+    previewPanel_->clearAfter(
+        QStringLiteral("preview not available in Explode mode (writes many frame files)"));
+    return;
+  }
+
+  auto settings = currentSettings();
+  settings.mode = gs::Mode::Auto;  // single-file re-encode, like batch does
+  settings.inputs = {input.toStdString()};
+  const int seq = ++previewSeq_;
+  const QString outPath = previewDir_ + QStringLiteral("/preview_%1.gif").arg(seq);
+  settings.output = outPath.toStdString();
+
+  gs::GifsicleCommand cmd(settings);
+  QStringList qargs;
+  for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
+
+  killPreview();  // any previous run becomes stale (its captured seq < previewSeq_)
+
+  // Fresh QProcess per run: the finished-lambda captures THIS run's seq, so a
+  // killed stale process can never be misread as the newest run's completion.
+  auto* p = new QProcess(this);
+  p->setObjectName(QStringLiteral("previewProcess"));
+  previewProcess_ = p;
+  connect(p, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
+          [this, p, seq, input, outPath](int exitCode, QProcess::ExitStatus status) {
+            p->readAllStandardOutput();
+            p->readAllStandardError();
+            p->deleteLater();
+            if (previewProcess_ == p) previewProcess_ = nullptr;  // no dangling member
+            if (seq != previewSeq_) return;  // stale — a newer preview superseded it
+            const QFileInfo outFi(outPath);
+            if (status != QProcess::NormalExit || exitCode != 0 || !outFi.exists() ||
+                outFi.size() == 0) {
+              previewPanel_->clearAfter(
+                  QStringLiteral("preview failed (engine exit %1) — check the command pane")
+                      .arg(exitCode));
+              return;
+            }
+            previewPanel_->setAfter(outPath, QFileInfo(input).size(), outFi.size());
+            // Keep the temp dir from growing: remove the previous preview file.
+            if (seq > 1)
+              QFile::remove(previewDir_ + QStringLiteral("/preview_%1.gif").arg(seq - 1));
+          });
+  connect(p, &QProcess::errorOccurred, this, [this, p, seq](QProcess::ProcessError err) {
+    if (err == QProcess::FailedToStart) {
+      p->deleteLater();
+      if (previewProcess_ == p) previewProcess_ = nullptr;
+      if (seq == previewSeq_) {
+        previewPanel_->clearAfter(QStringLiteral("preview could not start the engine"));
+      }
+    }
+  });
+
+  previewPanel_->setGenerating(true);
+  p->start(enginePath_, qargs);
 }
 
 void MainWindow::updateStatus(const QString& message) {
