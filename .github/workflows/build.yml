@@ -42,6 +42,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gifscythe-linux
+          retention-days: 14
           path: |
             working_code/gifscythe/build/gifscythe-cli
             working_code/gifscythe/build/gifscythe
@@ -201,6 +202,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gifscythe-windows
+          retention-days: 14
           path: |
             working_code/gifscythe/build/
             working_code/gifscythe/build-win/
