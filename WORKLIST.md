@@ -37,11 +37,10 @@
       (`1.96 (Windows)`), CLI E2E with `C:\` paths + spaces + honest exit 1;
       found & fixed two Windows-only bugs (engine `-I.` recipe, `_spawnvp`
       space-splitting → CreateProcessA + quoting; static-linked exes)
-- [ ] **Get a valid push token** — provided PAT rejected by GitHub (Bad
-      credentials / Invalid token); all S4 work sits on local branch
-      `verify/windows-ci-fixes`
-- [ ] Windows GitHub Actions job **green** with downloadable artifact
-      (fix staged; rerun after push = C2)
+- [x] **Valid push token** — token #3 worked (2026-09-07); PR #5 merged
+      into `main` (merge `0ad1ff5`)
+- [x] Windows GitHub Actions job **green** with downloadable artifact
+      (main run #23: windows ✅ + linux ✅; `gifscythe-windows` 27.8 MB)
 - [ ] Clean-machine portable smoke (esp. Windows + `windeployqt`) — from CI
       artifact after C2 (C4/D3/D4)
 - [ ] One-time real-desktop GUI probes: B5 (kill engine mid-run), B6 physical
@@ -67,15 +66,9 @@
 
 ## Next actions (ordered)
 
-1. **Obtain a valid fine-grained PAT** (Contents R/W, Workflows R/W, Pull
-   requests R/W) → push `verify/windows-ci-fixes` → PR → merge.
-   (Two tokens provided on 2026-09-07 were both rejected by GitHub —
-   format-valid 93 chars, but "Bad credentials"/"Invalid username or token":
-   expired or revoked at the source. Generate fresh and copy immediately.)
-2. Watch Actions: windows job must go green (C2) — engine fix + static
-   linking + Ninja + smoke steps are all in the branch; linux job must stay
-   green **including the new GUI offscreen steps** (143 checks).
-3. Clean-VM windeployqt smoke from the artifact (C4/D3/D4).
+1. ~~Obtain a valid PAT / push / merge~~ **DONE** — PR #5 merged, main run
+   #23 green on both jobs with artifacts (2026-09-07).
+2. Clean-VM windeployqt smoke from the `gifscythe-windows` artifact (C4/D3/D4).
 4. One-time real-desktop GUI probes: B5 (kill engine mid-run), B6 physical
    drag-drop, B14 engine-missing GUI variant.
 5. Remaining 1.0.0 polish: naming templates, queue reorder (both optional),
