@@ -2,7 +2,10 @@
 
 **Current product version:** 0.1.0 (see `working_code/gifscythe/VERSION.md`)  
 **Status:** Engine + control layer + CLI + GUI MVP shippable as pre-release.
-P0/P1 silent-failure and honesty fixes landed 2026-09-07. Full GIF UI/UX
+P0/P1 silent-failure and honesty fixes landed 2026-09-07 and were **verified
+with evidence the same day** (audit §6: CLI/unit/engine/smoke green, 81-check
+offscreen GUI harness green, Windows engine+CLI proven under Wine; Windows CI
+rerun pending a valid push token — see `SESSION_HANDOFF.md`). Full GIF UI/UX
 retrofit still required before **1.0.0**. WebP/APNG deferred.
 
 This repository deliberately separates **reference code** from **working code**

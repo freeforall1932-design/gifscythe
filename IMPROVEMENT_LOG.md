@@ -4,6 +4,75 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## 2026-09-07 (S4) — §6 verification executed + Windows CI root-caused & fixed
+
+**Environment upgrade:** apt reachable again → gcc 12.2, cmake 3.25,
+**Qt 6.4.2**, **mingw-w64 12**, **Wine 8** installed in sandbox. Everything
+the S3 session marked "needs a Qt machine / real Windows" became testable.
+
+**Push blocker:** the provided fine-grained PAT is invalid (API 401 "Bad
+credentials"; push "Invalid username or token"; public-repo reads work
+anonymously, which masks the failure). All S4 work is committed on local
+branch `verify/windows-ci-fixes`; a new token (Contents+Workflows+PR write)
+is required to push.
+
+**Verification (COMPILED_AUDIT §6, evidence-tagged):**
+- §6.A 12/12 + new A13 (Windows unit exe under Wine). ASan+UBSan clean
+  (unit suite + CLI, incl. honest exit 1 on missing engine).
+- §6.B: new offscreen harness `tests/test_gui_offscreen.cpp` — 81 checks,
+  0 failures (batch N→N + frame counts, merge 13=12+1, explode `.NNN`,
+  merge-empty-output refusal, honest failure, cancel mid-run on a
+  4800-frame GIF, close-while-running kill, dedupe, multi-remove, live pane
+  sync/quoting, Batch default, explicit-output E1). B5/B6-plumbing/B14-variant
+  remain one-time desktop probes. Qt 6.4 note: synthetic QDropEvents are
+  ignored without an active platform drag session → harness emits
+  `filesDropped` (the signal the drop handler emits) instead.
+- §6.C: C1 confirmed green (Actions linux, run #18). C7 simulation exposed a
+  **new pit**: stale GUI binaries let `build.sh --all` claim "GUI built" with
+  Qt hidden → build.sh now deletes stale GUI outputs before probing.
+  C6 configure ±Qt, C8 honest default: green.
+- §6.D: portable package now includes the GUI (D1/D2); **D5 fixed** —
+  `reference_code/caesium-bin` untracked (62 files / 74 MB, `git rm
+  --cached`), manifest documents re-fetch. History purge still optional.
+- §6.E 8/8 green.
+- One-command suite: `scripts/verify_audit.sh` → 21 PASS / 0 FAIL / 2 SKIP.
+
+**Windows CI failure (run #18 step 4) root-caused & fixed:**
+- gifsicle 1.96 sources do *unconditional* `#include <config.h>`; the
+  `--windows` compile line lacked `-I.` → "config.h: No such file". Fixed
+  per upstream `src/Makefile.mingw`: `-include src/win32cfg.h` first (owns
+  `GIFSICLE_CONFIG_H` guard; root config.h resolves via `-I.` but is
+  guard-neutralized), `-DHAVE_CONFIG_H=1 -DHAVE_UINTPTR_T -DHAVE_INTTYPES_H`,
+  no `-DVERSION` (win32cfg.h defines `1.96 (Windows)`; the old flag only
+  warned and never took effect).
+- Reproduced the exact CI failure locally with mingw-w64, then verified the
+  fix: valid PE x86-64, runs under Wine, optimizes GIFs, `--version` →
+  `LCDF Gifsicle 1.96 (Windows)`.
+- Wine CLI E2E (first ever): confs with `C:\gs\...` paths → exit 0 + valid
+  outputs (12 frames preserved); spaces in input+output → exit 0 **after**
+  fixing a second Windows-only bug: MinGW `_spawnvp` does **not quote**
+  argv → space paths split. `ProcessRunner.h` now uses **CreateProcessA**
+  with MSVCRT-rule quoting (`win_quote_arg`); unit test 19 guards the edge
+  cases (empty arg, tabs, embedded quotes, trailing backslashes).
+- Missing engine under Wine → exit 1 + honest stderr (A2 parity).
+- **Static linking** for Windows CLI/tests (`-static`; KERNEL32+msvcrt only):
+  dynamic exes die silently without MinGW runtime DLLs — unacceptable for
+  portable artifacts. CMake `if(MINGW)` applies the same (GUI:
+  `-static-libgcc -static-libstdc++`, Qt stays dynamic via windeployqt).
+
+**Workflow hardening** (`build.yml` + `build.yml.proposed`, byte-identical):
+`-static` flags; **Ninja generator** for the GUI step (windows-latest cmake
+defaults to Visual Studio, which cannot consume aqt's MinGW Qt — latent
+landmine); native **Windows engine+CLI E2E smoke step**; GUI offscreen
+harness steps on linux + windows.
+
+**Decisions:** keep `docs/ci/build.yml.proposed` synced with the live
+workflow until retired; harness ships as a CMake target + ctest
+(`QT_QPA_PLATFORM=offscreen`, TIMEOUT 600) so CI runs it on both OSes;
+version stays 0.1.0; WebP/APNG stay blocked.
+
+---
+
 ## 2026-09-07 — Docs sync + PR for P0/P1 remediation + compiled audit
 
 - Updated `SESSION_HANDOFF.md`, `WORKLIST.md`, root/`working_code` READMEs,

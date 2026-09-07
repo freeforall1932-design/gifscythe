@@ -10,11 +10,17 @@ full gifsicle terminal control underneath.
 This folder is the **working source code**. Reference material lives in the repo
 root `reference_code/` (read-only).
 
-## Status (2026-09-07)
+## Status (2026-09-07, session S4)
 - **0.1.0** — engine + control layer + CLI + GUI MVP.
-- P0 silent-failure fixes and P1 honesty work are **in tree** (argv exec, honest
-  exits, Batch default, EngineLocator, SettingsIO save/validate, win32cfg, etc.).
-- Re-verify via root `COMPILED_AUDIT.md` §6 before trusting checkmarks.
+- `COMPILED_AUDIT.md` §6 was **executed with evidence**: §6.A all green,
+  §6.B green via the 81-check offscreen GUI harness, §6.E all green;
+  `verify_audit.sh` → 21 PASS / 0 FAIL / 2 SKIP (CI-gated items).
+- **Windows path proven under Wine**: engine exe (`1.96 (Windows)`), CLI E2E
+  with `C:\` paths + spaces, static-linked exes, honest exit codes. Two
+  Windows-only bugs fixed (engine `-I.` recipe; `_spawnvp` space-splitting →
+  `CreateProcessA` + `win_quote_arg`).
+- Windows CI job rerun + clean-machine windeployqt smoke still pending push
+  (see root `SESSION_HANDOFF.md` §0 — provided PAT is invalid).
 - Full UI/UX retrofit (tabs, preview, remaining controls) still pending before
   **1.0.0**. WebP/APNG deferred.
 
@@ -29,6 +35,14 @@ root `reference_code/` (read-only).
 # Engine pipeline + CLI integration smoke tests
 ./scripts/test_engine.sh
 ./scripts/smoke_cli.sh
+
+# Whole COMPILED_AUDIT §6 regression suite in one command
+./scripts/verify_audit.sh
+
+# Offscreen GUI harness (81 checks; needs Qt6)
+cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release
+cmake --build build-cmake
+QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
 
 # Packaging
 ./scripts/package_portable.sh
@@ -54,9 +68,10 @@ working_code/gifscythe/
               version.h           from VERSION.md (GS_VERSION)
     cli/    main.cpp → gifscythe-cli
     qtui/   MainWindow + DropListWidget (Qt6 GUI)
-  scripts/  build_gifsicle.sh, test_engine.sh, smoke_cli.sh, package_*.sh
+  scripts/  build_gifsicle.sh, test_engine.sh, smoke_cli.sh, verify_audit.sh,
+            package_*.sh
   release/  portable output per version
-  tests/    unit tests
+  tests/    unit tests + test_gui_offscreen.cpp (Qt6 offscreen harness)
   examples/ animation.conf
   VERSION.md
 ```
