@@ -107,16 +107,16 @@ Legend for **Status (code @ 2026-09-07)**:
 | **Verdict** | **REAL** — **U-MISS-13 / WORKLIST 5** |
 | **Fresh?** | No — known gap; S3 list is useful checklist |
 | **S3 accuracy** | Mostly good. Mode selection was also a **correctness** bug (Merge hardcoded = U-B3), not only “missing control”. Crop form in S3 text `X,Y+W,H` is informal; emitter must stay **`X,Y+WxH`** (VP-5). |
-| **Status** | 🟡 **PARTIAL** — mode combo + optimize + lossy + output present; ~25 other fields still core-only |
-| **Verify next** | When adding widgets: one control → one flag unit test; do **not** “align” crop/delay/loopcount to wrong docs |
+| **Status** | ✅ **DONE (S4b, 2026-09-07)** — Actions tab exposes ~30 controls: optimize/lossy/colors/dither (engine-truth method list)/color-method/careful, resize kind+W/H+scale %+method, rotate/flip/interlace/position, crop (+transparency), delay (1/100 s label)/loop/disposal/unoptimize/threads, gamma srgb\|oklab\|numeric, background/transparent pickers, metadata removals + comments, explode-by-name. Harness T11 asserts one control → one flag (incl. VP-1/2/3/5 + E7 guards): 143 checks green. |
+| **Verify next** | Keep T11 in sync when adding controls; never “align” crop/delay/loopcount to wrong docs |
 
 #### S3-5 · No Input/Actions/Output tab flow
 | | |
 |--|--|
 | **Verdict** | **REAL** — WORKLIST task 3 / P3-1 |
 | **Fresh?** | No (planned UX) |
-| **Status** | ⬜ **OPEN** — still single-panel MVP |
-| **Verify next** | After tabs: Batch default preserved; live pane still syncs; no Merge-by-default regression |
+| **Status** | ✅ **DONE (S4b)** — XNConvert-style Input / Actions / Output tabs (QTabWidget `mainTabs`) + right-hand Preview pane in a splitter; bottom bar keeps live pane/progress/run/cancel/status |
+| **Verify next** | Harness T1: tabs exist, Batch default preserved, pane syncs (T2), no Merge-by-default regression (T1/T4–T7) |
 
 #### S3-6 · Drag-and-drop not implemented
 | | |
@@ -132,8 +132,8 @@ Legend for **Status (code @ 2026-09-07)**:
 |--|--|
 | **Verdict** | **REAL** — WORKLIST 4 / P3-3 |
 | **Fresh?** | No (planned) |
-| **Status** | ⬜ **OPEN** |
-| **New-pit risk** | Live re-encode on every slider move can freeze UI again — must debounce + async (do not reintroduce S3-2) |
+| **Status** | ✅ **DONE (S4b)** — PreviewPanel: Before plays the selected original (QMovie); After plays a **debounced (1200 ms), fully async** single-file re-encode to a temp dir (fresh QProcess per run + seq guard against stale completions; killed on main-run/close/destructor). Size-savings readout (before → after, %). Honest captions: “SELECTED file, single-file run”, Explode-mode refusal, engine-failure message. |
+| **New-pit risk** | ~~freeze UI~~ guarded: harness T12 proves debounce+async; T9 tick-test still guards the main run. Fixed during S4b: dangling `previewProcess_` member after `deleteLater` (segfault under gdb trace) — member nulled in completion lambdas. |
 
 #### S3-8 · No progress bar or cancel
 | | |
@@ -148,16 +148,16 @@ Legend for **Status (code @ 2026-09-07)**:
 |--|--|
 | **Verdict** | **REAL** — **U-M2 / U-MISS-8** |
 | **Fresh?** | No |
-| **Status** | 🟡 **PARTIAL** — append+dedupe, Remove, Clear done. No move up/down, no total byte size display yet. |
-| **Verify next** | §6.B B8–B10 |
+| **Status** | 🟡 **NEAR-DONE** — append+dedupe, Remove, Clear + **per-file size in row text + total count/size label** (S4b). Only move up/down reorder remains (optional). |
+| **Verify next** | §6.B B8–B10 (harness T3 incl. count label) |
 
 #### S3-10 · Output folder actions missing
 | | |
 |--|--|
 | **Verdict** | **REAL** — WORKLIST 4 |
 | **Fresh?** | Product gap (lightly covered as packaging/UX in S1) |
-| **Status** | ⬜ **OPEN** — Browse save-as exists; no “Open folder”, no `{name}_opt` template UI (batch auto `_opt.gif` exists in code) |
-| **Verify next** | When adding Open Folder, use `QDesktopServices`; don’t shell-out |
+| **Status** | 🟡 **MOSTLY DONE (S4b)** — Output tab: Save-as + **batch output folder** (mkpath'd honestly before running) + **Open output folder** via `QDesktopServices` (no shell-out) + honest per-mode output summary label. Harness T13. Remaining: free-form `{name}` naming templates (S3-25). |
+| **Verify next** | T13 + T4 (default next-to-input still works with empty folder field) |
 
 #### S3-11 · Version string hardcoded in GUI
 | | |
@@ -351,16 +351,22 @@ Portable package:    release/0.1.0/Gifscythe/ (engine+CLI+licenses; no GUI in sa
    — engine recipe fix + static linking + Ninja + smoke steps all staged
 2. ⬜ Clean-Windows windeployqt smoke from the CI artifact (C4/D3/D4)
 
-### P1 product (before claiming 1.0.0)
-3. ⬜ Input / Actions / Output tabs (S3-5)
-4. ⬜ Expose remaining settings controls (S3-4 / U-MISS-13) — keep VP-1..5 sacred
-5. ⬜ Before/after preview with debounce + async (S3-7) — harness now guards
-   the no-UI-block invariant (T9 ticks) so regressions get caught
-6. ⬜ Output folder actions + naming templates (S3-10 / S3-25)
-7. ⬜ Queue size/count display; optional reorder (S3-9 remainder)
+### P1 product (before claiming 1.0.0) — S4b landed the big three
+3. ✅ Input / Actions / Output tabs (S3-5) — harness T1
+4. ✅ Remaining settings controls exposed (S3-4 / U-MISS-13) — harness T11
+   (VP-1/2/3/5 + E7 guarded by assertions)
+5. ✅ Before/after preview, debounced + async (S3-7) — harness T12
+6. 🟡 Output folder actions ✅ (batch folder + Open folder, T13);
+   ⬜ free-form naming templates remain (S3-25)
+7. 🟡 Queue size/count display ✅ (row sizes + total label, T3);
+   ⬜ optional reorder remains (S3-9)
 8. ⬜ One-time real-desktop GUI probes: B5, B6 physical drop, B14 engine-missing
 9. ⬜ Decide two-way CLI: implement `parse_args` **or** keep one-way forever
-   (U-MISS-14) — docs already one-way honest
+   (U-MISS-14) — pane label now says "one-way" explicitly in the UI
+10. ⬜ Document release procedure; presets/templates (optional, S3-26)
+11. ⬜ Only after 1+2+8: consider VERSION bump (owner decision: 0.2.0 for the
+    retrofit per VERSION.md minor rule, or straight to 1.0.0 when everything
+    above is green)
 
 ### Explicitly blocked until GIF 1.0.0
 - ⏸️ S3-17,22,23,24 (frame model, WebP, APNG, frame editor)
@@ -414,8 +420,9 @@ Portable package:    release/0.1.0/Gifscythe/ (engine+CLI+licenses; no GUI in sa
 ### 6.B GUI — GREEN via offscreen harness [H] + desktop notes
 
 New `tests/test_gui_offscreen.cpp` (CMake target `test_gui_offscreen`, runs in
-CI on both OSes) drives the real MainWindow with `QT_QPA_PLATFORM=offscreen`:
-**81 checks, 0 failures**.
+CI on both OSes) drives the real MainWindow with `QT_QPA_PLATFORM=offscreen`.
+S4 run: **81 checks**; after the S4b UI retrofit (tabs + full controls +
+preview): **143 checks, 0 failures** (T1–T13).
 
 - [x] **B1** Run-click returns in <3 s while a 3.6 s engine run continues
       async; event loop ticks ≥20×/600 ms during the run (UI thread alive) **[H]**

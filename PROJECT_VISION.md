@@ -3,9 +3,11 @@
 **Product name:** Gifscythe — a GIF / APNG / WebP animation tool  
 **Version:** 0.1.0 (in development). See `working_code/gifscythe/VERSION.md`.  
 **Status:** Feasibility decided (`FEASIBILITY_REVIEW.md`). Engine, control layer,
-CLI, and GUI MVP implemented; P0/P1 honesty fixes landed. Full GIF UI/UX retrofit
-and verified portable Windows build remain before **1.0.0**. See `WORKLIST.md`
-and `COMPILED_AUDIT.md`.
+CLI, and GUI implemented; P0/P1 honesty fixes landed and were verified with
+evidence (audit §6); the XNConvert-style UI retrofit (tabs/controls/preview)
+landed 2026-09-07 (S4b). Verified portable Windows build (CI green + clean-VM
+smoke) and desktop probes remain before **1.0.0**. See `WORKLIST.md` and
+`COMPILED_AUDIT.md`.
 
 ## Mission
 A portable, click-and-use desktop app for **animated (moving) images only** —
@@ -47,6 +49,6 @@ want the full gifsicle terminal control underneath.
 | GIF engine subprocess | Done (native + Windows config path) |
 | Settings → argv control layer | Done |
 | CLI driver + tests | Done (honest exits, smoke suite) |
-| GUI MVP | Done enough to drive core; tabs/preview/full controls pending |
+| GUI | **Retrofit done (S4b):** Input/Actions/Output tabs, ~30 engine-truth controls, debounced async before/after preview, batch output folder — 143-check offscreen harness green |
 | Silent-failure class bugs | Fixed in code; re-verify via `COMPILED_AUDIT.md` §6 |
 | 1.0.0 | **Not yet** — UI/UX retrofit + verified portable Windows still open |

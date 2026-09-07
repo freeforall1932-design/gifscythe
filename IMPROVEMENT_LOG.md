@@ -4,6 +4,63 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## 2026-09-07 (S4b) — XNConvert-style UI retrofit: tabs, full controls, async preview
+
+Owner approved starting the P1 GUI retrofit while the push token is dead.
+Implemented + verified the same day; version stays **0.1.0** (bump is an
+owner decision after Windows CI green).
+
+**New structure** (`src/qtui/`):
+- `SettingsPanel.{h,cpp}` — the Actions tab: ~30 controls covering the whole
+  `GifsicleSettings` surface (mode, optimize, lossy, colors, dither,
+  color-method, careful, resize kind/W×H/scale %/method, rotate, flips,
+  interlace, position, crop + crop-transparency, delay, loop, disposal,
+  unoptimize, threads, gamma, background/transparent with color pickers,
+  metadata removals, comments, explode-by-name). Value lists are
+  **engine-truth**, extracted from gifsicle 1.96 source: dither names from
+  `set_dither_type()` (floyd-steinberg/atkinson/o3x3…ro64/diag45/halftone/
+  sqhalftone), resize methods from `RESIZE_METHOD_TYPE` (point/mix/box/
+  catrom/lanczos2/lanczos3/mitchell), disposal from `DISPOSAL_TYPE`
+  (none/asis/background/previous), color methods from `COLORMAP_ALG_TYPE`
+  (diversity/blend-diversity/median-cut), gamma from `GAMMA_OPT`
+  (srgb/oklab/numeric). Every widget has a stable objectName.
+- `PreviewPanel.{h,cpp}` — Before (QMovie of selected original) / After
+  (QMovie of preview output) + size-savings readout + honest captions.
+- `MainWindow.{h,cpp}` — rewritten layout: Input/Actions/Output tabs +
+  preview in a splitter; bottom bar unchanged (live one-way pane, progress,
+  run/cancel, status). Output tab: Save-as, batch output folder (mkpath'd
+  before running), Open-folder via QDesktopServices, per-mode summary.
+  Queue rows show per-file size; footer shows count+total. **Run semantics
+  deliberately unchanged** (batch N→N `_opt.gif`, E1 explicit save-as,
+  merge refuses empty output, explode auto-prefix, honest failures).
+- Preview pipeline: 1200 ms debounce; **fresh QProcess per run + captured
+  sequence number** so killed/stale runs can never be misread; killed on
+  main-run start, cancel, close, and destructor; temp dir per PID, cleaned
+  on destruction; previous preview file deleted after each success.
+
+**Bug found & fixed during harness bring-up:** `previewProcess_` member
+dangled after the completion lambda's `deleteLater()` → segfault in
+`~MainWindow`/`killPreview` (gdb backtrace). Member is now nulled in both
+completion paths.
+
+**Harness grew 81 → 143 checks** (T1–T13): tabs exist and are named; all
+control→flag mappings incl. regression guards for VP-1 (`--loopcount=0`),
+VP-2 (`-O0`), VP-3 (no `--gamma` unless chosen), VP-5 (crop `1,2+30x40`
+plus-form), E7 (delay label says **1/100 s**, never ms); preview pipeline
+(savings appear, regenerates on change, honest Explode refusal); batch
+output folder honored end-to-end; all original B-series semantics re-proven
+against the rewritten MainWindow.
+
+**verify_audit.sh** stays green: 21 PASS / 0 FAIL / 2 SKIP (E4 probe moved
+to SettingsPanel.cpp). qmake **and** cmake build paths both compile the new
+files (`gifscythe.pro` updated). Engine 5/5, smoke 7/7, unit ALL PASSED.
+
+**Second PAT also rejected** (format-valid, 93 chars — GitHub says Bad
+credentials/Invalid token). Push still blocked; everything accumulates on
+local branch `verify/windows-ci-fixes`.
+
+---
+
 ## 2026-09-07 (S4) — §6 verification executed + Windows CI root-caused & fixed
 
 **Environment upgrade:** apt reachable again → gcc 12.2, cmake 3.25,
