@@ -1,4 +1,4 @@
-// Auto-synced from VERSION.md by build.sh — do not edit by hand.
+// Generated from VERSION.md — do not edit by hand.
 #ifndef GIFSCYTHE_CORE_VERSION_H
 #define GIFSCYTHE_CORE_VERSION_H
 

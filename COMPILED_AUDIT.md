@@ -1,7 +1,7 @@
 # Gifscythe — Compiled Audit (Master)
 
-**Compiled:** 2026-09-07  
-**Branch (fixes):** `arena/01a07959-gifscythe`  
+**Compiled:** 2026-09-07 · **Verification session S4:** 2026-09-07 (Qt 6.4.2 + mingw-w64 + Wine sandbox)  
+**Branch (fixes):** `arena/01a07959-gifscythe` → merged to `main`; S4 work on `verify/windows-ci-fixes`  
 **Product version:** 0.1.0 (do **not** bump to 1.0.0 yet)  
 **Companion docs:** `SESSION_HANDOFF.md` · `WORKLIST.md` · `IMPROVEMENT_LOG.md`
 
@@ -94,8 +94,8 @@ Legend for **Status (code @ 2026-09-07)**:
 | **Verdict** | **REAL but incomplete** — already **U-B8 / BR-8 + U-B11 / BR-11** |
 | **Fresh?** | No |
 | **S3 accuracy** | **Misses the deeper bug**: even with mingw present, Linux `config.h` (`SIZEOF_UNSIGNED_LONG 8`) fails Win64 `static_assert`. Also names `ci.yml` — real file is `.github/workflows/build.yml`. Wrong choco package `qt6-base` was the CI install killer. |
-| **Status** | 🟡 **PARTIAL** — `build_gifsicle.sh --windows` uses `-include src/win32cfg.h`; workflow rewritten (aqtinstall, single engine build, windeployqt, artifacts). **Not confirmed green on GitHub Actions yet.** |
-| **Verify next** | §6.C C1–C5 |
+| **Status** | 🟡 **NEAR-GREEN** — S4 found the real step-4 killer: 1.96 sources do *unconditional* `#include <config.h>` and the Windows line lacked `-I.` (guard-neutralized root config.h). Recipe fixed (upstream `Makefile.mingw` flags), local cross-build green, **exe verified running under Wine** (`1.96 (Windows)`, valid GIF output). Workflow applied to main (821a310); remaining: push fix → confirm Actions windows green. |
+| **Verify next** | §6.C C2 (CI rerun) — C3/C5 already evidenced under Wine |
 
 ---
 
@@ -107,16 +107,16 @@ Legend for **Status (code @ 2026-09-07)**:
 | **Verdict** | **REAL** — **U-MISS-13 / WORKLIST 5** |
 | **Fresh?** | No — known gap; S3 list is useful checklist |
 | **S3 accuracy** | Mostly good. Mode selection was also a **correctness** bug (Merge hardcoded = U-B3), not only “missing control”. Crop form in S3 text `X,Y+W,H` is informal; emitter must stay **`X,Y+WxH`** (VP-5). |
-| **Status** | 🟡 **PARTIAL** — mode combo + optimize + lossy + output present; ~25 other fields still core-only |
-| **Verify next** | When adding widgets: one control → one flag unit test; do **not** “align” crop/delay/loopcount to wrong docs |
+| **Status** | ✅ **DONE (S4b, 2026-09-07)** — Actions tab exposes ~30 controls: optimize/lossy/colors/dither (engine-truth method list)/color-method/careful, resize kind+W/H+scale %+method, rotate/flip/interlace/position, crop (+transparency), delay (1/100 s label)/loop/disposal/unoptimize/threads, gamma srgb\|oklab\|numeric, background/transparent pickers, metadata removals + comments, explode-by-name. Harness T11 asserts one control → one flag (incl. VP-1/2/3/5 + E7 guards): 143 checks green. |
+| **Verify next** | Keep T11 in sync when adding controls; never “align” crop/delay/loopcount to wrong docs |
 
 #### S3-5 · No Input/Actions/Output tab flow
 | | |
 |--|--|
 | **Verdict** | **REAL** — WORKLIST task 3 / P3-1 |
 | **Fresh?** | No (planned UX) |
-| **Status** | ⬜ **OPEN** — still single-panel MVP |
-| **Verify next** | After tabs: Batch default preserved; live pane still syncs; no Merge-by-default regression |
+| **Status** | ✅ **DONE (S4b)** — XNConvert-style Input / Actions / Output tabs (QTabWidget `mainTabs`) + right-hand Preview pane in a splitter; bottom bar keeps live pane/progress/run/cancel/status |
+| **Verify next** | Harness T1: tabs exist, Batch default preserved, pane syncs (T2), no Merge-by-default regression (T1/T4–T7) |
 
 #### S3-6 · Drag-and-drop not implemented
 | | |
@@ -132,8 +132,8 @@ Legend for **Status (code @ 2026-09-07)**:
 |--|--|
 | **Verdict** | **REAL** — WORKLIST 4 / P3-3 |
 | **Fresh?** | No (planned) |
-| **Status** | ⬜ **OPEN** |
-| **New-pit risk** | Live re-encode on every slider move can freeze UI again — must debounce + async (do not reintroduce S3-2) |
+| **Status** | ✅ **DONE (S4b)** — PreviewPanel: Before plays the selected original (QMovie); After plays a **debounced (1200 ms), fully async** single-file re-encode to a temp dir (fresh QProcess per run + seq guard against stale completions; killed on main-run/close/destructor). Size-savings readout (before → after, %). Honest captions: “SELECTED file, single-file run”, Explode-mode refusal, engine-failure message. |
+| **New-pit risk** | ~~freeze UI~~ guarded: harness T12 proves debounce+async; T9 tick-test still guards the main run. Fixed during S4b: dangling `previewProcess_` member after `deleteLater` (segfault under gdb trace) — member nulled in completion lambdas. |
 
 #### S3-8 · No progress bar or cancel
 | | |
@@ -148,16 +148,16 @@ Legend for **Status (code @ 2026-09-07)**:
 |--|--|
 | **Verdict** | **REAL** — **U-M2 / U-MISS-8** |
 | **Fresh?** | No |
-| **Status** | 🟡 **PARTIAL** — append+dedupe, Remove, Clear done. No move up/down, no total byte size display yet. |
-| **Verify next** | §6.B B8–B10 |
+| **Status** | 🟡 **NEAR-DONE** — append+dedupe, Remove, Clear + **per-file size in row text + total count/size label** (S4b). Only move up/down reorder remains (optional). |
+| **Verify next** | §6.B B8–B10 (harness T3 incl. count label) |
 
 #### S3-10 · Output folder actions missing
 | | |
 |--|--|
 | **Verdict** | **REAL** — WORKLIST 4 |
 | **Fresh?** | Product gap (lightly covered as packaging/UX in S1) |
-| **Status** | ⬜ **OPEN** — Browse save-as exists; no “Open folder”, no `{name}_opt` template UI (batch auto `_opt.gif` exists in code) |
-| **Verify next** | When adding Open Folder, use `QDesktopServices`; don’t shell-out |
+| **Status** | 🟡 **MOSTLY DONE (S4b)** — Output tab: Save-as + **batch output folder** (mkpath'd honestly before running) + **Open output folder** via `QDesktopServices` (no shell-out) + honest per-mode output summary label. Harness T13. Remaining: free-form `{name}` naming templates (S3-25). |
+| **Verify next** | T13 + T4 (default next-to-input still works with empty folder field) |
 
 #### S3-11 · Version string hardcoded in GUI
 | | |
@@ -233,7 +233,7 @@ Use this as the **authoritative** broken/misaligned/missing register. S3 IDs cro
 | U-B5 / BR-5 | waitForFinished ignored | S3-2 | ✅ async finished handler | B1–B5 |
 | U-B6 / BR-6 | shell `system()` / injection | (missed) | ✅ argv exec + `shell_quote` display | A4 spaces path |
 | U-B7 / BR-7 | CMake STATIC header-only | (missed) | ✅ INTERFACE | C6 cmake configure |
-| U-B8 / BR-8 | Windows CI package/steps | S3-3 | 🟡 workflow rewritten | C1–C5 **CI green?** |
+| U-B8 / BR-8 | Windows CI package/steps | S3-3 | 🟡 engine recipe fixed + Wine-proven; workflow hardened (static link, Ninja, E2E smoke); **push blocked (dead token)** | C2 CI rerun after push |
 | U-B9 / BR-9 | build.sh GUI dispatch lies | (missed) | ✅ honest `--all` / fail | C7 |
 | U-B10 / BR-10 | SettingsIO UB parse | S3-13 | ✅ safe parse | A6 |
 | U-B11 / BR-11 | Win Linux config.h | S3-3 miss | ✅ win32cfg.h include | C2 engine builds |
@@ -253,7 +253,7 @@ Use this as the **authoritative** broken/misaligned/missing register. S3 IDs cro
 | U-M6 / AL-6 | Packager paths / no .exe | S3-12 | 🟡 scripts fixed | D1–D4 |
 | U-M7 / AL-7 | Engine version = product version | (missed) | ✅ engine 1.96 | A10 |
 | U-M8 / AL-8 | Bool/rotation parse inconsistent | S3-13 | ✅ | A7 |
-| U-M9 / AL-9 | Hygiene / gitignore / includes | (missed) | 🟡 root gitignore+gitattributes+LICENSE; caesium-bin gitignored not deleted from history | D5 |
+| U-M9 / AL-9 | Hygiene / gitignore / includes | (missed) | ✅ S4: caesium-bin **untracked** (`git rm --cached`, 62 files/74 MB); manifest documents re-fetch; history purge remains optional | D5 ✅ |
 | U-M10 / AL-10 | Delay “ms” in FEASIBILITY | (missed) | ✅ table fixed | docs only |
 | U-M11 / AL-11 | GIFSYCYTHE guard typo | S3-11 bad fix | ✅ GIFSCYTHE_* | grep |
 
@@ -303,6 +303,20 @@ Use this as the **authoritative** broken/misaligned/missing register. S3 IDs cro
 | Docs/license | `LICENSE`, `COPYING.gifsicle`, root `.gitignore`, `.gitattributes`, WORKLIST/HANDOFF/IMPROVEMENT_LOG, FEASIBILITY table fixes |
 | **This file** | `COMPILED_AUDIT.md` (merge of S1+S2+S3) |
 
+### S4 verification-session changes (2026-09-07, later)
+
+| Area | Files | Why |
+|------|-------|-----|
+| Windows engine recipe | `scripts/build_gifsicle.sh` | `-I.` + upstream mingw flags; drop `-DVERSION` (win32cfg.h owns it) — fixes CI run #18 step 4 |
+| Windows argv exec | `src/core/ProcessRunner.h` | `_spawnvp` does NOT quote args → space paths split (found via Wine E2E). Now `CreateProcessA` + MSVCRT-rule `win_quote_arg` |
+| Quoting regression test | `tests/test_gifsicle_command.cpp` | test 19 covers win_quote_arg edge cases (empty, tabs, embedded quotes, trailing backslashes) |
+| GUI harness | `tests/test_gui_offscreen.cpp` (new) | 81 automated checks for §6.B under `QT_QPA_PLATFORM=offscreen`; runs in CI on both OSes |
+| CMake | `CMakeLists.txt` | harness target + ctest registration; MinGW static-link options (CLI/tests fully static; GUI static-libgcc/libstdc++) |
+| build.sh honesty | `build.sh` | delete stale GUI binaries before probing (stale `build/gui/gifscythe` faked "GUI built" with Qt removed) |
+| CI workflow | `.github/workflows/build.yml` (+ proposed copy) | `-static` CLI/tests, native Windows engine+CLI E2E smoke step, **Ninja generator** (VS default can't consume MinGW Qt), GUI offscreen steps |
+| One-command §6 | `scripts/verify_audit.sh` (new) | 21 PASS / 0 FAIL / 2 SKIP locally |
+| Hygiene | `reference_code/caesium-bin` untracked; `REFERENCE_MANIFEST.md` note | D5 |
+
 ### Local evidence already collected (sandbox)
 
 ```text
@@ -325,100 +339,179 @@ Portable package:    release/0.1.0/Gifscythe/ (engine+CLI+licenses; no GUI in sa
 
 ## 5. Remaining work ordered (next sessions)
 
-### Still P0-ish until proven on CI
-1. ⬜ Windows Actions job **green** + downloadable `gifscythe-windows` artifact (S3-3 / U-B8 / U-B11)
-2. ⬜ GUI binary in Linux artifact actually runs (`build.sh --all` on runner)
+### Gate 0 — PUSH BLOCKED (do first)
+0. 🔑 **The fine-grained PAT provided 2026-09-07 is INVALID** ("Bad
+   credentials" on API, "Invalid username or token" on push; reads only work
+   because the repo is public). All S4 fixes are **committed locally on
+   `verify/windows-ci-fixes`** but cannot be pushed. Need a new token with
+   **Contents: R/W + Workflows: R/W + Pull requests: R/W** (Metadata: R).
 
-### P1 product (before claiming 1.0.0)
-3. ⬜ Input / Actions / Output tabs (S3-5)
-4. ⬜ Expose remaining settings controls (S3-4 / U-MISS-13) — keep VP-1..5 sacred
-5. ⬜ Before/after preview with debounce + async (S3-7) — **no UI-thread regression**
-6. ⬜ Output folder actions + naming templates (S3-10 / S3-25)
-7. ⬜ Queue size/count display; optional reorder (S3-9 remainder)
-8. ⬜ Clean Windows portable smoke (S3-12)
-9. ⬜ Decide two-way CLI: implement `parse_args` **or** keep one-way forever (U-MISS-14) — docs already one-way honest
+### P0-ish until proven on CI (fixes staged locally)
+1. ⬜ Push → GitHub Actions **windows** green + downloadable artifact (C2)
+   — engine recipe fix + static linking + Ninja + smoke steps all staged
+2. ⬜ Clean-Windows windeployqt smoke from the CI artifact (C4/D3/D4)
+
+### P1 product (before claiming 1.0.0) — S4b landed the big three
+3. ✅ Input / Actions / Output tabs (S3-5) — harness T1
+4. ✅ Remaining settings controls exposed (S3-4 / U-MISS-13) — harness T11
+   (VP-1/2/3/5 + E7 guarded by assertions)
+5. ✅ Before/after preview, debounced + async (S3-7) — harness T12
+6. 🟡 Output folder actions ✅ (batch folder + Open folder, T13);
+   ⬜ free-form naming templates remain (S3-25)
+7. 🟡 Queue size/count display ✅ (row sizes + total label, T3);
+   ⬜ optional reorder remains (S3-9)
+8. ⬜ One-time real-desktop GUI probes: B5, B6 physical drop, B14 engine-missing
+9. ⬜ Decide two-way CLI: implement `parse_args` **or** keep one-way forever
+   (U-MISS-14) — pane label now says "one-way" explicitly in the UI
+10. ⬜ Document release procedure; presets/templates (optional, S3-26)
+11. ⬜ Only after 1+2+8: consider VERSION bump (owner decision: 0.2.0 for the
+    retrofit per VERSION.md minor rule, or straight to 1.0.0 when everything
+    above is green)
 
 ### Explicitly blocked until GIF 1.0.0
 - ⏸️ S3-17,22,23,24 (frame model, WebP, APNG, frame editor)
 - ⏸️ Do not bump VERSION to 1.0.0 as a placeholder
 
 ### Optional post-1.0
-- S3-14 logging, 15 app QSettings, 16 i18n, 20 bench, 26 presets, 27–30 UX chrome  
+- S3-14 logging, 15 app QSettings, 16 i18n, 20 bench, 26 presets, 27–30 UX chrome
 - S3-21 installers only if vision changes (portable is default)
+- caesium-bin git-history purge (optional; untracked since S4)
+- Windows live-pane display: `shell_quote` is POSIX-style; a cmd.exe-style
+  quoter for Windows users is a nice-to-have (display only — exec is argv)
 
 ---
 
-## 6. Next-session verification checklist
+## 6. Verification checklist — RUN 2026-09-07 (session S4, Linux sandbox + Wine)
 
-> **Purpose:** Prove fixes still work and that we did not close a pit by digging a new one.  
-> Tick only with evidence (paste command output or note platform).
+> **Status:** Executed in full on Linux (Debian 12 sandbox, gcc 12.2, cmake 3.25,
+> **Qt 6.4.2**, mingw-w64 12, **Wine 8**). One-command rerun:
+> `working_code/gifscythe/scripts/verify_audit.sh` (21 PASS / 0 FAIL / 2 SKIP —
+> skips are the CI-gated and clean-Windows-desktop items).
+> Evidence tags: **[L]** Linux sandbox · **[W]** Windows PE binary under Wine ·
+> **[H]** offscreen GUI harness (`test_gui_offscreen`, 81 checks) ·
+> **[CI]** GitHub Actions.
 
-### 6.A CLI / core (no Qt required)
+### 6.A CLI / core (no Qt required) — ALL GREEN [L]
 
-- [ ] **A1** From `working_code/gifscythe/`:  
-      `./build.sh && ./build/gifscythe-cli examples/animation.conf --run`  
-      → exit 0, output file non-empty
-- [ ] **A2** `./build/gifscythe-cli examples/animation.conf --run --engine /nope`  
-      → exit **non-zero**, stderr contains `ERROR: engine not found`
-- [ ] **A3** `cd /tmp && /abs/path/gifscythe-cli /abs/path/one.conf --run --engine /abs/path/gifsicle`  
-      → exit 0 (CWD independence)
-- [ ] **A4** Conf with input/output paths containing **spaces** → exit 0, files written; print mode shows quotes
-- [ ] **A5** `grep -r '0\.1\.0' src/qtui src/cli` only via `GS_VERSION` / generated header — bump test: edit VERSION.md, rebuild, title/CLI banner match
-- [ ] **A6** Malformed conf (`lossy=abc`, `colors=999`) → warnings, no crash, no UB garbage flags
-- [ ] **A7** `info=yes`, `careful=on`, `rotation=none` parse correctly
-- [ ] **A8** Unit: save/load round-trip still passes (`./build/test_gifsicle_command`)
-- [ ] **A9** Prvalue `GifsicleCommand(Settings{...})` still in tests / no sanitizer complaint
-- [ ] **A10** `release/*/gifsicle --version` → **1.96**, not product 0.1.0
-- [ ] **A11** `./scripts/test_engine.sh` → 5/5
-- [ ] **A12** `./scripts/smoke_cli.sh` → 7/7
+- [x] **A1** `./build.sh && ./build/gifscythe-cli examples/animation.conf --run`
+      → exit 0, `/tmp/gifscythe_demo.gif` 9458 bytes **[L]**
+- [x] **A2** `--engine /nope` → exit **1**, stderr `ERROR: engine not found` **[L]**
+      (also under Wine: Windows CLI exe exits 1 on `C:\nope\gifsicle.exe` **[W]**)
+- [x] **A3** run from `/tmp` with absolute settings+engine → exit 0 **[L]**
+- [x] **A4** conf with spaces in input/output → exit 0, files written; print
+      mode shows `'…my vacation…'` quoted **[L]** — and under Wine with
+      `C:\gs\in\my vacation\b.gif` → exit 0 after ProcessRunner fix **[W]**
+- [x] **A5** no hardcoded `0.1.x` in `src/cli`/`src/qtui`; bump test done:
+      VERSION.md → 0.1.1 → build.sh + CMake regenerated `GS_VERSION "0.1.1"`,
+      CLI banner + GUI title (harness T1) followed; reverted to 0.1.0 **[L][H]**
+- [x] **A6** malformed conf (`lossy=abc`, `colors=999`) → warnings, no crash;
+      defaults kept (unit tests 8/18 + smoke 5–6) **[L]**
+- [x] **A7** `info=yes`, `careful=on`, `rotation=none` parse (unit test 15) **[L]**
+- [x] **A8** save/load round-trip (unit test 9) — ALL TESTS PASSED **[L]**
+- [x] **A9** prvalue `GifsicleCommand(Settings{...})` (unit test 11) + full unit
+      suite and CLI under **ASan+UBSan**: clean, honest exits, no leaks **[L]**
+- [x] **A10** `release/0.1.0/gifsicle --version` → `LCDF Gifsicle 1.96` **[L]**;
+      Windows exe → `LCDF Gifsicle 1.96 (Windows)` (upstream win32cfg identity) **[W]**
+- [x] **A11** `./scripts/test_engine.sh` → 5/5 **[L]**
+- [x] **A12** `./scripts/smoke_cli.sh` → 7/7 **[L]**
+- [x] **A13 (new)** Windows unit-test exe under Wine → ALL TESTS PASSED
+      (core layer logic identical on Windows; static-linked, no MinGW DLLs) **[W]**
 
-### 6.B GUI (needs Qt6)
+### 6.B GUI — GREEN via offscreen harness [H] + desktop notes
 
-- [ ] **B1** UI stays responsive while a multi-second run is in progress
-- [ ] **B2** Cancel mid-run → status “Cancelled”, controls re-enabled, no zombie gifsicle
-- [ ] **B3** Progress/busy indicator visible while running
-- [ ] **B4** Failed gifsicle → error dialog / status, **not** “complete”
-- [ ] **B5** Kill engine binary mid-run → honest failure (not success)
-- [ ] **B6** Drag-drop `.gif` onto queue → append (not replace)
-- [ ] **B7** Second “Add files” appends; duplicates ignored
-- [ ] **B8** Remove selected works with multi-select (no index corruption)
-- [ ] **B9** Clear empties queue and disables Run
-- [ ] **B10** Mode **Batch** (default): 2 inputs → **2** output files (`*_opt.gif`); `gifsicle --info` frame counts match sources
-- [ ] **B11** Mode **Merge**: 2 inputs → **1** output; frame count = sum (explicit only)
-- [ ] **B12** Empty output + Batch → auto names; empty output + Merge → **refuses** (no silent stdout loss)
-- [ ] **B13** Change optimize/lossy/mode/output/queue → command pane updates immediately; paths with spaces quoted
-- [ ] **B14** Status bar shows real engine path; missing engine disables Run with clear message
-- [ ] **B15** Close window while running → process killed cleanly
+New `tests/test_gui_offscreen.cpp` (CMake target `test_gui_offscreen`, runs in
+CI on both OSes) drives the real MainWindow with `QT_QPA_PLATFORM=offscreen`.
+S4 run: **81 checks**; after the S4b UI retrofit (tabs + full controls +
+preview): **143 checks, 0 failures** (T1–T13).
+
+- [x] **B1** Run-click returns in <3 s while a 3.6 s engine run continues
+      async; event loop ticks ≥20×/600 ms during the run (UI thread alive) **[H]**
+      (visual smoothness still worth one desktop glance)
+- [x] **B2** Cancel mid-run (4800-frame GIF, t≈0.6 s) → status `Cancelled.`,
+      process NotRunning, controls re-enabled, progress hidden **[H]**
+- [x] **B3** Indeterminate progress bar visible + Run disabled + Cancel enabled
+      while running **[H]**
+- [x] **B4** Missing input (`ghost.gif`) → status `Optimization failed (exit 1)`
+      + error dialog; never "complete" **[H]**
+- [~] **B5** kill-engine-binary-mid-run race not simulated; cancel/close kill
+      paths covered instead (B2/B15) — keep as manual desktop probe
+- [x] **B6** drop signal → append (queue 0→2). Note: Qt only dispatches
+      QDropEvents during a real platform drag session, so the harness emits
+      `DropListWidget::filesDropped` (the exact signal the drop handler
+      emits); the 15-line event overrides stay a one-time desktop check **[H]**
+- [x] **B7** second drop appends, duplicate ignored (2+2→3) **[H]**
+- [x] **B8** multi-select Remove (rows 0+2 of 3) → 1 left, correct survivor,
+      no index corruption **[H]**
+- [x] **B9** Clear → queue empty + Run disabled **[H]**
+- [x] **B10** Batch default: 2 inputs → 2 `*_opt.gif`; frame counts 12 and 1
+      match sources (`gifsicle --info`) **[H]**
+- [x] **B11** Merge: 2 inputs → 1 output, 13 frames = 12+1 **[H]**
+- [x] **B12** Merge + empty output → refuses with dialog, process never
+      starts, no files written (no silent stdout loss) **[H]**
+- [x] **B13** optimize/lossy/mode/output/queue changes update the pane
+      immediately; space paths shown shell-quoted **[H]**
+- [x] **B14** status shows real engine path; Run disabled on empty queue **[H]**
+      (engine-missing variant covered by CLI A2; GUI variant = desktop probe)
+- [x] **B15** close window mid-run → engine process killed, NotRunning, no crash **[H]**
 
 ### 6.C Build / CI
 
-- [ ] **C1** GitHub Actions **linux** green; artifact contains CLI and (if Qt) GUI
-- [ ] **C2** GitHub Actions **windows** green; artifact contains `gifsicle.exe`
-- [ ] **C3** Windows CLI runs a conf with `C:\`-style paths
-- [ ] **C4** `windeployqt` output runs on a machine **without** Qt installed
-- [ ] **C5** Windows engine was built with win32cfg semantics (binary exists; no `static_assert` fail in logs)
-- [ ] **C6** `cmake -S . -B build && cmake --build build` configures with or without Qt (INTERFACE core)
-- [ ] **C7** `./build.sh --all` without Qt → **non-zero** exit (honest failure)
-- [ ] **C8** `./build.sh` without flags does **not** claim GUI built
+- [x] **C1** GitHub Actions **linux** GREEN (run #18, sha 821a310): build+GUI,
+      engine 5/5, smoke 7/7, package, artifact uploaded **[CI]**
+- [ ] **C2** Actions **windows** job: FAILED at run #18 step 4 (engine build,
+      missing `-I.` → `config.h: No such file`). **Root cause fixed** in
+      `build_gifsicle.sh` (recipe now mirrors upstream `Makefile.mingw`);
+      local cross-compile green. **Needs push to re-run CI** (token dead —
+      see SESSION_HANDOFF) **[L][W]**
+- [x] **C3** Windows CLI runs confs with `C:\`-style paths (Wine E2E:
+      `C:\gs\conf\one.conf` → exit 0, `C:\gs\out\a_opt.gif` 8627 bytes,
+      12 frames; spaces path → exit 0) **[W]**
+- [ ] **C4** `windeployqt` folder on a machine without Qt — needs CI artifact
+      or desktop (harness/CLI statically linked; GUI relies on windeployqt)
+- [x] **C5** Windows engine built with win32cfg semantics: LLP64
+      static_asserts pass at compile time; exe runs and reports
+      `1.96 (Windows)`; produced valid GIFs under Wine **[W]**
+- [x] **C6** `cmake -S . -B build && cmake --build build` configures+builds
+      with Qt (GUI+harness+CLI+tests) and without Qt (skips GUI honestly) **[L]**
+- [x] **C7** `./build.sh --all` with Qt hidden (cmake configs + qmake6 moved
+      out) → exit 1 + honest error. **New pit found & fixed:** stale GUI
+      binaries used to pass the `-x` probe and fake "GUI built" — build.sh now
+      deletes stale GUI outputs before probing **[L]**
+- [x] **C8** default `./build.sh` prints "GUI not requested", claims nothing **[L]**
 
 ### 6.D Packaging / license / hygiene
 
-- [ ] **D1** `package_portable.sh` after full build: folder has engine **and** GUI when GUI built
-- [ ] **D2** Portable folder contains `COPYING.gifsicle` and `LICENSE`
-- [ ] **D3** On Windows portable: double-click GUI finds `gifsicle.exe` beside it
-- [ ] **D4** Clean VM smoke: no missing DLL dialog
-- [ ] **D5** `reference_code/caesium-bin` not required in clone (gitignored); product still builds
+- [x] **D1** `package_portable.sh` after full build → engine + CLI + **GUI**
+      + VERSION/README/README.txt in `release/0.1.0/Gifscythe/` **[L]**
+- [x] **D2** package contains `LICENSE` + `COPYING.gifsicle` **[L]**
+- [ ] **D3/D4** Windows portable double-click + clean-VM DLL smoke — needs CI
+      artifact / real Windows (CLI+engine now static/self-contained **[W]**,
+      GUI needs windeployqt folder test)
+- [x] **D5** `reference_code/caesium-bin` **untracked** (`git rm --cached`,
+      62 files, 74 MB) — gitignore now truthful; product builds without it;
+      REFERENCE_MANIFEST.md documents re-fetch. History purge still optional **[L]**
 
-### 6.E “Did we dig a new pit?” probes
+### 6.E "Did we dig a new pit?" probes — ALL GREEN
 
-- [ ] **E1** Batch of 1 file with explicit Save-as path uses that path (not only `_opt.gif`)
-- [ ] **E2** Explode mode does not require a normal single-file output the same way Merge does
-- [ ] **E3** Command pane text is **not** fed to a shell anywhere (grep for `system(` / `cmd.exe` / `sh -c`)
-- [ ] **E4** No reintroduction of `Mode::Merge` as default
-- [ ] **E5** No reintroduction of Linux `config.h` on `--windows` build line
-- [ ] **E6** Unit test 4 still requires `has(args,"a.gif")` — not `empty() || has`
-- [ ] **E7** FEASIBILITY delay still documents **1/100 s**; GUI labels must not say “ms” if bound to `delay_cs`
-- [ ] **E8** Include guards remain `GIFSCYTHE_*` (not half-renamed mix)
+- [x] **E1** Batch of 1 + explicit Save-as path → that exact path used
+      (`my explicit result.gif` written; no `a_opt.gif`) **[H]**
+- [x] **E2** Explode + empty output → auto `<stem>_frame` prefix; frames
+      `.000`–`.011` written; no merge-style output requirement **[H]**
+- [x] **E3** no `system(` / `sh -c` / `cmd.exe` / `/bin/sh` in `src/`
+      (grep clean; Windows exec = CreateProcessA, POSIX = fork/execvp) **[L]**
+- [x] **E4** Batch stays default (combo index 0 + harness T1 + probe) **[H][L]**
+- [x] **E5** Windows engine line: `-include src/win32cfg.h` first, `-I.`
+      guard-neutralized config.h, no `-DVERSION` override **[L]** (proof: **[W]**)
+- [x] **E6** unit test 4 still `has(args,"a.gif")`, not tautological **[L]**
+- [x] **E7** FEASIBILITY delay = 1/100 s; GUI has no delay widget yet, so no
+      ms mislabel exists (keep this true when adding one) **[L]**
+- [x] **E8** guards all `GIFSCYTHE_*`; zero `GIFSYCYTHE` hits **[L]**
+
+### Remaining unchecked (gated on push / real Windows)
+
+- [ ] **C2** Windows CI green (fix staged; **blocked on a valid push token**)
+- [ ] **C4/D3/D4** clean-Windows windeployqt smoke (after C2 artifact exists)
+- [ ] **B5/B6-plumbing/B14-engine-missing** one-time real-desktop GUI probes
 
 ---
 
@@ -429,8 +522,8 @@ Portable package:    release/0.1.0/Gifscythe/ (engine+CLI+licenses; no GUI in sa
 | Batch auto-output overwrites existing `*_opt.gif` | No prompt yet | Add overwrite confirm before 1.0 |
 | Indeterminate progress only | gifsicle lacks rich progress | Acceptable; don’t block UI “parsing” fake % |
 | `waitForStarted(5000)` still sync on start | Short block only | OK; full async start optional |
-| GUI untested in this sandbox | No Qt6 here | Linux/Windows CI + manual §6.B |
-| Windows CI complexity (aqt + mingw shim) | May still fail on GA | Treat C1–C5 as gate |
+| GUI untested in this sandbox | ~~No Qt6 here~~ RESOLVED S4: Qt 6.4.2 installed; 81-check offscreen harness green | Keep harness in CI; one desktop pass for B5/B6-plumbing |
+| Windows CI complexity (aqt + mingw shim) | Step-4 root cause FIXED + Wine-proven; generator/static-link landmines defused in workflow | Push → treat C2 as gate |
 | One-way CLI pane vs old “two-way” marketing | Doc updated; labels must stay honest | U-MISS-14 |
 | Drop accepts any existing path | Non-GIF could be queued | Filter `*.gif` harder in drop handler if needed |
 | `caesium-bin` may still exist in git history | gitignore stops new adds | Optional history purge later (not required for build) |
@@ -475,6 +568,13 @@ Portable package:    release/0.1.0/Gifscythe/ (engine+CLI+licenses; no GUI in sa
 
 ## 11. Handoff one-liner for next session
 
-> Open `COMPILED_AUDIT.md`. Re-run **§6** first. Treat ✅ as “implemented, not blessed” until checkboxes have evidence. Prefer remaining **§5** items; never “fix” §3.4 verified-correct behaviors; never start WebP/APNG before GIF 1.0.0. If a fix breaks A2/B10/B12/E3–E5, it is a **new pit** — revert and redo.
+> §6 was **executed with evidence on 2026-09-07 (S4)** — rerun
+> `working_code/gifscythe/scripts/verify_audit.sh` (expect 21 PASS / 2 SKIP)
+> plus `test_gui_offscreen` before trusting anything new. The ONE blocker is
+> the **dead push token** (§5 Gate 0): push `verify/windows-ci-fixes`, confirm
+> Actions windows green (C2), then start the P1 GUI retrofit (tabs → controls →
+> preview). Never “fix” §3.4 verified-correct behaviors; never start WebP/APNG
+> before GIF 1.0.0. If a change breaks A2/B10/B12/E3–E5 or any harness test,
+> it is a **new pit** — revert and redo.
 
 *End of compiled audit.*

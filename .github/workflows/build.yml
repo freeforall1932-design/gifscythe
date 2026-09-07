@@ -25,6 +25,15 @@ jobs:
         working-directory: working_code/gifscythe
         run: ./scripts/smoke_cli.sh
 
+      - name: GUI offscreen tests (COMPILED_AUDIT 6.B harness)
+        timeout-minutes: 12
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON
+          cmake --build build-cmake -j2
+          QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
+
       - name: Package portable
         working-directory: working_code/gifscythe
         run: ./scripts/package_portable.sh
@@ -104,17 +113,56 @@ jobs:
             "#define GS_VERSION \"$version\"" \
             "#define GS_VERSION_STR \"$version\"" \
             '#endif' > src/core/version.h
-          g++ -std=c++17 -O2 -I src -o build/gifscythe-cli.exe src/cli/main.cpp
-          g++ -std=c++17 -O2 -I src -o build/test_gifsicle_command.exe tests/test_gifsicle_command.cpp
+          # -static: artifacts must run on a clean Windows machine with no
+          # MinGW runtime DLLs (libgcc_s_seh-1/libstdc++-6). Verified under
+          # Wine 2026-09-07: dynamic exes die silently without those DLLs.
+          g++ -std=c++17 -O2 -static -I src -o build/gifscythe-cli.exe src/cli/main.cpp
+          g++ -std=c++17 -O2 -static -I src -o build/test_gifsicle_command.exe tests/test_gifsicle_command.cpp
           ./build/test_gifsicle_command.exe
+
+      - name: Windows engine + CLI E2E smoke (native)
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' VERSION.md \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          ./release/$version/gifsicle.exe --version | head -1
+          win_temp=$(cygpath -m "$RUNNER_TEMP" 2>/dev/null || echo "${RUNNER_TEMP//\\//}")
+          smoke="$win_temp/gs-smoke"
+          mkdir -p "$smoke/my vacation"
+          cp ../../reference_code/gifsicle/logo.gif "$smoke/in.gif"
+          cp ../../reference_code/gifsicle/logo1.gif "$smoke/my vacation/b.gif"
+          printf 'mode = auto\noptimize = 3\ninput = %s/in.gif\noutput = %s/out.gif\n' \
+            "$smoke" "$smoke" > "$smoke/one.conf"
+          printf 'mode = auto\noptimize = 2\ninput = %s/my vacation/b.gif\noutput = %s/my vacation/b_opt.gif\n' \
+            "$smoke" "$smoke" > "$smoke/space.conf"
+          ./build/gifscythe-cli.exe "$(cygpath -u "$smoke/one.conf" 2>/dev/null || echo "$smoke/one.conf")" --run \
+            --engine "release/$version/gifsicle.exe"
+          ./build/gifscythe-cli.exe "$(cygpath -u "$smoke/space.conf" 2>/dev/null || echo "$smoke/space.conf")" --run \
+            --engine "release/$version/gifsicle.exe"
+          ls -la "$smoke/out.gif" "$smoke/my vacation/b_opt.gif"
+          # Missing engine must exit non-zero (U-B1 regression guard on Windows)
+          if ./build/gifscythe-cli.exe "$smoke/one.conf" --run --engine "$smoke/nope.exe" >/dev/null 2>&1; then
+            echo "FAIL: missing engine exited 0"; exit 1
+          fi
+          echo "Windows E2E smoke OK"
 
       - name: Build GUI (CMake) + windeployqt
         working-directory: working_code/gifscythe
         run: |
           set -euo pipefail
-          cmake -S . -B build-win -DCMAKE_BUILD_TYPE=Release \
+          # windows-latest cmake defaults to the Visual Studio generator,
+          # which cannot consume the MinGW Qt packages aqt installed.
+          # Force Ninja + the MinGW gcc/g++ that are on PATH.
+          if ! cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
+                -DCMAKE_PREFIX_PATH="${QT_PREFIX}" \
+                -DBUILD_GUI=ON; then
+            cmake -S . -B build-win -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
                 -DCMAKE_PREFIX_PATH="${QT_PREFIX}" \
                 -DBUILD_GUI=ON
+          fi
           cmake --build build-win --config Release
           GUI_EXE=""
           for c in build-win/gifscythe.exe build-win/Release/gifscythe.exe build-win/Debug/gifscythe.exe; do
@@ -135,6 +183,19 @@ jobs:
           fi
           # Also stage CLI next to GUI
           [[ -f build/gifscythe-cli.exe ]] && cp build/gifscythe-cli.exe "$(dirname "$GUI_EXE")/"
+
+      - name: GUI offscreen tests (Windows)
+        timeout-minutes: 12
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          # Insurance: windeployqt ships qwindows.dll only; the harness runs
+          # with QT_QPA_PLATFORM=offscreen, so stage the offscreen plugin
+          # next to the exe as well (Qt install plugins dir also works, but
+          # app-dir first removes any relocated-Qt path doubt).
+          mkdir -p build-win/platforms
+          cp "$QT_BIN/../plugins/platforms/qoffscreen.dll" build-win/platforms/ || true
+          QT_QPA_PLATFORM=offscreen ./build-win/test_gui_offscreen.exe
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4

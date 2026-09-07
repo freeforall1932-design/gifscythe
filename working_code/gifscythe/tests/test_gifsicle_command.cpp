@@ -4,6 +4,7 @@
 
 #include "../src/core/GifsicleCommand.h"
 #include "../src/core/SettingsIO.h"
+#include "../src/core/ProcessRunner.h"
 #include "../src/core/Validate.h"
 #include "../src/core/version.h"
 #include <cassert>
@@ -283,6 +284,29 @@ int main() {
     Settings s = load_settings(input, &w);
     CHECK(s.crop_w == 0);  // rejected, stayed default
     CHECK(!w.empty());
+  }
+
+  // 19. Windows argv quoting (win_quote_arg) — MSVCRT re-split rules.
+  //     Regression guard for the _spawnvp space-splitting bug found via
+  //     Wine E2E on 2026-09-07 (paths with spaces were split in two).
+  {
+    // Plain args pass through unchanged.
+    CHECK(win_quote_arg("-O3") == "-O3");
+    CHECK(win_quote_arg("C:\\gs\\in\\a.gif") == "C:\\gs\\in\\a.gif");
+    // Empty arg must become an explicit quoted empty string.
+    CHECK(win_quote_arg("") == "\"\"");
+    // Spaces force quoting (the CI/Wine bug).
+    CHECK(win_quote_arg("C:\\gs\\out\\my vacation\\b_opt.gif") ==
+          "\"C:\\gs\\out\\my vacation\\b_opt.gif\"");
+    // Tabs also force quoting.
+    CHECK(win_quote_arg("a\tb") == "\"a\tb\"");
+    // Embedded quotes are escaped as \" (no space -> still must quote).
+    CHECK(win_quote_arg("say \"hi\"") == "\"say \\\"hi\\\"\"");
+    // Trailing backslashes before the closing quote are doubled so the
+    // quote cannot be escaped by the path itself.
+    CHECK(win_quote_arg("my dir\\") == "\"my dir\\\\\"");
+    // Backslashes NOT before a quote stay single.
+    CHECK(win_quote_arg("a\\b c") == "\"a\\b c\"");
   }
 
   if (failures == 0) {

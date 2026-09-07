@@ -12,7 +12,7 @@ or consult. **Never edit or ship these directly.** All edits happen in
 | `gifsicle-nested-1.96/` | Older **alternate** gifsicle variant (3 files differ: `gifsicle.c`, `gifsicle.h`, `Makefile.w32`). Kept only as an alternate reference. | Was already in this repo (nested `gifsicle-1.96/` tree). | Already present |
 | `gifsicle-upstream/` | Shallow clone of upstream gifsicle **master**. Commit `07f5c4c3de1306156e1d8f33e62971d4664c8f7d`. | `https://github.com/kohler/gifsicle.git` | Auto-fetched (GitHub) |
 | `caesium-source/` | Caesium **UI** source (GPLv3) — the UI/UX base we adapt. Commit `867c7d5ce6efec599b87cd773fbe659bd5d1263f`. | `https://github.com/Lymphatus/caesium-image-compressor.git` | Auto-fetched (GitHub) |
-| `caesium-bin/` | Caesium 2.8.5 **Windows binary bundle** (Qt6 runtime: Qt6*.dll, platforms/, imageformats/ incl. `qgif.dll` + `qwebp.dll`). Used as the reference for the **portable Qt runtime** pattern. | Was already in this repo (bundled `.exe` + DLLs). | Already present |
+| `caesium-bin/` | Caesium 2.8.5 **Windows binary bundle** (Qt6 runtime: Qt6*.dll, platforms/, imageformats/ incl. `qgif.dll` + `qwebp.dll`). Used as the reference for the **portable Qt runtime** pattern. | Was already in this repo (bundled `.exe` + DLLs). **Untracked 2026-09-07** (74 MB of third-party binaries; `.gitignore`d) — re-fetch from the Caesium GitHub releases (`Lymphatus/caesium-image-compressor` 2.8.5 Windows bundle) if needed. | Untracked (gitignored) |
 
 ## Notes
 - **Auto-fetched** items (network worked): `gifsicle-upstream`, `caesium-source`.
