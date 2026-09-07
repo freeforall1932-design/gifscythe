@@ -6,16 +6,21 @@
 
 ## 0. BLOCKER FIRST: the push token is dead
 
-The fine-grained PAT handed to session S4 is **rejected by GitHub**:
-API → `401 Bad credentials`; `git push` → `Invalid username or token`
-(tried all auth forms). Reads work only because the repo is **public**
-(garbage-credential clone succeeds — do not mistake that for token health).
+**Two** fine-grained PATs handed to session S4 were **rejected by GitHub**
+(the second one too): API → `401 Bad credentials`; `git push` → `Invalid
+username or token` (tried all auth forms). Both are format-valid (93 chars,
+22+59 segments) — so they are expired/revoked at the source, not mis-copied.
+Reads work only because the repo is **public** (garbage-credential clone
+succeeds — do not mistake that for token health). When generating a new one:
+create it fresh, copy immediately (fine-grained PATs show once), and grant
+**Contents: R/W + Workflows: R/W + Pull requests: R/W** on this repo.
 
-**Everything this session produced is committed locally on
-`verify/windows-ci-fixes`** (based on `main` @ `821a310`). To land it, a new
-fine-grained PAT needs: **Contents: Read & write**, **Workflows: Read &
-write** (the branch touches `.github/workflows/build.yml`), **Pull requests:
-Read & write**, Metadata: Read (forced). Then:
+**Everything sessions S4+S4b produced is committed locally on
+`verify/windows-ci-fixes`** (based on `main` @ `821a310`): the Windows CI
+fixes, the GUI harness, the full UI retrofit, and all doc updates. To land
+it, a new fine-grained PAT needs: **Contents: Read & write**, **Workflows:
+Read & write** (the branch touches `.github/workflows/build.yml`), **Pull
+requests: Read & write**, Metadata: Read (forced). Then:
 
 ```bash
 git push -u origin verify/windows-ci-fixes
@@ -24,20 +29,27 @@ git push -u origin verify/windows-ci-fixes
 
 ## TL;DR for the next session
 
-1. **Push the branch** (§0) and confirm **GitHub Actions windows job green**
-   with downloadable `gifscythe-windows` artifact (audit §6.C C2).
+1. **Get a WORKING token and push the branch** (§0) — both PATs provided so
+   far were rejected by GitHub (format-valid but expired/revoked). Then
+   confirm **GitHub Actions windows job green** with downloadable
+   `gifscythe-windows` artifact (audit §6.C C2), and linux green **with the
+   new GUI offscreen steps**.
 2. From the artifact (or a real Windows box): clean-machine **windeployqt**
    smoke — GUI double-click finds `gifsicle.exe`, no missing-DLL dialog
    (C4/D3/D4).
 3. One-time **real-desktop GUI probes**: B5 (kill engine binary mid-run),
-   B6 physical drag-drop onto the queue, B14 engine-missing GUI variant.
-4. Then start the **P1 GUI retrofit**: Input/Actions/Output tabs (XNConvert
-   feel) → remaining `GifsicleSettings` controls → debounced async
-   before/after preview → output-folder actions/templates. Extend
-   `test_gui_offscreen.cpp` with every new feature (it now guards the
-   batch/merge/cancel/live-pane invariants — 81 checks).
+   B6 physical drag-drop onto the queue, B14 engine-missing GUI variant —
+   now with the NEW tabbed UI (also click through tabs/preview once).
+4. The **P1 GUI retrofit is IMPLEMENTED + HARNESS-VERIFIED (S4b)**: Input/
+   Actions/Output tabs, ~30 exposed controls (engine-truth value lists),
+   debounced async before/after preview, batch output folder + open-folder,
+   queue size/count display. Remaining polish before 1.0.0: naming
+   templates (optional), queue reorder (optional), two-way-CLI decision,
+   release-procedure doc. Extend `test_gui_offscreen.cpp` (now **143
+   checks**) with every future feature.
 5. **Do not** start WebP/APNG. **Do not** “fix” VP-1…VP-5 (loopcount=0, -O0,
-   crop `+` form, gamma sentinel, AUTOMOC). **Do not** bump to 1.0.0 early.
+   crop `+` form, gamma sentinel, AUTOMOC). **Do not** bump to 1.0.0 early
+   (owner decides 0.2.0 vs 1.0.0 after CI green + desktop probes).
 
 ## What session S4 accomplished (2026-09-07)
 
@@ -104,7 +116,8 @@ session could not do:
 - `COMPILED_AUDIT.md` §6 rewritten as an **executed checklist with evidence
   tags** ([L]inux/[W]ine/[H]arness/[CI]); §3/§5/§7/§11 updated.
 - `WORKLIST.md`, `docs/ci/README.md`, both READMEs updated.
-- `IMPROVEMENT_LOG.md` has the full S4 entry.
+- `IMPROVEMENT_LOG.md` has the full S4 entry, plus the S4b retrofit entry
+  (tabs/controls/preview, harness 81→143, dangling-pointer fix).
 
 ## Current state
 
@@ -114,7 +127,7 @@ session could not do:
 | Core control layer | Header-only, unit-tested on both platforms (Wine), ASan/UBSan clean |
 | CLI (`gifscythe-cli`) | ✅ Linux + Windows (CreateProcessA + quoting, static exe) |
 | Tests | unit 19 blocks; engine 5/5; smoke 7/7; **GUI offscreen 81 checks**; verify_audit 21 PASS |
-| Qt6 GUI MVP | Compiles + passes harness on Qt 6.4.2; tabs/preview/controls still pending |
+| Qt6 GUI | **Retrofit done (S4b):** Input/Actions/Output tabs + ~30 controls + async debounced preview + batch folder; compiles on Qt 6.4.2 via cmake AND qmake; harness 143 checks green |
 | Packaging | Portable folder = engine+CLI+**GUI**+licenses (Linux); windeployqt smoke pending C2 artifact |
 | CI | linux ✅ green (run #18); windows ❌ step 4 → **fix staged on `verify/windows-ci-fixes`** |
 | Version / scope | Still **0.1.0**; WebP/APNG deferred |

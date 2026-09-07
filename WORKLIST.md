@@ -47,25 +47,40 @@
 - [ ] One-time real-desktop GUI probes: B5 (kill engine mid-run), B6 physical
       drag-drop, B14 engine-missing GUI variant
 
-### GIF UI/UX → 1.0.0
-- [ ] Input / Actions / Output tab flow (XNConvert feel)
-- [ ] Before/after preview (debounced, async — do not re-block UI)
-- [ ] File size/count display, output-folder actions, naming templates
-- [ ] Expose remaining `GifsicleSettings` controls (core already models most)
+### GIF UI/UX → 1.0.0  (S4b retrofit landed 2026-09-07 — harness T1–T13, 143 checks)
+- [x] Input / Actions / Output tab flow (XNConvert feel) — QTabWidget + Preview
+      pane in splitter; bottom live pane/progress/status bar kept
+- [x] Before/after preview (debounced 1200 ms, fully async, seq-guarded;
+      honest captions; savings readout; refuses in Explode mode)
+- [x] File size/count display (row sizes + total label), output-folder actions
+      (batch folder + Open folder via QDesktopServices)
+- [ ] Free-form naming templates (`{name}_opt` is fixed for now) — S3-25
+- [x] Expose remaining `GifsicleSettings` controls (~30 widgets, engine-truth
+      value lists; harness T11 asserts each control → exact flag)
+- [ ] Optional: queue reorder (move up/down) — S3-9 remainder
 - [ ] Optional: two-way CLI pane (`gs::parse_args`) **or** keep one-way forever
+      (UI label now says one-way explicitly)
 - [ ] Document release procedure
-- [ ] Bump `VERSION.md` → **1.0.0** only after the above is verified
+- [ ] Bump `VERSION.md` → **1.0.0** only after Windows CI green + desktop
+      probes + the optional items above are decided (owner may take 0.2.0
+      first per the minor-bump rule)
 
 ## Next actions (ordered)
 
 1. **Obtain a valid fine-grained PAT** (Contents R/W, Workflows R/W, Pull
    requests R/W) → push `verify/windows-ci-fixes` → PR → merge.
-2. Watch Actions: windows job must go green (C2); download artifact; clean-VM
-   windeployqt smoke (C4/D3/D4).
-3. Finish XNConvert-style tabs + preview + remaining controls (harness now
-   guards batch/merge/cancel/pane invariants — extend it per new feature).
-4. Clean portable package on a machine without Qt installed.
-5. **Only then** 1.0.0. WebP/APNG stay blocked.
+   (Two tokens provided on 2026-09-07 were both rejected by GitHub —
+   format-valid 93 chars, but "Bad credentials"/"Invalid username or token":
+   expired or revoked at the source. Generate fresh and copy immediately.)
+2. Watch Actions: windows job must go green (C2) — engine fix + static
+   linking + Ninja + smoke steps are all in the branch; linux job must stay
+   green **including the new GUI offscreen steps** (143 checks).
+3. Clean-VM windeployqt smoke from the artifact (C4/D3/D4).
+4. One-time real-desktop GUI probes: B5 (kill engine mid-run), B6 physical
+   drag-drop, B14 engine-missing GUI variant.
+5. Remaining 1.0.0 polish: naming templates, queue reorder (both optional),
+   release-procedure doc, then version decision (0.2.0 vs straight 1.0.0).
+6. WebP/APNG stay blocked until all of the above ships.
 
 ## Deferred bucket list — after GIF `1.0.0`
 
