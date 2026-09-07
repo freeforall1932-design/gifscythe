@@ -94,7 +94,7 @@ Legend for **Status (code @ 2026-09-07)**:
 | **Verdict** | **REAL but incomplete** — already **U-B8 / BR-8 + U-B11 / BR-11** |
 | **Fresh?** | No |
 | **S3 accuracy** | **Misses the deeper bug**: even with mingw present, Linux `config.h` (`SIZEOF_UNSIGNED_LONG 8`) fails Win64 `static_assert`. Also names `ci.yml` — real file is `.github/workflows/build.yml`. Wrong choco package `qt6-base` was the CI install killer. |
-| **Status** | 🟡 **NEAR-GREEN** — S4 found the real step-4 killer: 1.96 sources do *unconditional* `#include <config.h>` and the Windows line lacked `-I.` (guard-neutralized root config.h). Recipe fixed (upstream `Makefile.mingw` flags), local cross-build green, **exe verified running under Wine** (`1.96 (Windows)`, valid GIF output). Workflow applied to main (821a310); remaining: push fix → confirm Actions windows green. |
+| **Status** | ✅ **GREEN (S4c-close)** — S4 found the real step-4 killer: 1.96 sources do *unconditional* `#include <config.h>` and the Windows line lacked `-I.` (guard-neutralized root config.h). Recipe fixed (upstream `Makefile.mingw` flags), local cross-build green, **exe verified running under Wine** (`1.96 (Windows)`, valid GIF output). Workflow applied to main (821a310). ✅ **C2 closed 2026-09-07** — PR #5 (merge `0ad1ff5`) merged; main green on both jobs incl. GUI offscreen steps (runs on `0ad1ff5` = #23 and `d3544b1` = #24, id 34092786153); artifact `gifscythe-windows` downloadable. |
 | **Verify next** | §6.C C2 (CI rerun) — C3/C5 already evidenced under Wine |
 
 ---
@@ -233,7 +233,7 @@ Use this as the **authoritative** broken/misaligned/missing register. S3 IDs cro
 | U-B5 / BR-5 | waitForFinished ignored | S3-2 | ✅ async finished handler | B1–B5 |
 | U-B6 / BR-6 | shell `system()` / injection | (missed) | ✅ argv exec + `shell_quote` display | A4 spaces path |
 | U-B7 / BR-7 | CMake STATIC header-only | (missed) | ✅ INTERFACE | C6 cmake configure |
-| U-B8 / BR-8 | Windows CI package/steps | S3-3 | 🟡 engine recipe fixed + Wine-proven; workflow hardened (static link, Ninja, E2E smoke); **push blocked (dead token)** | C2 CI rerun after push |
+| U-B8 / BR-8 | Windows CI package/steps | S3-3 | ✅ engine recipe fixed + Wine-proven; workflow hardened (static link, Ninja, E2E smoke); ✅ **C2 closed 2026-09-07** — PR #5 (merge `0ad1ff5`) merged; main green on both jobs incl. GUI offscreen steps (runs on `0ad1ff5` = #23 and `d3544b1` = #24, id 34092786153); artifact `gifscythe-windows` downloadable. | closed |
 | U-B9 / BR-9 | build.sh GUI dispatch lies | (missed) | ✅ honest `--all` / fail | C7 |
 | U-B10 / BR-10 | SettingsIO UB parse | S3-13 | ✅ safe parse | A6 |
 | U-B11 / BR-11 | Win Linux config.h | S3-3 miss | ✅ win32cfg.h include | C2 engine builds |
@@ -339,16 +339,15 @@ Portable package:    release/0.1.0/Gifscythe/ (engine+CLI+licenses; no GUI in sa
 
 ## 5. Remaining work ordered (next sessions)
 
-### Gate 0 — PUSH BLOCKED (do first)
-0. 🔑 **The fine-grained PAT provided 2026-09-07 is INVALID** ("Bad
-   credentials" on API, "Invalid username or token" on push; reads only work
-   because the repo is public). All S4 fixes are **committed locally on
-   `verify/windows-ci-fixes`** but cannot be pushed. Need a new token with
-   **Contents: R/W + Workflows: R/W + Pull requests: R/W** (Metadata: R).
+### Gate 0 — RESOLVED 2026-09-07 (S4c-close)
+0. ✅ Token #3 valid → `verify/windows-ci-fixes` pushed (10 commits,
+   SHA-identical to local, independently audited), PR #5 merged as `0ad1ff5`;
+   main green on both jobs (runs #23/#24). Artifacts uploaded + banked on
+   Release `snapshot-2026-09-07`.
 
-### P0-ish until proven on CI (fixes staged locally)
-1. ⬜ Push → GitHub Actions **windows** green + downloadable artifact (C2)
-   — engine recipe fix + static linking + Ninja + smoke steps all staged
+### P0-ish until proven on CI — proven
+1. ✅ ✅ **C2 closed 2026-09-07** — PR #5 (merge `0ad1ff5`) merged; main green on both jobs incl. GUI offscreen steps (runs on `0ad1ff5` = #23 and `d3544b1` = #24, id 34092786153); artifact `gifscythe-windows` downloadable.
+   (engine recipe fix + static linking + Ninja + smoke steps all landed)
 2. ⬜ Clean-Windows windeployqt smoke from the CI artifact (C4/D3/D4)
 
 ### P1 product (before claiming 1.0.0) — S4b landed the big three
@@ -458,11 +457,16 @@ preview): **143 checks, 0 failures** (T1–T13).
 
 - [x] **C1** GitHub Actions **linux** GREEN (run #18, sha 821a310): build+GUI,
       engine 5/5, smoke 7/7, package, artifact uploaded **[CI]**
-- [ ] **C2** Actions **windows** job: FAILED at run #18 step 4 (engine build,
-      missing `-I.` → `config.h: No such file`). **Root cause fixed** in
-      `build_gifsicle.sh` (recipe now mirrors upstream `Makefile.mingw`);
-      local cross-compile green. **Needs push to re-run CI** (token dead —
-      see SESSION_HANDOFF) **[L][W]**
+- [x] **C2** Actions **windows** job: FAILED at run #18 step 4 (engine build,
+      missing `-I.` → `config.h: No such file`); fixed in `build_gifsicle.sh`
+      (recipe mirrors upstream `Makefile.mingw`). ✅ **C2 closed 2026-09-07** — PR #5 (merge `0ad1ff5`) merged; main green on both jobs incl. GUI offscreen steps (runs on `0ad1ff5` = #23 and `d3544b1` = #24, id 34092786153); artifact `gifscythe-windows` downloadable. — all 9
+      windows steps green on runs #21/#22 (`160fea3`), #23 (`0ad1ff5`),
+      #24 (`d3544b1`) **[CI]**.
+      Run-#20 hang note: the windows offscreen step stalled ~28 min with zero
+      harness output; root cause presumed missing `qoffscreen.dll` beside the
+      harness exe (windeployqt ships `qwindows` only); mitigated in `160fea3`
+      (plugin staging + 8-min watchdog naming the stuck stage +
+      `timeout-minutes: 12` on both GUI steps); not recurred since.
 - [x] **C3** Windows CLI runs confs with `C:\`-style paths (Wine E2E:
       `C:\gs\conf\one.conf` → exit 0, `C:\gs\out\a_opt.gif` 8627 bytes,
       12 frames; spaces path → exit 0) **[W]**
@@ -509,7 +513,7 @@ preview): **143 checks, 0 failures** (T1–T13).
 
 ### Remaining unchecked (gated on push / real Windows)
 
-- [ ] **C2** Windows CI green (fix staged; **blocked on a valid push token**)
+- [x] **C2** Windows CI green — ✅ **C2 closed 2026-09-07** — PR #5 (merge `0ad1ff5`) merged; main green on both jobs incl. GUI offscreen steps (runs on `0ad1ff5` = #23 and `d3544b1` = #24, id 34092786153); artifact `gifscythe-windows` downloadable.
 - [ ] **C4/D3/D4** clean-Windows windeployqt smoke (after C2 artifact exists)
 - [ ] **B5/B6-plumbing/B14-engine-missing** one-time real-desktop GUI probes
 
@@ -523,7 +527,7 @@ preview): **143 checks, 0 failures** (T1–T13).
 | Indeterminate progress only | gifsicle lacks rich progress | Acceptable; don’t block UI “parsing” fake % |
 | `waitForStarted(5000)` still sync on start | Short block only | OK; full async start optional |
 | GUI untested in this sandbox | ~~No Qt6 here~~ RESOLVED S4: Qt 6.4.2 installed; 81-check offscreen harness green | Keep harness in CI; one desktop pass for B5/B6-plumbing |
-| Windows CI complexity (aqt + mingw shim) | Step-4 root cause FIXED + Wine-proven; generator/static-link landmines defused in workflow | Push → treat C2 as gate |
+| Windows CI complexity (aqt + mingw shim) | Step-4 root cause FIXED + Wine-proven; generator/static-link landmines defused in workflow | ✅ C2 gate passed 2026-09-07 (main runs #23/#24 green); remaining gates = C4/D3/D4 clean-Windows smoke (`docs/ci/CLEAN_WINDOWS_SMOKE.md`) |
 | One-way CLI pane vs old “two-way” marketing | Doc updated; labels must stay honest | U-MISS-14 |
 | Drop accepts any existing path | Non-GIF could be queued | Filter `*.gif` harder in drop handler if needed |
 | `caesium-bin` may still exist in git history | gitignore stops new adds | Optional history purge later (not required for build) |
@@ -570,10 +574,14 @@ preview): **143 checks, 0 failures** (T1–T13).
 
 > §6 was **executed with evidence on 2026-09-07 (S4)** — rerun
 > `working_code/gifscythe/scripts/verify_audit.sh` (expect 21 PASS / 2 SKIP)
-> plus `test_gui_offscreen` before trusting anything new. The ONE blocker is
-> the **dead push token** (§5 Gate 0): push `verify/windows-ci-fixes`, confirm
-> Actions windows green (C2), then start the P1 GUI retrofit (tabs → controls →
-> preview). Never “fix” §3.4 verified-correct behaviors; never start WebP/APNG
+> plus `test_gui_offscreen` before trusting anything new. The former blocker
+> (dead push token) was resolved 2026-09-07: branch pushed SHA-identical,
+> PR #5 merged (`0ad1ff5`), C2 closed with main green on both jobs (run #24,
+> id 34092786153) — and the P1 GUI retrofit (tabs → controls → preview) is
+> itself done + harness-verified (S4b, 143 checks). What remains: C4/D3/D4
+> clean-Windows smoke (`docs/ci/CLEAN_WINDOWS_SMOKE.md`), desktop probes
+> B5/B6/B14, optional polish, version decision.
+> Never “fix” §3.4 verified-correct behaviors; never start WebP/APNG
 > before GIF 1.0.0. If a change breaks A2/B10/B12/E3–E5 or any harness test,
 > it is a **new pit** — revert and redo.
 

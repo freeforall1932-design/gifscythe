@@ -4,6 +4,38 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## 2026-09-07 (S4c-close) — recovery pushed, PR #5 merged, CI green on main
+
+- Token #3 (fresh fine-grained PAT) worked where tokens #1–#2 were rejected
+  (expired/revoked at source). The 10 S4/S4b commits pushed to
+  `verify/windows-ci-fixes` **SHA-identical** to the local originals
+  (independently audited post-push: zero mangling, tree byte-identical to
+  PR merge result).
+- Run #20's windows hang (offscreen step, zero output ~28 min) diagnosed via
+  post-cancel log pull; `160fea3` added the 8-min watchdog + stage markers,
+  `timeout-minutes: 12` on both GUI steps, `qoffscreen.dll` staging beside
+  the harness exe (presumed root cause), `isValidColorName` deprecation fix.
+  Runs #21/#22 green; hang not recurred.
+- **PR #5 merged** into `main` as true merge `0ad1ff5` (parents `821a310` +
+  `160fea3`). Main green on both jobs twice: run #23 (`0ad1ff5`) and run #24
+  (`d3544b1`, id 34092786153), incl. both GUI offscreen steps.
+- Artifacts `gifscythe-windows` (~27.8 MB) + `gifscythe-linux` (~0.7 MB) up;
+  default expiry 2026-12-06 → retention capped at 14 days in workflow and
+  binaries **banked on GitHub Release `snapshot-2026-09-07`** (prerelease;
+  nothing binary enters the git tree — caesium-bin precedent 95d62eb).
+- Workspace archive banked: `gifscythe-workspace-2026-09-07.zip` (36.0 MB,
+  sha256 `67e55363f79ddd2dc8236a5bed07d2032dec5fd360b4d2fb1eef5669a1d87b2a`),
+  also attached to the Release.
+- Merged/stale remote branches deleted afterwards (`verify/windows-ci-fixes`,
+  `arena/01a07959-gifscythe`, `arena/01a0746d-gifscythe`,
+  `arena/01a07410-gifsicle-1-96`); PR refs preserve history.
+- **Still open (unchanged):** C4/D3/D4 clean-Windows smoke
+  (`docs/ci/CLEAN_WINDOWS_SMOKE.md`), desktop probes B5/B6/B14, optional
+  polish (naming templates, queue reorder, release-procedure doc), owner's
+  0.2.0-vs-1.0.0 decision. Version stays 0.1.0.
+
+---
+
 ## 2026-09-07 (S4b) — XNConvert-style UI retrofit: tabs, full controls, async preview
 
 Owner approved starting the P1 GUI retrofit while the push token is dead.
