@@ -90,7 +90,7 @@ Two viable ways to wire the engine:
 
 ### (2) XnConvert-like ease-of-use **while keeping raw terminal control** — **strongest fit, yes**
 
-This is gifsicle's sweet spot. The whole CLI is a flat set of operations, and each one has a natural widget. Crucially, you satisfy "keep the control of the terminal" by having the GUI generate the exact command line and exposing a **live raw-CLI pane** that two-way syncs with the widgets (change a slider → the CLI text updates; edit the CLI text → the widgets update). Power users get 100% of the tool; casual users never see it.
+This is gifsicle's sweet spot. The whole CLI is a flat set of operations, and each one has a natural widget. Crucially, you satisfy "keep the control of the terminal" by having the GUI generate the exact command line and exposing a **live raw-CLI pane** (change a slider → the CLI text updates; the displayed line is shell-quoted and matches the argv actually executed). A full reverse parser (edit the CLI text → the widgets update) is a desirable power-user enhancement for a later 1.x release — the MVP ships honest one-way sync so the pane never lies. Power users can copy the command into a real terminal; casual users never need to see it.
 
 A concrete slider/option → gifsicle-arg mapping:
 
@@ -104,16 +104,16 @@ A concrete slider/option → gifsicle-arg mapping:
 | Scale % (X/Y) | `--scale XxY` |
 | Rotate | `--rotate-90/-180/-270` |
 | Flip | `--flip-horizontal`, `--flip-vertical` |
-| Crop box | `--crop X,Y,WxH`, `--crop-transparency` |
+| Crop box | `--crop X,Y+WxH` (plus form), `--crop-transparency` |
 | Loop count | `--loopcount` (on output) |
-| Per-frame delay (ms) | `-d` |
+| Per-frame delay (1/100 s, **not** ms) | `-d` |
 | Disposal dropdown | `--disposal=N` |
 | Transparency color picker | `--transparent=#RRGGBB`, `--no-transparent` |
 | Background color | `--background=#RRGGBB` |
 | Logical screen | `--logical-screen WxH` |
 | Colormap transform | `--change-color`, `--color-transform`, `--use-colormap`, `--colormap-algorithm` |
 | Comments | `--comment="...", --no-comments` |
-| Gamma / color math | `--gamma=srgb|oklab|NUM` |
+| Gamma / color math | `--gamma=srgb` / `--gamma=oklab` / `--gamma=NUM` (string form) |
 | Frame ops | `#0 insert-1 #2 ...`, `--delete`, `--replace`, `--append` |
 | Mode | batch (`-b`), merge (`-m`), explode (`-e`) |
 | Robustness | `--careful`, `--conserve-memory`, `--no-warnings`, `--ignore-errors`, `--threads=N` |

@@ -1,18 +1,16 @@
 // Gifscythe main window - the GUI shell over the gifsicle engine.
 //
-// This is a MINIMAL Qt6 Widgets starting point (modeled on the "engine control
-// layer in, GUI out" structure). It proves the GUI ↔ core wiring:
-//   1. Pick input GIF(s) with a file dialog.
-//   2. The core layer (GifsicleSettings + GifsicleCommand) turns the current
-//      UI state into the exact gifsicle command line.
-//   3. The "live command" pane shows that command (full terminal control).
-//   4. "Run" executes it against the bundled gifsicle engine (QProcess).
+// Proves the GUI ↔ core wiring:
+//   1. Pick input GIF(s) with a file dialog or drag-and-drop.
+//   2. Core layer turns UI state into the exact gifsicle command line.
+//   3. Live command pane shows that command (full terminal control).
+//   4. "Run" executes it against the bundled gifsicle engine (async QProcess).
 //
-// Built only where Qt6 is installed (see scripts/build.sh). This file is
-// standard Qt6 Widgets + QProcess only, to keep compile risk low.
+// Built only where Qt6 is installed. Batch is the default queue mode;
+// Merge is an explicit user choice.
 
-#ifndef GIFSYCYTHE_MAINWINDOW_H
-#define GIFSYCYTHE_MAINWINDOW_H
+#ifndef GIFSCYTHE_MAINWINDOW_H
+#define GIFSCYTHE_MAINWINDOW_H
 
 #include <QMainWindow>
 #include <QStringList>
@@ -24,6 +22,9 @@ class QPushButton;
 class QSpinBox;
 class QLineEdit;
 class QLabel;
+class QComboBox;
+class QProgressBar;
+class DropListWidget;
 
 #include "core/GifsicleSettings.h"
 #include "core/GifsicleCommand.h"
@@ -32,30 +33,53 @@ class MainWindow : public QMainWindow {
   Q_OBJECT
  public:
   explicit MainWindow(QWidget* parent = nullptr);
+  ~MainWindow() override;
 
-  // Current settings derived from the widget state -> feed to core layer.
   gs::Settings currentSettings() const;
+
+ protected:
+  void closeEvent(QCloseEvent* event) override;
 
  private slots:
   void chooseInputs();
+  void removeSelected();
+  void clearQueue();
   void refreshCommand();
   void runCommand();
+  void cancelRun();
+  void onProcessFinished(int exitCode, QProcess::ExitStatus status);
+  void onProcessError(QProcess::ProcessError error);
+  void onFilesDropped(const QStringList& files);
 
  private:
-  QListWidget* inputList_;
-  QPlainTextEdit* commandPane_;
-  QPushButton* runButton_;
-  QSpinBox* optimizeSpin_;
-  QSpinBox* lossySpin_;
-  QLineEdit* outputEdit_;
-  QLabel* statusLabel_;
-
-  QString enginePath_;
-
   void chooseOutput();
   void updateStatus(const QString& message);
+  void appendInputs(const QStringList& files);
+  void setBusy(bool busy);
+  QString defaultOutputFor(const QString& input) const;
+  bool ensureEngine();
 
+  DropListWidget* inputList_ = nullptr;
+  QPlainTextEdit* commandPane_ = nullptr;
+  QPushButton* runButton_ = nullptr;
+  QPushButton* cancelButton_ = nullptr;
+  QPushButton* removeButton_ = nullptr;
+  QPushButton* clearButton_ = nullptr;
+  QSpinBox* optimizeSpin_ = nullptr;
+  QSpinBox* lossySpin_ = nullptr;
+  QLineEdit* outputEdit_ = nullptr;
+  QComboBox* modeCombo_ = nullptr;
+  QLabel* statusLabel_ = nullptr;
+  QProgressBar* progressBar_ = nullptr;
+
+  QString enginePath_;
   QStringList inputs_;
+  QProcess* process_ = nullptr;
+  bool busy_ = false;
+  QString pendingOutput_;
+  int batchIndex_ = -1;
+  QStringList batchQueue_;
+  gs::Mode batchMode_ = gs::Mode::Batch;
 };
 
-#endif  // GIFSYCYTHE_MAINWINDOW_H
+#endif  // GIFSCYTHE_MAINWINDOW_H

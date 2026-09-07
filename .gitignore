@@ -1,0 +1,31 @@
+# Build trees
+**/build/
+**/build-win/
+**/CMakeCache.txt
+**/CMakeFiles/
+**/cmake_install.cmake
+**/Makefile
+**/*.o
+**/*.a
+**/*.so
+**/*.exe
+!reference_code/**/*.exe
+
+# Engine + packaged releases (built artifacts)
+working_code/gifscythe/release/*/gifsicle
+working_code/gifscythe/release/*/gifsicle.exe
+working_code/gifscythe/release/*/Gifscythe/
+working_code/gifscythe/release/*/Gifscythe-system/
+
+# Auto-fetched reference clones (large; re-fetch as needed)
+reference_code/gifsicle-upstream/
+reference_code/caesium-source/
+reference_code/caesium-bin/
+
+# Editor / OS
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
+*.user
