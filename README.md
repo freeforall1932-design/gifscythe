@@ -7,9 +7,11 @@ with evidence the same day** (audit §6: CLI/unit/engine/smoke green, offscreen
 GUI harness green, Windows engine+CLI proven under Wine). The **XNConvert-style
 UI retrofit also landed the same day (S4b)**: Input/Actions/Output tabs, ~30
 engine-truth controls, debounced async before/after preview, batch output
-folder — harness now at **143 checks**. Windows CI rerun + desktop probes still
-pending a valid push token (see `SESSION_HANDOFF.md`); then the 1.0.0 decision.
-WebP/APNG deferred.
+folder — harness now at **143 checks**. **Windows CI green and merged
+2026-09-07** (PR #5 → `0ad1ff5`; main runs #23/#24 green on both jobs; binaries
+banked on Release `snapshot-2026-09-07`). Remaining: clean-Windows desktop
+probes (C4/D3/D4, B5/B6/B14 — checklist in `docs/ci/CLEAN_WINDOWS_SMOKE.md`)
+and the version decision (0.2.0 vs 1.0.0, owner's call). WebP/APNG deferred.
 
 This repository deliberately separates **reference code** from **working code**
 so the finished product is never confused with source-material we copied or

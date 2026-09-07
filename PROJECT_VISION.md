@@ -5,9 +5,10 @@
 **Status:** Feasibility decided (`FEASIBILITY_REVIEW.md`). Engine, control layer,
 CLI, and GUI implemented; P0/P1 honesty fixes landed and were verified with
 evidence (audit §6); the XNConvert-style UI retrofit (tabs/controls/preview)
-landed 2026-09-07 (S4b). Verified portable Windows build (CI green + clean-VM
-smoke) and desktop probes remain before **1.0.0**. See `WORKLIST.md` and
-`COMPILED_AUDIT.md`.
+landed 2026-09-07 (S4b). The portable Windows build is **CI-green and merged**
+(PR #5 → `0ad1ff5`; main runs #23/#24 green on both jobs); only the clean-VM /
+desktop smoke (C4/D3/D4, B5/B6/B14 — `docs/ci/CLEAN_WINDOWS_SMOKE.md`) remains
+before **1.0.0**. See `WORKLIST.md` and `COMPILED_AUDIT.md`.
 
 ## Mission
 A portable, click-and-use desktop app for **animated (moving) images only** —
@@ -51,4 +52,4 @@ want the full gifsicle terminal control underneath.
 | CLI driver + tests | Done (honest exits, smoke suite) |
 | GUI | **Retrofit done (S4b):** Input/Actions/Output tabs, ~30 engine-truth controls, debounced async before/after preview, batch output folder — 143-check offscreen harness green |
 | Silent-failure class bugs | Fixed in code; re-verify via `COMPILED_AUDIT.md` §6 |
-| 1.0.0 | **Not yet** — UI/UX retrofit + verified portable Windows still open |
+| 1.0.0 | **Not yet** — retrofit done + Windows CI green; clean-VM smoke + owner decision remain |
