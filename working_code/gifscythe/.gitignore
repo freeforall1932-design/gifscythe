@@ -1,6 +1,7 @@
 # Build outputs
 /build/
 /build-win/
+/build-cmake/
 build/
 *.o
 *.a
