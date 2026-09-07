@@ -1,0 +1,146 @@
+name: Build Gifscythe
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt6
+        run: sudo apt-get update && sudo apt-get install -y qt6-base-dev
+
+      - name: Build engine, CLI, tests, and GUI
+        working-directory: working_code/gifscythe
+        run: ./build.sh --all
+
+      - name: Engine pipeline tests
+        working-directory: working_code/gifscythe
+        run: ./scripts/test_engine.sh
+
+      - name: CLI smoke tests
+        working-directory: working_code/gifscythe
+        run: ./scripts/smoke_cli.sh
+
+      - name: Package portable
+        working-directory: working_code/gifscythe
+        run: ./scripts/package_portable.sh
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gifscythe-linux
+          path: |
+            working_code/gifscythe/build/gifscythe-cli
+            working_code/gifscythe/build/gifscythe
+            working_code/gifscythe/build/gui/
+            working_code/gifscythe/release/
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt6 (aqt) + MinGW toolchain
+        run: |
+          set -euo pipefail
+          pip install aqtinstall
+          aqt install-qt windows desktop 6.7.3 win64_mingw -O "$RUNNER_TEMP/qt"
+          # MinGW from aqt tools (try common packages; ignore failures)
+          aqt install-tool windows desktop tools_mingw1310 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
+          aqt install-tool windows desktop tools_mingw1120 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
+          aqt install-tool windows desktop tools_mingw90 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
+          choco install mingw -y --no-progress
+
+          # Put every bin dir aqt created on PATH
+          while IFS= read -r d; do
+            echo "$d" >> "$GITHUB_PATH"
+          done < <(find "$RUNNER_TEMP/qt" -type d -name bin 2>/dev/null)
+
+          QT_BIN=$(echo "$RUNNER_TEMP/qt"/6.*/mingw_64/bin | awk '{print $1}')
+          echo "QT_PREFIX=$(dirname "$QT_BIN")" >> "$GITHUB_ENV"
+          echo "QT_BIN=$QT_BIN" >> "$GITHUB_ENV"
+          echo "$QT_BIN" >> "$GITHUB_PATH"
+
+      - name: Build Windows engine (win32cfg.h)
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          # On windows-latest + MinGW, gcc produces PE binaries. If the
+          # x86_64-w64-mingw32-gcc name is missing, alias it to gcc.
+          if ! command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
+            if command -v gcc >/dev/null 2>&1; then
+              mkdir -p "$RUNNER_TEMP/shim"
+              printf '#!/bin/bash\nexec gcc "$@"\n' > "$RUNNER_TEMP/shim/x86_64-w64-mingw32-gcc"
+              chmod +x "$RUNNER_TEMP/shim/x86_64-w64-mingw32-gcc"
+              export PATH="$RUNNER_TEMP/shim:$PATH"
+            else
+              echo "ERROR: no MinGW gcc on PATH" >&2
+              exit 1
+            fi
+          fi
+          ./scripts/build_gifsicle.sh --windows
+          ls -la release/*/gifsicle.exe
+
+      - name: Build CLI + unit tests
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          # build.sh syncs version.h, builds CLI+tests; skip GUI and skip re-building
+          # the engine (already built as .exe above). Use a no-op engine step by
+          # invoking the compile halves directly.
+          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' VERSION.md \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          mkdir -p build
+          printf '%s\n' \
+            '#ifndef GIFSCYTHE_CORE_VERSION_H' \
+            '#define GIFSCYTHE_CORE_VERSION_H' \
+            "#define GS_VERSION \"$version\"" \
+            "#define GS_VERSION_STR \"$version\"" \
+            '#endif' > src/core/version.h
+          g++ -std=c++17 -O2 -I src -o build/gifscythe-cli.exe src/cli/main.cpp
+          g++ -std=c++17 -O2 -I src -o build/test_gifsicle_command.exe tests/test_gifsicle_command.cpp
+          ./build/test_gifsicle_command.exe
+
+      - name: Build GUI (CMake) + windeployqt
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          cmake -S . -B build-win -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_PREFIX_PATH="${QT_PREFIX}" \
+                -DBUILD_GUI=ON
+          cmake --build build-win --config Release
+          GUI_EXE=""
+          for c in build-win/gifscythe.exe build-win/Release/gifscythe.exe build-win/Debug/gifscythe.exe; do
+            if [[ -f "$c" ]]; then GUI_EXE="$c"; break; fi
+          done
+          if [[ -z "$GUI_EXE" ]]; then
+            echo "ERROR: GUI executable not found after cmake build" >&2
+            find build-win -name 'gifscythe*' -print || true
+            exit 1
+          fi
+          if command -v windeployqt >/dev/null 2>&1; then
+            windeployqt --release --no-translations "$GUI_EXE"
+          fi
+          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' VERSION.md \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [[ -f "release/$version/gifsicle.exe" ]]; then
+            cp "release/$version/gifsicle.exe" "$(dirname "$GUI_EXE")/"
+          fi
+          # Also stage CLI next to GUI
+          [[ -f build/gifscythe-cli.exe ]] && cp build/gifscythe-cli.exe "$(dirname "$GUI_EXE")/"
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gifscythe-windows
+          path: |
+            working_code/gifscythe/build/
+            working_code/gifscythe/build-win/
+            working_code/gifscythe/release/

@@ -1,0 +1,8 @@
+// Generated from VERSION.md — do not edit by hand.
+#ifndef GIFSCYTHE_CORE_VERSION_H
+#define GIFSCYTHE_CORE_VERSION_H
+
+#define GS_VERSION "@GS_VERSION@"
+#define GS_VERSION_STR "@GS_VERSION@"
+
+#endif  // GIFSCYTHE_CORE_VERSION_H

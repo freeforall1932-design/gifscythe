@@ -1,18 +1,19 @@
-# gifscythe.pro - qmake project for the Gifscythe Qt6 GUI.
+# gifscythe.pro - qmake project for the Gifscythe Qt6 GUI (secondary to CMake).
 #
-# Build the GUI where Qt is installed:
+# Preferred build path is CMake (see CMakeLists.txt / build.sh --all).
+# This .pro is kept for environments that only have qmake.
+#
 #   qmake6 gifscythe.pro && make
-# or
-#   mkdir build && cd build && qmake6 .. && make
 #
-# The engine control layer (src/core/) is header-only and shared with the GUI
-# via include path. The gifsicle engine binary is produced by
-# scripts/build_gifsicle.sh (subprocess, not linked in).
+# The engine control layer (src/core/) is header-only and shared via INCLUDEPATH.
+# The gifsicle engine binary is produced by scripts/build_gifsicle.sh (subprocess).
 
 QT += widgets
 CONFIG += c++17
 TARGET = gifscythe
 TEMPLATE = app
+
+# Version is informational here; runtime uses src/core/version.h (from VERSION.md).
 VERSION = 0.1.0
 
 SOURCES += \
@@ -21,8 +22,12 @@ SOURCES += \
 
 HEADERS += \
     src/qtui/MainWindow.h \
+    src/qtui/DropListWidget.h \
     src/core/GifsicleSettings.h \
     src/core/GifsicleCommand.h \
-    src/core/SettingsIO.h
+    src/core/SettingsIO.h \
+    src/core/EngineLocator.h \
+    src/core/Validate.h \
+    src/core/version.h
 
 INCLUDEPATH += src

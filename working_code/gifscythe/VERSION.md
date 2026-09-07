@@ -1,6 +1,6 @@
 # Gifscythe Versioning
 
-**Product name:** Gifscythe
+**Product name:** Gifscythe  
 **Current version:** 0.1.0
 
 The version number tracks the *released product*, not the reference code. The
@@ -26,8 +26,11 @@ run, it is still a single "release" and the version scheme below applies.
   placeholder.
 
 ## Where the version lives
-- This file (`working_code/gifscythe/VERSION.md`) is the human-readable source of
-  truth.
-- The actual version constant in the build is set in the app config (see
-  `src/` / `resources/` as the build comes together).
-- `release/` holds the portable output of a given version (e.g. `release/0.1.0/`).
+- **This file** is the human-readable source of truth (`Current version: X.Y.Z`).
+- `build.sh` and CMake sync it into `src/core/version.h` (`GS_VERSION`).
+- CLI banner, GUI window title, and `QApplication::applicationVersion` read
+  `GS_VERSION` — do not hardcode `0.1.0` elsewhere.
+- The **engine** binary keeps upstream identity **1.96** (`-DVERSION=1.96`);
+  only the release directory name uses the product version
+  (`release/0.1.0/gifsicle`).
+- `release/` holds portable output per product version.
