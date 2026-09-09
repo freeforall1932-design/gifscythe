@@ -139,8 +139,8 @@ if ! grep -q 'currentData.*Mode::Merge' src/qtui/MainWindow.cpp src/qtui/Setting
 else bad "E4" "default mode suspect"; fi
 # E5: the --windows compile must force win32cfg.h ahead of any config.h.
 # (Real proof is the cross-build + wine run; this guards the recipe text.)
-if awk '/== "windows"/{f=1} f && /-include src\/win32cfg\.h/{found=1} END{exit !found}' scripts/build_gifsicle.sh \
-   && ! { grep -B1 -A2 -- '-include src/win32cfg.h' scripts/build_gifsicle.sh | grep -q -- '-DVERSION='; }; then
+if awk '/== "windows"/{f=1} f && /-include src\/win32cfg\.h/{found=1} END{exit !found}' scripts/build_engine.sh \
+   && ! { grep -B1 -A2 -- '-include src/win32cfg.h' scripts/build_engine.sh | grep -q -- '-DVERSION='; }; then
   ok "E5" "windows engine line: -include win32cfg.h, no -DVERSION override"
 else bad "E5" "windows engine config suspect"; fi
 

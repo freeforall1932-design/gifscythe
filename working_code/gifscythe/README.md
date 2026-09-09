@@ -52,7 +52,7 @@ QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
 
 Cross-compile the Windows engine (needs mingw-w64):
 ```bash
-./scripts/build_gifsicle.sh --windows
+./scripts/build_engine.sh --windows
 ```
 
 ## Layout
@@ -70,7 +70,7 @@ working_code/gifscythe/
     cli/    main.cpp → gifscythe-cli
     qtui/   MainWindow (tabs + bottom bar) + SettingsPanel (Actions)
             + PreviewPanel (before/after) + DropListWidget (Qt6 GUI)
-  scripts/  build_gifsicle.sh, test_engine.sh, smoke_cli.sh, verify_audit.sh,
+  scripts/  build_engine.sh, test_engine.sh, smoke_cli.sh, verify_audit.sh,
             package_*.sh
   release/  portable output per version
   tests/    unit tests + test_gui_offscreen.cpp (Qt6 offscreen harness)

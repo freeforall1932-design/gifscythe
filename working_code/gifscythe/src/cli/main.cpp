@@ -82,7 +82,7 @@ fs::path exe_path_of(const char* argv0) {
 int main(int argc, char** argv) {
   if (argc < 2) {
     std::printf("Usage: %s <settings.conf> [--run] [--engine <path>]\n", argv[0]);
-    std::printf("  Without --run: print the gifsicle command line (live pane).\n");
+    std::printf("  Without --run: print the engine command line (live pane).\n");
     std::printf("  With --run:    execute it against the bundled gifsicle engine.\n");
     std::printf("  GS_ENGINE env: override default engine path.\n");
     std::printf("  Gifscythe %s\n", GS_VERSION);
@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
   // Pre-flight: engine must exist.
   if (!gs::path_is_executable(engine_path)) {
     std::fprintf(stderr, "ERROR: engine not found at %s\n", engine_path.c_str());
-    std::fprintf(stderr, "       Build it with ./scripts/build_gifsicle.sh\n");
+    std::fprintf(stderr, "       Build it with ./scripts/build_engine.sh\n");
     std::fprintf(stderr, "       Or set GS_ENGINE / pass --engine <path>\n");
     return 1;
   }

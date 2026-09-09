@@ -4,6 +4,97 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## 2026-09-09 (S5) — GUI honesty fixes, naming alignment, web build review + POC
+
+Working on branch `arena/01a086c5-gifscythe`. Version stays **0.1.0**.
+
+### GUI review fixes (3 bugs found in `src/qtui/MainWindow.*`)
+
+1. **Cancel popped a spurious error dialog.** `cancelRun()` → `kill()` +
+   `waitForFinished()` made gifsicle exit non-zero/crash, which synchronously
+   fired `onProcessFinished` → the failure branch → a modal "optimization
+   failed" dialog *before* the status flipped to "Cancelled.". The old B2
+   harness check only asserted the final status (its DialogKiller silently
+   closed the dialog), so it passed. Added a `cancelling_` flag so
+   `onProcessFinished` skips the alarm path during a cancel; harness T9 now
+   asserts **no dialog** appears in the cancel window.
+2. **Batch live pane showed a command the app never runs.** The pane printed a
+   single `gifsicle -b <all inputs> -o <first>_opt.gif` line while `runCommand()`
+   actually launches **N separate Auto-mode invocations** (one per file, never
+   `-b`). `refreshCommand()` now renders the real per-file commands (E1
+   explicit Save-as honored for a single file; capped at 20 lines for huge
+   queues). Harness T2/T13 now assert the pane contains the derived
+   `<name>_opt.gif` names and no ` -b `.
+3. **`gs::validate()` results were thrown away in the GUI.** `runCommand()`
+   erased only the `input` warning and ignored the rest (comment claimed it
+   was about batch output — no such warning exists). The one GUI-triggerable
+   warning (crop 0×0) was silently dropped. It now surfaces remaining warnings
+   in a dialog before running.
+
+Regression checks added to `tests/test_gui_offscreen.cpp` (T2, T9, T13).
+Core/CLI unaffected.
+
+### Naming alignment — product is Gifscythe; engine stays gifsicle
+
+Policy: **Gifscythe** = the product; **gifsicle** = the upstream engine only
+(bundled `gifsicle[.exe]` binary, `reference_code/gifsicle/`, engine version
+1.96, its flags/options — these MUST keep the name; audit A10 and the
+"engine identity 1.96" rule depend on it).
+
+Applied:
+- Renamed `scripts/build_gifsicle.sh` → **`scripts/build_engine.sh`** (git mv)
+  and updated every live reference (build.sh, CMakeLists.txt, verify_audit.sh,
+  test_engine.sh, READMEs, WORKLIST, SESSION_HANDOFF, COMPILED_AUDIT,
+  IMPROVEMENT_LOG, gifscythe.pro). A thin `scripts/build_gifsicle.sh`
+  **compatibility shim** remains because the GitHub App cannot edit
+  `.github/workflows/build.yml` (no `workflows` permission); it forwards to
+  `build_engine.sh` and should be removed once a maintainer updates the
+  workflow. The two dated review snapshots (`gifscythe-comprehensive-review.md`,
+  `gifscythe-final-code-review.md`) intentionally keep their historical line
+  refs.
+- User-facing strings now say the brand or "the GIF engine": CLI help, GUI
+  bottom-bar label, mode combo ("Auto (engine decides)"), tooltips, error
+  statuses/dialogs ("Could not start the GIF engine", "The GIF engine
+  returned an error (exit N)", "Failed to start the GIF engine."), the batch
+  pane annotation. Engine/source attributions (e.g. "gifsicle 1.96 source",
+  "engine (gifsicle)") were kept where they name the engine precisely.
+
+### Web build — reviewed + working POC (not built/reviewed before)
+
+`FEASIBILITY_REVIEW.md` only mentioned web-tech UI as an alternative; nothing
+was built. Delivered:
+- **`docs/web/WEB_FEASIBILITY.md`** — full review of 4 options
+  (Qt-for-WASM ❌ QProcess/subprocess can't exist in wasm; Tauri ⚠️ still a
+  desktop app; server-side engine ✅ works today; **client-side
+  `gifsicle.wasm` ✅ best end-state** for portable offline web).
+- **`web/`** — zero-dependency Node server (`server.mjs`, spawn argv-array,
+  never a shell) + browser UI (upload → optimize → before/after + download)
+  + **`command.mjs`**, a line-by-line JS mirror of `GifsicleCommand.h` that is
+  the *single* builder for the browser live-pane and the server.
+- **Parity proof:** `web/test/command.test.mjs` serializes 12 settings
+  fixtures to confs, runs the real C++ `gifscythe-cli`, and asserts the JS
+  `toString()` is byte-identical — **13/13 PASS**. Server verified E2E: valid
+  12-frame GIF out (8703→6856 B with `--lossy=40 --resize-fit 100x100 -O3`),
+  honest 422 + stderr for non-GIF input.
+
+### Verification this session
+
+- `./build.sh`, unit suite, `test_engine.sh` 5/5, `smoke_cli.sh` 7/7, audit
+  static probes (E3/E4/E8/A5): **all green** after the edits.
+- **Qt GUI could NOT be compiled here:** sandbox network allows only
+  pypi/npm/github; apt, Qt CDN and emscripten hosts are unreachable, and
+  PySide6 wheels ship no C++ Qt headers/`moc`. GUI fixes are therefore
+  logic-reviewed + harness-checked by inspection only; the offscreen harness
+  must run on CI (it already runs on both OSes in `build.yml`).
+
+### Still open (unchanged)
+
+C4/D3/D4 clean-Windows smoke, desktop probes B5/B6/B14, optional polish
+(naming templates, queue reorder), 0.2.0-vs-1.0.0 owner decision. WebP/APNG
+stay blocked. Option-4 wasm build is a later release, not 1.0.0 scope.
+
+---
+
 ## 2026-09-07 (S4c-close) — recovery pushed, PR #5 merged, CI green on main
 
 - Token #3 (fresh fine-grained PAT) worked where tokens #1–#2 were rejected
@@ -271,7 +362,7 @@ missing engine exits 1; engine version string 1.96; demo GIF written end-to-end.
   `working_code/gifscythe/` skeleton + `VERSION.md`.
 - **Built the gifsicle engine natively** (P0): hand-wrote `config.h` in
   `reference_code/gifsicle/` (no autotools in sandbox); created
-  `scripts/build_gifsicle.sh`; engine lives in `release/0.1.0/gifsicle`.
+  `scripts/build_engine.sh`; engine lives in `release/0.1.0/gifsicle`.
   Verified via `scripts/test_engine.sh` (info/optimize/lossy/resize/explode).
 - **Built the engine control layer** (P1): `src/core/` with `GifsicleSettings`,
   `GifsicleCommand` (argv + live CLI string), `SettingsIO`; `src/cli/main.cpp`
