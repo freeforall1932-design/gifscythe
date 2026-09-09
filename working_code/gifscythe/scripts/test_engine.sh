@@ -22,7 +22,7 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 if [[ ! -x "$ENGINE" ]]; then
-  echo "FAIL: engine not built at $ENGINE. Run ./scripts/build_gifsicle.sh first." >&2
+  echo "FAIL: engine not built at $ENGINE. Run ./scripts/build_engine.sh first." >&2
   exit 1
 fi
 if [[ ! -f "$SRC_GIF" ]]; then

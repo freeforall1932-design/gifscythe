@@ -3,6 +3,14 @@
 **Version:** 0.1.0 · **Audit checklist:** `COMPILED_AUDIT.md`  
 **Rule:** Do not mark an item done until `COMPILED_AUDIT.md` §6 has evidence for it.
 
+## Direction decisions (2026-09-09 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`)
+
+- **Offline-only.** No server, no auto-update, no telemetry. The `web/` build
+  is a demo / command-parity harness, not the product path.
+- **Language: stay C++17 + Qt6 Widgets through 1.0.0** (already offline,
+  portable, CI-verified). Revisit only if a documented trigger fires — then
+  spike **Rust + Tauri**. Comparison matrix in the offline review doc.
+
 ## Current status
 
 ### Foundation (done)
@@ -59,6 +67,8 @@
 - [ ] Optional: queue reorder (move up/down) — S3-9 remainder
 - [ ] Optional: two-way CLI pane (`gs::parse_args`) **or** keep one-way forever
       (UI label now says one-way explicitly)
+- [ ] **Persist GUI settings between sessions** (offline-app expectation;
+      `SettingsIO` exists — wire load/save into the GUI) — S6 gap
 - [ ] Document release procedure
 - [ ] Bump `VERSION.md` → **1.0.0** only after Windows CI green + desktop
       probes + the optional items above are decided (owner may take 0.2.0
@@ -68,13 +78,16 @@
 
 1. ~~Obtain a valid PAT / push / merge~~ **DONE** — PR #5 merged, main run
    #23 green on both jobs with artifacts (2026-09-07).
-2. Clean-VM windeployqt smoke from the `gifscythe-windows` artifact (C4/D3/D4)
+2. **Push this branch → let CI confirm the S5 GUI fixes** (offscreen harness on
+   linux + windows; the sandbox has no Qt, so CI is the only Qt verification).
+3. Clean-VM windeployqt smoke from the `gifscythe-windows` artifact (C4/D3/D4)
    — checklist: `docs/ci/CLEAN_WINDOWS_SMOKE.md` (asset banked on Release
    `snapshot-2026-09-07`).
 4. One-time real-desktop GUI probes: B5 (kill engine mid-run), B6 physical
    drag-drop, B14 engine-missing GUI variant.
-5. Remaining 1.0.0 polish: naming templates, queue reorder (both optional),
-   release-procedure doc, then version decision (0.2.0 vs straight 1.0.0).
+5. Remaining 1.0.0 polish: **GUI settings persistence** (S6), naming templates,
+   queue reorder (both optional), release-procedure doc, then version decision
+   (0.2.0 vs straight 1.0.0).
 6. WebP/APNG stay blocked until all of the above ships.
 
 ## Deferred bucket list — after GIF `1.0.0`
@@ -85,6 +98,10 @@
 - GIF ⇄ APNG ⇄ WebP convert, explode, merge, reorder, loop controls.
 - Frame editor, text/watermark overlays, presets, richer previews.
 - Optional: logging framework, i18n, dark mode, system tray (see COMPILED_AUDIT S3 P2/P3).
+- **Web (not the product path):** client-side `gifsicle.wasm` + web UI
+  (`docs/web/WEB_FEASIBILITY.md` Option 4); `web/` server demo already exists.
+- **Language migration (only if a trigger fires):** Rust + Tauri spike —
+  see `docs/planning/OFFLINE_BUILD_REVIEW.md` §4.
 
 ## Build commands
 
@@ -97,9 +114,13 @@ cd working_code/gifscythe
 ./scripts/verify_audit.sh  # whole COMPILED_AUDIT §6 suite in one command
 ./scripts/package_portable.sh
 ./scripts/package_system.sh
-./scripts/build_gifsicle.sh --windows   # needs mingw-w64
+./scripts/build_engine.sh --windows   # needs mingw-w64
 # GUI harness (needs Qt6): cmake -S . -B build-cmake && cmake --build build-cmake
 #   && QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
+
+# Web demo (offline-unrelated; parity harness only)
+node web/server.mjs 8000           # from the repo root
+node web/test/command.test.mjs     # JS ⇄ C++ command parity
 ```
 
 ## Do not
