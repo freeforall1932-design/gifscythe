@@ -8,7 +8,10 @@ evidence (audit §6); the XNConvert-style UI retrofit (tabs/controls/preview)
 landed 2026-09-07 (S4b). The portable Windows build is **CI-green and merged**
 (PR #5 → `0ad1ff5`; main runs #23/#24 green on both jobs); only the clean-VM /
 desktop smoke (C4/D3/D4, B5/B6/B14 — `docs/ci/CLEAN_WINDOWS_SMOKE.md`) remains
-before **1.0.0**. See `WORKLIST.md` and `COMPILED_AUDIT.md`.
+before **1.0.0**. **2026-09-09 (S5/S6):** direction pinned to **offline-only**
+and the language **stays C++17/Qt6 through 1.0.0**; the `web/` build is a demo
+only. See `WORKLIST.md`, `COMPILED_AUDIT.md`, and
+`docs/planning/OFFLINE_BUILD_REVIEW.md`.
 
 ## Mission
 A portable, click-and-use desktop app for **animated (moving) images only** —
@@ -35,6 +38,7 @@ want the full gifsicle terminal control underneath.
 - **Exclusively** animated GIF, APNG, and WebP. Not photos, not video —
   only "moving picture" / GIF-type features.
 - Portable, click-and-run (no installer, no admin). Windows-first.
+- **Offline-only** (2026-09-09): no server, no auto-update, no telemetry.
 - Retain gifsicle terminal-level control for power users (live command pane;
   argv execution — never shell injection).
 - gifsicle stays a **subprocess** (GPL v2-only engine vs GPLv3 UI).
@@ -44,7 +48,7 @@ want the full gifsicle terminal control underneath.
 - **APNG + animated WebP:** **bucket-list / future task** — only after the
   GIF UI/UX retrofit is complete and 1.0.0 ships. See `WORKLIST.md`.
 
-## Progress snapshot (2026-09-07)
+## Progress snapshot (2026-09-09)
 | Area | State |
 |------|--------|
 | GIF engine subprocess | Done (native + Windows config path) |
@@ -52,4 +56,6 @@ want the full gifsicle terminal control underneath.
 | CLI driver + tests | Done (honest exits, smoke suite) |
 | GUI | **Retrofit done (S4b):** Input/Actions/Output tabs, ~30 engine-truth controls, debounced async before/after preview, batch output folder — 143-check offscreen harness green |
 | Silent-failure class bugs | Fixed in code; re-verify via `COMPILED_AUDIT.md` §6 |
-| 1.0.0 | **Not yet** — retrofit done + Windows CI green; clean-VM smoke + owner decision remain |
+| Offline-only direction + language decision | **Decided (S6)** — stay C++17/Qt6 through 1.0.0; see `docs/planning/OFFLINE_BUILD_REVIEW.md` |
+| Web build | **Demo only** (`web/`, server-side POC + JS⇄C++ command parity); not the product path |
+| 1.0.0 | **Not yet** — clean-VM smoke + desktop probes + owner decision remain |

@@ -6,7 +6,7 @@
 #   qmake6 gifscythe.pro && make
 #
 # The engine control layer (src/core/) is header-only and shared via INCLUDEPATH.
-# The gifsicle engine binary is produced by scripts/build_gifsicle.sh (subprocess).
+# The gifsicle engine binary is produced by scripts/build_engine.sh (subprocess).
 
 QT += widgets
 CONFIG += c++17

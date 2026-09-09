@@ -49,7 +49,7 @@ EOF
 
 # 1. Engine
 echo "==> [1/4] Building gifsicle engine..."
-"$self/scripts/build_gifsicle.sh" $engine_arg || fail "engine build failed"
+"$self/scripts/build_engine.sh" $engine_arg || fail "engine build failed"
 
 # 2. CLI
 echo "==> [2/4] Building CLI driver (gifscythe-cli)..."

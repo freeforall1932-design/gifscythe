@@ -12,6 +12,8 @@ folder — harness now at **143 checks**. **Windows CI green and merged
 banked on Release `snapshot-2026-09-07`). Remaining: clean-Windows desktop
 probes (C4/D3/D4, B5/B6/B14 — checklist in `docs/ci/CLEAN_WINDOWS_SMOKE.md`)
 and the version decision (0.2.0 vs 1.0.0, owner's call). WebP/APNG deferred.
+**Direction (2026-09-09): offline-only, language stays C++17/Qt6 through 1.0.0**
+— see `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 
 This repository deliberately separates **reference code** from **working code**
 so the finished product is never confused with source-material we copied or
@@ -41,6 +43,11 @@ gifscythe/                        (repo root)
   COMPILED_AUDIT.md               master audit checklist (start here for reviews)
   LICENSE / COPYING.gifsicle      license notices (GPLv3 UI intent + GPLv2 engine)
   README.md                       this file
+  docs/
+    planning/OFFLINE_BUILD_REVIEW.md   offline-only feasibility + language + plan
+    web/WEB_FEASIBILITY.md             web-run review (web/ = demo only)
+    ci/                            workflow docs + clean-Windows smoke checklist
+  web/                             server-side web POC + JS⇄C++ command parity test
 
   reference_code/                 SOURCE MATERIAL — do not edit, do not ship
     gifsicle/                     canonical gifsicle 1.96 source
@@ -64,6 +71,10 @@ gifscythe/                        (repo root)
 1. **`COMPILED_AUDIT.md`** — findings, what was fixed, §6 verify-before-trust.
 2. **`SESSION_HANDOFF.md`** — current state + constraints.
 3. **`WORKLIST.md`** — short checkbox board toward 1.0.0.
+4. **`docs/planning/OFFLINE_BUILD_REVIEW.md`** — offline-only feasibility,
+   language choice (stay C++/Qt through 1.0.0), and the phased plan.
+5. **`docs/web/WEB_FEASIBILITY.md`** — web-run review (the `web/` build is a
+   demo/parity harness, not the product path).
 
 ## Versions
 The *product* version lives in `working_code/gifscythe/VERSION.md` and is synced

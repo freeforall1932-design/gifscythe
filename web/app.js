@@ -1,0 +1,138 @@
+// app.js — Gifscythe web UI. Uses the SAME command builder (command.mjs) as
+// the Node server and the desktop C++ control layer, so the live pane shows
+// exactly what the engine runs.
+
+import { buildArgs, shellQuote } from "./command.mjs";
+
+const $ = (id) => document.getElementById(id);
+
+let currentFile = null;
+let afterUrl = null;
+
+// ---- settings model (mirrors gs::Settings) ----
+function settings() {
+  const resize = $("resize").value;
+  const loop = $("loop").value;
+  return {
+    mode: "auto",
+    optimize_level: Number($("optimize").value),
+    lossy: Number($("lossy").value) > 0 ? Number($("lossy").value) : -1,
+    color_count: $("colorsOn").checked ? Number($("colors").value) : -1,
+    dither: $("dither").value !== "" && $("dither").value !== "none",
+    dither_method:
+      $("dither").value === "default" ? "" : $("dither").value,
+    resize_kind: resize,
+    resize_w: Number($("w").value),
+    resize_h: Number($("h").value),
+    scale_x: Number($("scalePct").value) / 100,
+    scale_y: Number($("scalePct").value) / 100,
+    loopcount: loop === "keep" ? -1 : loop === "forever" ? 0 : Number($("loopN").value),
+    delay_cs: $("delayOn").checked ? Number($("delay").value) : -1,
+  };
+}
+
+// ---- live pane ----
+function refreshCommand() {
+  const pre = $("command");
+  if (!currentFile) {
+    pre.textContent = "add a GIF to generate a command…";
+    return;
+  }
+  const s = settings();
+  s.inputs = [currentFile.name];
+  s.output = currentFile.name.replace(/\.gif$/i, "") + "_opt.gif";
+  pre.textContent = "gifsicle " + buildArgs(s).map(shellQuote).join(" ");
+}
+
+// ---- wiring ----
+const pick = $("pick");
+const file = $("file");
+pick.addEventListener("click", () => file.click());
+file.addEventListener("change", () => {
+  if (file.files && file.files[0]) setFile(file.files[0]);
+});
+
+const drop = $("drop");
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  drop.classList.remove("over");
+  const f = [...(e.dataTransfer?.files || [])].find((x) => /\.gif$/i.test(x.name) || x.type === "image/gif");
+  if (f) setFile(f);
+});
+
+function setFile(f) {
+  currentFile = f;
+  if (afterUrl) { URL.revokeObjectURL(afterUrl); afterUrl = null; }
+  $("before").src = URL.createObjectURL(f);
+  $("after").removeAttribute("src");
+  $("after").alt = "—";
+  $("savings").textContent = "";
+  $("run").disabled = false;
+  $("download").hidden = true;
+  $("status").textContent = `${f.name} — ${humanSize(f.size)} ready.`;
+  refreshCommand();
+}
+
+function humanSize(bytes) {
+  if (bytes >= 1048576) return (bytes / 1048576).toFixed(2) + " MB";
+  if (bytes >= 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return bytes + " B";
+}
+
+// controls -> live pane
+for (const id of ["optimize", "lossy", "colors", "colorsOn", "dither", "resize",
+  "w", "h", "scalePct", "loop", "loopN", "delay", "delayOn"]) {
+  $(id).addEventListener("input", refreshCommand);
+  $(id).addEventListener("change", () => { updateControlState(); refreshCommand(); });
+}
+
+function updateControlState() {
+  $("colors").disabled = !$("colorsOn").checked;
+  $("delay").disabled = !$("delayOn").checked;
+  $("loopNRow").hidden = $("loop").value !== "n";
+}
+
+// ---- optimize ----
+$("run").addEventListener("click", async () => {
+  if (!currentFile) return;
+  const run = $("run");
+  run.disabled = true;
+  $("status").textContent = "Optimizing…";
+  const s = settings();
+  try {
+    const url = "/optimize?settings=" + encodeURIComponent(JSON.stringify(s));
+    const resp = await fetch(url, { method: "POST", body: currentFile });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: "HTTP " + resp.status }));
+      $("status").textContent =
+        `Failed — exit ${err.exitCode ?? ""} ${err.stderr || err.error || ""}`.trim();
+      run.disabled = false;
+      return;
+    }
+    const blob = await resp.blob();
+    if (afterUrl) URL.revokeObjectURL(afterUrl);
+    afterUrl = URL.createObjectURL(blob);
+    $("after").src = afterUrl;
+
+    const inBytes = Number(resp.headers.get("X-Gifscythe-In-Bytes") || currentFile.size);
+    const outBytes = Number(resp.headers.get("X-Gifscythe-Out-Bytes") || blob.size);
+    const pct = ((outBytes - inBytes) / inBytes) * 100;
+    $("savings").textContent =
+      `${humanSize(inBytes)} → ${humanSize(outBytes)}  ` +
+      `(${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%)`;
+    const cmd = resp.headers.get("X-Gifscythe-Command");
+    if (cmd) $("command").textContent = cmd;
+
+    $("download").href = afterUrl;
+    $("download").hidden = false;
+    $("status").textContent = "Done.";
+  } catch (e) {
+    $("status").textContent = "Failed — " + (e && e.message ? e.message : e);
+  } finally {
+    run.disabled = false;
+  }
+});
+
+updateControlState();

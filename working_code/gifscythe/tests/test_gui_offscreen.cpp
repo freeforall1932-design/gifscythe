@@ -362,6 +362,9 @@ int main(int argc, char** argv) {
     CHECK(pane.contains(QStringLiteral("-O3")));            // optimize default
     CHECK(pane.contains(a));                                 // input present
     CHECK(pane.contains(gs::shell_quote(g_engine.toStdString()).c_str()));
+    // Batch runs one per-file Auto command — never a single "-b …" line.
+    CHECK(!pane.contains(QStringLiteral(" -b ")));
+    CHECK(pane.contains(QStringLiteral("a_opt.gif")));       // real derived output
 
     x.optimize->setValue(2);
     spinEvents(20);
@@ -605,12 +608,15 @@ int main(int argc, char** argv) {
     CHECK_MSG(x.process->state() == QProcess::Running, "engine still running at ~0.6s");
 
     // Cancel mid-run (B2)
+    g_dialogs.clear();  // isolate the cancel window: no dialog may appear here
     x.cancel->click();
     CHECK_MSG(waitForStatus(w, QStringLiteral("Cancelled"), 10000), "status shows Cancelled");
     CHECK(x.process->state() == QProcess::NotRunning);  // no zombie
     CHECK(!x.cancel->isEnabled());
     CHECK(x.run->isEnabled());           // controls re-enabled
     CHECK(!x.progress->isVisible());     // busy indicator cleared
+    // A cancel is expected, not an error: no "optimization failed" dialog.
+    CHECK_MSG(g_dialogs.empty(), "cancel does not pop a spurious error dialog");
     delete w;
   }
 
@@ -906,6 +912,14 @@ int main(int argc, char** argv) {
     x.batchDir->setText(outDir);
     spinEvents(30);
     CHECK(x.outputSummary->text().contains(outDir));
+    // The live pane must describe the real per-file runs, not a single -b.
+    {
+      const QString pane = x.pane->toPlainText();
+      CHECK(pane.contains(QStringLiteral("# batch")));
+      CHECK(pane.contains(QStringLiteral("a_opt.gif")));
+      CHECK(pane.contains(QStringLiteral("b_opt.gif")));
+      CHECK(!pane.contains(QStringLiteral(" -b ")));
+    }
 
     x.run->click();
     CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "batch with custom folder completes");

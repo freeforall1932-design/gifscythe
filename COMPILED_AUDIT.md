@@ -297,7 +297,7 @@ Use this as the **authoritative** broken/misaligned/missing register. S3 IDs cro
 | Core | `GifsicleSettings.h`, `GifsicleCommand.h`, `SettingsIO.h`, `Validate.h`, `EngineLocator.h`, `ProcessRunner.h`, `version.h`, `version.h.in` |
 | CLI | `src/cli/main.cpp` |
 | GUI | `MainWindow.cpp/.h`, `DropListWidget.h`, `main.cpp` |
-| Build | `CMakeLists.txt`, `build.sh`, `scripts/build_gifsicle.sh`, `package_*.sh`, `test_engine.sh`, **new** `smoke_cli.sh` |
+| Build | `CMakeLists.txt`, `build.sh`, `scripts/build_engine.sh`, `package_*.sh`, `test_engine.sh`, **new** `smoke_cli.sh` |
 | CI | Proposed rewrite in `docs/ci/build.yml.proposed` (apply over `.github/workflows/build.yml` with `workflows` permission; push of workflow files blocked for this App) |
 | Tests | `tests/test_gifsicle_command.cpp` (expanded) |
 | Docs/license | `LICENSE`, `COPYING.gifsicle`, root `.gitignore`, `.gitattributes`, WORKLIST/HANDOFF/IMPROVEMENT_LOG, FEASIBILITY table fixes |
@@ -307,7 +307,7 @@ Use this as the **authoritative** broken/misaligned/missing register. S3 IDs cro
 
 | Area | Files | Why |
 |------|-------|-----|
-| Windows engine recipe | `scripts/build_gifsicle.sh` | `-I.` + upstream mingw flags; drop `-DVERSION` (win32cfg.h owns it) — fixes CI run #18 step 4 |
+| Windows engine recipe | `scripts/build_engine.sh` | `-I.` + upstream mingw flags; drop `-DVERSION` (win32cfg.h owns it) — fixes CI run #18 step 4 |
 | Windows argv exec | `src/core/ProcessRunner.h` | `_spawnvp` does NOT quote args → space paths split (found via Wine E2E). Now `CreateProcessA` + MSVCRT-rule `win_quote_arg` |
 | Quoting regression test | `tests/test_gifsicle_command.cpp` | test 19 covers win_quote_arg edge cases (empty, tabs, embedded quotes, trailing backslashes) |
 | GUI harness | `tests/test_gui_offscreen.cpp` (new) | 81 automated checks for §6.B under `QT_QPA_PLATFORM=offscreen`; runs in CI on both OSes |
@@ -458,7 +458,7 @@ preview): **143 checks, 0 failures** (T1–T13).
 - [x] **C1** GitHub Actions **linux** GREEN (run #18, sha 821a310): build+GUI,
       engine 5/5, smoke 7/7, package, artifact uploaded **[CI]**
 - [x] **C2** Actions **windows** job: FAILED at run #18 step 4 (engine build,
-      missing `-I.` → `config.h: No such file`); fixed in `build_gifsicle.sh`
+      missing `-I.` → `config.h: No such file`); fixed in `build_engine.sh`
       (recipe mirrors upstream `Makefile.mingw`). ✅ **C2 closed 2026-09-07** — PR #5 (merge `0ad1ff5`) merged; main green on both jobs incl. GUI offscreen steps (runs on `0ad1ff5` = #23 and `d3544b1` = #24, id 34092786153); artifact `gifscythe-windows` downloadable. — all 9
       windows steps green on runs #21/#22 (`160fea3`), #23 (`0ad1ff5`),
       #24 (`d3544b1`) **[CI]**.

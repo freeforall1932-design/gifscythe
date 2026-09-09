@@ -103,11 +103,11 @@ endif()
 find_program(GS_BASH bash)
 if(GS_BASH)
   add_custom_target(build_engine
-    COMMAND "${GS_BASH}" "${CMAKE_SOURCE_DIR}/scripts/build_gifsicle.sh"
+    COMMAND "${GS_BASH}" "${CMAKE_SOURCE_DIR}/scripts/build_engine.sh"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "Building bundled gifsicle engine"
     USES_TERMINAL
   )
 else()
-  message(STATUS "bash not found -> build_engine target skipped; use scripts/build_gifsicle.sh")
+  message(STATUS "bash not found -> build_engine target skipped; use scripts/build_engine.sh")
 endif()

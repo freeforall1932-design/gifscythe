@@ -66,7 +66,7 @@ void SettingsPanel::buildUi() {
                       static_cast<int>(gs::Mode::Merge));
   modeCombo_->addItem(QStringLiteral("Explode into frames"),
                       static_cast<int>(gs::Mode::Explode));
-  modeCombo_->addItem(QStringLiteral("Auto (gifsicle decides)"),
+  modeCombo_->addItem(QStringLiteral("Auto (engine decides)"),
                       static_cast<int>(gs::Mode::Auto));
   modeCombo_->setCurrentIndex(0);  // Batch default — audit E4, do not change
   modeCombo_->setToolTip(QStringLiteral(
@@ -89,7 +89,7 @@ void SettingsPanel::buildUi() {
   optimizeSpin_->setValue(3);
   optimizeSpin_->setSpecialValueText(QStringLiteral("Off"));
   optimizeSpin_->setToolTip(QStringLiteral(
-      "gifsicle -O level. 0 = off, 1–3 = smaller output (slower).\n"
+      "Engine -O level. 0 = off, 1–3 = smaller output (slower).\n"
       "(-O0 is a real setting: 'no optimization' — VP-2.)"));
   form->addRow(QStringLiteral("Optimization level"), optimizeSpin_);
 
@@ -196,7 +196,7 @@ void SettingsPanel::buildUi() {
   for (const char* m : kResizeMethods)
     resizeMethodCombo_->addItem(QString::fromLatin1(m), QString::fromLatin1(m));
   resizeMethodCombo_->setToolTip(QStringLiteral(
-      "Resampling algorithm (--resize-method). Values from gifsicle's\n"
+      "Resampling algorithm (--resize-method). Values from the engine's\n"
       "RESIZE_METHOD_TYPE list: point, mix, box, catrom, lanczos2,\n"
       "lanczos3, mitchell."));
   form->addRow(QStringLiteral("Method"), resizeMethodCombo_);
@@ -278,7 +278,7 @@ void SettingsPanel::buildUi() {
   cropRow->addWidget(cropHSpin_);
   cropRow->addStretch();
   form->addRow(QStringLiteral("Rectangle"), cropRow);
-  auto* cropHint = new QLabel(QStringLiteral("Emitted as --crop X,Y+WxH (gifsicle plus-form)."), cropBox);
+  auto* cropHint = new QLabel(QStringLiteral("Emitted as --crop X,Y+WxH (engine plus-form)."), cropBox);
   cropHint->setObjectName(QStringLiteral("cropHintLabel"));
   cropHint->setWordWrap(true);
   form->addRow(QString(), cropHint);
@@ -331,7 +331,7 @@ void SettingsPanel::buildUi() {
   disposalCombo_->addItem(QStringLiteral("background (2) — restore to background"), 2);
   disposalCombo_->addItem(QStringLiteral("previous (3) — restore to previous"), 3);
   disposalCombo_->setToolTip(QStringLiteral(
-      "Frame disposal method (--disposal). Names/values from gifsicle's\n"
+      "Frame disposal method (--disposal). Names/values from the engine's\n"
       "DISPOSAL_TYPE parser."));
   form->addRow(QStringLiteral("Disposal"), disposalCombo_);
 
