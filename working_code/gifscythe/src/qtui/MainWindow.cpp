@@ -236,7 +236,7 @@ QWidget* MainWindow::buildOutputTab() {
 }
 
 void MainWindow::buildBottomBar(QWidget* central, QVBoxLayout* root) {
-  root->addWidget(new QLabel(QStringLiteral("Generated gifsicle command (one-way: controls → command)"),
+  root->addWidget(new QLabel(QStringLiteral("Generated engine command (one-way: controls → command)"),
                              central));
   commandPane_ = new QPlainTextEdit(central);
   commandPane_->setObjectName(QStringLiteral("commandPane"));
@@ -288,7 +288,7 @@ bool MainWindow::ensureEngine() {
     updateStatus(QStringLiteral("Ready — engine: %1").arg(enginePath_));
     return true;
   }
-  updateStatus(QStringLiteral("Engine not found — build with ./scripts/build_gifsicle.sh"));
+  updateStatus(QStringLiteral("Engine not found — build with ./scripts/build_engine.sh"));
   runButton_->setEnabled(false);
   return false;
 }
@@ -463,7 +463,7 @@ void MainWindow::refreshOutputSummary() {
       break;
     case gs::Mode::Auto:
       text = explicitOut.isEmpty()
-                 ? QStringLiteral("Auto → gifsicle merges inputs to stdout UNLESS an output is set; "
+                 ? QStringLiteral("Auto → the engine merges inputs to stdout UNLESS an output is set; "
                                    "set Save-as (auto-naming does not apply in Auto mode)")
                  : QStringLiteral("Auto → %1").arg(explicitOut);
       break;
@@ -486,18 +486,49 @@ gs::Settings MainWindow::currentSettings() const {
 
 void MainWindow::refreshCommand() {
   if (!commandPane_) return;
+  const QString engine = QString::fromStdString(
+      gs::shell_quote(enginePath_.toStdString()));
+
   auto settings = currentSettings();
 
-  // For display in batch mode with empty output, show the auto-derived name.
-  if (settings.mode == gs::Mode::Batch && settings.output.empty() && !settings.inputs.empty()) {
-    settings.output = defaultOutputFor(QString::fromStdString(settings.inputs.front()))
-                          .toStdString();
+  // Batch mode runs ONE gifsicle process per file in Auto mode (see
+  // runCommand) — it never passes -b. Reflect that honestly in the live pane
+  // instead of printing a single "-b <all inputs> -o <first name>" line the
+  // app would never execute.
+  if (settings.mode == gs::Mode::Batch && !settings.inputs.empty()) {
+    QStringList lines;
+    const int n = static_cast<int>(settings.inputs.size());
+    if (n > 1) {
+      lines << QStringLiteral("# batch: one engine command per file (%1 files)")
+                   .arg(n);
+    }
+    const QString explicitOut = QString::fromStdString(settings.output);
+    const int kMaxShown = 20;  // avoid O(n) pane rebuilds for huge queues
+    for (int i = 0; i < n; ++i) {
+      if (i == kMaxShown && n > kMaxShown) {
+        lines << QStringLiteral("# … and %1 more files (same command pattern)")
+                     .arg(n - kMaxShown);
+        break;
+      }
+      gs::Settings one = settings;
+      one.mode = gs::Mode::Auto;
+      const QString in = QString::fromStdString(settings.inputs[i]);
+      one.inputs = {in.toStdString()};
+      // Explicit Save-as is honored only for a single file (audit E1);
+      // otherwise the per-file <name>_opt.gif name applies.
+      QString out = explicitOut;
+      if (n > 1 || out.isEmpty()) out = defaultOutputFor(in);
+      one.output = out.toStdString();
+      gs::GifsicleCommand cmd(one);
+      lines << engine + QLatin1Char(' ') + QString::fromStdString(cmd.toString());
+    }
+    commandPane_->setPlainText(lines.join(QLatin1Char('\n')));
+    return;
   }
 
   gs::GifsicleCommand cmd(settings);
   commandPane_->setPlainText(
-      QString::fromStdString(gs::shell_quote(enginePath_.toStdString()))
-      + QLatin1Char(' ')
+      engine + QLatin1Char(' ')
       + QString::fromStdString(cmd.toString()));
 }
 
@@ -521,8 +552,8 @@ void MainWindow::runCommand() {
   if (busy_) return;
   if (!ensureEngine()) {
     QMessageBox::critical(this, QStringLiteral("Gifscythe"),
-        QStringLiteral("Could not find the gifsicle engine.\n"
-                       "Build it with ./scripts/build_gifsicle.sh\n"
+        QStringLiteral("Could not find the GIF engine (gifsicle).\n"
+                       "Build it with ./scripts/build_engine.sh\n"
                        "or set the GS_ENGINE environment variable.\n"
                        "Looked for: %1").arg(enginePath_));
     return;
@@ -535,11 +566,26 @@ void MainWindow::runCommand() {
 
   auto settings = currentSettings();
   auto warnings = gs::validate(settings);
-  // Allow empty output in batch — we auto-derive per file.
+  // "input" is already enforced above (empty-queue refusal), and an empty
+  // output is fine in Batch/Explode (auto-derived per file). Surface any
+  // remaining out-of-range settings instead of silently running with them.
   warnings.erase(std::remove_if(warnings.begin(), warnings.end(),
       [](const gs::Warning& w) {
-        return w.field == "input";  // already checked
+        return w.field == "input";
       }), warnings.end());
+  if (!warnings.empty()) {
+    QStringList msgs;
+    for (const auto& w : warnings) {
+      msgs << QStringLiteral("%1 (%2): %3")
+                  .arg(QString::fromStdString(w.field),
+                       QString::fromStdString(w.value),
+                       QString::fromStdString(w.reason));
+    }
+    QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+        QStringLiteral("Some settings may not work as intended:\n%1")
+            .arg(msgs.join(QLatin1Char('\n'))));
+    return;
+  }
 
   batchMode_ = settings.mode;
 
@@ -576,7 +622,7 @@ void MainWindow::runCommand() {
     if (!process_->waitForStarted(5000)) {
       setBusy(false);
       QMessageBox::critical(this, QStringLiteral("Gifscythe"),
-          QStringLiteral("Could not start gifsicle: %1").arg(process_->errorString()));
+          QStringLiteral("Could not start the GIF engine: %1").arg(process_->errorString()));
       return;
     }
     return;
@@ -612,15 +658,20 @@ void MainWindow::runCommand() {
   if (!process_->waitForStarted(5000)) {
     setBusy(false);
     QMessageBox::critical(this, QStringLiteral("Gifscythe"),
-        QStringLiteral("Could not start gifsicle: %1").arg(process_->errorString()));
+        QStringLiteral("Could not start the GIF engine: %1").arg(process_->errorString()));
   }
 }
 
 void MainWindow::cancelRun() {
+  // kill() makes gifsicle exit with a non-zero/crash status, which normally
+  // routes through the "optimization failed" branch. Mark the cancellation so
+  // onProcessFinished doesn't surface a spurious error dialog mid-cancel.
+  cancelling_ = true;
   if (process_ && process_->state() != QProcess::NotRunning) {
     process_->kill();
     process_->waitForFinished(3000);
   }
+  cancelling_ = false;
   batchQueue_.clear();
   batchIndex_ = -1;
   setBusy(false);
@@ -633,12 +684,18 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
   process_->readAllStandardOutput();
 
   if (status != QProcess::NormalExit || exitCode != 0) {
+    if (cancelling_) {
+      // A user-initiated cancel (or window close) kills the engine, which then
+      // reports a non-zero exit. That's expected, not a failure to alarm about;
+      // cancelRun() finishes the cleanup and sets the "Cancelled." status.
+      return;
+    }
     setBusy(false);
     batchQueue_.clear();
     batchIndex_ = -1;
     updateStatus(QStringLiteral("Optimization failed (exit %1).").arg(exitCode));
     QMessageBox::warning(this, QStringLiteral("Gifscythe"),
-        err.isEmpty() ? QStringLiteral("gifsicle returned an error (exit %1).").arg(exitCode)
+        err.isEmpty() ? QStringLiteral("The GIF engine returned an error (exit %1).").arg(exitCode)
                       : err);
     return;
   }
@@ -652,7 +709,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       batchIndex_ = -1;
       updateStatus(QStringLiteral("No output produced — check the command below."));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
-          QStringLiteral("gifsicle exited 0 but no output file was written:\n%1")
+          QStringLiteral("The GIF engine exited 0 but no output file was written:\n%1")
               .arg(pendingOutput_));
       return;
     }
@@ -700,7 +757,7 @@ void MainWindow::onProcessError(QProcess::ProcessError error) {
     setBusy(false);
     batchQueue_.clear();
     batchIndex_ = -1;
-    updateStatus(QStringLiteral("Failed to start gifsicle."));
+    updateStatus(QStringLiteral("Failed to start the GIF engine."));
   }
   // Crashes are also reported via finished().
 }

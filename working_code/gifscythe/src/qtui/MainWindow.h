@@ -116,6 +116,7 @@ class MainWindow : public QMainWindow {
   QStringList inputs_;
   QProcess* process_ = nullptr;        // objectName "engineProcess"
   bool busy_ = false;
+  bool cancelling_ = false;            // set while cancelRun() kills the engine
   QString pendingOutput_;
   int batchIndex_ = -1;
   QStringList batchQueue_;
