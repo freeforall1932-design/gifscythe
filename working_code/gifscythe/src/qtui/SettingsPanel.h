@@ -43,6 +43,12 @@ class SettingsPanel : public QWidget {
   // colors, metadata...). Inputs/output are NOT touched (MainWindow owns them).
   void writeInto(gs::Settings& s) const;
 
+  // Inverse of writeInto: restore every control from s (used for session
+  // persistence — S7). Fields that the GUI cannot represent (e.g. optimize
+  // -1 "no flag", disposal 4..7) leave their control at the default.
+  // Does NOT emit changed() — callers refresh consumers once afterwards.
+  void readFrom(const gs::Settings& s);
+
   gs::Mode mode() const;
 
  signals:

@@ -1,18 +1,19 @@
 // Gifscythe main window - the GUI shell over the gifsicle engine.
 //
 // Layout (XNConvert-style flow):
-//   Tab 1 "Input"   — animation queue (add / drag-drop / remove / clear,
-//                     per-file size, total count/size label)
+//   Tab 1 "Input"   — animation queue (add / drag-drop / remove / clear /
+//                     move up-down, per-file size, total count/size label)
 //   Tab 2 "Actions" — SettingsPanel: every whole-GIF control gifsicle has
 //   Tab 3 "Output"  — Save-as (Merge/single-file Batch), batch output
-//                     folder, open-folder action, honest per-mode summary
+//                     folder, name template ({name}_opt.gif default),
+//                     open-folder action, honest per-mode summary
 //   Right pane      — PreviewPanel: debounced async before/after preview
 //   Bottom          — live one-way command pane, progress, run/cancel, status
 //
 // Run semantics are UNCHANGED from the verified MVP (COMPILED_AUDIT §6.B):
 //   * Batch default (E4): N inputs -> N outputs, auto <name>_opt.gif next to
-//     each input, or in the chosen batch folder; single input + explicit
-//     Save-as uses that path (E1).
+//     each input (or the chosen batch folder / name template); single input +
+//     explicit Save-as uses that path (E1).
 //   * Merge requires an output file; empty output REFUSES (B12, no silent
 //     stdout loss).
 //   * Explode auto-prefixes <stem>_frame (E2).
@@ -23,6 +24,15 @@
 // debounce timer; on fire, a SEPARATE QProcess re-encodes the selected file
 // to a temp dir. Never blocks the UI thread (S3-7 rule); main runs pause
 // previewing and kill any in-flight preview process.
+//
+// Session persistence (S7 — closes the OFFLINE_BUILD_REVIEW §6 gap and audit
+// row 15): on close, the Actions-tab state is written through the core
+// SettingsIO serializer plus two GUI-only keys (batch_dir, name_template) to
+// %AppConfig%/gifscythe.conf (override: GS_SETTINGS_PATH env var). On start,
+// the file is loaded back (first launch = defaults, no error). Deliberately
+// NOT persisted: the queue (files move between sessions) and the Save-as
+// field (a per-run choice — restoring it could silently overwrite a stale
+// path). Load warnings surface in the status bar instead of being dropped.
 
 #ifndef GIFSCYTHE_MAINWINDOW_H
 #define GIFSCYTHE_MAINWINDOW_H
@@ -33,6 +43,7 @@
 
 class QLabel;
 class QLineEdit;
+class QFileInfo;
 class QPlainTextEdit;
 class QProgressBar;
 class QPushButton;
@@ -52,6 +63,18 @@ class MainWindow : public QMainWindow {
   ~MainWindow() override;
 
   gs::Settings currentSettings() const;
+
+  // ---- Session persistence (S7) ----
+  // Where settings are stored: $GS_SETTINGS_PATH when set (tests/portable),
+  // else QStandardPaths::AppConfigLocation + "/gifscythe.conf" (empty if the
+  // platform has no writable config location — persistence then no-ops).
+  QString sessionFilePath() const;
+  // Apply a previously saved session (no-op on first launch). Called by the
+  // constructor; public for the offscreen harness.
+  void loadSessionState();
+  // Write the current Actions state + GUI keys. Returns false only when a
+  // path exists but writing failed (closeEvent surfaces that honestly).
+  bool saveSessionState();
 
  protected:
   void closeEvent(QCloseEvent* event) override;
@@ -80,7 +103,10 @@ class MainWindow : public QMainWindow {
   void updateStatus(const QString& message);
   void appendInputs(const QStringList& files);
   void setBusy(bool busy);
+  void moveCurrent(int delta);
   QString defaultOutputFor(const QString& input) const;
+  QString renderedOutputName(const QFileInfo& input) const;
+  bool templateIsConstant() const;
   bool ensureEngine();
   void refreshQueueLabel();
   void refreshOutputSummary();
@@ -100,6 +126,7 @@ class MainWindow : public QMainWindow {
   SettingsPanel* settingsPanel_ = nullptr;
   QLineEdit* outputEdit_ = nullptr;
   QLineEdit* batchDirEdit_ = nullptr;
+  QLineEdit* nameTemplateEdit_ = nullptr;
   QPushButton* openDirButton_ = nullptr;
   QLabel* outputSummaryLabel_ = nullptr;
   PreviewPanel* previewPanel_ = nullptr;
@@ -108,6 +135,8 @@ class MainWindow : public QMainWindow {
   QPushButton* cancelButton_ = nullptr;
   QPushButton* removeButton_ = nullptr;
   QPushButton* clearButton_ = nullptr;
+  QPushButton* moveUpButton_ = nullptr;
+  QPushButton* moveDownButton_ = nullptr;
   QLabel* statusLabel_ = nullptr;
   QProgressBar* progressBar_ = nullptr;
 
