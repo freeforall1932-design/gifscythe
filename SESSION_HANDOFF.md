@@ -54,8 +54,10 @@
 2. **Hygiene fixes:** the `scripts/build_gifsicle.sh` compatibility shim is
    **removed** (the maintainer updated `.github/workflows/build.yml` to
    `build_engine.sh` in `c5efe07`, which was the shim's only reason to exist),
-   `docs/ci/build.yml.proposed` is **byte-identical** with the live workflow
-   again, and a dead helper in `SettingsIO::save_settings` is gone. Unit test
+   `docs/ci/build.yml.proposed` was re-synced **byte-identical** with the live
+   workflow (that held through S7; S8's CI change is currently *pending* — see
+   `docs/ci/PENDING_WORKFLOW_CHANGE.md`), and a dead helper in
+   `SettingsIO::save_settings` is gone. Unit test
    20 now pins the unknown-key tolerance the GUI state keys rely on.
 3. **What remains before 1.0.0** — the audit's criterion is *"no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the
@@ -298,7 +300,11 @@ section of this file.**
 - Windows exec stays `CreateProcessA` + `win_quote_arg` — never `_spawnvp`/shell.
 - Windows CLI/test exes stay `-static`; engine line keeps `-include src/win32cfg.h`
   before `-I.` and never passes `-DVERSION`.
-- Keep `.github/workflows/build.yml` and `docs/ci/build.yml.proposed` byte-identical.
+- Keep `.github/workflows/build.yml` and `docs/ci/build.yml.proposed`
+  byte-identical (`verify_audit.sh` **E9** enforces it). One declared exception:
+  while `docs/ci/PENDING_WORKFLOW_CHANGE.md` exists the copies differ on purpose,
+  because the CI token has no `workflows` scope; E9 SKIPs for that and still
+  FAILs on undeclared drift. Delete the marker in the commit that applies it.
 - Extend `test_gui_offscreen.cpp` with every GUI feature (regression net).
 - Naming policy (product=Gifscythe, engine=gifsicle); script is `scripts/build_engine.sh`.
 - Offline-only — no server, no auto-update, no telemetry; `web/` is a demo.
