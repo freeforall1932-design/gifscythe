@@ -387,8 +387,21 @@ Stated plainly rather than glossed:
 * The engine, CLI, unit suite, engine pipeline, CLI smoke, web tests and the live web
   server **were** all run — see §2.
 
-**Recommendation:** re-run `./build.sh --all` + the harness on a Qt machine (or let CI
-do it on this branch) before treating F-01/F-02/F-04 fixes as done.
+**Partially closed after push.** This branch's CI run
+[34427315414](https://github.com/freeforall1932-design/gifscythe/actions/runs/34427315414)
+passed **both** jobs (`linux` 1m9s, `windows` 2m48s). The linux job runs
+`./build.sh --all` and then `QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen`
+under `set -euo pipefail` (`.github/workflows/build.yml:28-35`), and the harness
+returns 1 on any failure (`tests/test_gui_offscreen.cpp:1220-1224`) — so a green job
+means the harness **ran and exited 0** on ubuntu-latest, and the Qt GUI **compiles on
+Windows** (Qt 6.7.3 / MinGW). That corroborates the "243 checks, 0 failures" claim
+without me having run it. The raw log text could not be retrieved from this sandbox
+(`gh run view --log` → `results-receiver.actions.githubusercontent.com … EOF`), so the
+printed count itself remains unconfirmed by me.
+
+**Still open:** F-01/F-02/F-04 fixes each need a new harness case, and F-04 needs a real
+Windows desktop run (`windeployqt` smoke C4/D3/D4) — CI compiles the GUI but does not
+exercise the filesystem rules F-04 depends on.
 
 ---
 
