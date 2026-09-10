@@ -104,12 +104,25 @@ same shape: 196 source sites, **211** runtime checks. Quote the runtime number
 and say where it was measured. Dated audit snapshots under `docs/archive/` and
 the per-session entries below keep their historical numbers by policy.
 
-### Still unverified here
+### CI result — the Qt-only caveat is now closed
 
-Every `src/qtui/` edit — now including the `OutputName.h` delegation in
-`renderedOutputName` — and `tests/test_gui_offscreen.cpp` T8/T17. This sandbox
-has no cmake and no Qt6, so those compile in CI only. The Windows behaviour of
-`NameRules::Host` is likewise unproven; only the rule set is.
+This sandbox has no cmake and no Qt6, so every `src/qtui/` edit and
+`tests/test_gui_offscreen.cpp` T8/T17 were written blind and pushed for CI to
+compile. **PR #11, run `34471563229`: linux pass (1m14s), windows pass
+(2m56s).** The linux step runs the offscreen harness under `set -euo pipefail`
+and the harness `return 1`s on any failure, so a green job is a green harness —
+T8 and T17 had never been compiled before this run. Windows passing also covers
+the `NameRules::Host` compile path and the `CreateProcessA` process layer.
+
+Two honest gaps remain. The three web suites were **not** in this CI run — the
+workflow change adding them is blocked on a `workflows`-scoped token — so they
+are locally verified only. And the harness's exact check count was not
+retrievable (the Actions log host is unreachable from here), so **243 stays the
+last measured figure** and must not be quoted as current.
+
+Still genuinely unproven anywhere: the g++ ≤ 8 branch of the `-lstdc++fs`
+probe, and the runtime behaviour of the Windows name rules on a real Windows
+build (only the rule set is unit-tested, on Linux).
 
 ---
 

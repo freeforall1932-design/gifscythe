@@ -103,9 +103,11 @@
 - [x] Three web suites now gate the JS copies — **W1** command (14) ·
       **W2** validation (19) · **W3** transport (17). Wired into
       `verify_audit.sh` **and** the CI linux job, which previously ran none.
-- [ ] Qt-only findings need a Qt machine: U-12, U-15, U-16, U-17, U-34, U-35,
-      U-36, U-37, U-45, U-47 — plus CI confirmation of `src/qtui/` and harness
-      **T8/T17** written this session.
+- [x] **CI confirms `src/qtui/` and harness T8/T17** — PR #11 run `34471563229`:
+      **linux pass 1m14s, windows pass 2m56s**. First compilation of the S8 Qt
+      edits; both green.
+- [ ] Qt-only findings still need a Qt machine to *change*: U-12, U-15, U-16,
+      U-17, U-34, U-35, U-36, U-37, U-45, U-47.
 - [ ] Windows-only: **U-07** ANSI process APIs (needs a real Windows run).
 - [ ] **U-09** re-cut the release from *this* SHA.
 
