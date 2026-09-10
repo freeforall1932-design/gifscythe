@@ -5,6 +5,17 @@
 
 ## TL;DR for the next session
 
+0. **START HERE — `docs/audit/CONSOLIDATED_AUDIT_2026-09-10.md`.** Three
+   independent reviews of `8190c08` (GPT 5.6 sol xhigh · Seed 2.1 Pro Preview ·
+   this repo's own post-merge review) are merged there into one **44-finding
+   register**, each row marked with how it was verified. Trust order set by the
+   owner: **GPT > Seed > in-repo**, but where a claim was testable the test
+   decided — and it found **two errors in this repo's own audit** (withdrawn in
+   that file's §2). **Do not start feature work from this handoff; start from the
+   audit's §5 fix order.** Two findings are release-blocking: **U-01** (batch
+   auto-naming can overwrite another output *or the user's source file* —
+   verified rc=0) and **U-02** (`package_portable.sh` exits 0 with no GUI in the
+   folder). Everything else in this handoff is downstream of those.
 1. **S7 landed the remaining implementable Phase-1 items** (all offline-review
    §5 Phase-1 work that does not need a clean Windows machine or a real
    desktop): **GUI settings persistence** (the S6 gap / audit row 15),
@@ -18,13 +29,20 @@
    `docs/ci/build.yml.proposed` is **byte-identical** with the live workflow
    again, and a dead helper in `SettingsIO::save_settings` is gone. Unit test
    20 now pins the unknown-key tolerance the GUI state keys rely on.
-3. **What remains before 1.0.0** (nothing here is codeable in a sandbox):
-   push this branch → CI green on both OSes → clean-Windows windeployqt smoke
+3. **What remains before 1.0.0** — the audit's criterion is *"no Critical/High
+   findings open, package-negative tests green, clean-Windows smoke against the
+   exact tagged SHA"*:
+   close **U-01/U-02/U-03** → re-cut release artifacts from the tagged SHA
+   (**U-09**: the banked `gifscythe-windows.zip` predates S7 and its notes pin
+   `d3544b1` while main is `8190c08`) → clean-Windows windeployqt smoke
    (C4/D3/D4, `docs/ci/CLEAN_WINDOWS_SMOKE.md`) → desktop probes B5/B6/B14 →
    owner decisions: two-way CLI pane **or** keep one-way forever, and the
    version (0.2.0 for the S7 feature set per the minor-bump rule, or straight
    1.0.0 once the gates are green). Cut releases per
    `docs/release/RELEASE_PROCEDURE.md`.
+   *Stale step removed (finding U-27): "push this branch → CI green" is already
+   done — runs `34425977060` (main) and `34427315414` (audit PR, linux 1m9s +
+   windows 2m48s) are green on both jobs.*
 4. **Direction unchanged:** offline-only; C++17 + Qt6 Widgets through 1.0.0;
    `web/` is a demo/parity harness only (see
    `docs/planning/OFFLINE_BUILD_REVIEW.md`).
@@ -105,11 +123,13 @@ ninja PySide6` for the cmake steps; GUI verification then belongs to CI.
 
 | Doc | Role |
 |-----|------|
+| **`docs/audit/CONSOLIDATED_AUDIT_2026-09-10.md`** | **START HERE** — 3 reviews of `8190c08` merged into 44 verified findings (U-01…U-44) + fix order. Trust order: GPT > Seed > in-repo |
+| `docs/audit/POST_S7_AUDIT.md` | In-repo post-merge review (source C). Two of its claims are **corrected in place**; read the banner first |
 | `docs/release/RELEASE_PROCEDURE.md` | **NEW (S7)** — how to cut snapshots/releases |
 | `docs/planning/OFFLINE_BUILD_REVIEW.md` | Offline feasibility + language choice + phased plan (§6 persistence gap → closed by S7) |
 | `docs/web/WEB_FEASIBILITY.md` | Web-run review (Option 3 demo exists; Option 4 = future) |
-| `docs/ci/CLEAN_WINDOWS_SMOKE.md` | C4/D3/D4 clean-Windows checklist (still OPEN — needs a real clean VM) |
-| `COMPILED_AUDIT.md` | Master checklist (§6 evidence; 21/0/2 local rerun 2026-09-10) |
+| `docs/ci/CLEAN_WINDOWS_SMOKE.md` | C4/D3/D4 clean-Windows checklist (still OPEN — needs a real clean VM; **blocked by U-09** until artifacts are re-cut) |
+| `COMPILED_AUDIT.md` | Master checklist (§6 evidence). Its "21 PASS / 0 FAIL / 2 SKIP" is **not portable** — see finding **U-38** |
 | `WORKLIST.md` | Short task board (checkboxes; S7 items ticked) |
 | `SESSION_HANDOFF.md` | This file |
 | `IMPROVEMENT_LOG.md` | Chronological decisions (S7 on top) |
