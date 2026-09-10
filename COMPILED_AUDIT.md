@@ -1,5 +1,10 @@
 # Gifscythe — Compiled Audit (Master) — v2
 
+> **Remediation status (2026-09-10, session S8): 21 findings closed outright, 3 closed
+> in part (U-10/U-14/U-18), 2 register rows corrected (U-19/U-20) — see `docs/audit/REMEDIATION_2026-09-10.md` for the per-finding before/after
+> evidence and the mutation-test record. Rows below carry a `✅ FIXED (S8)` /
+> `◐ PARTIAL (S8)` / `☑ CORRECTED (S8)` marker in the Status column.**
+
 **Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7 (2026-09-10)
 **Branch:** `arena/01a089ca-gifscythe` → based on `main` commit `7a0a8b8`
 **Product version:** 0.1.0 (do **not** bump to 1.0.0 yet)
@@ -1565,78 +1570,78 @@ Deduplicated across A/B/C/D. "Src" = which audit(s) raised it.
 
 | ID | Src | Finding | Verif | Status |
 |----|-----|---------|-------|--------|
-| **U-01** | A:GS-001 · C:F-01 · D:GS-101 | **Batch auto-naming overwrites other outputs *and* the source GIF.** Preflight only rejects templates with no `{name}`; targets are never computed as a set, never compared to inputs, never checked for existence. | ✅ **EXEC** | ⬜ OPEN |
-| **U-02** | A:GS-002 | **Portable packager reports success for an incomplete release.** Engine missing → hard fail, but CLI missing → silently skipped, GUI missing → `Note:` + continue, `windeployqt` errors → `Note:` + continue, licenses guarded by `if [[ -f ]]`, no clean staging dir. | ✅ **EXEC** | ⬜ OPEN |
+| **U-01** | A:GS-001 · C:F-01 · D:GS-101 | **Batch auto-naming overwrites other outputs *and* the source GIF.** Preflight only rejects templates with no `{name}`; targets are never computed as a set, never compared to inputs, never checked for existence. | ✅ **EXEC** | ✅ FIXED (S8) — `src/core/OutputPlan.h` + CLI/GUI planning |
+| **U-02** | A:GS-002 | **Portable packager reports success for an incomplete release.** Engine missing → hard fail, but CLI missing → silently skipped, GUI missing → `Note:` + continue, `windeployqt` errors → `Note:` + continue, licenses guarded by `if [[ -f ]]`, no clean staging dir. | ✅ **EXEC** | ✅ FIXED (S8) — packager fails closed + `scripts/test_package.sh` |
 
 ### High
 
 | ID | Src | Finding | Verif | Status |
 |----|-----|---------|-------|--------|
-| **U-03** | B:BUG-01 · C:F-02 correction | **Threads "Auto" runs single-threaded.** `threads=0` emits no flag; gifsicle default is single-threaded. Real auto is bare `-j` (→ 8 threads). | ✅ **EXEC**+SRC | ⬜ OPEN |
-| **U-04** | A:GS-003 | **CLI `--run` without `output` corrupts its own stdout.** Status text and binary data share stdout. | ✅ **EXEC** | ⬜ OPEN |
-| **U-05** | A:GS-004 | **Documented PATH engine fallback is dead code.** `locate_engine()` returns bare `"gifsicle"`; `path_is_executable()` checks CWD, not PATH. | ✅ **EXEC** | ⬜ OPEN |
-| **U-06** | A:GS-005 · D:GS-102 | **Web demo binds `0.0.0.0` with no auth, no concurrency cap, 64 MB bodies, 120 s engine runs.** Concurrent requests can race on temp dirs. | ✅ **EXEC** | ⬜ OPEN |
+| **U-03** | B:BUG-01 · C:F-02 correction | **Threads "Auto" runs single-threaded.** `threads=0` emits no flag; gifsicle default is single-threaded. Real auto is bare `-j` (→ 8 threads). | ✅ **EXEC**+SRC | ✅ FIXED (S8) — bare `-j` for Auto (C++ + JS parity) |
+| **U-04** | A:GS-003 | **CLI `--run` without `output` corrupts its own stdout.** Status text and binary data share stdout. | ✅ **EXEC** | ✅ FIXED (S8) — `--run` commentary moved to stderr |
+| **U-05** | A:GS-004 | **Documented PATH engine fallback is dead code.** `locate_engine()` returns bare `"gifsicle"`; `path_is_executable()` checks CWD, not PATH. | ✅ **EXEC** | ✅ FIXED (S8) — real `find_on_path()`; `""` when not found |
+| **U-06** | A:GS-005 · D:GS-102 | **Web demo binds `0.0.0.0` with no auth, no concurrency cap, 64 MB bodies, 120 s engine runs.** Concurrent requests can race on temp dirs. | ✅ **EXEC** | ✅ FIXED (S8) — binds 127.0.0.1; `GS_WEB_HOST` to opt in |
 | **U-07** | A:GS-006 | **Windows CLI execution is ANSI-only.** `CreateProcessA` + `std::string` cmdline ⇒ non-ASCII paths cannot be passed to the engine. | ✅ **SRC** | ⬜ OPEN |
-| **U-08** | A:GS-007 | **License set can ship incomplete, silently.** Root has `LICENSE` + `COPYING.gifsicle` but **no `COPYING`**; every license copy is `if [[ -f ]]`-guarded. | ✅ **EXEC**+SRC | ⬜ OPEN |
+| **U-08** | A:GS-007 | **License set can ship incomplete, silently.** Root has `LICENSE` + `COPYING.gifsicle` but **no `COPYING`**; every license copy is `if [[ -f ]]`-guarded. | ✅ **EXEC**+SRC | ✅ FIXED (S8) — license set asserted, negative-tested |
 | **U-09** | A:GS-008 | **Banked Windows snapshot is 5 commits behind the SHA its own notes claim.** Release body pins `d3544b1`; main is `8190c08`. | ✅ **EXEC** | ⬜ OPEN |
-| **U-10** | A:GS-009 | **The "read-only, identical-to-upstream" vendored engine is neither.** Carries a handwritten `config.h` (Linux values), a functional patch, and an extra test. | ✅ **EXEC** | ⬜ OPEN |
+| **U-10** | A:GS-009 | **The "read-only, identical-to-upstream" vendored engine is neither.** Carries a handwritten `config.h` (Linux values), a functional patch, and an extra test. | ✅ **EXEC** | ◐ PARTIAL (S8) — manifest wording corrected; provenance still needs a clone |
 
 ### Medium
 
 | ID | Src | Finding | Verif | Status |
 |----|-----|---------|-------|--------|
-| **U-11** | A:GS-011 | **Malformed booleans degrade silently.** `parse_bool` maps anything outside `1/true/yes/on` to `false` with no warning. | ✅ **EXEC** | ⬜ OPEN |
+| **U-11** | A:GS-011 | **Malformed booleans degrade silently.** `parse_bool` maps anything outside `1/true/yes/on` to `false` with no warning. | ✅ **EXEC** | ✅ FIXED (S8) — `parse_bool_strict` warns, leaves field unchanged |
 | **U-12** | A:GS-012 | **"Fully async" GUI still blocks the UI thread in 5 places** — up to 5 s per run start. | ✅ **SRC** | ⬜ OPEN |
-| **U-13** | A:GS-013 · B:BUG-02 · D:GS-104 | **Drag-and-drop accepts any existing file.** Filter is `endsWith(".gif") \|\| exists(f)` — should be `&&`. Also: **empty comments emit `--comment` with no argument**, corrupting argv. | ✅ **SRC** | ⬜ OPEN |
-| **U-14** | A:GS-014 | **Green CI does not enforce the claims used as release gates.** `verify_audit.sh` is never run in CI; package contents are never asserted. | ✅ **EXEC** | ⬜ OPEN |
+| **U-13** | A:GS-013 · B:BUG-02 · D:GS-104 | **Drag-and-drop accepts any existing file.** Filter is `endsWith(".gif") \|\| exists(f)` — should be `&&`. Also: **empty comments emit `--comment` with no argument**, corrupting argv. | ✅ **SRC** | ✅ FIXED (S8) — drop filter `&&`; empty comments skipped (C++ + JS) |
+| **U-14** | A:GS-014 | **Green CI does not enforce the claims used as release gates.** `verify_audit.sh` is never run in CI; package contents are never asserted. | ✅ **EXEC** | ◐ PARTIAL (S8) — negative packaging tests + manifest assertion in CI |
 | **U-15** | A:GS-015 | **CMake writes into the source tree.** `configure_file` targets `${CMAKE_SOURCE_DIR}/src/core/version.h`. | ✅ **SRC** | ⬜ OPEN |
 | **U-16** | A:GS-016 · C:F-06 | **Settings persistence is non-atomic** (Truncate + write). A crash mid-write leaves a truncated conf. | ✅ **SRC** | ⬜ OPEN |
 | **U-17** | A:GS-017 · B:BUG-08 | **Explode mode never verifies any frame was written.** Output verification is explicitly skipped for Explode. | ✅ **SRC** | ⬜ OPEN |
-| **U-18** | A:GS-018 | **The regression suite does not cover any of the failure classes above.** No test for target collisions, package completeness, stdout purity, PATH fallback, or thread flags. | ✅ **EXEC** | ⬜ OPEN |
-| **U-19** | C:F-02 | **`readFrom()` is not the "exact inverse" of `writeInto()`.** Crop geometry, position and scale are serialized only when their parent toggle is on. | ✅ **EXEC** | ⬜ OPEN |
-| **U-20** | C:F-03 | **"The CLI reads GUI-saved files without warnings" is false.** A real GUI-saved file has no `input` key, so `validate()` warns. | ✅ **EXEC** | ⬜ OPEN |
-| **U-21** | C:F-04 · D:GS-101 | **Name-template sanitisation is POSIX-only** — no Windows invalid chars, no trailing dot/space trim, no reserved-name guard. | ⏸ **BLOCKED** | ⬜ OPEN |
-| **U-22** | C:F-05 | **`Validate.h` skips resize geometry**, so a conf can reach the engine with `--resize-fit 0x0`. | ✅ **EXEC** | ⬜ OPEN |
-| **U-23** | A:GS-010 | **Unknown CLI arguments are silently ignored** — stronger than A's wording: nothing is printed at all, rc=0. | ✅ **EXEC** | ⬜ OPEN |
-| **U-24** | B:BUG-06 · D:GS-102 | **Web server doesn't verify `out.gif` exists/non-empty after rc=0**, unlike the desktop. A zero-byte result throws ENOENT → generic **500** instead of 422. | ✅ **SRC** | ⬜ OPEN |
-| **U-25** | B:BUG-04 | **Web "Scale %" defaults to 50%, desktop to 100%.** A web user picking Scale gets half-size output by default. | ✅ **SRC** | ⬜ OPEN |
+| **U-18** | A:GS-018 | **The regression suite does not cover any of the failure classes above.** No test for target collisions, package completeness, stdout purity, PATH fallback, or thread flags. | ✅ **EXEC** | ◐ PARTIAL (S8) — planning/threads/validate/bool/comment unit tests, T17, package suite |
+| **U-19** | C:F-02 | **`readFrom()` is not the "exact inverse" of `writeInto()`.** Crop geometry, position and scale are serialized only when their parent toggle is on. | ✅ **EXEC** | ☑ CORRECTED (S8) — not reproducible with toggles on; wording fixed, pinned by unit test 26 |
+| **U-20** | C:F-03 | **"The CLI reads GUI-saved files without warnings" is false.** A real GUI-saved file has no `input` key, so `validate()` warns. | ✅ **EXEC** | ☑ CORRECTED (S8) — doc claim reworded; the `input` warning is expected |
+| **U-21** | C:F-04 · D:GS-101 | **Name-template sanitisation is POSIX-only** — no Windows invalid chars, no trailing dot/space trim, no reserved-name guard. | ✅ **EXEC** | ✅ FIXED (S8) — new `src/core/OutputName.h` (`NameRules` parameterised, so the Windows rule set is unit-tested on Linux); test 29, 30 assertions |
+| **U-22** | C:F-05 | **`Validate.h` skips resize geometry**, so a conf can reach the engine with `--resize-fit 0x0`. | ✅ **EXEC** | ✅ FIXED (S8) — resize/scale geometry validated (rules probed off the engine) |
+| **U-23** | A:GS-010 | **Unknown CLI arguments are silently ignored** — stronger than A's wording: nothing is printed at all, rc=0. | ✅ **EXEC** | ✅ FIXED (S8) — strict arg parser, rc=2 |
+| **U-24** | B:BUG-06 · D:GS-102 | **Web server doesn't verify `out.gif` exists/non-empty after rc=0**, unlike the desktop. A zero-byte result throws ENOENT → generic **500** instead of 422. | ✅ **SRC** | ✅ FIXED (S8) — 422 when rc=0 produced no output |
+| **U-25** | B:BUG-04 | **Web "Scale %" defaults to 50%, desktop to 100%.** A web user picking Scale gets half-size output by default. | ✅ **SRC** | ✅ FIXED (S8) — web Scale default 100 |
 
 ### Low
 
 | ID | Src | Finding | Verif | Status |
 |----|-----|---------|-------|--------|
-| **U-26** | A:GS-019 · C:F-12 | Web engine discovery sorts versions lexicographically (`0.9.0` > `0.10.0`). | ✅ **SRC** | ⬜ OPEN |
+| **U-26** | A:GS-019 · C:F-12 | Web engine discovery sorts versions lexicographically (`0.9.0` > `0.10.0`). | ✅ **SRC** | ✅ FIXED (S8) — numeric version compare |
 | **U-27** | A:GS-020 | Current-state docs still listed a completed CI action as pending. **Fixed by S7.** | ✅ **SRC** | ✅ FIXED |
-| **U-28** | B:BUG-03 | `runCommand()` non-batch path has **no `return`** after the "could not start engine" dialog (batch path does return). Harmless today; a landmine for the next edit. | ✅ **SRC** | ⬜ OPEN |
-| **U-29** | B:BUG-05 | Web resize dropdown omits **Touch**, though `command.mjs:90-91` implements it and the desktop has 6 kinds. | ✅ **SRC** | ⬜ OPEN |
-| **U-30** | B:BUG-07 | Web server has no `validate()` equivalent; out-of-range values go straight to the engine. Inconsistent UX vs desktop. | ✅ **SRC** | ⬜ OPEN |
-| **U-31** | B:BUG-11 | `build.sh` never links `-lstdc++fs`; `EngineLocator.h` uses `std::filesystem`, so g++ 7/8 hosts fail at link. | ⏸ **BLOCKED** (g++ 12 here) | ⬜ OPEN |
-| **U-32** | B:BUG-12 | POSIX `run_argv` returns **1** on a signalled child instead of the `128+signum` convention. | ✅ **SRC** | ⬜ OPEN |
-| **U-33** | B:BUG-13 | Setting only `position_x` **or** `position_y` in a conf sets `has_position = true`, yielding a half-specified `-p X,0`. | ✅ **SRC** | ⬜ OPEN |
+| **U-28** | B:BUG-03 | `runCommand()` non-batch path has **no `return`** after the "could not start engine" dialog (batch path does return). Harmless today; a landmine for the next edit. | ✅ **SRC** | ✅ FIXED (S8) — `return` added (CI-compiled) |
+| **U-29** | B:BUG-05 | Web resize dropdown omits **Touch**, though `command.mjs:90-91` implements it and the desktop has 6 kinds. | ✅ **SRC** | ✅ FIXED (S8) — Touch option added |
+| **U-30** | B:BUG-07 | Web server has no `validate()` equivalent; out-of-range values go straight to the engine. Inconsistent UX vs desktop. | ✅ **SRC** | ✅ FIXED (S8) — new `web/validate.mjs` mirrors `core/Validate.h`; 422 + issues; `web/test/validate.test.mjs` 19/19 parity vs the real CLI |
+| **U-31** | B:BUG-11 | `build.sh` never links `-lstdc++fs`; `EngineLocator.h` uses `std::filesystem`, so g++ 7/8 hosts fail at link. | ✅ **EXEC** (g++ 12 here) | ✅ FIXED (S8) — `build.sh` link-probes `-lstdc++fs` (writes `build/.fs_probe.cpp`, tries with/without, cleans up) |
+| **U-32** | B:BUG-12 | POSIX `run_argv` returns **1** on a signalled child instead of the `128+signum` convention. | ✅ **SRC** | ✅ FIXED (S8) — `run_argv` returns `128+WTERMSIG`; test 28: SIGTERM→143, SIGKILL→137, `exit 3`→3, missing binary→127 |
+| **U-33** | B:BUG-13 | Setting only `position_x` **or** `position_y` in a conf sets `has_position = true`, yielding a half-specified `-p X,0`. | ✅ **SRC** | ✅ FIXED (S8) — `-p` needs both halves |
 | **U-34** | B:BUG-14 · D:GS-103 | **Preview temp files leak within a session:** cleanup removes only `preview_{seq-1}` and only on the non-stale path, so superseded previews are never deleted. | ✅ **SRC** | ⬜ OPEN |
 | **U-35** | B:BUG-16 | `setBusy(false)` re-enables Run without re-checking the engine, unlike `appendInputs`. | ✅ **SRC** | ⬜ OPEN |
 | **U-36** | C:F-07 | A **third** parser for the settings format (`guiStateKey`) re-opens and re-parses the file twice per load. | ✅ **SRC** | ⬜ OPEN |
 | **U-37** | C:F-08 | "Persistence unavailable" is silent — no dialog, no status note. | ✅ **SRC** | ⬜ OPEN |
-| **U-38** | C:F-09 | `verify_audit.sh` **FAILs** instead of SKIPping C6 when `cmake` is absent (`[B]` guards properly 13 lines later). | ✅ **EXEC** | ⬜ OPEN |
-| **U-39** | C:F-10 | `docs/ci/build.yml.proposed` is a hand-maintained byte copy of the live workflow (already drifted once). | ✅ **EXEC** | ⬜ OPEN |
+| **U-38** | C:F-09 | `verify_audit.sh` **FAILs** instead of SKIPping C6 when `cmake` is absent (`[B]` guards properly 13 lines later). | ✅ **EXEC** | ✅ FIXED (S8) — C6 SKIPs without cmake |
+| **U-39** | C:F-10 | `docs/ci/build.yml.proposed` is a hand-maintained byte copy of the live workflow (already drifted once). | ✅ **EXEC** | ✅ FIXED (S8) — `verify_audit.sh` E9 drift guard |
 | **U-40** | B:BUG-15 | CLI prints `validate()` warnings and runs anyway; the GUI refuses. Intentional, but undocumented at the point of use. | ✅ **EXEC** | ⬜ OPEN |
 | **U-41** | B:BUG-09 | Web POC is single-file Auto mode only — no batch/merge/explode. Documented as a POC. | ✅ **SRC** | ⬜ OPEN |
 | **U-42** | B:BUG-10 | Web has one `scalePct` for both axes; desktop has independent X/Y. | ✅ **SRC** | ⬜ OPEN |
-| **U-43** | C:F-11 | Summary reads `Batch (1 files) → X … X` (plural + duplicated path) for one input with no Save-as. | ✅ **SRC** | ⬜ OPEN |
-| **U-44** | C:F-13 | The two dated review snapshots sit at repo root while newer material lives in `docs/`. | ✅ **SRC** | ⬜ OPEN |
+| **U-43** | C:F-11 | Summary reads `Batch (1 files) → X … X` (plural + duplicated path) for one input with no Save-as. | ✅ **SRC** | ✅ FIXED (S8) — "Batch (1 file)" (CI-compiled) |
+| **U-44** | C:F-13 | The two dated review snapshots sit at repo root while newer material lives in `docs/`. | ✅ **SRC** | ✅ FIXED (S8) — `git mv` to `docs/archive/`; the 3 prose references updated; README layout lists it |
 
 ### New from GPT 6 Astra Medium (D) — not already covered above
 
 | ID | Src | Finding | Verif | Status |
 |----|-----|---------|-------|--------|
 | **U-45** | D:GS-101 | **Batch output destination can change during a run** — `setBusy()` only disables `batchDirEdit_` text field, not the Browse button; the picker can still call `setText()` on the disabled field. Each subsequent batch job computes its output from the current folder, so a running batch can split outputs across destinations. **Distinct from U-01** (initial plan collisions) and U-35 (Run re-enablement). | ✅ **SRC** | ⬜ OPEN |
-| **U-46** | D:GS-102 | **A previous web request can replace the current result** — `setFile()` resets preview + re-enables Run without cancelling the pending fetch. The old request's completion populates After and download alongside the new Before image. **File: `web/app.js`, not `server.mjs`.** Distinct from U-34 (desktop temp files). | ✅ **SRC** | ⬜ OPEN |
+| **U-46** | D:GS-102 | **A previous web request can replace the current result** — `setFile()` resets preview + re-enables Run without cancelling the pending fetch. The old request's completion populates After and download alongside the new Before image. **File: `web/app.js`, not `server.mjs`.** Distinct from U-34 (desktop temp files). | ✅ **SRC** | ✅ FIXED (S8) — `requestGen` counter in `app.js`, checked after fetch, after blob read, in catch and finally |
 | **U-47** | D:GS-103 | **Desktop preview invalidation happens too late** — `previewSeq_` only advances when a *new eligible preview starts*, not on selection/settings change. Clearing queue or switching to Explode returns *before* incrementing, so stale completions pass the guard and display stale images. **Distinct from U-34** (which is about leaked temp files, not stale visual correctness). | ✅ **SRC** | ⬜ OPEN |
-| **U-48** | D:GS-104 | **Empty comments remove a required argv operand** — `--comment` is emitted with no following argument when `s.comments` contains an empty string (from `comment = ` in a conf). The `add()` helper drops the empty operand, corrupting argv. | ✅ **SRC** | ⬜ OPEN |
-| **U-49** | D:GS-105 | **Settings query values are decoded twice** — `searchParams.get()` already decodes, but `decodeURIComponent(raw)` decodes again. Redundant and can corrupt settings containing `%` characters (e.g. `100%` throws, `%20` silently changes). | ✅ **SRC** | ⬜ OPEN |
-| **U-50** | D:GS-106 | **Valid command text can break HTTP response headers** — the full command (with CJK comments, newlines, or Unicode engine path) is inserted into `X-Gifscythe-Command` header without header-safe encoding. Node rejects invalid header characters, turning a successful engine result into a response failure. **Missed by prior audits.** | ✅ **SRC** | ⬜ OPEN |
-| **U-51** | D:GS-107 | **Unescaped settings values can become additional keys** — the line-based serializer writes string values verbatim (including newlines), while the loader splits on newlines and treats each line as a new key. A comment containing `mode = merge` on a second line overrides the mode. Leading/trailing whitespace also lost. **Missed by prior audits.** | ✅ **SRC** | ⬜ OPEN |
-| **U-52** | D:GS-108 | **Before-image object URLs are never released** — `app.js` creates object URLs for Before preview but only revokes After URLs. Replacing src does not release the earlier blob URL; repeatedly choosing large files keeps them reachable until page unload. | ✅ **SRC** | ⬜ OPEN |
+| **U-48** | D:GS-104 | **Empty comments remove a required argv operand** — `--comment` is emitted with no following argument when `s.comments` contains an empty string (from `comment = ` in a conf). The `add()` helper drops the empty operand, corrupting argv. | ✅ **SRC** | ✅ FIXED (S8) — empty comments skipped in C++ + JS, parity fixture added |
+| **U-49** | D:GS-105 | **Settings query values are decoded twice** — `searchParams.get()` already decodes, but `decodeURIComponent(raw)` decodes again. Redundant and can corrupt settings containing `%` characters (e.g. `100%` throws, `%20` silently changes). | ✅ **SRC** | ✅ FIXED (S8) — double `decodeURIComponent` removed; live-reproduced `{"comments":["100%"]}` → HTTP 400, now HTTP 200 / 8679 B + `transport.test.mjs` regression net |
+| **U-50** | D:GS-106 | **Valid command text can break HTTP response headers** — the full command (with CJK comments, newlines, or Unicode engine path) is inserted into `X-Gifscythe-Command` header without header-safe encoding. Node rejects invalid header characters, turning a successful engine result into a response failure. **Missed by prior audits.** | ✅ **SRC** | ✅ FIXED (S8) — header percent-encoded + decoded in `app.js`; `{"comments":["作品"]}` went HTTP 500 → HTTP 200 / 8681 B + `transport.test.mjs` regression net |
+| **U-51** | D:GS-107 | **Unescaped settings values can become additional keys** — the line-based serializer writes string values verbatim (including newlines), while the loader splits on newlines and treats each line as a new key. A comment containing `mode = merge` on a second line overrides the mode. Leading/trailing whitespace also lost. **Missed by prior audits.** | ✅ **SRC** | ✅ FIXED (S8) — `encode_line_value()` at 9 write sites (+ JS mirror); reproduced a comment hijacking `mode`, test 30 guards it |
+| **U-52** | D:GS-108 | **Before-image object URLs are never released** — `app.js` creates object URLs for Before preview but only revokes After URLs. Replacing src does not release the earlier blob URL; repeatedly choosing large files keeps them reachable until page unload. | ✅ **SRC** | ✅ FIXED (S8) — `beforeUrl` tracked and revoked on replacement in `app.js` |
 
 ---
 

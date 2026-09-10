@@ -4,6 +4,178 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## 2026-09-10 (S8, batch 2) — ten more findings closed with executed proof
+
+Same branch, same version. Evidence per finding is in
+**`docs/audit/REMEDIATION_2026-09-10.md` §2b**.
+
+### New files
+
+* **`src/core/OutputName.h`** — `sanitize_output_name()`,
+  `is_windows_reserved_device_name()`, and a `NameRules` enum
+  (`Host`/`Windows`/`Posix`). `MainWindow::renderedOutputName()` now delegates
+  here. Parameterising the rule set is what made **U-21** verifiable on Linux:
+  the *Windows* rules are unit-tested here (30 assertions) instead of being an
+  untested claim. Separators are stripped in both flavours on every platform,
+  which preserves the GUI's existing POSIX behaviour.
+* **`web/validate.mjs`** + **`web/test/validate.test.mjs`** — **U-30**. The web
+  demo had no validation layer, so identical settings produced a clear message
+  on desktop and a raw engine error in the browser. The new test runs the *real*
+  `gifscythe-cli` and requires the `(field, value, reason)` triples to match the
+  JS mirror exactly: 19/19.
+
+### Fixes
+
+| ID | What changed | Proof |
+|---|---|---|
+| **U-32** | `run_argv` returns `128+WTERMSIG` instead of `1` for a signalled child | test 28: SIGTERM→143, SIGKILL→137, `exit 3`→3, missing binary→127 |
+| **U-51** | `encode_line_value()` at all 9 string write sites + JS mirror | reproduced a comment hijacking `mode`; test 30 guards the round-trip |
+| **U-49** | dropped the double `decodeURIComponent` in `server.mjs` | `{"comments":["100%"]}`: HTTP 400 → **200 / 8679 B** |
+| **U-50** | `X-Gifscythe-Command` percent-encoded, decoded in `app.js` | `{"comments":["作品"]}`: HTTP 500 → **200 / 8681 B** |
+| **U-46** | `requestGen` counter in `app.js`, checked after fetch, after blob read, in `catch` and `finally` | a stale response can no longer populate a newer preview |
+| **U-52** | `beforeUrl` tracked and revoked on replacement | `node --check` + review (browser-only) |
+| **U-31** | `build.sh` link-probes `-lstdc++fs` and cleans up | probe ran, flag correctly empty on g++ 12, no artefact left |
+| **U-44** | dated review snapshots `git mv`'d to `docs/archive/` | 3 prose references updated; no path links existed |
+
+The strongest before/after is **U-30** on `--scale 0x1`: the engine exits **0**
+and the output is **byte-identical to `--scale 1x1`** (`cmp` clean) — the user
+asked for a resize and got nothing, with no message. The server used to answer
+HTTP 200; it now answers 422 naming the field.
+
+### Two things this batch broke and then fixed
+
+1. **My own comment tripped `verify_audit.sh` E3.** The line "(no /bin/sh, no
+   cmd.exe)." in `ProcessRunner.h` matched the no-shell-execution grep, and the
+   exemption words were on the *previous* line. A green run became
+   **22 passed, 1 failed**. Fixed by putting the exemption on the same line and
+   by exempting `//` / `*` comment lines in E3 — then mutation-tested in four
+   directions so the guard still catches a real `system()`, a real `/bin/sh`
+   literal, and a trailing `// spawns sh -c`.
+2. **`web/test/validate.test.mjs` initially reported the C++ side as silent.**
+   `execFileSync` returns only **stdout**, so on a rc=0 run the piped stderr was
+   thrown away. Switched to `spawnSync`. Writing the parity test also surfaced
+   that `delay < 0` and `lossy < 0` never survive a conf round-trip — *both*
+   writers skip them because `-1` means "unset" — while the C++ *reader* does
+   accept them. Those two fixtures now feed the C++ side raw conf text, and the
+   property is documented rather than hidden.
+
+### Tests
+
+| Check | Result |
+|---|---|
+| `./build.sh` | **211 checks, 0 failures** (tests 28–30 added) |
+| `scripts/verify_audit.sh` | **24 passed, 0 failed, 4 skipped, exit 0** (new gates W1/W2/W3) |
+| `node web/test/command.test.mjs` | **14/14 PASS** |
+| `node web/test/validate.test.mjs` (new) | **19/19 PASS** |
+| `node web/test/transport.test.mjs` (new) | **17/17 PASS** against a live server |
+| Transport mutation testing | double decode → 4 FAIL · raw header → 6 FAIL · no `validate()` → 3 FAIL · restored → 0 |
+| `scripts/test_package.sh` / `test_engine.sh` / `smoke_cli.sh` | 9/9 · 5/5 · 7/7 |
+| E3 mutation testing | 4 cases, all correct |
+
+### CI
+
+The linux job now runs all three web suites. It previously ran **none** of them, so
+the JS copies of the command builder and the validation rules had no automated
+guard at all. `.github/workflows/build.yml` and `docs/ci/build.yml.proposed`
+were edited together and remain byte-identical (E9).
+
+### Documentation consistency sweep
+
+Current-state docs had drifted during S8, so each was re-read against the
+register instead of being left to disagree with it — root `README.md`,
+`SESSION_HANDOFF.md` (a full **"What S8 did"** section added, and its
+*"all run locally, linux + Qt 6.4"* header corrected, since this sandbox has
+neither), `WORKLIST.md` (new S8 board), `PROJECT_VISION.md`,
+`docs/release/RELEASE_PROCEDURE.md`, `docs/ci/README.md`, both product READMEs,
+`web/README.md` and `docs/web/WEB_FEASIBILITY.md`. The full table is
+`docs/audit/REMEDIATION_2026-09-10.md` §3b.
+
+**A confusion this closes:** the GUI harness holds **226 `CHECK(` sites in
+source** but its last **runtime** count was **243**. Not a conflict — `CHECK`
+increments at runtime and several sites sit in loops. The unit suite is the
+same shape: 196 source sites, **211** runtime checks. Quote the runtime number
+and say where it was measured. Dated audit snapshots under `docs/archive/` and
+the per-session entries below keep their historical numbers by policy.
+
+### Still unverified here
+
+Every `src/qtui/` edit — now including the `OutputName.h` delegation in
+`renderedOutputName` — and `tests/test_gui_offscreen.cpp` T8/T17. This sandbox
+has no cmake and no Qt6, so those compile in CI only. The Windows behaviour of
+`NameRules::Host` is likewise unproven; only the rule set is.
+
+---
+
+## 2026-09-10 (S8, batch 1) — Audit remediation: 21 findings closed with executed proof
+
+Working on branch `arena/01a08a10-gifscythe` (off `main` @ `a55a68d`).
+Version stays **0.1.0**. Full per-finding evidence, including the before/after
+command output and the mutation-test record, is in
+**`docs/audit/REMEDIATION_2026-09-10.md`**; the pick rationale that preceded it is
+`docs/audit/FIX_PICK_2026-09-10.md`.
+
+### The headline fix: batch output planning (U-01)
+
+New Qt-independent **`src/core/OutputPlan.h`**. `gs::plan_outputs(inputs, outputs)`
+refuses a target that is any queued input, two inputs mapping to one target, or an
+empty target, and *reports* (without refusing) targets already on disk. Paths are
+compared through `weakly_canonical`, so `./a.gif`, `a.gif` and an absolute path to
+the same file cannot slip past. Both drivers now plan **before the first process
+starts**: the CLI refuses with rc=2, and the GUI plans the whole queue in
+`runCommand()` and states the verdict in the summary label before Run is clicked.
+
+Verified against the real engine: `input = solo.gif` / `output = solo.gif` used to
+replace the source in place with rc=0; it now exits 2 and the file's md5 is
+unchanged.
+
+**Deliberately not done:** temp-sibling + rename. It would only protect a previous
+output from a crashed engine, and it would put a staging path into the live command
+pane, breaking the contract harness T1/T16 assert.
+
+### Everything else closed
+
+`-j` for threads "Auto" (U-03, mirrored in `web/command.mjs` — the parity harness
+failed 4 fixtures the instant the C++ side changed) · CLI stdout purity (U-04) ·
+real PATH engine search (U-05) · web binds loopback (U-06) · packager fails closed
++ license set asserted (U-02/U-08) · `scripts/test_package.sh` negative suite +
+CI manifest assertion (U-14) · `parse_bool` warns (U-11) · drop filter `&&` (U-13) ·
+resize/scale geometry validated, rules probed off the engine (U-22) · strict CLI
+arg parser (U-23) · web 422 for "rc=0 but no output" (U-24) · web Scale default 100
+and Touch option (U-25/U-29) · numeric version sort (U-26) · missing `return` (U-28) ·
+`-p` needs both halves (U-33) · `verify_audit.sh` C6 SKIPs without cmake (U-38) ·
+workflow-drift guard E9 (U-39) · "Batch (1 file)" (U-43) · empty comments skipped
+in C++ **and** JS (U-48).
+
+### Three register rows corrected
+
+* **U-19 was not a data bug.** A round trip with the parent toggles *on* returns
+  `crop_w 200 → 200`, `position 12,7 → 12,7`, `scale 0.5 → 0.5`, 0 load warnings.
+  The original repro started from `crop=false`, where dropping the children is
+  correct. Downgraded to a wording nit; unit test 26 pins the real behaviour.
+* **U-20** — a GUI-saved conf does produce one *validate* warning (no `input`
+  key); the "no warnings at all" phrasing is removed from the handoff and this log.
+* **U-10** — `REFERENCE_MANIFEST.md` no longer calls `gifsicle/` "identical to
+  upstream master"; it lists the observed deltas and marks provenance open.
+
+### Tests
+
+| Check | Result |
+|---|---|
+| `./build.sh` | **166 checks, 0 failures** (tests 21–27 added) |
+| `scripts/test_package.sh` (new) | **9 passed, 0 failed** |
+| `scripts/verify_audit.sh` | **21 passed, 0 failed, 4 skipped** (was 19/1/3, exit 1) |
+| `scripts/test_engine.sh` / `smoke_cli.sh` | 5/5 · 7/7 |
+| `node web/test/command.test.mjs` | all PASS (14 fixtures) |
+| Mutation testing | 7 core guards each broken on purpose → 3–9 FAIL each; restored → 0 |
+| GUI harness **T17** + T8 rewrite | written, **CI-compiled only** — this sandbox has no cmake/Qt6 |
+
+### Constraint kept
+
+`.github/workflows/build.yml` and `docs/ci/build.yml.proposed` are byte-identical,
+and the new `verify_audit.sh` **E9** check now fails if they drift.
+
+---
+
 ## 2026-09-10 (S7) — Settings persistence, queue reorder, naming templates, release doc
 
 Working on branch `arena/s7-settings-persistence` (off `main` @ `c5efe07`).
@@ -21,7 +193,11 @@ Version stays **0.1.0** — the minor-bump/1.0.0 decision is the owner's.
      (`%APPDATA%\Gifscythe\gifscythe.conf` on Windows); **`GS_SETTINGS_PATH`**
      env override mirrors the established `GS_ENGINE` pattern (portable use,
      test isolation).
-   - **`SettingsPanel::readFrom()`** is the exact inverse of `writeInto()`:
+   - **`SettingsPanel::readFrom()`** restores every control `writeInto()` reads
+     (not a byte-exact inverse of the serializer — crop geometry, the position
+     pair and the scale factors are only written while their parent toggle is
+     on; see the U-19 correction in
+     `docs/audit/REMEDIATION_2026-09-10.md` §4):
      every control restored signal-blocked (no `changed()` storm → no
      preview/pane churn), dependent enabled states synced explicitly, values
      the GUI cannot represent (`optimize = -1`, disposal 4..7, unknown
@@ -149,8 +325,8 @@ Applied:
   **compatibility shim** remains because the GitHub App cannot edit
   `.github/workflows/build.yml` (no `workflows` permission); it forwards to
   `build_engine.sh` and should be removed once a maintainer updates the
-  workflow. The two dated review snapshots (`gifscythe-comprehensive-review.md`,
-  `gifscythe-final-code-review.md`) intentionally keep their historical line
+  workflow. The two dated review snapshots (now under `docs/archive/`) intentionally keep
+  their historical line
   refs.
 - User-facing strings now say the brand or "the GIF engine": CLI help, GUI
   bottom-bar label, mode combo ("Auto (engine decides)"), tooltips, error

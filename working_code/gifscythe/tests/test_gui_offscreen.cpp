@@ -25,6 +25,8 @@
 //       corrupt file -> defaults + honest warning status
 //   T15 queue reorder (S3-9): move up/down keeps list+model in sync,
 //       selection follows, bounds are no-ops, merge order = queue order
+//   T17 batch output planning (audit U-01): duplicate targets and
+//       target-equals-source are planned up front and REFUSED
 //   T16 naming templates (S3-25): default renders <name>_opt.gif (E4),
 //       custom template in pane + E2E, separator escape stripped,
 //       constant-template multi-file collision REFUSED with dialog
@@ -49,6 +51,7 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
+#include <QIODevice>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidgetItem>
@@ -579,12 +582,36 @@ int main(int argc, char** argv) {
   {
     g_stage = "T8"; std::printf("== T8 failure honesty ==\n");
     QTemporaryDir tmp;
-    const QString ghost = tmp.path() + QStringLiteral("/ghost.gif");  // missing
+    // The engine must fail, so the file has to exist and be readable — the
+    // drop filter (audit U-13) is now ".gif" AND exists, so a merely
+    // nonexistent path can no longer be used to reach the failure path.
+    const QString ghost = tmp.path() + QStringLiteral("/ghost.gif");
+    {
+      QFile f(ghost);
+      CHECK(f.open(QIODevice::WriteOnly));
+      f.write("this is not a GIF file at all\n");
+      f.close();
+    }
 
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
-    dropFiles(w, {ghost});  // .gif suffix passes the drop filter
+    dropFiles(w, {ghost});  // exists + .gif suffix passes the drop filter
     CHECK(x.list->count() == 1);
+
+    // U-13 regression: the filter used to be `endsWith(".gif") || exists(f)`,
+    // which queued ANY existing file (.exe, .jpg, .txt) and let it fail only
+    // at run time. Both halves must hold now.
+    const QString notGif = tmp.path() + QStringLiteral("/notes.txt");
+    {
+      QFile f(notGif);
+      CHECK(f.open(QIODevice::WriteOnly));
+      f.write("hello");
+      f.close();
+    }
+    dropFiles(w, {notGif});                                    // exists, not .gif
+    CHECK_MSG(x.list->count() == 1, "existing non-.gif file is rejected by the drop filter");
+    dropFiles(w, {tmp.path() + QStringLiteral("/missing.gif")});  // .gif, absent
+    CHECK_MSG(x.list->count() == 1, "nonexistent .gif is rejected by the drop filter");
     g_dialogs.clear();
     x.run->click();
     CHECK_MSG(waitForStatus(w, QStringLiteral("failed")), "failed run says failed");
@@ -1212,6 +1239,89 @@ int main(int argc, char** argv) {
     CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "templated 2-file batch completes");
     CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/a_x.gif")));
     CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/b_x.gif")));
+    delete w;
+  }
+
+  // ============ T17: batch output planning (audit U-01) ==================
+  // The old code derived each batch output inside the run loop and never
+  // compared targets, so (a) a template like "{name}.gif" with an empty batch
+  // folder wrote the output ON TOP OF THE SOURCE, and (b) two queued files
+  // sharing a base name both landed on <batchdir>/<stem>_opt.gif and the
+  // second silently deleted the first. Both are now planned and refused.
+  {
+    g_stage = "T17"; std::printf("== T17 batch output planning ==\n");
+    QTemporaryDir tmp;
+    CHECK(QDir(tmp.path()).mkpath(QStringLiteral("d1")));
+    CHECK(QDir(tmp.path()).mkpath(QStringLiteral("d2")));
+    CHECK(QDir(tmp.path()).mkpath(QStringLiteral("out")));
+    const QString h1 = tmp.path() + QStringLiteral("/d1/hero.gif");
+    const QString h2 = tmp.path() + QStringLiteral("/d2/hero.gif");
+    CHECK(copyFile(logo, h1));
+    CHECK(copyFile(logo1, h2));
+    const qint64 h1_before = QFileInfo(h1).size();
+    const qint64 h2_before = QFileInfo(h2).size();
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* tmpl = byName<QLineEdit>(w, "nameTemplateEdit");
+    CHECK(tmpl != nullptr);
+    dropFiles(w, {h1, h2});
+    CHECK(x.list->count() == 2);
+
+    // (a) Same base name + one batch folder + the DEFAULT template -> both
+    //     render out/hero_opt.gif. The label must warn and the run refuse.
+    x.batchDir->setText(tmp.path() + QStringLiteral("/out"));
+    spinEvents(20);
+    CHECK_MSG(x.outputSummary->text().contains(QStringLiteral("refused")),
+              "summary warns about the duplicate target before Run");
+    g_dialogs.clear();
+    x.run->click();
+    spinEvents(120);
+    CHECK_MSG(!g_dialogs.empty(), "duplicate-target run is refused with a dialog");
+    CHECK(x.process->state() == QProcess::NotRunning);   // never started
+    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/out/hero_opt.gif")));
+    CHECK(QFileInfo(h1).size() == h1_before);            // sources untouched
+    CHECK(QFileInfo(h2).size() == h2_before);
+
+    // (b) The self-overwrite case: template "{name}.gif" with NO batch folder
+    //     resolves each output to the input itself.
+    x.batchDir->clear();
+    tmpl->setText(QStringLiteral("{name}.gif"));
+    spinEvents(20);
+    CHECK_MSG(x.outputSummary->text().contains(QStringLiteral("refused")),
+              "summary warns that the target is a source file");
+    g_dialogs.clear();
+    x.run->click();
+    spinEvents(120);
+    CHECK_MSG(dialogsContain(QStringLiteral("source file")),
+              "self-overwrite refusal dialog names the source");
+    CHECK(x.process->state() == QProcess::NotRunning);
+    CHECK(QFileInfo(h1).size() == h1_before);            // source NOT replaced
+    CHECK(QFileInfo(h2).size() == h2_before);
+
+    // (c) Positive control. Both queued files are called hero.gif, so the only
+    //     way to get distinct targets from one template is to let each write
+    //     next to its own input (no batch folder): d1/hero_x.gif and
+    //     d2/hero_x.gif. That must run, and must not touch the sources.
+    x.batchDir->clear();
+    tmpl->setText(QStringLiteral("{name}_x.gif"));
+    spinEvents(20);
+    CHECK_MSG(!x.outputSummary->text().contains(QStringLiteral("refused")),
+              "distinct targets are not refused");
+    g_dialogs.clear();
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "planned 2-file batch completes");
+    CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/d1/hero_x.gif")));
+    CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/d2/hero_x.gif")));
+    CHECK(QFileInfo(h1).size() == h1_before);
+    CHECK(QFileInfo(h2).size() == h2_before);
+
+    // (d) And the same stems ARE refused as soon as a shared batch folder
+    //     makes the two targets coincide again.
+    x.batchDir->setText(tmp.path() + QStringLiteral("/out"));
+    spinEvents(20);
+    CHECK_MSG(x.outputSummary->text().contains(QStringLiteral("refused")),
+              "a shared batch folder turns distinct inputs into one target");
     delete w;
   }
 

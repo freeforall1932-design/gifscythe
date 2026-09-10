@@ -130,7 +130,12 @@ export function buildArgs(s) {
   if (s.remove_comments) add("--no-comments");
   if (s.remove_names) add("--no-names");
   if (s.remove_extensions) add("--no-extensions");
-  for (const c of s.comments || []) { add("--comment"); add(c); }
+  // Mirror GifsicleCommand.h: an empty comment would emit `--comment` with no
+  // operand and swallow the next argument.
+  for (const c of s.comments || []) {
+    if (!c) continue;
+    add("--comment"); add(c);
+  }
 
   // Animation options (delay_cs is in 1/100 s, NOT milliseconds).
   if (s.delay_cs >= 0) { add("-d"); add(i2s(s.delay_cs)); }
@@ -144,7 +149,11 @@ export function buildArgs(s) {
     add(optimizationOpt(s.optimize_level));
   }
   if (s.unoptimize) add("-U");
+  // Must mirror GifsicleCommand.h exactly (the parity test enforces it):
+  // "Auto" (unset or <= 0) emits a BARE -j, because the engine default is
+  // single-threaded and bare -j selects GIFSICLE_DEFAULT_THREAD_COUNT = 8.
   if (s.threads > 0) add("-j" + i2s(s.threads));
+  else add("-j");
 
   // Inputs
   for (const input of s.inputs || []) add(input);
@@ -162,6 +171,12 @@ export function toString(s) {
 
 // Same keys the C++ save_settings() writes; used by tests to hand settings
 // from JS to the C++ CLI for the parity check.
+// Mirror SettingsIO.h encode_line_value(): a value containing a newline would
+// otherwise be written as a second line, and therefore parsed as a new KEY on
+// reload (audit U-51 — a single comment "hi\nmode = merge" used to change the
+// run mode). CR/LF fold to a space so the file format stays unchanged.
+const lineValue = (v) => String(v).replace(/[\r\n]+/g, " ");
+
 export function saveSettingsLines(s) {
   const out = [];
   const b = (v) => (v ? "true" : "false");
@@ -190,14 +205,16 @@ export function saveSettingsLines(s) {
   if (s.loopcount >= 0) out.push("loopcount = " + s.loopcount);
   if (s.optimize_level >= 0) out.push("optimize = " + s.optimize_level);
   if (s.unoptimize) out.push("unoptimize = true");
-  if (s.threads > 0) out.push("threads = " + s.threads);
+  // 0 ("Auto") is serialised explicitly so it survives a round trip, matching
+  // SettingsIO.h.
+  if (s.threads >= 0) out.push("threads = " + s.threads);
   if (s.color_count >= 0) out.push("colors = " + s.color_count);
-  if (s.dither_method) out.push("dither = " + s.dither_method);
+  if (s.dither_method) out.push("dither = " + lineValue(s.dither_method));
   else if (s.dither) out.push("dither = true");
   if (s.lossy >= 0) out.push("lossy = " + s.lossy);
-  if (s.gamma_str) out.push("gamma = " + s.gamma_str);
+  if (s.gamma_str) out.push("gamma = " + lineValue(s.gamma_str));
   else if (s.gamma >= 0) out.push("gamma = " + s.gamma);
-  if (s.color_method) out.push("color_method = " + s.color_method);
+  if (s.color_method) out.push("color_method = " + lineValue(s.color_method));
   if (s.careful) out.push("careful = true");
   const resizeName = { fit: "fit", touch: "touch", exact: "exact", scale: "scale", width: "width", height: "height" };
   if (resizeName[s.resize_kind]) out.push("resize_kind = " + resizeName[s.resize_kind]);
@@ -207,15 +224,15 @@ export function saveSettingsLines(s) {
     out.push("scale_x = " + s.scale_x);
     out.push("scale_y = " + s.scale_y);
   }
-  if (s.resize_method) out.push("resize_method = " + s.resize_method);
-  if (s.background) out.push("background = " + s.background);
-  if (s.transparent) out.push("transparent = " + s.transparent);
+  if (s.resize_method) out.push("resize_method = " + lineValue(s.resize_method));
+  if (s.background) out.push("background = " + lineValue(s.background));
+  if (s.transparent) out.push("transparent = " + lineValue(s.transparent));
   if (s.remove_comments) out.push("remove_comments = true");
   if (s.remove_names) out.push("remove_names = true");
   if (s.remove_extensions) out.push("remove_extensions = true");
-  for (const c of s.comments || []) out.push("comment = " + c);
-  for (const input of s.inputs || []) out.push("input = " + input);
-  if (s.output) out.push("output = " + s.output);
+  for (const c of s.comments || []) out.push("comment = " + lineValue(c));
+  for (const input of s.inputs || []) out.push("input = " + lineValue(input));
+  if (s.output) out.push("output = " + lineValue(s.output));
   if (s.explode_by_name) out.push("explode_by_name = true");
   return out.join("\n") + "\n";
 }

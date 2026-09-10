@@ -31,6 +31,8 @@ HEADERS += \
     src/core/GifsicleCommand.h \
     src/core/SettingsIO.h \
     src/core/EngineLocator.h \
+    src/core/OutputName.h \
+    src/core/OutputPlan.h \
     src/core/Validate.h \
     src/core/version.h
 

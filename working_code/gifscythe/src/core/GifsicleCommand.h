@@ -188,7 +188,16 @@ inline void GifsicleCommand::build() {
   if (s.remove_comments) add(args_, "--no-comments");
   if (s.remove_names) add(args_, "--no-names");
   if (s.remove_extensions) add(args_, "--no-extensions");
-  for (const auto& c : s.comments) { add(args_, "--comment"); add(args_, c); }
+  for (const auto& c : s.comments) {
+    // An empty comment must not be emitted at all. add() drops empty strings,
+    // so a "" entry pushed `--comment` with NO operand, which then swallowed
+    // the next argument as its text (audit U-13/U-48 — verified: comments
+    // {"", "real one"} produced `--comment --comment 'real one'`, losing the
+    // real comment and mangling the command).
+    if (c.empty()) continue;
+    add(args_, "--comment");
+    add(args_, c);
+  }
 
   // Animation options
   // delay_cs is in 1/100 s (gifsicle -d units), NOT milliseconds.
@@ -207,7 +216,15 @@ inline void GifsicleCommand::build() {
     add(args_, optimization_opt(s.optimize_level));
   }
   if (s.unoptimize) add(args_, "-U");
-  if (s.threads > 0) { add(args_, "-j" + i2s(s.threads)); }
+  // Threads (audit U-03). "Auto" (threads <= 0) MUST emit a bare -j, not
+  // nothing: the engine's own default is single-threaded
+  // (gifsicle.c:39 `int thread_count = 0;`, consumed by xform.c:1329
+  // `int nthreads = thread_count;`), while a bare -j selects
+  // GIFSICLE_DEFAULT_THREAD_COUNT = 8 (gifsicle.c:38, :1893). Emitting no flag
+  // therefore made the control labelled "Auto" run one thread, contradicting
+  // both the label and GifsicleSettings.h's "-j; <=0 = auto".
+  if (s.threads > 0) add(args_, "-j" + i2s(s.threads));
+  else add(args_, "-j");
 
   // Inputs
   for (const auto& in : s.inputs) add(args_, in);
