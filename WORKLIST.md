@@ -3,6 +3,18 @@
 **Version:** 0.1.0 · **Audit checklist:** `COMPILED_AUDIT.md`  
 **Rule:** Do not mark an item done until `COMPILED_AUDIT.md` §6 has evidence for it.
 
+> ## ⚑ Start with the audit, not this board
+> **`docs/audit/CONSOLIDATED_AUDIT_2026-09-10.md`** is the current entry point for
+> work on this repo. Three independent reviews of `8190c08` (GPT 5.6 sol xhigh,
+> Seed 2.1 Pro Preview, and this repo's own post-merge review) are merged there
+> into **44 findings (U-01…U-44)**, each with a verification mark and the command
+> or `file:line` that proves it. Owner-set trust order: **GPT > Seed > in-repo**.
+> Its **§5 fix order** supersedes "Next actions" below for anything that touches
+> correctness, packaging or release evidence. Two items are release-blocking
+> (**U-01** silent overwrite of another output *or the source file*, **U-02**
+> packager exits 0 with no GUI). Pick up work from that list; tick items here only
+> as a mirror.
+
 ## Direction decisions (2026-09-09 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`)
 
 - **Offline-only.** No server, no auto-update, no telemetry. The `web/` build
@@ -83,19 +95,43 @@
 
 ## Next actions (ordered)
 
+> **Superseded by `docs/audit/CONSOLIDATED_AUDIT_2026-09-10.md` §5** — that fix
+> order is authoritative for anything touching correctness, packaging or release
+> evidence. This list is kept as the mirror/board view.
+
 1. ~~Obtain a valid PAT / push / merge~~ **DONE** — PR #5 merged, main run
    #23 green on both jobs with artifacts (2026-09-07); S5/S6 merged via PR #6.
-2. **Push the S7 branch → let CI confirm** (persistence/reorder/templates +
-   shim removal on linux + windows; harness now 243 checks).
-3. Clean-VM windeployqt smoke from the `gifscythe-windows` artifact (C4/D3/D4)
-   — checklist: `docs/ci/CLEAN_WINDOWS_SMOKE.md` (asset banked on Release
-   `snapshot-2026-09-07`).
-4. One-time real-desktop GUI probes: B5 (kill engine mid-run), B6 physical
+2. ~~Push the S7 branch → let CI confirm~~ **DONE** — PR #7 merged as `8190c08`;
+   runs `34425977060` (main) and `34427315414` (audit PR) green on linux+windows.
+3. **🔴 Audit remediation — release blockers first** (from the consolidated
+   audit; IDs are U-nn there):
+   - [ ] **U-01** plan every batch output before the first process starts;
+         reject duplicate targets **and** target-equals-source; temp+rename.
+         *Verified: `gifsicle self.gif -o self.gif` → rc=0, source destroyed.*
+   - [ ] **U-02** make `package_portable.sh` fail closed (staging dir, required
+         binaries, fatal `windeployqt` error, asserted license set) + package test.
+         *Verified: it exits 0 with no GUI in the folder.*
+   - [ ] **U-03** map threads "Auto" to bare `-j` (engine default is
+         `thread_count = 0` = single-threaded; bare `-j` = 8).
+   - [ ] **U-04** CLI stdout purity · **U-05** PATH engine fallback is dead code
+         · **U-07** Windows ANSI process APIs · **U-23** unknown args silently ignored.
+   - [ ] **U-09** re-cut release artifacts from the tagged SHA (banked zip is
+         pre-S7; its notes pin `d3544b1`, main is `8190c08`).
+   - [ ] **U-10** `reference_code/gifsicle/` is patched + ships a hand-written
+         `config.h` while the manifest calls it "identical to upstream master";
+         3 manifest folders are gitignored/absent.
+   - [ ] **U-06, U-11…U-25** Medium tier · **U-26…U-40** Low tier · **U-41…U-44** nits.
+4. Clean-VM windeployqt smoke from the `gifscythe-windows` artifact (C4/D3/D4)
+   — checklist: `docs/ci/CLEAN_WINDOWS_SMOKE.md`. **Blocked by U-09** until the
+   artifact is re-cut from the current SHA (the banked one predates S7).
+5. One-time real-desktop GUI probes: B5 (kill engine mid-run), B6 physical
    drag-drop, B14 engine-missing GUI variant.
-5. Owner decisions: two-way CLI pane **or** keep one-way forever; version
+6. Owner decisions: two-way CLI pane **or** keep one-way forever; version
    (0.2.0 for the S7 feature set per the minor-bump rule, vs straight 1.0.0
    once 3+4 are green). Release how-to: `docs/release/RELEASE_PROCEDURE.md`.
-6. WebP/APNG stay blocked until all of the above ships.
+   Audit release criterion: *no Critical/High open, package-negative tests green,
+   clean-Windows smoke against the exact tagged SHA.*
+7. WebP/APNG stay blocked until all of the above ships.
 
 ## Deferred bucket list — after GIF `1.0.0`
 

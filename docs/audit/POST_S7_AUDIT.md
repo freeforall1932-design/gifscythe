@@ -1,5 +1,14 @@
 # Post-merge audit — PR #7 (S7) at `8190c08`
 
+> **Status: superseded in part.** This is source C of three independent reviews. Read
+> **`docs/audit/CONSOLIDATED_AUDIT_2026-09-10.md`** first — it merges this report with
+> the GPT 5.6 sol xhigh and Seed 2.1 Pro Preview audits into one verified register
+> (44 findings) and records two places where **this report was wrong**: the `threads`
+> "benign" claim (withdrawn — it is bug **U-03**) and the incomplete statement of the
+> overwrite finding (**U-01**, which also covers output-equals-input). Findings F-04,
+> F-07, F-08, F-10, F-11, F-13 and the executed-verification tables below remain
+> current and are cross-referenced there.
+
 **Date:** 2026-09-10 · **Auditor:** Arena.ai agent session ·
 **Commit audited:** `8190c0854f0b5427705e8afe47d43cd664b84179` (*Merge pull request #7
 from freeforall1932-design/arena/s7-settings-persistence*, merged 2026-09-10T01:33:49Z)
@@ -100,6 +109,16 @@ Harness T16 exercises the collision path with `a.gif` + `b.gif`
 auto-suffix `_2`, `_3`, …) on any duplicate. The check belongs next to the existing
 refusal at `:730` so the live summary at `:568` can warn with the same wording:
 
+> **Correction (2026-09-10).** This finding was **incomplete**: it only covered two
+> inputs colliding with each other. The GPT 5.6 audit (GS-001) additionally notes that
+> a template such as `{name}.gif` with an empty batch folder makes
+> `defaultOutputFor()` (`:527-531`, which falls back to `fi.absolutePath()`) return
+> **the input file itself** — so the run silently destroys the user's source. Verified
+> by execution: `gifsicle self.gif -o self.gif` → **rc=0**, 8703 → 2246 bytes, md5
+> changed, and the GUI would report "Optimization complete". The guard must therefore
+> reject *target == source* as well as duplicate targets. See
+> `CONSOLIDATED_AUDIT_2026-09-10.md` **U-01**.
+
 ```cpp
 QStringList outs;
 for (const QString& in : inputs_) outs << defaultOutputFor(in);
@@ -141,9 +160,18 @@ load warnings: 0
 ```
 
 Impact is small but user-visible: set crop dimensions with **Crop** unticked, close,
-relaunch → the spinners are back at 0. The `threads` case is benign (0 and −1 both mean
-"Auto", and `readFrom` leaves the spinner at its default 0). No warning is emitted in
-any of these cases, which is what makes it worth fixing.
+relaunch → the spinners are back at 0. No warning is emitted in any of these cases,
+which is what makes it worth fixing.
+
+> **Correction (2026-09-10, superseded by `CONSOLIDATED_AUDIT_2026-09-10.md` §2).**
+> This paragraph originally went on to call the `threads` case "benign (0 and −1 both
+> mean *Auto*)". That was **wrong** and is withdrawn: neither value emits a flag, and
+> the engine's own default is `thread_count = 0`
+> (`reference_code/gifsicle/src/gifsicle.c:39`), so "Auto" actually means
+> **single-threaded** — real auto is bare `-j`, which sets
+> `GIFSICLE_DEFAULT_THREAD_COUNT = 8` (`:38`, `:1887-1893`).
+> `GifsicleCommand.h:210` emits `-jN` only when `threads > 0`. This is a genuine bug,
+> raised independently by the Seed audit as BUG-01 and recorded as **U-03**.
 
 **Fix (pick one):** always serialize the dependent fields (they are inert when the
 toggle is off), or drop the "exact inverse" wording in `SESSION_HANDOFF.md` /
