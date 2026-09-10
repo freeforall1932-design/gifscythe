@@ -59,11 +59,12 @@ based on `main` commit `190d030` ·
    not been re-measured since; the file currently holds **226 `CHECK(` source
    sites**, which is *not* the runtime count (loops expand checks).
 
-5. **State of this branch:** pushed as `a43885b` on
-   `arena/01a08bb3-gifscythe` (remote ref verified equal to local `HEAD`), CI
-   green on both jobs. **No PR was opened** — that is the owner's call. The
-   `.github/workflows/` change is still blocked on the `workflows` scope; see
-   `docs/ci/PENDING_WORKFLOW_CHANGE.md`.
+5. **State of this branch:** pushed to `arena/01a08bb3-gifscythe`. No SHA is
+   quoted here on purpose — it would be stale the moment the next commit lands.
+   Confirm with `git ls-remote origin refs/heads/arena/01a08bb3-gifscythe`
+   against `git rev-parse HEAD`. **No PR was opened** — that is the owner's
+   call. The `.github/workflows/` change is still blocked on the `workflows`
+   scope; see `docs/ci/PENDING_WORKFLOW_CHANGE.md`.
 
 6. **What remains before 1.0.0** — the audit's criterion is *"no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the
@@ -160,7 +161,7 @@ site count.
 | `scripts/verify_audit.sh` | ✅ **25 PASS / 0 FAIL / 5 SKIP, exit 0** (skips = cmake, Qt6, E9 declared-pending workflow, CI-gated, clean-Windows) |
 | GUI offscreen harness (`test_gui_offscreen`) | ⏳ **not runnable here** — no cmake/Qt6. **CI-COMPILED ONLY.** Last *measured* runtime count **243** (S7 sandbox); the file holds **226 `CHECK(` source sites** now (T17 added, T8 rewritten in S8) — a source count, not a runtime count |
 | `diff .github/workflows/build.yml docs/ci/build.yml.proposed` | ⏳ **differ on purpose** — S9's doc-gate step cannot be pushed (no `workflows` scope); it lives in `docs/ci/build.yml.proposed` + `docs/ci/PENDING_WORKFLOW_CHANGE.md`. E9/G7 SKIP for declared drift, FAIL for undeclared |
-| GitHub Actions, this branch | ✅ **green on both pushes** — runs for `089f76b` and `a43885b` both `completed/success`, `linux` and `windows` each `success`. This is the first compilation of the S9 `build.sh` change (the `bootstrap_hooks.sh` call). **Caveat:** the Actions *log host* is unreachable from this sandbox (`results-receiver.actions.githubusercontent.com` → `EOF`), so a green job is proven but its log lines are not readable here |
+| GitHub Actions, this branch | ✅ runs for `089f76b` and `a43885b` both `completed/success`, with `linux` and `windows` each `success` — the first compilation of the S9 `build.sh` change (the `bootstrap_hooks.sh` call). **Re-check the current tip** rather than trusting this row; later commits get their own runs. **Caveat:** the Actions *log host* is unreachable from this sandbox (`results-receiver.actions.githubusercontent.com` → `EOF`), so a green job is proven but its log lines are not readable here |
 
 **Counts are stated by kind on purpose.** `grep -c 'CHECK('` counts **lines**;
 `grep -o 'CHECK(' \| wc -l` counts **occurrences** (unit suite: 193 lines vs
