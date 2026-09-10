@@ -36,8 +36,10 @@ done
 fail() { echo "ERROR: $*" >&2; exit 1; }
 
 # Keep src/core/version.h in sync with VERSION.md for direct g++ builds.
+# Header text must stay byte-identical to what CMake generates from
+# version.h.in, otherwise the two generators dirty each other's output.
 cat > "$self/src/core/version.h" <<EOF
-// Auto-synced from VERSION.md by build.sh — do not edit by hand.
+// Generated from VERSION.md — do not edit by hand.
 #ifndef GIFSCYTHE_CORE_VERSION_H
 #define GIFSCYTHE_CORE_VERSION_H
 
