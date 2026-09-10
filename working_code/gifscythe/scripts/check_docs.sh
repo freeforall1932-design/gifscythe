@@ -617,24 +617,27 @@ else
         #      (that is the evidence for finding N-01). The marker must be
         #      explicit - a bare stale number is still a failure.
         # Prose wraps, so both tests look at a +/-1 line window.
-        while IFS= read -r ln; do
-          [[ -n "$ln" ]] || continue
-          claim="$(awk -v n="$ln" 'NR==n' <<<"$content")"
-          # a line that names a different runner is about that runner, even when
-          # it sits next to a verify_audit.sh row in the same table
-          grep -qiE 'check_docs|test_engine|test_package|smoke_cli|web/test' <<<"$claim" && continue
-          win="$(awk -v n="$ln" 'NR>=n-1 && NR<=n+1' <<<"$content")"
-          grep -qi 'verify_audit' <<<"$win" || continue
-          if grep -qiE 'historical|baseline|-era|at the time|still quoted|was \*\*|pre-application' <<<"$win"; then
-            continue
-          fi
-          nums=($(grep -oE '[0-9]+ (passed|PASS)[ ]*[,/] *[0-9]+ (failed|FAIL)[ ]*[,/] *[0-9]+ (skipped|SKIP)' <<<"$claim" \
-                    | grep -oE '[0-9]+'))
+        # Prose wraps: "23 PASS / 0 FAIL /\n5 SKIP" is one claim over two lines,
+        # and a line-based match silently skipped it. Flatten the doc to a single
+        # line and match with a context window on each side instead.
+        flat="$(tr '\n' ' ' <<<"$content" | tr -s ' ')"
+        while IFS= read -r ctx; do
+          [[ -n "$ctx" ]] || continue
+          # a claim naming a different runner is about that runner, even when it
+          # sits next to a verify_audit.sh row in the same table
+          grep -qiE 'check_docs|test_engine|test_package|smoke_cli|web/test' <<<"$ctx" && continue
+          grep -qi 'verify_audit' <<<"$ctx" || continue
+          # an explicit historical marker exempts a claim; a bare stale number
+          # does not. These docs legitimately quote what a past session measured
+          # (that is the evidence for finding N-01).
+          grep -qiE 'historical|baseline|-era|at the time|still quoted|pre-application' <<<"$ctx" && continue
+          nums=($(grep -oE '[0-9]+ (passed|PASS)[ ]*[,/] *[0-9]+ (failed|FAIL)[ ]*[,/] *[0-9]+ (skipped|SKIP)' <<<"$ctx" \
+                    | head -1 | grep -oE '[0-9]+'))
           [[ "${#nums[@]}" -eq 3 ]] || continue
           if [[ "${nums[0]}" != "$EXP_PASS" || "${nums[1]}" != "$GATE_FAIL" || "${nums[2]}" != "$GATE_SKIP" ]]; then
-            wrong+="$f line $ln claims ${nums[0]}/${nums[1]}/${nums[2]}; "
+            wrong+="$f claims ${nums[0]}/${nums[1]}/${nums[2]}; "
           fi
-        done < <(grep -nE '[0-9]+ (passed|PASS)[ ]*[,/] *[0-9]+ (failed|FAIL)[ ]*[,/] *[0-9]+ (skipped|SKIP)' <<<"$content" | cut -d: -f1)
+        done < <(grep -oE '.{0,70}[0-9]+ (passed|PASS)[ ]*[,/] *[0-9]+ (failed|FAIL)[ ]*[,/] *[0-9]+ (skipped|SKIP).{0,40}' <<<"$flat")
       done
       if [[ -z "$wrong" ]]; then
         ok "G6" "every current-state doc quotes the real gate numbers ($EXP_PASS/$GATE_FAIL/$GATE_SKIP)"
@@ -715,7 +718,7 @@ if [[ ${#CURRENT_DOCS[@]} -gt 0 ]]; then
     | grep -E '^[^ ]+ (\./)?[A-Za-z0-9_.+-]+/[A-Za-z0-9_./+-]*$' \
     | grep -vE '<|\{|\*|\.\.|https?:' \
     | grep -E "^[^ ]+ (\./)?($top|$sub)(/|\$)" \
-    | awk '{print $2" "$1}' | sort -u
+    | awk '{print $1" "$2}' | sort -u
   )
   if [[ -z "$missing_paths" ]]; then
     ok "G8" "every repo path referenced by a current-state doc exists"
@@ -807,8 +810,16 @@ fi
 # 10. BRANCH / SHA FRESHNESS - a doc naming the base commit must name the real
 #     one. Derived from git, never from a literal.
 # ---------------------------------------------------------------------------
-main_sha="$(git rev-parse --short=7 HEAD 2>/dev/null)"
-full_main="$(git rev-parse HEAD 2>/dev/null)"
+# "The real one" is main's tip, NOT HEAD: a session commits on top of main, so
+# comparing against HEAD made this gate fail on every single commit - the exact
+# failure mode that gets a checker deleted. Found by mutation-testing.
+main_ref=""
+for cand in origin/main main; do
+  git rev-parse --verify -q "$cand" >/dev/null 2>&1 && { main_ref="$cand"; break; }
+done
+[[ -n "$main_ref" ]] || main_ref=HEAD
+full_main="$(git rev-parse "$main_ref" 2>/dev/null)"
+main_sha="$(git rev-parse --short=7 "$main_ref" 2>/dev/null)"
 branch_now="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
 stale_base=""
 for f in "${CURRENT_DOCS[@]}"; do
@@ -819,15 +830,15 @@ for f in "${CURRENT_DOCS[@]}"; do
     [[ "$sha" == "$main_sha" || "$sha" == "$full_main" ]] && continue
     # a sha this repo does not know at all, or one that is not HEAD -> stale
     if git cat-file -e "${sha}^{commit}" 2>/dev/null; then
-      stale_base+="$f names base $sha (HEAD is $main_sha); "
+      stale_base+="$f names base $sha ($main_ref is $main_sha); "
     else
-      stale_base+="$f names base $sha, unknown to this clone (HEAD is $main_sha); "
+      stale_base+="$f names base $sha, unknown to this clone ($main_ref is $main_sha); "
     fi
   done < <(grep -oE '(based on|base commit|base of|branched from|merge of PR #[0-9]+[,:]?) `?main`?[^`]*`[0-9a-f]{7,40}`' <<<"$content" \
              | grep -oE '[0-9a-f]{7,40}' | sort -u)
 done
 if [[ -z "$stale_base" ]]; then
-  ok "G10" "every doc naming the base commit names the real one ($main_sha)"
+  ok "G10" "every doc naming the base commit names the real one ($main_ref = $main_sha; branch is $branch_now)"
 else
   bad "G10" "stale base commit - $stale_base"
 fi
