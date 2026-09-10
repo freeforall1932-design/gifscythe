@@ -95,7 +95,7 @@ jobs:
               exit 1
             fi
           fi
-          ./scripts/build_gifsicle.sh --windows
+          ./scripts/build_engine.sh --windows
           ls -la release/*/gifsicle.exe
 
       - name: Build CLI + unit tests
