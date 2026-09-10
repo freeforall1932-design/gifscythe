@@ -195,6 +195,39 @@ else
   bad "E9" "workflow and docs/ci/build.yml.proposed have drifted"
 fi
 
+# ---------- F: documentation status gate ----------
+# The docs ARE the context the next session starts from, so a stale doc is
+# corrupted input rather than a cosmetic problem. STATUS.md is the single status
+# register and scripts/check_docs.sh both emits it and enforces it.
+#
+# RECURSION NOTE: check_docs.sh runs THIS script to learn its real "N passed,
+# N failed, N skipped" (so docs cannot quote a stale gate count). To stop the
+# loop it invokes us with GS_SKIP_DOC_GATE=1, which suppresses this block.
+# DOC_GATE_CHECKS declares how many checks this block contributes and
+# check_docs.sh reads that number back out of this file, so the total the docs
+# must quote stays derived from the repo instead of hardcoded in the checker.
+DOC_GATE_CHECKS=2
+if [[ "${GS_SKIP_DOC_GATE:-0}" == "1" ]]; then
+  : # nested run from check_docs.sh — do not recurse
+else
+  if ./scripts/check_docs.sh --from-verify-audit > /tmp/vs_docs.log 2>&1; then
+    ok "F1" "check_docs.sh green — STATUS.md register + all doc-consistency checks"
+  else
+    bad "F1" "check_docs.sh reported failures — see /tmp/vs_docs.log"
+    tail -n 12 /tmp/vs_docs.log | sed 's/^/       /'
+  fi
+  # F2 is deliberately independent of check_docs.sh: if the checker itself is
+  # broken, a missing or self-inconsistent register must still fail the suite.
+  if [[ -s ../../STATUS.md ]] && \
+     awk -F'|' '/^\|[ ]*[A-Z]+-[0-9]+[ ]*\|/ { s=$4; gsub(/[ \t]/,"",s); c[s]++; t++ }
+                END { exit !(t > 0 && c["DONE"]+c["PARTIAL"]+c["OPEN"]+c["UNTRIAGED"] == t) }' \
+        <(sed 's/\\|/\x01/g' ../../STATUS.md); then
+    ok "F2" "STATUS.md present and its four state counts sum to its row count"
+  else
+    bad "F2" "STATUS.md missing, empty, or its state counts do not sum to the row count"
+  fi
+fi
+
 # ---------- W: web demo parity (JS ⇄ C++) ----------
 # web/ is not the product path, but it ships a SECOND copy of the command
 # builder and — since audit U-30 — of the validation rules. Neither is checked

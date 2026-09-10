@@ -4,6 +4,131 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S9 — Status-tracking system: one register, one vocabulary, one gate  (2026-09-10)
+
+Same branch family, same version (0.1.0). No product code under `src/` changed
+this session; everything here is process, gates and docs.
+
+**Changed:**
+
+* **`STATUS.md` (new, repo root)** — the single status register. One row per
+  tracked item in exactly one of four states: **DONE / PARTIAL / OPEN /
+  UNTRIAGED**. Schema `| ID | Item | State | Session | Proof / Blocker | Next
+  action |`, IDs namespaced (`U-` audit, `W-` worklist, `D-` deferred, `R-`
+  risk, `N-` new finding). The `U-nn` half is **generated from
+  `COMPILED_AUDIT.md` §5**; the `W/D/R/N` half is a marked hand-maintained block
+  that `--emit` preserves verbatim. `COMPILED_AUDIT.md` keeps the per-finding
+  evidence and now says so in both directions.
+* **`working_code/gifscythe/scripts/check_docs.sh` (new)** — emits the register
+  and enforces it. `--emit` regenerates; plain mode regenerates to a temp file
+  and **diffs** against the committed one, so a hand-fudged roll-up cannot pass.
+  16 checks: vocabulary, no cross-doc contradictions, PARTIAL-must-explain,
+  header-matches-table, register↔audit agreement (both directions), real gate
+  numbers, workflow copies, referenced files exist, `CHECK(` count kinds,
+  branch/SHA freshness, log currency, nothing-sits-untriaged, rules-written-down,
+  hook exists, hook is live. Every expected value is derived from the repo.
+* **`verify_audit.sh` gates F1/F2 (new)** — the doc gate is inside the
+  one-command suite, so it cannot be skipped by forgetting a second script. F2
+  is deliberately independent of `check_docs.sh` so a broken checker cannot hide
+  a broken register.
+* **`.githooks/pre-push` (new)** — blocks a push with a red doc gate.
+  **`scripts/bootstrap_hooks.sh` (new)**, called from `build.sh`, because git
+  does not copy `.githooks/` on clone. Gate **G15** fails a clone that never
+  bootstrapped, so "the hook exists" is never mistaken for "the hook is live".
+* **`docs/ci/build.yml.proposed`** — a `Documentation status gate` step in the
+  linux job (`check_docs.sh --no-gate-run`).
+* **Docs:** `SESSION_HANDOFF.md` rewritten as the S9 handoff with the status
+  rules under "Important constraints"; `WORKLIST.md` restructured (status rules,
+  a "Found this session" pending list, contradictory ticked boxes fixed);
+  `docs/release/RELEASE_PROCEDURE.md` pre-flight + §7 now carry the doc gate;
+  `README.md`, `working_code/gifscythe/README.md`, `PROJECT_VISION.md`,
+  `docs/ci/README.md`, `web/README.md`, `COMPILED_AUDIT.md` header, and a
+  dated-snapshot banner on `docs/audit/REMEDIATION_2026-09-10.md`.
+
+**Partial:**
+
+* **W-30 — the CI step is written but not live.** `.github/workflows/build.yml`
+  could not be pushed: the token has no `workflows` scope (real rejection
+  quoted below). The step exists in `docs/ci/build.yml.proposed` only, so the two
+  copies differ and **E9/G7 report SKIP** under
+  `docs/ci/PENDING_WORKFLOW_CHANGE.md`. **Missing:** a maintainer applying it and
+  deleting that marker, then re-running both gates so the doc numbers refresh.
+* **R-04 — the pre-push hook is live *here*, not everywhere.** `build.sh`
+  bootstraps `core.hooksPath`, and it is set in this clone. **Missing:** a fresh
+  clone is unprotected until it runs `build.sh` once, and nothing forces that.
+* **U-10 / U-14 / U-18 remain PARTIAL** from S8, unchanged this session.
+
+**Left:**
+
+1. Scope **N-03** (the `docs/screenshots/` question) — the only `UNTRIAGED` row.
+2. Apply **W-30** with a `workflows`-scoped token; then re-run `verify_audit.sh`
+   and `check_docs.sh` (removing the marker turns E9 back into a PASS and
+   changes the totals, and **G6 fails until every doc quotes the new number**).
+3. **U-09** release re-cut → **W-18** clean-Windows smoke → **W-19** desktop
+   probes → the owner decisions (**W-26** two-way CLI, **W-29** version).
+
+**Verified:** (every line below was actually run in this sandbox)
+
+| Command | Result |
+|---|---|
+| `./build.sh` | `==> 211 checks, 0 failures` / `ALL TESTS PASSED`, exit 0 |
+| `./scripts/test_engine.sh` | `5 passed, 0 failed` |
+| `./scripts/smoke_cli.sh` | `7 passed, 0 failed` |
+| `./scripts/test_package.sh` | `9 passed, 0 failed` |
+| `node web/test/command.test.mjs` | `ALL WEB COMMAND TESTS PASSED` (14) |
+| `node web/test/validate.test.mjs` | `ALL WEB VALIDATION TESTS PASSED` (19) |
+| `node web/test/transport.test.mjs` | `ALL WEB TRANSPORT TESTS PASSED` (17) |
+| `./scripts/check_docs.sh --emit` then `./scripts/check_docs.sh` | `==> Done. 21 passed, 0 failed, 1 skipped.`, exit 0 (the skip is G7, the declared-pending workflow change) |
+| `./scripts/verify_audit.sh` | `==> Done. 25 passed, 0 failed, 5 skipped.`, exit 0 |
+| baseline `verify_audit.sh` **before** any change | `==> Done. 24 passed, 0 failed, 4 skipped.` — this is the number that proved N-01 |
+| `grep -o 'CHECK(' tests/test_gui_offscreen.cpp \| wc -l` | **226 occurrences** (also 226 lines) |
+| `grep -o 'CHECK(' tests/test_gifsicle_command.cpp \| wc -l` | **196 occurrences** across **193 lines** — three lines hold two |
+| `./build/test_gifsicle_command` | `211 checks, 0 failures` (runtime counter) |
+| `git push` probe touching `.github/workflows/build.yml` | `! [remote rejected] ... refusing to allow a GitHub App to create or update workflow` |
+
+Counts are labelled by kind on purpose: **211** and **243** are *runtime*
+counter values; **196** and **226** are *source `CHECK(` occurrences*; **193**
+is *lines*. The last session conflated these and had to correct itself.
+
+**Not verifiable here:**
+
+* **No cmake, no Qt6** (`command -v cmake` and `command -v qmake6` are both
+  empty; `/usr/lib/x86_64-linux-gnu/cmake/Qt6` does not exist). So
+  `tests/test_gui_offscreen.cpp` was **not built or run** — `verify_audit.sh`
+  gates **C6** and **B** SKIP for exactly this. Anything touching `src/qtui/` or
+  the harness is **CI-COMPILED ONLY** and is labelled that way everywhere it is
+  claimed. The harness runtime count **243** is the **S7 sandbox measurement**
+  and has not been re-measured; it would need `qt6-base-dev` + `cmake`.
+* **No CI run** was triggered this session (nothing under `src/` changed, and the
+  one workflow edit could not be pushed). So the new `Documentation status gate`
+  step is **unexercised in CI**; it was run locally instead.
+* **Clean-Windows smoke (C4/D3/D4)** and the **desktop probes B5/B6/B14** still
+  need a real clean Windows VM and a physical desktop.
+* **`docs/screenshots/*.png`** could not be regenerated or compared (no Qt6) —
+  which is precisely why N-03 is `UNTRIAGED` rather than guessed at.
+
+**Docs touched:** `STATUS.md` (new) · `SESSION_HANDOFF.md` (rewritten for S9;
+status rules added to "Important constraints") · `WORKLIST.md` (rules, pending
+list, contradictory ticked boxes fixed, gate numbers) · `IMPROVEMENT_LOG.md`
+(this entry) · `COMPILED_AUDIT.md` (roll-up/detail relationship, real branch and
+base SHA, U-27 proof note) · `README.md` + `working_code/gifscythe/README.md`
+(STATUS.md pointers, gate numbers, repo layout) · `PROJECT_VISION.md` (status
+register pointer, gate numbers, harness caveat inline) ·
+`docs/release/RELEASE_PROCEDURE.md` (doc gate in pre-flight and §7) ·
+`docs/ci/README.md` + `docs/ci/PENDING_WORKFLOW_CHANGE.md` (rewritten: the old
+change is applied, this one is pending) · `web/README.md` (N-02 bind address) ·
+`docs/audit/REMEDIATION_2026-09-10.md` (dated-snapshot banner).
+
+**Why this session existed.** Status lived in five places and they drifted. A
+hand-run check found `COMPILED_AUDIT.md`'s header claiming "21 findings closed"
+while its own register held 31, and naming a branch that was no longer checked
+out. This session found the same class of error still live: eight doc locations
+quoted **23/0/5** when the gate actually measured **24/0/4**, because a pending-
+change marker had outlived the change. Gate **G6** now measures the number
+instead of trusting any document.
+
+---
+
 ## 2026-09-10 (S8, batch 2) — ten more findings closed with executed proof
 
 Same branch, same version. Evidence per finding is in

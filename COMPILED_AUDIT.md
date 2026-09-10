@@ -9,10 +9,21 @@
 > column. CI on **PR #11** (run `34471563229`) is **green on linux and
 > windows**, which is the first compilation of the S8 Qt edits.**
 
-**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7 (2026-09-10), S8 (2026-09-10)
-**Branch:** `arena/01a08a10-gifscythe` → based on `main` commit `a55a68d` (PR #11)
+**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7 (2026-09-10), S8 (2026-09-10), S9 (2026-09-10)
+**Branch:** `arena/01a08bb3-gifscythe` → based on `main` commit `190d030` (re-confirm with
+`gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`;
+`check_docs.sh` gate **G10** fails if this line names anything else)
 **Product version:** 0.1.0 (do **not** bump to 1.0.0 yet)
-**Companion docs:** `SESSION_HANDOFF.md` · `WORKLIST.md` · `IMPROVEMENT_LOG.md`
+**Companion docs:** `STATUS.md` · `SESSION_HANDOFF.md` · `WORKLIST.md` · `IMPROVEMENT_LOG.md`
+
+> **This file is the DETAIL; `STATUS.md` is the ROLL-UP.** The §5 register below
+> keeps the per-finding evidence — source audit, verification mark, `file:line`,
+> before/after. `STATUS.md` is the one-row-per-item status register that answers
+> *"how much is done?"* in a single line, and its `U-nn` rows are **generated
+> from this file** by `working_code/gifscythe/scripts/check_docs.sh --emit`.
+> Neither is a summary of the other: edit §5 here, re-emit, and both stay true.
+> `check_docs.sh` gates **G5/G5b** fail if the two ever disagree, and **G0**
+> fails if `STATUS.md` has drifted from what the emitter produces.
 
 This document merges **four independent audits**:
 
@@ -1615,7 +1626,7 @@ Deduplicated across A/B/C/D. "Src" = which audit(s) raised it.
 | ID | Src | Finding | Verif | Status |
 |----|-----|---------|-------|--------|
 | **U-26** | A:GS-019 · C:F-12 | Web engine discovery sorts versions lexicographically (`0.9.0` > `0.10.0`). | ✅ **SRC** | ✅ FIXED (S8) — numeric version compare |
-| **U-27** | A:GS-020 | Current-state docs still listed a completed CI action as pending. **Fixed by S7.** | ✅ **SRC** | ✅ FIXED |
+| **U-27** | A:GS-020 | Current-state docs still listed a completed CI action as pending. **Fixed by S7.** | ✅ **SRC** | ✅ FIXED — S7 doc re-sync (§6 P3-2); the completed CI action is no longer listed as pending |
 | **U-28** | B:BUG-03 | `runCommand()` non-batch path has **no `return`** after the "could not start engine" dialog (batch path does return). Harmless today; a landmine for the next edit. | ✅ **SRC** | ✅ FIXED (S8) — `return` added (CI-compiled) |
 | **U-29** | B:BUG-05 | Web resize dropdown omits **Touch**, though `command.mjs:90-91` implements it and the desktop has 6 kinds. | ✅ **SRC** | ✅ FIXED (S8) — Touch option added |
 | **U-30** | B:BUG-07 | Web server has no `validate()` equivalent; out-of-range values go straight to the engine. Inconsistent UX vs desktop. | ✅ **SRC** | ✅ FIXED (S8) — new `web/validate.mjs` mirrors `core/Validate.h`; 422 + issues; `web/test/validate.test.mjs` 19/19 parity vs the real CLI |
@@ -1872,7 +1883,9 @@ B and C findings are merged in where they add coverage or contradict A/D.
 ## 12. Handoff one-liner
 
 > This compiled audit merges **four independent reviews** (GPT 5.6, Seed 2.1 Pro, Arena S7 agent,
-> GPT 6 Astra Medium) into one 52-finding register. **Audits A and D are highest priority** — above
+> GPT 6 Astra Medium) into one 52-finding register. **The current roll-up of every one of them —
+> plus the worklist, deferred and risk items — is `STATUS.md`; read that first for state, this
+> file for evidence.** **Audits A and D are highest priority** — above
 > B and the compiled audit. **A and D's 8 new findings (U-45…U-52) are fresh and not covered by
 > prior audits.** The top item across all four audits is **U-01**: batch auto-naming silently
 > overwrites other outputs **and** the source GIF. The threads bug (U-03) is the second-most-
