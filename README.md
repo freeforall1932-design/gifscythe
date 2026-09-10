@@ -5,13 +5,20 @@
 P0/P1 silent-failure and honesty fixes landed 2026-09-07 and were **verified
 with evidence the same day** (audit §6: CLI/unit/engine/smoke green, offscreen
 GUI harness green, Windows engine+CLI proven under Wine). The **XNConvert-style
-UI retrofit also landed the same day (S4b)**: Input/Actions/Output tabs, ~30
+UI retrofit (S4b)** landed the same day: Input/Actions/Output tabs, ~30
 engine-truth controls, debounced async before/after preview, batch output
-folder — harness now at **143 checks**. **Windows CI green and merged
-2026-09-07** (PR #5 → `0ad1ff5`; main runs #23/#24 green on both jobs; binaries
-banked on Release `snapshot-2026-09-07`). Remaining: clean-Windows desktop
-probes (C4/D3/D4, B5/B6/B14 — checklist in `docs/ci/CLEAN_WINDOWS_SMOKE.md`)
-and the version decision (0.2.0 vs 1.0.0, owner's call). WebP/APNG deferred.
+folder. **Windows CI green and merged 2026-09-07** (PR #5 → `0ad1ff5`; main
+runs #23/#24 green on both jobs; binaries banked on Release
+`snapshot-2026-09-07`); S5/S6 (GUI honesty fixes, offline-only direction,
+web demo) merged via PR #6. **S7 (2026-09-10) landed the remaining
+sandbox-codeable Phase-1 items:** GUI settings persistence between sessions
+(SettingsIO-backed, `GS_SETTINGS_PATH` override), queue reorder (Move
+Up/Down), free-form `{name}` naming templates (default renders the
+historical `<name>_opt.gif` exactly; collision runs are refused), and the
+release-procedure doc — offscreen harness now at **243 checks, 0 failures**
+(T1–T16). Remaining: clean-Windows desktop probes (C4/D3/D4, B5/B6/B14 —
+checklist in `docs/ci/CLEAN_WINDOWS_SMOKE.md`), the two-way-CLI decision, and
+the version decision (0.2.0 vs 1.0.0, owner's call). WebP/APNG deferred.
 **Direction (2026-09-09): offline-only, language stays C++17/Qt6 through 1.0.0**
 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 
@@ -45,6 +52,7 @@ gifscythe/                        (repo root)
   README.md                       this file
   docs/
     planning/OFFLINE_BUILD_REVIEW.md   offline-only feasibility + language + plan
+    release/RELEASE_PROCEDURE.md       how to cut snapshots/releases (S7)
     web/WEB_FEASIBILITY.md             web-run review (web/ = demo only)
     ci/                            workflow docs + clean-Windows smoke checklist
   web/                             server-side web POC + JS⇄C++ command parity test
@@ -75,6 +83,8 @@ gifscythe/                        (repo root)
    language choice (stay C++/Qt through 1.0.0), and the phased plan.
 5. **`docs/web/WEB_FEASIBILITY.md`** — web-run review (the `web/` build is a
    demo/parity harness, not the product path).
+6. **`docs/release/RELEASE_PROCEDURE.md`** — how to cut a snapshot or version
+   release (gates, packaging, publishing, post-publish verification).
 
 ## Versions
 The *product* version lives in `working_code/gifscythe/VERSION.md` and is synced

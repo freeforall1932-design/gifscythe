@@ -4,6 +4,7 @@
 #include "SettingsPanel.h"
 
 #include "core/EngineLocator.h"
+#include "core/SettingsIO.h"
 #include "core/Validate.h"
 #include "core/version.h"
 
@@ -16,6 +17,7 @@
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
@@ -33,12 +35,14 @@
 #include <QSplitter>
 #include <QStandardPaths>
 #include <QTabWidget>
+#include <QTextStream>
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
 
 #include <algorithm>
 #include <functional>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -50,6 +54,31 @@ QString humanSize(qint64 bytes) {
   if (bytes >= 1024)
     return QStringLiteral("%1 KB").arg(double(bytes) / 1024.0, 0, 'f', 1);
   return QStringLiteral("%1 B").arg(bytes);
+}
+
+// Default batch auto-name template (S3-25). {name} = the input's base name.
+// The historical fixed suffix was "<name>_opt.gif" (audit E4) — the default
+// template renders exactly that, so verified behavior is unchanged.
+const char* kDefaultNameTemplate = "{name}_opt.gif";
+
+// Read one GUI-only key ("batch_dir", "name_template", ...) from a settings
+// file. SettingsIO ignores unknown keys while parsing core Settings; this
+// scans the same "key = value" lines for the GUI's own state. Last
+// occurrence wins, matching SettingsIO's override semantics.
+QString guiStateKey(const QString& path, const QString& key) {
+  QFile f(path);
+  if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return {};
+  QTextStream in(&f);
+  QString result;
+  while (!in.atEnd()) {
+    const QString line = in.readLine().trimmed();
+    if (line.isEmpty() || line.startsWith(QLatin1Char('#'))) continue;
+    const int eq = line.indexOf(QLatin1Char('='));
+    if (eq < 0) continue;
+    if (line.left(eq).trimmed().compare(key, Qt::CaseInsensitive) == 0)
+      result = line.mid(eq + 1).trimmed();
+  }
+  return result;
 }
 
 }  // namespace
@@ -133,6 +162,10 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     refreshCommand();
     refreshOutputSummary();
   });
+  connect(nameTemplateEdit_, &QLineEdit::textChanged, this, [this]() {
+    refreshCommand();
+    refreshOutputSummary();
+  });
   connect(inputList_, &DropListWidget::filesDropped, this, &MainWindow::onFilesDropped);
   connect(inputList_, &QListWidget::itemSelectionChanged, this,
           &MainWindow::onSelectionChanged);
@@ -142,6 +175,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
           &MainWindow::refreshCommand);
 
   ensureEngine();
+  loadSessionState();  // S7: restore the previous session (no-op on first launch)
   refreshCommand();
   refreshOutputSummary();
   refreshQueueLabel();
@@ -184,7 +218,25 @@ QWidget* MainWindow::buildInputTab() {
   queueBtns->addWidget(addButton);
   queueBtns->addWidget(removeButton_);
   queueBtns->addWidget(clearButton_);
+  queueBtns->addStretch();
   left->addLayout(queueBtns);
+
+  // Queue order matters for Merge (frames concatenate in queue order) — S3-9.
+  auto* orderRow = new QHBoxLayout();
+  orderRow->addWidget(new QLabel(QStringLiteral("Order"), page));
+  moveUpButton_ = new QPushButton(QStringLiteral("Move Up"), page);
+  moveUpButton_->setObjectName(QStringLiteral("moveUpButton"));
+  moveUpButton_->setToolTip(QStringLiteral("Move the selected file earlier in the queue "
+                                           "(Merge concatenates in this order)."));
+  connect(moveUpButton_, &QPushButton::clicked, this, [this]() { moveCurrent(-1); });
+  moveDownButton_ = new QPushButton(QStringLiteral("Move Down"), page);
+  moveDownButton_->setObjectName(QStringLiteral("moveDownButton"));
+  moveDownButton_->setToolTip(QStringLiteral("Move the selected file later in the queue."));
+  connect(moveDownButton_, &QPushButton::clicked, this, [this]() { moveCurrent(1); });
+  orderRow->addWidget(moveUpButton_);
+  orderRow->addWidget(moveDownButton_);
+  orderRow->addStretch();
+  left->addLayout(orderRow);
   return page;
 }
 
@@ -219,6 +271,23 @@ QWidget* MainWindow::buildOutputTab() {
   batchRow->addWidget(batchDirEdit_);
   batchRow->addWidget(browseDir);
   form->addRow(QStringLiteral("Batch outputs"), batchRow);
+
+  // Naming template (S3-25). Default renders the historical <name>_opt.gif
+  // (audit E4); {name} is replaced with the input's base name.
+  nameTemplateEdit_ = new QLineEdit(box);
+  nameTemplateEdit_->setObjectName(QStringLiteral("nameTemplateEdit"));
+  nameTemplateEdit_->setText(QString::fromLatin1(kDefaultNameTemplate));
+  nameTemplateEdit_->setToolTip(QStringLiteral(
+      "Batch auto-naming template.\n"
+      "{name} = the input file's base name (required when batching >1 file).\n"
+      "Path separators are stripped; \".gif\" is appended if missing."));
+  form->addRow(QStringLiteral("Name template"), nameTemplateEdit_);
+  auto* tmplHint = new QLabel(QStringLiteral(
+      "{name} = input base name · used for batch auto-naming · runs that would "
+      "overwrite one file are refused"), box);
+  tmplHint->setObjectName(QStringLiteral("nameTemplateHint"));
+  tmplHint->setWordWrap(true);
+  form->addRow(QString(), tmplHint);
 
   openDirButton_ = new QPushButton(QStringLiteral("Open output folder"), box);
   openDirButton_->setObjectName(QStringLiteral("openDirButton"));
@@ -273,6 +342,13 @@ void MainWindow::closeEvent(QCloseEvent* event) {
     cancelRun();
   }
   killPreview();
+  // S7: persist the session (Actions state + batch dir + name template).
+  // A failed save is surfaced, never silent — but never blocks the close.
+  if (!saveSessionState()) {
+    QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+        QStringLiteral("Could not save your settings for the next session to:\n%1")
+            .arg(sessionFilePath()));
+  }
   QMainWindow::closeEvent(event);
 }
 
@@ -421,10 +497,54 @@ void MainWindow::openOutputFolder() {
   QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
 }
 
+QString MainWindow::renderedOutputName(const QFileInfo& fi) const {
+  QString tmpl = nameTemplateEdit_ ? nameTemplateEdit_->text().trimmed() : QString();
+  if (tmpl.isEmpty()) tmpl = QString::fromLatin1(kDefaultNameTemplate);
+  QString name = tmpl;
+  name.replace(QStringLiteral("{name}"), fi.completeBaseName(), Qt::CaseInsensitive);
+  // Honest guard: a template must never escape the output folder — strip
+  // everything up to the last path separator (both flavors, whatever the
+  // host OS treats as a separator).
+  const int sep = std::max(name.lastIndexOf(QLatin1Char('/')),
+                           name.lastIndexOf(QLatin1Char('\\')));
+  name = name.mid(sep + 1);
+  // Empty render (e.g. template was only separators) falls back to the
+  // historical default instead of writing a nameless/"." file.
+  if (name.isEmpty() || name == QLatin1String(".") || name == QLatin1String(".."))
+    name = fi.completeBaseName() + QStringLiteral("_opt");
+  // The engine always writes GIF; keep the extension honest.
+  if (!name.endsWith(QStringLiteral(".gif"), Qt::CaseInsensitive))
+    name += QStringLiteral(".gif");
+  return name;
+}
+
+bool MainWindow::templateIsConstant() const {
+  const QString tmpl = nameTemplateEdit_ ? nameTemplateEdit_->text().trimmed() : QString();
+  if (tmpl.isEmpty()) return false;  // empty -> default template (has {name})
+  return !tmpl.contains(QStringLiteral("{name}"), Qt::CaseInsensitive);
+}
+
 QString MainWindow::defaultOutputFor(const QString& input) const {
   const QFileInfo fi(input);
   const QString dir = batchDir().isEmpty() ? fi.absolutePath() : batchDir();
-  return dir + QLatin1Char('/') + fi.completeBaseName() + QStringLiteral("_opt.gif");
+  return dir + QLatin1Char('/') + renderedOutputName(fi);
+}
+
+void MainWindow::moveCurrent(int delta) {
+  if (busy_) return;
+  const int row = inputList_->currentRow();
+  if (row < 0 || row >= inputs_.size()) return;
+  const int target = row + delta;
+  if (target < 0 || target >= inputs_.size()) return;
+  QListWidgetItem* item = inputList_->takeItem(row);
+  if (!item) return;
+  inputList_->insertItem(target, item);
+  // Keep inputs_ index-aligned with the list rows.
+  const QString path = inputs_.takeAt(row);
+  inputs_.insert(target, path);
+  inputList_->setCurrentRow(target);  // fires selectionChanged -> preview refresh
+  refreshCommand();
+  refreshOutputSummary();
 }
 
 void MainWindow::refreshOutputSummary() {
@@ -433,13 +553,24 @@ void MainWindow::refreshOutputSummary() {
   const QString explicitOut = outputEdit_->text().trimmed();
   QString text;
   switch (mode) {
-    case gs::Mode::Batch:
+    case gs::Mode::Batch: {
+      const QString tmpl =
+          nameTemplateEdit_ && !nameTemplateEdit_->text().trimmed().isEmpty()
+              ? nameTemplateEdit_->text().trimmed()
+              : QString::fromLatin1(kDefaultNameTemplate);
       if (inputs_.size() == 1 && !explicitOut.isEmpty()) {
         text = QStringLiteral("Batch (1 file) → %1").arg(explicitOut);
       } else if (inputs_.isEmpty()) {
-        text = QStringLiteral("Batch → each input writes <name>_opt.gif%1")
-                   .arg(batchDir().isEmpty() ? QStringLiteral(" next to it")
+        text = QStringLiteral("Batch → each input writes \"%1\"%2")
+                   .arg(tmpl,
+                        batchDir().isEmpty() ? QStringLiteral(" next to it")
                                              : QStringLiteral(" into %1").arg(batchDir()));
+      } else if (inputs_.size() > 1 && templateIsConstant()) {
+        // Honest collision warning: every output would land on one file.
+        text = QStringLiteral("Batch (%1 files) → template \"%2\" has no {name}: every "
+                              "output would overwrite %3 — the run will be refused")
+                   .arg(inputs_.size())
+                   .arg(tmpl, defaultOutputFor(inputs_.front()));
       } else {
         text = QStringLiteral("Batch (%1 files) → %2 … %3")
                    .arg(inputs_.size())
@@ -447,6 +578,7 @@ void MainWindow::refreshOutputSummary() {
                         defaultOutputFor(inputs_.back()));
       }
       break;
+    }
     case gs::Mode::Merge:
       text = explicitOut.isEmpty()
                  ? QStringLiteral("Merge → output file REQUIRED (run is refused without one)")
@@ -515,7 +647,7 @@ void MainWindow::refreshCommand() {
       const QString in = QString::fromStdString(settings.inputs[i]);
       one.inputs = {in.toStdString()};
       // Explicit Save-as is honored only for a single file (audit E1);
-      // otherwise the per-file <name>_opt.gif name applies.
+      // otherwise the per-file template name (default <name>_opt.gif) applies.
       QString out = explicitOut;
       if (n > 1 || out.isEmpty()) out = defaultOutputFor(in);
       one.output = out.toStdString();
@@ -538,9 +670,12 @@ void MainWindow::setBusy(bool busy) {
   cancelButton_->setEnabled(busy);
   removeButton_->setEnabled(!busy);
   clearButton_->setEnabled(!busy);
+  moveUpButton_->setEnabled(!busy);
+  moveDownButton_->setEnabled(!busy);
   settingsPanel_->setEnabled(!busy);
   outputEdit_->setEnabled(!busy);
   batchDirEdit_->setEnabled(!busy);
+  nameTemplateEdit_->setEnabled(!busy);
   progressBar_->setVisible(busy);
   if (busy) {
     previewTimer_->stop();
@@ -590,6 +725,17 @@ void MainWindow::runCommand() {
   batchMode_ = settings.mode;
 
   if (settings.mode == gs::Mode::Batch) {
+    // A constant template (no {name}) with multiple inputs would write every
+    // result to the SAME file, silently destroying N-1 of them. Refuse.
+    if (inputs_.size() > 1 && templateIsConstant()) {
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QStringLiteral("The name template \"%1\" contains no {name} placeholder, so all "
+                         "%2 batch outputs would overwrite the same file.\n"
+                         "Add {name} to the template, or run the files one at a time.")
+              .arg(nameTemplateEdit_->text().trimmed())
+              .arg(inputs_.size()));
+      return;
+    }
     // Ensure the chosen batch folder exists (honest failure, no silent skip).
     const QString dir = batchDir();
     if (!dir.isEmpty() && !QDir().mkpath(dir)) {
@@ -632,7 +778,7 @@ void MainWindow::runCommand() {
   if (settings.output.empty() && settings.mode != gs::Mode::Explode) {
     QMessageBox::warning(this, QStringLiteral("Gifscythe"),
         QStringLiteral("Choose an output file before running (or switch to Batch mode "
-                       "for automatic <name>_opt.gif names)."));
+                       "for automatic name-template outputs, default <name>_opt.gif)."));
     return;
   }
   // Explode with empty output: default to first input's stem.
@@ -862,4 +1008,92 @@ void MainWindow::startPreview() {
 
 void MainWindow::updateStatus(const QString& message) {
   if (statusLabel_) statusLabel_->setText(message);
+}
+
+// ===================== Session persistence (S7) =====================
+
+QString MainWindow::sessionFilePath() const {
+  // GS_SETTINGS_PATH overrides everything (portable use + the offscreen
+  // harness keeps CI machines clean). Mirrors the GS_ENGINE pattern.
+  const QByteArray env = qgetenv("GS_SETTINGS_PATH");
+  if (!env.isEmpty()) return QString::fromLocal8Bit(env);
+  const QString base =
+      QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+  if (base.isEmpty()) return {};  // no writable config location on this platform
+  return QDir(base).filePath(QStringLiteral("gifscythe.conf"));
+}
+
+void MainWindow::loadSessionState() {
+  const QString path = sessionFilePath();
+  if (path.isEmpty()) return;             // persistence unavailable -> defaults
+  if (!QFileInfo::exists(path)) return;   // first launch -> defaults (normal)
+
+  std::vector<gs::LoadWarning> warnings;
+  auto loaded = gs::load_settings_file(path.toStdString(), &warnings);
+  if (!loaded) {
+    // The file exists but is unreadable — say so instead of silently
+    // pretending this is a first launch.
+    updateStatus(QStringLiteral("Could not read the settings file — using defaults (%1)")
+                     .arg(path));
+    return;
+  }
+
+  settingsPanel_->readFrom(*loaded);
+
+  // GUI-only keys (SettingsIO ignores them while parsing core settings).
+  const QString batch = guiStateKey(path, QStringLiteral("batch_dir"));
+  if (!batch.isEmpty()) batchDirEdit_->setText(batch);
+  const QString tmpl = guiStateKey(path, QStringLiteral("name_template"));
+  if (!tmpl.isEmpty()) nameTemplateEdit_->setText(tmpl);
+
+  // Surfaced, not discarded (S5 rule): a corrupt/partial file still applies
+  // its valid keys, but the user sees that something was off.
+  if (!warnings.empty()) {
+    updateStatus(QStringLiteral("Settings loaded with %1 warning(s) — %2")
+                     .arg(warnings.size())
+                     .arg(path));
+  }
+}
+
+bool MainWindow::saveSessionState() {
+  const QString path = sessionFilePath();
+  if (path.isEmpty()) return true;  // persistence unavailable — nothing to save
+
+  const QString dir = QFileInfo(path).absolutePath();
+  if (!QDir().mkpath(dir)) {
+    qWarning("Gifscythe: cannot create settings folder %s", qPrintable(dir));
+    return false;
+  }
+
+  gs::Settings s;
+  settingsPanel_->writeInto(s);
+  // Persist ONLY the Actions state + GUI keys below. The queue is session-
+  // scoped (files move between sessions) and Save-as is a per-run choice —
+  // restoring it could silently overwrite a stale path next launch.
+  s.inputs.clear();
+  s.output.clear();
+
+  std::ostringstream oss;
+  gs::save_settings(oss, s);
+  oss << "# GUI state (Gifscythe-specific keys; SettingsIO/CLI ignore them)\n";
+  const QString bd = batchDir();
+  if (!bd.isEmpty()) oss << "batch_dir = " << bd.toStdString() << "\n";
+  const QString tmpl = nameTemplateEdit_ ? nameTemplateEdit_->text().trimmed() : QString();
+  if (!tmpl.isEmpty() && tmpl != QString::fromLatin1(kDefaultNameTemplate))
+    oss << "name_template = " << tmpl.toStdString() << "\n";
+
+  QFile f(path);
+  if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+    qWarning("Gifscythe: cannot open settings file for writing: %s (%s)",
+             qPrintable(path), qPrintable(f.errorString()));
+    return false;
+  }
+  const QByteArray data = QByteArray::fromStdString(oss.str());
+  const qint64 written = f.write(data);
+  f.close();
+  if (written != data.size()) {
+    qWarning("Gifscythe: short write to settings file: %s", qPrintable(path));
+    return false;
+  }
+  return true;
 }
