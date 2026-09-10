@@ -15,10 +15,21 @@ sandbox-codeable Phase-1 items:** GUI settings persistence between sessions
 (SettingsIO-backed, `GS_SETTINGS_PATH` override), queue reorder (Move
 Up/Down), free-form `{name}` naming templates (default renders the
 historical `<name>_opt.gif` exactly; collision runs are refused), and the
-release-procedure doc — offscreen harness now at **243 checks, 0 failures**
-(T1–T16). Remaining: clean-Windows desktop probes (C4/D3/D4, B5/B6/B14 —
-checklist in `docs/ci/CLEAN_WINDOWS_SMOKE.md`), the two-way-CLI decision, and
-the version decision (0.2.0 vs 1.0.0, owner's call). WebP/APNG deferred.
+release-procedure doc — offscreen harness reached **243 checks, 0 failures**
+(T1–T16) in the S7 sandbox. **S8 (2026-09-10) closed 31 audit findings across
+two batches, each with executed proof** — including both release blockers:
+**U-01** (batch auto-naming could overwrite another output *or the user's
+source file*, rc=0) and **U-02** (`package_portable.sh` exited 0 with no GUI in
+the folder). New `src/core/OutputPlan.h` + `OutputName.h`,
+`scripts/test_package.sh` (9 negative cases), and three web suites; unit suite
+at **211 checks, 0 failures**; `verify_audit.sh` now **23 PASS / 0 FAIL /
+5 SKIP, exit 0** (E9 SKIPs while the CI workflow change awaits a
+`workflows`-scoped token — `docs/ci/PENDING_WORKFLOW_CHANGE.md`). See `docs/audit/REMEDIATION_2026-09-10.md`. Remaining: clean-Windows
+desktop probes (C4/D3/D4, B5/B6/B14 — checklist in
+`docs/ci/CLEAN_WINDOWS_SMOKE.md`), the Windows-only findings (U-07/U-21 rule
+sets are implemented and unit-tested; U-07 is not), the release re-cut (U-09),
+the two-way-CLI decision, and the version decision (0.2.0 vs 1.0.0, owner's
+call). WebP/APNG deferred.
 **Direction (2026-09-09): offline-only, language stays C++17/Qt6 through 1.0.0**
 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 
@@ -51,6 +62,9 @@ gifscythe/                        (repo root)
   LICENSE / COPYING.gifsicle      license notices (GPLv3 UI intent + GPLv2 engine)
   README.md                       this file
   docs/
+    audit/REMEDIATION_2026-09-10.md    S8: what was fixed + the executed proof
+    audit/FIX_PICK_2026-09-10.md       S8: how U-01 was chosen (superseded)
+    archive/                           the two dated review snapshots (historical)
     planning/OFFLINE_BUILD_REVIEW.md   offline-only feasibility + language + plan
     release/RELEASE_PROCEDURE.md       how to cut snapshots/releases (S7)
     web/WEB_FEASIBILITY.md             web-run review (web/ = demo only)

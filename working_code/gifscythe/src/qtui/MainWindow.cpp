@@ -4,6 +4,8 @@
 #include "SettingsPanel.h"
 
 #include "core/EngineLocator.h"
+#include "core/OutputName.h"
+#include "core/OutputPlan.h"
 #include "core/SettingsIO.h"
 #include "core/Validate.h"
 #include "core/version.h"
@@ -423,7 +425,10 @@ void MainWindow::chooseInputs() {
 void MainWindow::onFilesDropped(const QStringList& files) {
   QStringList gifs;
   for (const auto& f : files) {
-    if (f.endsWith(QStringLiteral(".gif"), Qt::CaseInsensitive) || QFileInfo::exists(f))
+    // Audit U-13: this was `|| exists(f)`, so ANY existing file (.exe, .jpg,
+    // .txt) was queued and only failed later, at run time. Both conditions
+    // were clearly meant to hold.
+    if (f.endsWith(QStringLiteral(".gif"), Qt::CaseInsensitive) && QFileInfo::exists(f))
       gifs << f;
   }
   appendInputs(gifs);
@@ -502,20 +507,45 @@ QString MainWindow::renderedOutputName(const QFileInfo& fi) const {
   if (tmpl.isEmpty()) tmpl = QString::fromLatin1(kDefaultNameTemplate);
   QString name = tmpl;
   name.replace(QStringLiteral("{name}"), fi.completeBaseName(), Qt::CaseInsensitive);
-  // Honest guard: a template must never escape the output folder — strip
-  // everything up to the last path separator (both flavors, whatever the
-  // host OS treats as a separator).
-  const int sep = std::max(name.lastIndexOf(QLatin1Char('/')),
-                           name.lastIndexOf(QLatin1Char('\\')));
-  name = name.mid(sep + 1);
-  // Empty render (e.g. template was only separators) falls back to the
+  // Honest guard, now in the core layer so it is unit-tested (audit U-21).
+  // Strips any directory part on every platform (a template must never escape
+  // the output folder) and, on Windows, also removes <>:"|?* and the ASCII
+  // control characters, trims trailing dots/spaces that Win32 would strip
+  // anyway, and defuses the reserved device names (CON, PRN, AUX, NUL,
+  // COM1..9, LPT1..9). Returns empty when nothing usable is left.
+  const QString safe = QString::fromStdString(
+      gs::sanitize_output_name(name.toStdString(), gs::NameRules::Host));
+  // Empty render (e.g. the template was only separators) falls back to the
   // historical default instead of writing a nameless/"." file.
-  if (name.isEmpty() || name == QLatin1String(".") || name == QLatin1String(".."))
-    name = fi.completeBaseName() + QStringLiteral("_opt");
+  name = safe.isEmpty() ? fi.completeBaseName() + QStringLiteral("_opt") : safe;
   // The engine always writes GIF; keep the extension honest.
   if (!name.endsWith(QStringLiteral(".gif"), Qt::CaseInsensitive))
     name += QStringLiteral(".gif");
   return name;
+}
+
+QStringList MainWindow::plannedBatchTargets() const {
+  // Every batch target, computed up front. E1: an explicit Save-as applies
+  // only when exactly one file is queued.
+  const QString explicitOut = outputEdit_->text().trimmed();
+  const bool singleExplicit = (inputs_.size() == 1 && !explicitOut.isEmpty());
+  QStringList targets;
+  targets.reserve(inputs_.size());
+  for (const QString& input : inputs_) {
+    targets << (singleExplicit ? explicitOut : defaultOutputFor(input));
+  }
+  return targets;
+}
+
+gs::OutputPlan MainWindow::planBatch() const {
+  std::vector<std::string> in;
+  std::vector<std::string> out;
+  in.reserve(static_cast<size_t>(inputs_.size()));
+  out.reserve(static_cast<size_t>(inputs_.size()));
+  for (const QString& p : inputs_) in.push_back(p.toStdString());
+  const QStringList targets = plannedBatchTargets();
+  for (const QString& p : targets) out.push_back(p.toStdString());
+  return gs::plan_outputs(in, out);
 }
 
 bool MainWindow::templateIsConstant() const {
@@ -572,10 +602,27 @@ void MainWindow::refreshOutputSummary() {
                    .arg(inputs_.size())
                    .arg(tmpl, defaultOutputFor(inputs_.front()));
       } else {
-        text = QStringLiteral("Batch (%1 files) → %2 … %3")
-                   .arg(inputs_.size())
-                   .arg(defaultOutputFor(inputs_.front()),
-                        defaultOutputFor(inputs_.back()));
+        // Plan the whole batch up front so the label can tell the truth
+        // BEFORE the user clicks Run (audit U-01).
+        const gs::OutputPlan plan = planBatch();
+        if (!plan.ok) {
+          text = QStringLiteral("Batch (%1 files) → the run will be refused: %2")
+                     .arg(inputs_.size())
+                     .arg(QString::fromStdString(plan.describe()));
+        } else {
+          const QString first = defaultOutputFor(inputs_.front());
+          const QString last = defaultOutputFor(inputs_.back());
+          // U-43: one file says "1 file" and does not print the same path twice.
+          text = (inputs_.size() == 1 || first == last)
+                     ? QStringLiteral("Batch (1 file) → %1").arg(first)
+                     : QStringLiteral("Batch (%1 files) → %2 … %3")
+                           .arg(inputs_.size())
+                           .arg(first, last);
+          if (!plan.preexisting.empty()) {
+            text += QStringLiteral("  (%1 target(s) already exist and will be replaced)")
+                        .arg(plan.preexisting.size());
+          }
+        }
       }
       break;
     }
@@ -743,18 +790,31 @@ void MainWindow::runCommand() {
           QStringLiteral("Cannot create the batch output folder:\n%1").arg(dir));
       return;
     }
-    // Process one file at a time with auto output names.
+    // ---- Plan EVERY output before the first process starts (audit U-01) ----
+    // Targets used to be derived inside the batch loop, one at a time, after
+    // the previous engine process had already finished, and were never
+    // compared to each other or to the inputs. Two verified consequences:
+    // a template like "{name}.gif" with an empty batch folder resolves the
+    // output to the INPUT ITSELF (gifsicle then replaced the source in place
+    // and returned 0), and two queued files sharing a base name both render
+    // <batchdir>/<stem>_opt.gif, so the second run silently deleted the first
+    // result while the UI reported "Optimization complete — 2 file(s).".
+    const gs::OutputPlan plan = planBatch();
+    if (!plan.ok) {
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QStringLiteral("Refusing to run — the planned output would overwrite user data:\n\n%1")
+              .arg(QString::fromStdString(plan.describe())));
+      return;
+    }
+    batchTargets_ = plannedBatchTargets();
+
+    // Process one file at a time, using the PLANNED target for each file.
     batchQueue_ = inputs_;
     batchIndex_ = 0;
     setBusy(true);
     updateStatus(QStringLiteral("Optimizing 1/%1…").arg(batchQueue_.size()));
     QString in = batchQueue_.at(0);
-    QString out = outputEdit_->text().trimmed();
-    if (batchQueue_.size() == 1 && !out.isEmpty()) {
-      pendingOutput_ = out;  // E1: explicit Save-as honored for a single file
-    } else {
-      pendingOutput_ = defaultOutputFor(in);
-    }
+    pendingOutput_ = batchTargets_.value(0);  // from the plan, not re-derived
     gs::Settings one = settings;
     one.mode = gs::Mode::Auto;  // single-file, no -b needed
     one.inputs = {in.toStdString()};
@@ -788,6 +848,23 @@ void MainWindow::runCommand() {
                        + QStringLiteral("_frame")).toStdString();
   }
 
+  // Plan the single target too (audit U-01): merging a+b over a, or an Auto
+  // run whose Save-as points at a queued file, destroys a source exactly like
+  // the batch case does. Explode is exempt — its output is a PREFIX and the
+  // engine appends .000/.001, so it cannot land on an input.
+  if (settings.mode != gs::Mode::Explode && !settings.output.empty()) {
+    std::vector<std::string> plan_inputs;
+    plan_inputs.reserve(static_cast<size_t>(inputs_.size()));
+    for (const QString& p : inputs_) plan_inputs.push_back(p.toStdString());
+    const gs::OutputPlan one_plan = gs::plan_outputs(plan_inputs, {settings.output});
+    if (!one_plan.ok) {
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QStringLiteral("Refusing to run — the planned output would overwrite user data:\n\n%1")
+              .arg(QString::fromStdString(one_plan.describe())));
+      return;
+    }
+  }
+
   pendingOutput_ = QString::fromStdString(settings.output);
   batchIndex_ = -1;
   batchQueue_.clear();
@@ -805,6 +882,7 @@ void MainWindow::runCommand() {
     setBusy(false);
     QMessageBox::critical(this, QStringLiteral("Gifscythe"),
         QStringLiteral("Could not start the GIF engine: %1").arg(process_->errorString()));
+    return;  // U-28: the batch path returns here; this one has to as well
   }
 }
 
@@ -869,7 +947,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
                        .arg(batchIndex_ + 1)
                        .arg(batchQueue_.size()));
       QString in = batchQueue_.at(batchIndex_);
-      pendingOutput_ = defaultOutputFor(in);
+      pendingOutput_ = batchTargets_.value(batchIndex_);  // from the plan
       auto settings = currentSettings();
       gs::Settings one = settings;
       one.mode = gs::Mode::Auto;

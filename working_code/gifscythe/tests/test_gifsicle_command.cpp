@@ -6,8 +6,14 @@
 #include "../src/core/SettingsIO.h"
 #include "../src/core/ProcessRunner.h"
 #include "../src/core/Validate.h"
+#include "../src/core/OutputName.h"
+#include "../src/core/OutputPlan.h"
 #include "../src/core/version.h"
 #include <cassert>
+#include <fcntl.h>
+#include <unistd.h>
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 #include <cstdio>
 #include <string>
@@ -16,7 +22,8 @@
 using namespace gs;
 
 static int failures = 0;
-#define CHECK(cond) do { if (!(cond)) { \
+static int checks = 0;
+#define CHECK(cond) do { ++checks; if (!(cond)) { \
   std::printf("FAIL: %s (line %d)\n", #cond, __LINE__); ++failures; } } while (0)
 
 static bool has(const std::vector<std::string>& args, const std::string& a) {
@@ -28,6 +35,15 @@ static bool has_seq(const std::vector<std::string>& args, const std::string& a, 
   for (size_t i = 0; i + 1 < args.size(); ++i)
     if (args[i] == a && args[i + 1] == b) return true;
   return false;
+}
+
+// Bounds-safe plan assertions: if the planner stops reporting an issue these
+// return false (a clean FAIL) instead of reading past the end of the vector.
+static bool issue_is(const gs::OutputPlan& p, size_t i, gs::PlanIssueKind k) {
+  return i < p.issues.size() && p.issues[i].kind == k;
+}
+static bool issue_other_index(const gs::OutputPlan& p, size_t i, size_t want) {
+  return i < p.issues.size() && p.issues[i].other_index == want;
 }
 
 int main() {
@@ -328,6 +344,351 @@ int main() {
     CHECK(w.empty());  // GUI keys must not raise load warnings
   }
 
+  // 21. Threads mapping (audit U-03). "Auto" (<=0) MUST emit a bare -j.
+  //     The engine's own default is thread_count = 0 = single-threaded
+  //     (gifsicle.c:39, used at xform.c:1329); a bare -j selects
+  //     GIFSICLE_DEFAULT_THREAD_COUNT = 8 (gifsicle.c:38, :1893). Emitting
+  //     nothing therefore made the control labelled "Auto" run one thread.
+  {
+    Settings def;                       // threads = -1 by default
+    CHECK(def.threads == -1);
+    CHECK(has(GifsicleCommand(def).args(), "-j"));
+
+    Settings auto0; auto0.threads = 0;  // the GUI spinner's "Auto"
+    CHECK(has(GifsicleCommand(auto0).args(), "-j"));
+
+    Settings four; four.threads = 4;
+    auto a4 = GifsicleCommand(four).args();
+    CHECK(has(a4, "-j4"));
+    CHECK(!has(a4, "-j"));              // explicit N must not also add bare -j
+
+    Settings one; one.threads = 1;      // single-threaded stays expressible
+    CHECK(has(GifsicleCommand(one).args(), "-j1"));
+  }
+
+  // 22. Output planning — the data-destruction guard (audit U-01).
+  {
+    namespace f = std::filesystem;
+    const f::path dir = f::temp_directory_path() / "gs_plan_test";
+    f::remove_all(dir);
+    f::create_directories(dir / "d1");
+    f::create_directories(dir / "d2");
+    f::create_directories(dir / "out");
+    for (const char* p : {"d1/hero.gif", "d2/hero.gif", "a.gif", "b.gif", "exists.gif"})
+      std::ofstream(dir / p) << "x";
+
+    const std::string a  = (dir / "a.gif").string();
+    const std::string b  = (dir / "b.gif").string();
+    const std::string h1 = (dir / "d1/hero.gif").string();
+    const std::string h2 = (dir / "d2/hero.gif").string();
+    const std::string ex = (dir / "exists.gif").string();
+    const std::string o  = (dir / "out/hero_opt.gif").string();
+
+    // (a) The headline repro: the output IS the input.
+    OutputPlan self = plan_outputs({a}, {a});
+    CHECK(!self.ok);
+    CHECK(self.issues.size() == 1);
+    CHECK(issue_is(self, 0, PlanIssueKind::TargetsSource));
+    CHECK(self.describe().find("source file") != std::string::npos);
+
+    // (b) Two different files, same base name, one batch folder -> one target.
+    OutputPlan dup = plan_outputs({h1, h2}, {o, o});
+    CHECK(!dup.ok);
+    CHECK(dup.issues.size() == 1);
+    CHECK(issue_is(dup, 0, PlanIssueKind::DuplicateTarget));
+
+    // (c) The same batch with distinct names is fine.
+    OutputPlan good = plan_outputs({h1, h2},
+                                   {(dir / "out/1.gif").string(), (dir / "out/2.gif").string()});
+    CHECK(good.ok);
+    CHECK(good.issues.empty());
+    CHECK(good.outputs.size() == 2);
+
+    // (d) Merge shape: N inputs, ONE output — legal, and still guarded.
+    CHECK(plan_outputs({a, b}, {(dir / "out/m.gif").string()}).ok);
+    OutputPlan mergeSelf = plan_outputs({a, b}, {b});   // welds a+b over b
+    CHECK(!mergeSelf.ok);
+    CHECK(issue_is(mergeSelf, 0, PlanIssueKind::TargetsSource));
+    CHECK(issue_other_index(mergeSelf, 0, 1));        // names b, not a
+
+    // (e) Empty target and count mismatch.
+    CHECK(!plan_outputs({a}, {""}).ok);
+    CHECK(issue_is(plan_outputs({a}, {""}), 0, PlanIssueKind::EmptyTarget));
+    OutputPlan cnt = plan_outputs({a, b}, {(dir / "out/x.gif").string(),
+                                           (dir / "out/y.gif").string(),
+                                           (dir / "out/z.gif").string()});
+    CHECK(!cnt.ok);
+    CHECK(issue_is(cnt, 0, PlanIssueKind::CountMismatch));
+
+    // (f) An output that already exists is REPORTED, not refused — re-running
+    //     an optimize legitimately replaces the previous result.
+    OutputPlan pre = plan_outputs({a}, {ex});
+    CHECK(pre.ok);
+    CHECK(pre.preexisting.size() == 1);
+    CHECK(plan_outputs({a}, {(dir / "out/brand_new.gif").string()}).preexisting.empty());
+
+    // (g) Path spelling must not defeat the guard: "./x", "x" and an absolute
+    //     path to the same file are the same target.
+    const std::string rel = "gs_plan_test/a.gif";
+    const f::path saved_cwd = f::current_path();
+    f::current_path(f::temp_directory_path());
+    OutputPlan spelled = plan_outputs({rel}, {a});
+    CHECK(!spelled.ok);
+    CHECK(issue_is(spelled, 0, PlanIssueKind::TargetsSource));
+    f::current_path(saved_cwd);
+    f::remove_all(dir);
+  }
+
+  // 23. Resize geometry is validated (audit U-22). Verified against the engine:
+  //     --resize-fit 0x0 -> rc=1, but 40x0 is legal; --scale 0x1 -> rc=0 and
+  //     SILENTLY DOES NOTHING.
+  {
+    auto warns = [](const Settings& s, const char* field) {
+      for (const auto& w : validate(s)) if (w.field == field) return true;
+      return false;
+    };
+    Settings fit0; fit0.inputs = {"a.gif"}; fit0.resize_kind = ResizeKind::Fit;
+    CHECK(warns(fit0, "resize"));                       // 0x0
+
+    Settings fit40 = fit0; fit40.resize_w = 40;
+    CHECK(!warns(fit40, "resize"));                     // 40x0 keeps the aspect
+
+    Settings w0; w0.inputs = {"a.gif"}; w0.resize_kind = ResizeKind::Width;
+    CHECK(warns(w0, "resize_w"));
+
+    Settings h0; h0.inputs = {"a.gif"}; h0.resize_kind = ResizeKind::Height;
+    CHECK(warns(h0, "resize_h"));
+
+    Settings sc; sc.inputs = {"a.gif"}; sc.resize_kind = ResizeKind::Scale; sc.scale_x = 0.0;
+    CHECK(warns(sc, "scale"));
+
+    Settings none; none.inputs = {"a.gif"};             // ResizeKind::None
+    CHECK(!warns(none, "resize"));
+    CHECK(!warns(none, "scale"));
+  }
+
+  // 24. Malformed booleans warn instead of silently meaning "false"
+  //     (audit U-11: `unoptimize = maybe` used to turn the option OFF, rc=0,
+  //     zero warnings, while every numeric parser in the file warns).
+  {
+    std::vector<LoadWarning> w;
+    std::istringstream in(
+        "unoptimize = maybe\ncareful = Trueish\ninterlace = yes-please\n"
+        "remove_comments = TRUE\ninfo = off\ninput = a.gif\n");
+    Settings s = load_settings(in, &w);
+    CHECK(w.size() == 3);
+    CHECK(s.unoptimize == false);   // untouched, and the user was told
+    CHECK(s.careful == false);
+    CHECK(s.interlace == false);
+    CHECK(s.remove_comments == true);   // case-insensitive true still works
+    CHECK(s.info == false);             // explicit false still works
+    // Every recognised spelling, both ways.
+    for (const char* t : {"1", "true", "TRUE", "yes", "On"}) {
+      bool v = false; CHECK(parse_bool_strict(t, &v)); CHECK(v == true);
+    }
+    for (const char* t : {"0", "false", "FALSE", "no", "Off"}) {
+      bool v = true; CHECK(parse_bool_strict(t, &v)); CHECK(v == false);
+    }
+    bool v = true;
+    CHECK(!parse_bool_strict("maybe", &v)); CHECK(v == true);  // left untouched
+  }
+
+  // 25. -p needs BOTH halves (audit U-33): a conf setting only position_x used
+  //     to yield a half-specified `-p X,0`, silently moving frames to row 0.
+  {
+    std::vector<LoadWarning> w;
+    std::istringstream in("position_x = 12\ninput = a.gif\n");
+    Settings s = load_settings(in, &w);
+    CHECK(!s.has_position);
+    CHECK(!w.empty());
+    CHECK(!has(GifsicleCommand(s).args(), "-p"));
+
+    std::vector<LoadWarning> w2;
+    std::istringstream in2("position_x = 12\nposition_y = 7\ninput = a.gif\n");
+    Settings s2 = load_settings(in2, &w2);
+    CHECK(s2.has_position);
+    CHECK(has_seq(GifsicleCommand(s2).args(), "-p", "12,7"));
+  }
+
+  // 26. Settings round trip stays exact, including the toggle-dependent groups
+  //     and the threads value (audit U-19 correction + U-03).
+  {
+    Settings s;
+    s.crop = true; s.crop_x = 3; s.crop_y = 4; s.crop_w = 200; s.crop_h = 150;
+    s.crop_transparency = true;
+    s.has_position = true; s.position_x = 12; s.position_y = 7;
+    s.resize_kind = ResizeKind::Scale; s.scale_x = 0.5; s.scale_y = 0.25;
+    s.threads = 0;                       // "Auto" must survive, not collapse to -1
+    std::ostringstream o; save_settings(o, s);
+    std::vector<LoadWarning> w;
+    std::istringstream i(o.str());
+    Settings r = load_settings(i, &w);
+    CHECK(w.empty());
+    CHECK(r.crop && r.crop_x == 3 && r.crop_y == 4 && r.crop_w == 200 && r.crop_h == 150);
+    CHECK(r.crop_transparency);
+    CHECK(r.has_position && r.position_x == 12 && r.position_y == 7);
+    CHECK(r.resize_kind == ResizeKind::Scale);
+    CHECK(r.scale_x == 0.5 && r.scale_y == 0.25);
+    CHECK(r.threads == 0);
+    CHECK(has(GifsicleCommand(r).args(), "-j"));
+  }
+
+  // 27. An empty comment must not emit a bare --comment (audit U-13/U-48).
+  //     add() drops empty strings, so a "" entry used to push the flag with no
+  //     operand, which then swallowed the following argument as its text.
+  {
+    Settings s;
+    s.inputs = {"a.gif"};
+    s.output = "o.gif";
+    s.comments = {"", "real one"};
+    auto args = GifsicleCommand(s).args();
+    int n = 0;
+    for (const auto& a : args) if (a == "--comment") ++n;
+    CHECK(n == 1);                                  // only the real comment
+    CHECK(has_seq(args, "--comment", "real one"));  // and it kept its operand
+    CHECK(GifsicleCommand(s).toString().find("--comment --comment") == std::string::npos);
+
+    Settings none;
+    none.inputs = {"a.gif"};
+    none.comments = {""};
+    CHECK(!has(GifsicleCommand(none).args(), "--comment"));
+  }
+
+  // 28. A child killed by a signal reports 128+signum, not a flat 1
+  //     (audit U-32). The GUI's cancel path kills the engine on purpose, so
+  //     callers need to be able to tell a crash from a kill.
+#ifndef _WIN32
+  {
+    // run_argv() correctly reports a signalled child on stderr, but that makes a
+    // GREEN run print three scary "ERROR:" lines. Silence fd 2 for these calls.
+    std::fflush(stderr);
+    const int saved_err = ::dup(STDERR_FILENO);
+    const int devnull = ::open("/dev/null", O_WRONLY);
+    if (devnull >= 0) ::dup2(devnull, STDERR_FILENO);
+
+    // SIGTERM (15) -> 143. The child signals itself, so this needs no shell
+    // pipeline and no root.
+    const int rc = run_argv({"/bin/sh", "-c", "kill -TERM $$"});
+    // SIGKILL (9) -> 137.
+    const int rc2 = run_argv({"/bin/sh", "-c", "kill -KILL $$"});
+    // A clean exit still passes straight through and is NOT in the 128+ range.
+    const int rc3 = run_argv({"/bin/sh", "-c", "exit 3"});
+    // A missing binary is still 127, distinct from both.
+    const int rc4 = run_argv({"/definitely/not/here/gifscythe"});
+
+    std::fflush(stderr);
+    if (devnull >= 0) { ::dup2(saved_err, STDERR_FILENO); ::close(devnull); }
+    ::close(saved_err);
+
+    CHECK(rc == 128 + 15);
+    CHECK(rc2 == 128 + 9);
+    CHECK(rc3 == 3);
+    CHECK(rc4 == 127);
+  }
+#endif
+
+  // 29. Output-name sanitisation (audit U-21). The rules are a parameter, so
+  //     the whole Win32 rule set is testable on a POSIX host.
+  {
+    using R = NameRules;
+    // Directory escape is stripped under BOTH rule sets (pre-existing behaviour).
+    CHECK(sanitize_output_name("../../evil", R::Posix) == "evil");
+    CHECK(sanitize_output_name("../../evil", R::Windows) == "evil");
+    CHECK(sanitize_output_name("..\\..\\evil.gif", R::Windows) == "evil.gif");
+    CHECK(sanitize_output_name("a/b/c.gif", R::Posix) == "c.gif");
+
+    // Characters Win32 refuses are removed on Windows only — POSIX allows them,
+    // so a Linux user's file name is not silently rewritten.
+    CHECK(sanitize_output_name("a<b>c.gif", R::Windows) == "abc.gif");
+    CHECK(sanitize_output_name("a<b>c.gif", R::Posix) == "a<b>c.gif");
+    CHECK(sanitize_output_name("q:u?o\"t|e*.gif", R::Windows) == "quote.gif");
+    CHECK(sanitize_output_name("tab\there.gif", R::Windows) == "tabhere.gif");
+
+    // Trailing dots/spaces: Win32 strips them, so we strip them first and the
+    // name we display is the name that ends up on disk.
+    CHECK(sanitize_output_name("trail...   ", R::Windows) == "trail");
+    CHECK(sanitize_output_name("trail...   ", R::Posix) == "trail...   ");
+
+    // Reserved device names are defused, not deleted, and matched on the stem
+    // before the first dot, case-insensitively.
+    CHECK(sanitize_output_name("CON", R::Windows) == "_CON");
+    CHECK(sanitize_output_name("con.gif", R::Windows) == "_con.gif");
+    CHECK(sanitize_output_name("LPT9.gif", R::Windows) == "_LPT9.gif");
+    CHECK(sanitize_output_name("Com1.txt", R::Windows) == "_Com1.txt");
+    CHECK(sanitize_output_name("NUL", R::Windows) == "_NUL");
+    CHECK(sanitize_output_name("console.gif", R::Windows) == "console.gif");
+    CHECK(sanitize_output_name("mycon.gif", R::Windows) == "mycon.gif");
+    CHECK(sanitize_output_name("CON", R::Posix) == "CON");   // legal on POSIX
+
+    // Nothing usable left -> "" so the caller falls back to its own default.
+    CHECK(sanitize_output_name("", R::Windows).empty());
+    CHECK(sanitize_output_name("...", R::Windows).empty());
+    CHECK(sanitize_output_name("<>:\"|?*", R::Windows).empty());
+    CHECK(sanitize_output_name("..", R::Posix).empty());
+    CHECK(sanitize_output_name("/", R::Posix).empty());
+
+    // Non-ASCII passes through untouched: every byte the rules act on is ASCII.
+    CHECK(sanitize_output_name("\xe4\xbd\x9c\xe5\x93\x81.gif", R::Windows) ==
+          "\xe4\xbd\x9c\xe5\x93\x81.gif");
+
+    // The reserved-name predicate on its own.
+    CHECK(is_windows_reserved_device_name("aux"));
+    CHECK(is_windows_reserved_device_name("PRN.log"));
+    CHECK(!is_windows_reserved_device_name("auxiliary"));
+    CHECK(!is_windows_reserved_device_name("coma"));
+    CHECK(!is_windows_reserved_device_name(""));
+
+    // Host rules resolve to POSIX here (this suite runs on Linux in CI's linux
+    // job; the Windows job exercises the same code through NameRules::Windows).
+    CHECK(sanitize_output_name("a<b>.gif", NameRules::Host) ==
+          sanitize_output_name("a<b>.gif", host_name_rules()));
+  }
+
+  // 30. A string value containing a newline must not become a new key on
+  //     reload (audit U-51). Verified before the fix: one comment
+  //     "hi\nmode = merge" round-tripped into `mode = merge`.
+  {
+    Settings s;
+    s.mode = Mode::Auto;
+    s.inputs = {"a.gif"};
+    s.output = "o.gif";
+    s.comments = {"hi\nmode = merge", "second\r\noptimize = 3"};
+    s.background = "#ff\ninfo = true";
+    std::ostringstream o; save_settings(o, s);
+    const std::string text = o.str();
+    // Exactly one line per key — no value may have introduced another.
+    int mode_lines = 0, info_lines = 0, comment_lines = 0;
+    std::istringstream scan(text);
+    std::string line;
+    while (std::getline(scan, line)) {
+      if (line.rfind("mode = ", 0) == 0) ++mode_lines;
+      if (line.rfind("info = ", 0) == 0) ++info_lines;
+      if (line.rfind("comment = ", 0) == 0) ++comment_lines;
+    }
+    CHECK(mode_lines == 1);
+    CHECK(info_lines == 0);
+    CHECK(comment_lines == 2);
+
+    std::istringstream i(text);
+    Settings r = load_settings(i);
+    CHECK(r.mode == Mode::Auto);        // not hijacked into Merge
+    CHECK(r.info == false);             // not hijacked on
+    CHECK(r.optimize_level == -1);      // not hijacked to 3
+    CHECK(r.comments.size() == 2);
+    CHECK(r.background == "#ff info = true");
+
+    // Plain values are untouched — the fix must not perturb normal files.
+    Settings plain;
+    plain.comments = {"a normal comment"};
+    plain.background = "#abcdef";
+    plain.inputs = {"/some path/in.gif"};
+    std::ostringstream o2; save_settings(o2, plain);
+    CHECK(o2.str().find("comment = a normal comment\n") != std::string::npos);
+    CHECK(o2.str().find("background = #abcdef\n") != std::string::npos);
+    CHECK(o2.str().find("input = /some path/in.gif\n") != std::string::npos);
+  }
+
+  std::printf("==> %d checks, %d failures\n", checks, failures);
   if (failures == 0) {
     std::printf("ALL TESTS PASSED\n");
     return 0;

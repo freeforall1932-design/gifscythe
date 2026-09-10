@@ -33,15 +33,36 @@ node web/server.mjs 8000
 
 `GS_ENGINE=/path/to/gifsicle` overrides the engine location.
 
-## Test (command-layer parity with the desktop app)
+## Test (parity with the desktop app)
 
 ```bash
-node web/test/command.test.mjs
+node web/test/command.test.mjs     # command builder  — 14/14 PASS
+node web/test/validate.test.mjs    # validation rules — 19/19 PASS
+node web/test/transport.test.mjs   # live-server transport net — 17/17 PASS
 ```
 
-Serializes 12 settings fixtures to conf files, runs the real C++
-`gifscythe-cli` in print mode, and asserts the JS builder produces a
-byte-identical command line. (2026-09-09: 13/13 PASS.)
+Both run the **real** C++ `gifscythe-cli` in print mode and compare against the
+JS side, so the two clients cannot drift silently:
+
+* `command.test.mjs` serializes 14 settings fixtures to conf files and asserts
+  the JS builder emits a byte-identical command line.
+* `validate.test.mjs` (audit U-30) asserts `validate.mjs` returns exactly the
+  same `(field, value, reason)` triples as `src/core/Validate.h` — same set,
+  same order, same wording. Note that `delay < 0` and `lossy < 0` never survive
+  a conf round-trip (both writers treat `-1` as "unset" and skip them), so those
+  two fixtures feed the C++ side raw conf text instead.
+
+* `transport.test.mjs` (audit U-49/U-50, register P2-8/P2-9/P2-10) starts the
+  **real** server on an ephemeral port and pushes tricky values through the
+  actual `POST /optimize?settings=` path — literal `%`, `%20`, `%22`, `%2540`,
+  plus signs, CJK, emoji, embedded newlines, a value that looks like a flag —
+  asserting the status code, that the command the server ran still contains the
+  exact value, and (via the returned GIF bytes) that the value actually reached
+  the engine. Mutation-tested: re-adding the double decode fails 4 cases,
+  dropping `encodeURIComponent` fails 6, removing `validate()` fails 3.
+
+All three are run by the CI linux job and by `scripts/verify_audit.sh`
+(gates W1/W2/W3).
 
 ## API
 

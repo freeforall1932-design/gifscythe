@@ -43,6 +43,39 @@ inline std::vector<Warning> validate(const Settings& s) {
   if (s.crop && (s.crop_w == 0 || s.crop_h == 0)) {
     add("crop", "0x0", "crop width/height must be > 0");
   }
+  // Resize geometry (audit U-22). Verified against the bundled 1.96 engine:
+  //   --resize-fit 0x0 / --resize 0x0 / --resize-touch 0x0 -> rc=1
+  //       "one of W and H must be positive"   (40x0 and 0x40 are fine)
+  //   --resize-width 0 / --resize-height 0    -> rc=1 "argument must be positive"
+  //   --scale 0x0                             -> rc=1 "X and Y factors must be positive"
+  //   --scale 0x1                             -> rc=0 but SILENTLY DOES NOTHING
+  //       (output stays 60x132), which is the worst of the lot.
+  switch (s.resize_kind) {
+    case ResizeKind::Fit:
+    case ResizeKind::Touch:
+    case ResizeKind::Exact:
+      if (s.resize_w == 0 && s.resize_h == 0) {
+        add("resize", "0x0", "one of width and height must be > 0 (the engine refuses 0x0)");
+      }
+      break;
+    case ResizeKind::Width:
+      if (s.resize_w == 0) {
+        add("resize_w", "0", "width must be > 0 (the engine refuses --resize-width 0)");
+      }
+      break;
+    case ResizeKind::Height:
+      if (s.resize_h == 0) {
+        add("resize_h", "0", "height must be > 0 (the engine refuses --resize-height 0)");
+      }
+      break;
+    case ResizeKind::Scale:
+      if (!(s.scale_x > 0.0) || !(s.scale_y > 0.0)) {
+        add("scale", std::to_string(s.scale_x) + "x" + std::to_string(s.scale_y),
+            "both scale factors must be > 0; 0 makes the engine skip the resize silently");
+      }
+      break;
+    case ResizeKind::None: break;
+  }
   if (s.inputs.empty()) {
     add("input", "", "at least one input file is required");
   }

@@ -53,16 +53,33 @@ EOF
 echo "==> [1/4] Building gifsicle engine..."
 "$self/scripts/build_engine.sh" $engine_arg || fail "engine build failed"
 
+# Audit U-31: <filesystem> lived in a separate libstdc++fs on GCC 7 and 8, so
+# EngineLocator.h (which uses std::filesystem) failed to LINK on those hosts even
+# though it compiled. GCC >= 9 folded it into libstdc++, where -lstdc++fs is a
+# no-op at best and an unknown-library error on some toolchains. Detect it
+# instead of assuming either way.
+STDCXXFS=""
+fs_probe="$BUILD_DIR/.fs_probe.cpp"
+printf '#include <filesystem>\nint main(){ return std::filesystem::exists("x") ? 0 : 1; }\n' \
+  > "$fs_probe"
+if ! g++ -std=c++17 "$fs_probe" -o "$BUILD_DIR/.fs_probe" >/dev/null 2>&1; then
+  if g++ -std=c++17 "$fs_probe" -o "$BUILD_DIR/.fs_probe" -lstdc++fs >/dev/null 2>&1; then
+    STDCXXFS="-lstdc++fs"
+    echo "    (this toolchain keeps <filesystem> in libstdc++fs; adding -lstdc++fs)"
+  fi
+fi
+rm -f "$fs_probe" "$BUILD_DIR/.fs_probe"
+
 # 2. CLI
 echo "==> [2/4] Building CLI driver (gifscythe-cli)..."
 g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
-  -o "$BUILD_DIR/gifscythe-cli" "$self/src/cli/main.cpp" \
+  -o "$BUILD_DIR/gifscythe-cli" "$self/src/cli/main.cpp" $STDCXXFS \
   || fail "CLI build failed"
 
 # 3. Unit tests
 echo "==> [3/4] Running unit tests..."
 g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
-  -o "$BUILD_DIR/test_gifsicle_command" "$self/tests/test_gifsicle_command.cpp" \
+  -o "$BUILD_DIR/test_gifsicle_command" "$self/tests/test_gifsicle_command.cpp" $STDCXXFS \
   || fail "unit test compile failed"
 "$BUILD_DIR/test_gifsicle_command" || fail "unit tests failed"
 

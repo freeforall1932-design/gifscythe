@@ -354,7 +354,7 @@ spread (`:156`).
 
 ### F-13 (Nit) — Placement of the two dated review snapshots
 
-`gifscythe-comprehensive-review.md` and `gifscythe-final-code-review.md` sit at the repo
+`gifscythe-comprehensive-review.md` and `gifscythe-final-code-review.md` sat at the repo
 root while newer material lives under `docs/`. `SESSION_HANDOFF.md:34` already
 carries a policy note explaining why they keep stale references, so this is cosmetic —
 but a `docs/archive/` move would stop new readers mistaking them for current state.

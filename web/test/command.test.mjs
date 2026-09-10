@@ -21,6 +21,13 @@ const ENGINE = "/opt/gifsicle"; // stable, unquoted, safe prefix in print mode
 
 const fixtures = [
   {
+    name: "empty comment is skipped (audit U-48)",
+    s: {
+      mode: "auto", comments: ["", "real one"],
+      inputs: ["/tmp/parity/in.gif"], output: "/tmp/parity/out.gif",
+    },
+  },
+  {
     name: "defaults+input",
     s: { mode: "auto", inputs: ["/tmp/parity/in.gif"] },
   },
