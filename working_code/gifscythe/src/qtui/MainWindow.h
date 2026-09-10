@@ -55,6 +55,7 @@ class SettingsPanel;
 
 #include "core/GifsicleSettings.h"
 #include "core/GifsicleCommand.h"
+#include "core/OutputPlan.h"
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -105,6 +106,11 @@ class MainWindow : public QMainWindow {
   void setBusy(bool busy);
   void moveCurrent(int delta);
   QString defaultOutputFor(const QString& input) const;
+  // Batch output planning (audit U-01): every target for the current queue,
+  // and the core planner's verdict on that set. Both const, both used by the
+  // summary label (to warn before Run) and by runCommand() (to refuse).
+  QStringList plannedBatchTargets() const;
+  gs::OutputPlan planBatch() const;
   QString renderedOutputName(const QFileInfo& input) const;
   bool templateIsConstant() const;
   bool ensureEngine();
@@ -147,6 +153,7 @@ class MainWindow : public QMainWindow {
   bool busy_ = false;
   bool cancelling_ = false;            // set while cancelRun() kills the engine
   QString pendingOutput_;
+  QStringList batchTargets_;           // planned per-file outputs (audit U-01)
   int batchIndex_ = -1;
   QStringList batchQueue_;
   gs::Mode batchMode_ = gs::Mode::Batch;

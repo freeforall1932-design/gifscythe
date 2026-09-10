@@ -148,8 +148,9 @@ the migration. Do **not** fold this into 1.0.0.
 - **No icon/logo** yet (`assets/` is empty) — cosmetic, pre-1.0.0.
 - **The `web/` server POC is now explicitly a demo**, not the product path;
   keep it only as a command-layer parity harness (or drop it once superseded).
-- The two dated review snapshots (`gifscythe-comprehensive-review.md`,
-  `gifscythe-final-code-review.md`) still reference `scripts/build_gifsicle.sh`;
+- The two dated review snapshots (now `docs/archive/gifscythe-comprehensive-review.md`
+  and `docs/archive/gifscythe-final-code-review.md`) still reference
+  `scripts/build_gifsicle.sh`;
   they are historical and left as-is by policy.
 
 ---

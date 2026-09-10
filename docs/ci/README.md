@@ -4,7 +4,7 @@
 
 - `.github/workflows/build.yml` builds **linux + windows** jobs: engine,
   static-linked CLI/tests, GUI (CMake; Ninja+MinGW on Windows), native E2E
-  smokes, the offscreen GUI harness (`test_gui_offscreen`, 243 checks since
+  smokes, the offscreen GUI harness (`test_gui_offscreen`, 243 checks as of
   S7), `windeployqt` staging, portable packaging, and artifact upload
   (`gifscythe-linux`, `gifscythe-windows`, 14-day retention — binaries are
   banked on Releases instead; see `docs/release/RELEASE_PROCEDURE.md`).

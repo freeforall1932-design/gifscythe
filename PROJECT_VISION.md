@@ -12,7 +12,12 @@ C++17/Qt6 through 1.0.0**; the `web/` build is a demo only. **2026-09-10
 (S7):** the remaining sandbox-codeable Phase-1 items landed — **GUI settings
 persistence** (remember-me between sessions), **queue reorder**, **naming
 templates** (`{name}_opt.gif` default), and the **release-procedure doc**;
-harness at 243 checks. Only the clean-VM / desktop smoke (C4/D3/D4,
+harness reached 243 checks there. **2026-09-10 (S8):** the audit register was
+worked down — **31 findings closed with executed proof** (both release blockers
+included) and the one-command gate is green at **24 PASS / 0 FAIL / 4 SKIP**.
+Note the S8 sandbox had no cmake/Qt6, so 243 is the last *measured* harness
+figure and the GUI edits since then are CI-verified only. Remaining: the
+clean-VM / desktop smoke (C4/D3/D4,
 B5/B6/B14 — `docs/ci/CLEAN_WINDOWS_SMOKE.md`) plus the owner decisions
 (two-way CLI, version) remain before **1.0.0**. See `WORKLIST.md`,
 `COMPILED_AUDIT.md`, and `docs/planning/OFFLINE_BUILD_REVIEW.md`.
@@ -58,7 +63,8 @@ want the full gifsicle terminal control underneath.
 | GIF engine subprocess | Done (native + Windows config path) |
 | Settings → argv control layer | Done |
 | CLI driver + tests | Done (honest exits, smoke suite) |
-| GUI | **Retrofit done (S4b) + polish done (S7):** Input/Actions/Output tabs, ~30 engine-truth controls, debounced async before/after preview, batch output folder, **settings persistence between sessions, queue reorder, `{name}` naming templates** — 243-check offscreen harness green (T1–T16) |
+| GUI | **Retrofit done (S4b) + polish done (S7):** Input/Actions/Output tabs, ~30 engine-truth controls, debounced async before/after preview, batch output folder, **settings persistence between sessions, queue reorder, `{name}` naming templates** — 243-check offscreen harness green (T1–T16) *in the S7 sandbox*; S8 added **T17** and rewrote **T8**, and those are **CI-verified only** |
+| Audit remediation | **S8 (2026-09-10):** 31 of the 52 registered findings closed with executed proof — see `docs/audit/REMEDIATION_2026-09-10.md` |
 | Silent-failure class bugs | Fixed in code; re-verify via `COMPILED_AUDIT.md` §6 |
 | Offline-only direction + language decision | **Decided (S6)** — stay C++17/Qt6 through 1.0.0; see `docs/planning/OFFLINE_BUILD_REVIEW.md` |
 | Settings persistence (offline "remember me") | **Done (S7)** — SettingsIO-backed; `docs/release/RELEASE_PROCEDURE.md` documents the release flow |

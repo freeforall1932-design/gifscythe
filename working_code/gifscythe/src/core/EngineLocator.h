@@ -41,8 +41,46 @@ inline std::string engine_basename() {
 #endif
 }
 
+// Search $PATH / %PATH% the way a shell would: split on the platform separator,
+// join each entry with `name`, return the first executable absolute match.
+// Returns "" when nothing on PATH matches.
+//
+// Audit U-05: this used to be documented as search-order step 5 but was dead
+// code — locate_engine() returned the bare name "gifsicle" and every caller
+// then ran path_is_executable() on it, which stats against the CWD and never
+// consults PATH. Verified: an isolated CLI with gifsicle genuinely on PATH
+// (`command -v gifsicle` -> a real file) printed
+// "ERROR: engine not found at gifsicle" and exited 1.
+inline std::string find_on_path(const std::string& name) {
+  const char* env = std::getenv("PATH");
+  if (!env || !*env) return std::string();
+#ifdef _WIN32
+  const char sep = ';';
+#else
+  const char sep = ':';
+#endif
+  const std::string path(env);
+  size_t start = 0;
+  while (start <= path.size()) {
+    size_t end = path.find(sep, start);
+    if (end == std::string::npos) end = path.size();
+    std::string dir = path.substr(start, end - start);
+    start = end + 1;
+    if (dir.empty()) dir = ".";  // an empty PATH entry means the CWD
+    std::error_code ec;
+    fs::path cand = fs::path(dir) / name;
+    fs::path abs = fs::weakly_canonical(cand, ec);
+    if (ec) abs = fs::absolute(cand, ec);
+    if (!ec && path_is_executable(abs)) return abs.string();
+  }
+  return std::string();
+}
+
 // exe_path: argv[0] or QCoreApplication::applicationFilePath().toStdString()
-// Returns absolute path to the engine, or empty string if not found.
+// Returns an absolute path to the engine, or an EMPTY STRING if it is not
+// found anywhere (callers must treat "" as "not found" — it used to return the
+// bare basename, which then failed the caller's own executability probe with a
+// confusing message).
 inline std::string locate_engine(const std::string& exe_path = {}) {
   std::vector<fs::path> candidates;
 
@@ -81,8 +119,8 @@ inline std::string locate_engine(const std::string& exe_path = {}) {
     if (path_is_executable(abs)) return abs.string();
   }
 
-  // Fall back to bare name on PATH — caller may still fail at exec time.
-  return base;
+  // Step 5: PATH. Now an actual PATH search (see find_on_path above).
+  return find_on_path(base);
 }
 
 }  // namespace gs
