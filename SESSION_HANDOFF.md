@@ -233,13 +233,14 @@ sections of this file are historical, not current.
 | `scripts/smoke_cli.sh` | ✅ 7/7 |
 | `scripts/test_package.sh` (packaging negative suite) | ✅ 9/9 |
 | `scripts/verify_audit.sh` | ✅ **23 PASS / 0 FAIL / 5 SKIP, exit 0** (skips = cmake, Qt6, E9 pending-workflow, CI-gated, clean-Windows) |
-| GUI offscreen harness (`test_gui_offscreen`) | ⏳ **T1–T17, CI-only** — no cmake/Qt6 in this sandbox |
+| GUI offscreen harness (`test_gui_offscreen`, T1–T17) | ✅ **green in CI on linux AND windows** (run `34471563229`, PR #11: linux 1m14s, windows 2m56s). Not runnable locally — no cmake/Qt6. The harness `return 1`s on any failure and runs under `set -euo pipefail`, so a green job *is* a green harness. The **exact check count was not retrievable** from this sandbox (the Actions log host is unreachable), so 243 remains the last measured figure. |
 | `node web/test/command.test.mjs` (JS ⇄ C++ command parity) | ✅ **14/14 PASS** |
 | `node web/test/validate.test.mjs` (JS ⇄ C++ validation parity) | ✅ **19/19 PASS** |
 | `node web/test/transport.test.mjs` (live-server end-to-end) | ✅ **17/17 PASS** |
 | CLI reads a GUI-saved conf (GUI keys present) | ✅ exit 0, zero warnings |
 | `diff .github/workflows/build.yml docs/ci/build.yml.proposed` | ⏳ **differ on purpose** — the CI change is blocked by the missing `workflows` scope; it lives in `docs/ci/PENDING_WORKFLOW_CHANGE.md`. E9 SKIPs for declared drift, FAILs for undeclared |
-| Windows CI (linux job too) | ⏳ **must confirm this branch** — the only Windows Qt verification |
+| Windows CI (linux job too) | ✅ **both jobs pass on this branch** (PR #11, run `34471563229`) — first compilation of the S8 `src/qtui/` edits and harness T8/T17 |
+| Web suites in CI | ⏳ **not yet** — the workflow change is still pending (see `docs/ci/PENDING_WORKFLOW_CHANGE.md`); all three were run locally |
 
 **S8 batch 2 (2026-09-10)** closed U-21, U-30, U-31, U-32, U-44, U-46, U-49,
 U-50, U-51, U-52 on top of batch 1's 21. Every one is backed by an executed

@@ -536,11 +536,27 @@ directions (see §0) so the guard is not weakened into uselessness. Re-run:
 
 ## 3. Fixed but CI-compiled only (Qt)
 
+**UPDATE — CI is now green on this branch.** PR #11, run `34471563229`:
+**linux pass (1m14s)** and **windows pass (2m56s)**. The linux step runs
+`QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen` under
+`set -euo pipefail`, and the harness `return 1`s on any failure, so a green job
+**is** a green harness — including the T8 rewrite and the new T17, which had
+never been compiled before this run. Windows passing additionally covers the
+`NameRules::Host` compile path and the `CreateProcessA` process layer.
+
+What this run did **not** cover: the three web suites, because the workflow
+change adding them is still pending (`docs/ci/PENDING_WORKFLOW_CHANGE.md`). All
+three were run locally instead. The exact harness check count was not
+retrievable from this sandbox — the Actions log host
+(`results-receiver.actions.githubusercontent.com`) is unreachable — so **243
+remains the last measured number** and should not be quoted as current.
+
 This sandbox has **no cmake and no Qt6** (`apt-get update` →
 `Acquire (13: Permission denied)`, uid 1001), so `src/qtui/` and the offscreen
-harness cannot be compiled here. These changes are written and reviewed but
-**not locally compiled** — CI is the first compiler they meet. Saying so plainly
-rather than implying they were tested:
+harness could not be compiled here. At the time of writing these changes were
+written and reviewed but **not locally compiled** — CI was the first compiler
+they met, and per the update above it accepted them on both platforms. The
+table is kept as the record of what was at stake:
 
 | Change | File |
 |---|---|
