@@ -66,11 +66,34 @@ this session; everything here is process, gates and docs.
    changes the totals, and **G6 fails until every doc quotes the new number**).
 3. **U-09** release re-cut → **W-18** clean-Windows smoke → **W-19** desktop
    probes → the owner decisions (**W-26** two-way CLI, **W-29** version).
-4. **This branch was not pushed.** The GitHub token went bad part-way through
-   the session (`gh api user` → `Bad credentials`), so the three S9 commits sit
-   on the local `arena/01a08bb3-gifscythe` branch only. Nothing was opened or
-   merged. The next session must re-authenticate, push, and then run the
-   PR-boundary doc check again.
+4. **No PR was opened.** The branch is pushed; opening and merging it is the
+   owner's call. Whoever does it must run `check_docs.sh` again first (rule 3 —
+   before `gh pr create` *and* before `gh pr merge`), and must apply
+   `docs/ci/PENDING_WORKFLOW_CHANGE.md` with a `workflows`-scoped token.
+
+**A push interruption, recorded because the recovery matters.** The GitHub token
+went bad part-way through the session (`gh api user` → `Bad credentials`,
+`git push` → `Invalid username or token`), so the S9 commits sat locally for a
+while. It recovered later in the same session and the branch was pushed as
+`089f76b`; the remote ref matches local `HEAD`.
+
+The push itself is the end-to-end proof of rule 4: **`.githooks/pre-push` ran
+the whole documentation gate as part of `git push`** and only then let it
+through —
+
+```
+==> Done. 21 passed, 0 failed, 1 skipped.
+==> pre-push: documentation gate green.
+ * [new branch]      HEAD -> arena/01a08bb3-gifscythe
+```
+
+**Honest limitation this exposed:** this very paragraph's predecessor said "this
+branch was not pushed" and stayed true in the file for one commit after that
+stopped being the case. `check_docs.sh` cannot catch that — **G6** validates
+gate-number triples, **G8** validates paths, **G10** validates SHAs, but no gate
+can tell whether a sentence of prose still describes reality. The register can
+be made unfudgeable; prose cannot. Which is the argument for keeping state in
+`STATUS.md` rows rather than in paragraphs.
 
 **Mutation-tested, and it mattered.** The gate was mutation-tested in five
 directions (flip a row's state; same ID DONE in one doc and OPEN in another;
