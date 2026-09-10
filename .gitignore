@@ -1,32 +1,85 @@
-# Build trees
-**/build/
-**/build-win/
-**/build-cmake/
-**/CMakeCache.txt
-**/CMakeFiles/
-**/cmake_install.cmake
-**/Makefile
-**/*.o
-**/*.a
-**/*.so
-**/*.exe
-!reference_code/**/*.exe
+```
+# Build artifacts
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+*.exe
+*.out
 
-# Engine + packaged releases (built artifacts)
-working_code/gifscythe/release/*/gifsicle
-working_code/gifscythe/release/*/gifsicle.exe
-working_code/gifscythe/release/*/Gifscythe/
-working_code/gifscythe/release/*/Gifscythe-system/
+# Qt build files
+*.moc
+*.moc.cpp
+*.qm
+*.qrc
+*.pro.user
+*.pri
+moc_*
+qrc_*
+ui_*
 
-# Auto-fetched reference clones (large; re-fetch as needed)
-reference_code/gifsicle-upstream/
-reference_code/caesium-source/
-reference_code/caesium-bin/
+# C++ build directories
+build/
+cmake-build-*/
+Makefile
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
 
-# Editor / OS
-.DS_Store
-*.swp
-*~
-.idea/
+# Dependencies
+vendor/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE files
 .vscode/
-*.user
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+```

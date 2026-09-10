@@ -207,7 +207,13 @@ inline void GifsicleCommand::build() {
     add(args_, optimization_opt(s.optimize_level));
   }
   if (s.unoptimize) add(args_, "-U");
-  if (s.threads > 0) { add(args_, "-j" + i2s(s.threads)); }
+  // U-03 FIX: threads=0 means "Auto" → emit bare "-j" (gifsicle uses default 8).
+  // threads>0 → "-jN". threads<0 (shouldn't happen) → omit.
+  if (s.threads == 0) {
+    add(args_, "-j");
+  } else if (s.threads > 0) {
+    add(args_, "-j" + i2s(s.threads));
+  }
 
   // Inputs
   for (const auto& in : s.inputs) add(args_, in);

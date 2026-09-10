@@ -743,18 +743,57 @@ void MainWindow::runCommand() {
           QStringLiteral("Cannot create the batch output folder:\n%1").arg(dir));
       return;
     }
+    // U-01 FIX: Plan all batch outputs before the first process starts.
+    // Reject duplicate targets and target-equals-source (self-overwrite).
+    struct PlannedOutput { QString input; QString output; };
+    QVector<PlannedOutput> planned;
+    planned.reserve(inputs_.size());
+    QSet<QString> seenOutputs;
+    const QString explicitOut = outputEdit_->text().trimmed();
+    for (const QString& in : inputs_) {
+      QString out;
+      if (inputs_.size() == 1 && !explicitOut.isEmpty()) {
+        out = explicitOut;
+      } else {
+        out = defaultOutputFor(in);
+      }
+      // Check: output equals input (self-overwrite)
+      if (QFileInfo(out) == QFileInfo(in)) {
+        QMessageBox::critical(this, QStringLiteral("Gifscythe"),
+            QStringLiteral("Output file \"%1\" is the same as input \"%2\".\n"
+                           "This would destroy your source file.\n"
+                           "Change the name template or choose a different output folder.")
+                .arg(out, in));
+        return;
+      }
+      // Check: duplicate output targets
+      if (seenOutputs.contains(out)) {
+        QMessageBox::critical(this, QStringLiteral("Gifscythe"),
+            QStringLiteral("Multiple inputs would overwrite the same output file \"%1\".\n"
+                           "Change the name template to produce unique names.")
+                .arg(out));
+        return;
+      }
+      // Check: output file already exists (warn but allow)
+      if (QFile::exists(out)) {
+        const int reply = QMessageBox::question(
+            this, QStringLiteral("Gifscythe"),
+            QStringLiteral("Output file \"%1\" already exists.\nOverwrite?")
+                .arg(out),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+        if (reply != QMessageBox::Yes) return;
+      }
+      seenOutputs.insert(out);
+      planned.append({in, out});
+    }
     // Process one file at a time with auto output names.
     batchQueue_ = inputs_;
     batchIndex_ = 0;
+    planned_ = std::move(planned);  // store the pre-verified plan for batch continuation
     setBusy(true);
     updateStatus(QStringLiteral("Optimizing 1/%1…").arg(batchQueue_.size()));
     QString in = batchQueue_.at(0);
-    QString out = outputEdit_->text().trimmed();
-    if (batchQueue_.size() == 1 && !out.isEmpty()) {
-      pendingOutput_ = out;  // E1: explicit Save-as honored for a single file
-    } else {
-      pendingOutput_ = defaultOutputFor(in);
-    }
+    pendingOutput_ = planned_[0].output;
     gs::Settings one = settings;
     one.mode = gs::Mode::Auto;  // single-file, no -b needed
     one.inputs = {in.toStdString()};
@@ -791,6 +830,7 @@ void MainWindow::runCommand() {
   pendingOutput_ = QString::fromStdString(settings.output);
   batchIndex_ = -1;
   batchQueue_.clear();
+  planned_.clear();
 
   gs::GifsicleCommand cmd(settings);
   QStringList qargs;
@@ -820,6 +860,7 @@ void MainWindow::cancelRun() {
   cancelling_ = false;
   batchQueue_.clear();
   batchIndex_ = -1;
+  planned_.clear();
   setBusy(false);
   updateStatus(QStringLiteral("Cancelled."));
 }
@@ -839,6 +880,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     setBusy(false);
     batchQueue_.clear();
     batchIndex_ = -1;
+    planned_.clear();
     updateStatus(QStringLiteral("Optimization failed (exit %1).").arg(exitCode));
     QMessageBox::warning(this, QStringLiteral("Gifscythe"),
         err.isEmpty() ? QStringLiteral("The GIF engine returned an error (exit %1).").arg(exitCode)
@@ -869,7 +911,9 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
                        .arg(batchIndex_ + 1)
                        .arg(batchQueue_.size()));
       QString in = batchQueue_.at(batchIndex_);
-      pendingOutput_ = defaultOutputFor(in);
+      // Use the pre-planned output path instead of recomputing it.
+      // The planning phase already verified no self-overwrite or duplicates.
+      pendingOutput_ = planned_[batchIndex_].output;
       auto settings = currentSettings();
       gs::Settings one = settings;
       one.mode = gs::Mode::Auto;

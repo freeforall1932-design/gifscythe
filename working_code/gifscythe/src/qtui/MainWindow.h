@@ -150,6 +150,9 @@ class MainWindow : public QMainWindow {
   int batchIndex_ = -1;
   QStringList batchQueue_;
   gs::Mode batchMode_ = gs::Mode::Batch;
+  // U-01 FIX: pre-planned batch outputs (input -> output mapping verified before run)
+  struct PlannedOutput { QString input; QString output; };
+  QVector<PlannedOutput> planned_;
 
   // Preview state
   QProcess* previewProcess_ = nullptr;  // objectName "previewProcess"

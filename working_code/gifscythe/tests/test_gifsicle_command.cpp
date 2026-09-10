@@ -328,6 +328,23 @@ int main() {
     CHECK(w.empty());  // GUI keys must not raise load warnings
   }
 
+  // 20. Threads: Auto (0) emits bare "-j", explicit N emits "-jN".
+  {
+    Settings s;
+    s.inputs = {"a.gif"};
+    s.output = "out.gif";
+    s.threads = 0;  // Auto
+    GifsicleCommand c(s);
+    auto args = c.args();
+    CHECK(has(args, "-j"));
+    CHECK(!has(args, "-j0"));  // must NOT be "-j0"
+    // Explicit value
+    s.threads = 4;
+    GifsicleCommand c2(s);
+    auto args2 = c2.args();
+    CHECK(has(args2, "-j4"));
+  }
+
   if (failures == 0) {
     std::printf("ALL TESTS PASSED\n");
     return 0;
