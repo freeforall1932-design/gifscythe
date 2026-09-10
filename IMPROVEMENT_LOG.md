@@ -66,6 +66,29 @@ this session; everything here is process, gates and docs.
    changes the totals, and **G6 fails until every doc quotes the new number**).
 3. **U-09** release re-cut → **W-18** clean-Windows smoke → **W-19** desktop
    probes → the owner decisions (**W-26** two-way CLI, **W-29** version).
+4. **This branch was not pushed.** The GitHub token went bad part-way through
+   the session (`gh api user` → `Bad credentials`), so the three S9 commits sit
+   on the local `arena/01a08bb3-gifscythe` branch only. Nothing was opened or
+   merged. The next session must re-authenticate, push, and then run the
+   PR-boundary doc check again.
+
+**Mutation-tested, and it mattered.** The gate was mutation-tested in five
+directions (flip a row's state; same ID DONE in one doc and OPEN in another;
+PARTIAL with no explanation; a wrong gate count in `README.md`; a doc pointing
+at a file that does not exist). All five now fail with a named gate. **Three of
+them passed at first**, which is the whole argument for mutation-testing a
+checker:
+
+* **G8 never checked anything.** `awk '{print $2" "$1}'` emitted
+  `path source`, while the reader destructured `source path` — so the existence
+  test ran against each *document's own filename*, which always exists. G8 had
+  been passing unconditionally.
+* **G10 failed on every commit.** It compared the documented base commit against
+  `HEAD`, and a session commits on top of `main`. It now compares against
+  `origin/main`.
+* **G6 missed wrapped claims.** `23 PASS / 0 FAIL /` + `5 SKIP` across a line
+  break never matched a line-based regex, so the stalest number in `README.md`
+  was invisible. It now flattens the doc and matches with a context window.
 
 **Verified:** (every line below was actually run in this sandbox)
 
