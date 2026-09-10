@@ -191,8 +191,12 @@ in C++ **and** JS (U-48).
 
 ### Constraint kept
 
-`.github/workflows/build.yml` and `docs/ci/build.yml.proposed` are byte-identical,
-and the new `verify_audit.sh` **E9** check now fails if they drift.
+`.github/workflows/build.yml` and `docs/ci/build.yml.proposed` were byte-identical
+at this point, and the new `verify_audit.sh` **E9** check fails if they drift.
+*(Superseded later in this session: the batch-2 push was rejected for lacking the
+`workflows` scope, so the live workflow was reverted and the change moved to
+`docs/ci/PENDING_WORKFLOW_CHANGE.md`. E9 now SKIPs for that declared state and
+still FAILs on undeclared drift — see the batch-2 entry.)*
 
 ---
 

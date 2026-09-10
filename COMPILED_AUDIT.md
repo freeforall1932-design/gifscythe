@@ -1,12 +1,16 @@
 # Gifscythe — Compiled Audit (Master) — v2
 
-> **Remediation status (2026-09-10, session S8): 21 findings closed outright, 3 closed
-> in part (U-10/U-14/U-18), 2 register rows corrected (U-19/U-20) — see `docs/audit/REMEDIATION_2026-09-10.md` for the per-finding before/after
-> evidence and the mutation-test record. Rows below carry a `✅ FIXED (S8)` /
-> `◐ PARTIAL (S8)` / `☑ CORRECTED (S8)` marker in the Status column.**
+> **Remediation status (2026-09-10, session S8): 31 findings closed outright
+> (21 in batch 1 + 10 in batch 2), 3 closed in part (U-10/U-14/U-18), 15 still
+> open, 2 register rows corrected (U-19/U-20) — see
+> `docs/audit/REMEDIATION_2026-09-10.md` for the per-finding before/after
+> evidence, the mutation-test record and the exact tally. Rows below carry a
+> `✅ FIXED (S8)` / `◐ PARTIAL (S8)` / `☑ CORRECTED (S8)` marker in the Status
+> column. CI on **PR #11** (run `34471563229`) is **green on linux and
+> windows**, which is the first compilation of the S8 Qt edits.**
 
-**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7 (2026-09-10)
-**Branch:** `arena/01a089ca-gifscythe` → based on `main` commit `7a0a8b8`
+**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7 (2026-09-10), S8 (2026-09-10)
+**Branch:** `arena/01a08a10-gifscythe` → based on `main` commit `a55a68d` (PR #11)
 **Product version:** 0.1.0 (do **not** bump to 1.0.0 yet)
 **Companion docs:** `SESSION_HANDOFF.md` · `WORKLIST.md` · `IMPROVEMENT_LOG.md`
 

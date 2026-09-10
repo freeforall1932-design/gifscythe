@@ -111,7 +111,7 @@
 - [ ] Windows-only: **U-07** ANSI process APIs (needs a real Windows run).
 - [ ] **U-09** re-cut the release from *this* SHA.
 
-### GIF UI/UX → 1.0.0  (S4b retrofit 2026-09-07 + S7 polish 2026-09-10 — harness T1–T16 at 243 checks in the S7 sandbox; S8 added T17 + rewrote T8, CI-only)
+### GIF UI/UX → 1.0.0  (S4b retrofit 2026-09-07 + S7 polish 2026-09-10 — harness T1–T16 at 243 checks in the S7 sandbox; S8 added T17 + rewrote T8 — **both CI-green on PR #11**)
 - [x] Input / Actions / Output tab flow (XNConvert feel) — QTabWidget + Preview
       pane in splitter; bottom live pane/progress/status bar kept
 - [x] Before/after preview (debounced 1200 ms, fully async, seq-guarded;
