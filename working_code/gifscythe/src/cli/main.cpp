@@ -15,8 +15,10 @@
 #include "../core/EngineLocator.h"
 #include "../core/ProcessRunner.h"
 #include "../core/Validate.h"
+#include "../core/OutputPlan.h"
 #include "../core/version.h"
 
+#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -30,6 +32,21 @@
 namespace fs = std::filesystem;
 
 namespace {
+
+void print_usage(const char* argv0, std::FILE* to) {
+  std::fprintf(to, "Usage: %s <settings.conf> [--run] [--engine <path>]\n", argv0);
+  std::fprintf(to, "  Without --run: print the engine command line (live pane) on stdout.\n");
+  std::fprintf(to, "  With --run:    execute it against the bundled gifsicle engine.\n");
+  std::fprintf(to, "                 All commentary goes to stderr, so stdout stays a\n");
+  std::fprintf(to, "                 clean byte stream when the settings have no output.\n");
+  std::fprintf(to, "  --engine PATH  use this gifsicle instead of the located one.\n");
+  std::fprintf(to, "  --version      print the Gifscythe version and exit.\n");
+  std::fprintf(to, "  Warning policy: out-of-range settings print a WARNING and the run\n");
+  std::fprintf(to, "                proceeds anyway (the GUI refuses instead). An UNSAFE\n");
+  std::fprintf(to, "                output target is always refused with exit code 2.\n");
+  std::fprintf(to, "  GS_ENGINE env: override default engine path.\n");
+  std::fprintf(to, "  Gifscythe %s\n", GS_VERSION);
+}
 
 bool read_file(const fs::path& path, std::string* out) {
   std::ifstream f(path, std::ios::binary);
@@ -81,11 +98,7 @@ fs::path exe_path_of(const char* argv0) {
 
 int main(int argc, char** argv) {
   if (argc < 2) {
-    std::printf("Usage: %s <settings.conf> [--run] [--engine <path>]\n", argv[0]);
-    std::printf("  Without --run: print the engine command line (live pane).\n");
-    std::printf("  With --run:    execute it against the bundled gifsicle engine.\n");
-    std::printf("  GS_ENGINE env: override default engine path.\n");
-    std::printf("  Gifscythe %s\n", GS_VERSION);
+    print_usage(argv[0], stdout);
     return 2;
   }
 
@@ -93,10 +106,41 @@ int main(int argc, char** argv) {
   bool do_run = false;
   std::string engine_override;
 
+  // Strict argument parsing (audit U-23). Previously the loop below had no
+  // else-branch, so a typo like --rnu was silently dropped and the run went
+  // ahead with the wrong semantics (verified: rc=0, stderr empty, no message),
+  // and `--engine` with no value was ignored just as quietly. A driver whose
+  // whole job is honesty about what it ran cannot swallow its own arguments.
+  if (std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0) {
+    print_usage(argv[0], stdout);
+    return 0;
+  }
+  if (std::strcmp(argv[1], "--version") == 0) {
+    std::printf("Gifscythe %s\n", GS_VERSION);
+    return 0;
+  }
+
   for (int i = 2; i < argc; ++i) {
-    if (std::strcmp(argv[i], "--run") == 0) do_run = true;
-    else if (std::strcmp(argv[i], "--engine") == 0 && i + 1 < argc) {
+    const std::string a = argv[i];
+    if (a == "--run") {
+      do_run = true;
+    } else if (a == "--engine") {
+      if (i + 1 >= argc) {
+        std::fprintf(stderr, "ERROR: --engine requires a path\n");
+        print_usage(argv[0], stderr);
+        return 2;
+      }
       engine_override = argv[++i];
+    } else if (a == "-h" || a == "--help") {
+      print_usage(argv[0], stdout);
+      return 0;
+    } else if (a == "--version") {
+      std::printf("Gifscythe %s\n", GS_VERSION);
+      return 0;
+    } else {
+      std::fprintf(stderr, "ERROR: unknown argument '%s'\n", a.c_str());
+      print_usage(argv[0], stderr);
+      return 2;
     }
   }
 
@@ -142,21 +186,58 @@ int main(int argc, char** argv) {
     engine_path = gs::locate_engine(exe_path_of(argv[0]).string());
   }
 
+  // ---- stdout purity (audit U-04) ----
+  // With --run and no `output` key, gifsicle writes GIF BYTES to fd 1. The
+  // commentary below used to be printf'd into the same libc-buffered stdout,
+  // so `gifscythe-cli conf --run > out.gif` produced a file that started with
+  // GIF89a and ended with "# -> exit code 0" (verified: 8887 bytes, gifsicle
+  // then reports "trailing garbage after GIF ignored"). In --run mode every
+  // note goes to stderr and stdout belongs to the engine alone. Print mode
+  // keeps the command line on stdout — that IS its documented output.
+  auto note = [do_run](const char* fmt, ...) {
+    std::FILE* to = do_run ? stderr : stdout;
+    va_list ap;
+    va_start(ap, fmt);
+    std::vfprintf(to, fmt, ap);
+    va_end(ap);
+  };
+
   gs::GifsicleCommand cmd(s);
   std::string cli = cmd.toString();
 
   // The live CLI pane (shell-quoted for safe copy-paste).
-  std::printf("# Gifscythe %s command (live CLI pane)\n", GS_VERSION);
-  std::printf("%s %s\n", gs::shell_quote(engine_path).c_str(), cli.c_str());
+  note("# Gifscythe %s command (live CLI pane)\n", GS_VERSION);
+  note("%s %s\n", gs::shell_quote(engine_path.empty() ? gs::engine_basename() : engine_path).c_str(),
+       cli.c_str());
 
   if (!do_run) {
-    std::printf("# (use --run to execute)\n");
+    note("# (use --run to execute)\n");
     return 0;
+  }
+
+  // ---- Plan the output before anything runs (audit U-01) ----
+  // The desktop GUI refuses runs whose target is a queued source or whose
+  // targets collide; the CLI has to hold the same line, or `--run` becomes the
+  // easy way around the guard. Explode is exempt: its `output` is a PREFIX and
+  // the engine appends .000/.001, so it cannot land on an input.
+  if (!s.output.empty() && s.mode != gs::Mode::Explode) {
+    const gs::OutputPlan plan = gs::plan_outputs(s.inputs, {s.output});
+    if (!plan.ok) {
+      std::fprintf(stderr, "ERROR: refusing to run — the planned output is not safe:\n");
+      std::fprintf(stderr, "%s\n", plan.describe().c_str());
+      return 2;
+    }
+    for (const auto& p : plan.preexisting) {
+      std::fprintf(stderr, "NOTE: output already exists and will be replaced: %s\n", p.c_str());
+    }
   }
 
   // Pre-flight: engine must exist.
   if (!gs::path_is_executable(engine_path)) {
-    std::fprintf(stderr, "ERROR: engine not found at %s\n", engine_path.c_str());
+    std::fprintf(stderr, "ERROR: engine not found%s%s\n",
+                 engine_path.empty() ? "" : " at ", engine_path.c_str());
+    std::fprintf(stderr, "       Searched GS_ENGINE, the folders next to this executable,\n");
+    std::fprintf(stderr, "       the release/ trees, and PATH.\n");
     std::fprintf(stderr, "       Build it with ./scripts/build_engine.sh\n");
     std::fprintf(stderr, "       Or set GS_ENGINE / pass --engine <path>\n");
     return 1;
@@ -168,8 +249,8 @@ int main(int argc, char** argv) {
   const auto& args = cmd.args();
   full_argv.insert(full_argv.end(), args.begin(), args.end());
 
-  std::printf("# -> running (argv exec, no shell)\n");
+  note("# -> running (argv exec, no shell)\n");
   int rc = gs::run_argv(full_argv);
-  std::printf("# -> exit code %d\n", rc);
+  note("# -> exit code %d\n", rc);
   return rc;  // honest 0..255
 }

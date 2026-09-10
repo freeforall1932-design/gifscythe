@@ -56,9 +56,12 @@ inline std::string win_quote_arg(const std::string& a) {
   return out;
 }
 
-// Run program + args (args[0] should be the program path). Returns the process
-// exit code 0..255, or 127 if the binary could not be started, or 1 on other
-// failures. NEVER goes through a shell (no /bin/sh, no cmd.exe).
+// Run program + args (args[0] should be the program path). Returns the child's
+// exit code 0..255. If the child was killed by a signal the shell convention
+// 128+signum is returned (audit U-32). 127 means the binary could not be
+// started; 1 means a fork/wait failure. NEVER goes through a shell — no /bin/sh
+// and no cmd.exe are ever involved (verify_audit.sh E3 greps src/ for those
+// tokens and exempts lines containing "NEVER"/"no shell").
 inline int run_argv(const std::vector<std::string>& args) {
   if (args.empty()) return 1;
 
@@ -115,8 +118,11 @@ inline int run_argv(const std::vector<std::string>& args) {
   }
   if (WIFEXITED(status)) return WEXITSTATUS(status);
   if (WIFSIGNALED(status)) {
+    // Audit U-32: report the shell convention 128+signum, not a flat 1. Callers
+    // could not previously tell a crash from a kill — and the GUI's cancel path
+    // kills the engine on purpose, so the distinction is not academic.
     std::fprintf(stderr, "ERROR: process killed by signal %d\n", WTERMSIG(status));
-    return 1;
+    return 128 + WTERMSIG(status);
   }
   return 1;
 #endif

@@ -70,6 +70,7 @@
           <select id="resize">
             <option value="none" selected>No resize</option>
             <option value="fit">Fit inside W×H</option>
+            <option value="touch">Touch W×H (never enlarge)</option>
             <option value="exact">Exact W×H</option>
             <option value="width">Width only</option>
             <option value="height">Height only</option>
@@ -78,7 +79,7 @@
         </label>
         <label>W <input type="number" id="w" min="1" max="65535" value="320" /></label>
         <label>H <input type="number" id="h" min="1" max="65535" value="240" /></label>
-        <label>Scale % <input type="number" id="scalePct" min="1" max="1000" value="50" step="0.1" /></label>
+        <label>Scale % <input type="number" id="scalePct" min="1" max="1000" value="100" step="0.1" /></label>
         <label>Loop
           <select id="loop">
             <option value="keep" selected>Keep original</option>

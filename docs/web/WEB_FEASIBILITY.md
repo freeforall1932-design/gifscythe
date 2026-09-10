@@ -42,12 +42,22 @@ web/
   server.mjs            zero-dep Node HTTP server; POST /optimize runs the engine
   command.mjs           JS mirror of src/core/GifsicleCommand.h (buildArgs/shellQuote/toString)
   index.html / app.js / style.css   browser UI: upload → optimize → before/after + download
-  test/command.test.mjs parity test: JS builder vs the real C++ gifscythe-cli output
+  validate.mjs          JS mirror of src/core/Validate.h (audit U-30)
+  test/command.test.mjs  parity: JS builder    vs the real gifscythe-cli output
+  test/validate.test.mjs parity: JS validation vs the real core/Validate.h
+  test/transport.test.mjs live-server net for the HTTP transport (U-49/U-50)
 ```
 
-- **Parity guarantee:** `test/command.test.mjs` serializes 12 settings fixtures
-  to conf files, runs the real C++ `gifscythe-cli` in print mode, and asserts
-  the JS `toString()` is byte-identical. (2026-09-09: 13/13 green.)
+- **Parity guarantee (command):** `test/command.test.mjs` serializes 14 settings
+  fixtures to conf files, runs the real C++ `gifscythe-cli` in print mode, and
+  asserts the JS `toString()` is byte-identical. **14/14 green.**
+- **Parity guarantee (validation, added for audit U-30):**
+  `test/validate.test.mjs` asserts `validate.mjs` returns exactly the same
+  `(field, value, reason)` triples as `src/core/Validate.h` — same set, same
+  order, same wording. **19/19 green.** Out-of-range settings now answer
+  **HTTP 422** with an `issues[]` list instead of reaching the engine; e.g.
+  `--scale 0x1` exits 0 and silently resizes nothing, so it is caught before
+  the run rather than returned as a "successful" unchanged GIF.
 - **Same execution model as desktop:** the server builds argv and spawns the
   engine directly (`child_process.spawn`, argv array) — never a shell.
 - **Honest failures:** engine exit ≠ 0 returns HTTP 422 with `{ok:false,
@@ -74,4 +84,6 @@ cd working_code/gifscythe && ./build.sh          # engine + CLI (once)
 node web/server.mjs 8000                          # from the repo root
 # open http://localhost:8000  (or the live preview)
 node web/test/command.test.mjs                    # JS ⇄ C++ command parity
+node web/test/validate.test.mjs                   # JS ⇄ C++ validation parity
+node web/test/transport.test.mjs                  # live-server transport net
 ```

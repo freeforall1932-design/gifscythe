@@ -14,8 +14,9 @@ root `reference_code/` (read-only).
 - **0.1.0** — engine + control layer + CLI + full GUI (S4b retrofit + S7 polish).
 - `COMPILED_AUDIT.md` §6 was **executed with evidence** (S4) and **rerun green
   on 2026-09-10 (S7)**: §6.A all green, §6.B green via the offscreen GUI
-  harness (**243 checks, T1–T16**), §6.E all green; `verify_audit.sh` →
-  **21 PASS / 0 FAIL / 2 SKIP** (CI-gated items).
+  harness (**243 checks, T1–T16**, measured in the S7 sandbox), §6.E all green;
+  `verify_audit.sh` → **23 PASS / 0 FAIL / 5 SKIP, exit 0** (E9 SKIPs while the
+  CI workflow change awaits a `workflows`-scoped token).
 - **Windows path proven under Wine + CI**: engine exe (`1.96 (Windows)`), CLI
   E2E with `C:\` paths + spaces, static-linked exes, honest exit codes; main
   green on both jobs (runs #23/#24), binaries banked on Release
@@ -45,13 +46,18 @@ root `reference_code/` (read-only).
 # Whole COMPILED_AUDIT §6 regression suite in one command
 ./scripts/verify_audit.sh
 
-# Offscreen GUI harness (243 checks, T1–T16; needs Qt6)
+# Packaging NEGATIVE tests — an incomplete package must fail (audit U-02/U-14)
+./scripts/test_package.sh
+
+# Offscreen GUI harness (T1–T17; needs Qt6). The check count is printed by the
+# harness itself; it is not restated here so it cannot go stale.
 cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release
 cmake --build build-cmake
 QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
 
 # Packaging
-./scripts/package_portable.sh
+./scripts/package_portable.sh                    # GUI required (fails closed)
+./scripts/package_portable.sh --engine-cli-only   # headless package, on purpose
 ./scripts/package_system.sh
 ```
 
@@ -115,7 +121,9 @@ explicit choice (concatenates animations).
   location (`%APPDATA%\Gifscythe\` on Windows); override the path with
   `GS_SETTINGS_PATH`. The queue and Save-as field are deliberately *not*
   restored. Corrupt files apply their valid keys and warn in the status bar.
-- Regression net: `tests/test_gui_offscreen.cpp` (243 checks, runs in CI).
+- Regression net: `tests/test_gui_offscreen.cpp` — T1–T17, 226 `CHECK(` sites in
+  source; last measured at 243 runtime checks (T1–T16) in the S7 sandbox. Runs
+  in CI; this sandbox has no Qt6/cmake.
 
 ## Versioning
 0.1.0 → 1.0.0–1.9.9 (finished GIF product) → 2.0.0–3.0.0 (WebP + APNG).  

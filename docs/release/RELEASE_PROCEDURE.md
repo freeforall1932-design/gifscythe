@@ -43,14 +43,17 @@ node ../../web/test/command.test.mjs                         # -> ALL PASSED
 ```
 
 Expected counts as of S7 (2026-09-10): unit suite 20 tests, harness
-**243 checks**, `verify_audit.sh` **21 PASS / 0 FAIL / 2 SKIP** (skips are
+**243 checks** *(S7 measurement — re-run it on a Qt machine before trusting the
+number)*, `verify_audit.sh` **23 PASS / 0 FAIL / 5 SKIP, exit 0** (skips are
 CI-gated + clean-Windows items). If a count changed, update the docs in the
 same PR — stale counts are treated as a finding.
 
 Also verify before packaging:
 
 - `git status` clean; `.github/workflows/build.yml` and
-  `docs/ci/build.yml.proposed` are **byte-identical** (`diff` them).
+  `docs/ci/build.yml.proposed` are **byte-identical** (`diff` them) — unless
+  `docs/ci/PENDING_WORKFLOW_CHANGE.md` exists, which declares a workflow change
+  waiting on a token with the `workflows` scope. Apply it before releasing.
 - Engine identity: `release/<ver>/gifsicle --version` → `LCDF Gifsicle 1.96`.
 
 ## 2. Bump the version (if not a snapshot)

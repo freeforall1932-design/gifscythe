@@ -8,6 +8,15 @@ const $ = (id) => document.getElementById(id);
 
 let currentFile = null;
 let afterUrl = null;
+// U-52: the Before preview's object URL was created on every setFile() and never
+// revoked, so repeatedly choosing large files kept every one of them reachable
+// until page unload. Track it and release the previous one.
+let beforeUrl = null;
+// U-46: choosing a new file (or new settings) used to leave the in-flight fetch
+// running; when it landed it populated After, the download link and the savings
+// readout for a file that was no longer selected. A generation counter makes a
+// stale completion a no-op.
+let requestGen = 0;
 
 // ---- settings model (mirrors gs::Settings) ----
 function settings() {
@@ -64,12 +73,15 @@ drop.addEventListener("drop", (e) => {
 
 function setFile(f) {
   currentFile = f;
+  requestGen += 1;                 // U-46: invalidate anything already in flight
   if (afterUrl) { URL.revokeObjectURL(afterUrl); afterUrl = null; }
-  $("before").src = URL.createObjectURL(f);
+  if (beforeUrl) { URL.revokeObjectURL(beforeUrl); beforeUrl = null; }  // U-52
+  beforeUrl = URL.createObjectURL(f);
+  $("before").src = beforeUrl;
   $("after").removeAttribute("src");
   $("after").alt = "—";
   $("savings").textContent = "";
-  $("run").disabled = false;
+  $("run").disabled = !f;
   $("download").hidden = true;
   $("status").textContent = `${f.name} — ${humanSize(f.size)} ready.`;
   refreshCommand();
@@ -101,9 +113,11 @@ $("run").addEventListener("click", async () => {
   run.disabled = true;
   $("status").textContent = "Optimizing…";
   const s = settings();
+  const gen = requestGen;               // U-46: which selection this run belongs to
   try {
     const url = "/optimize?settings=" + encodeURIComponent(JSON.stringify(s));
     const resp = await fetch(url, { method: "POST", body: currentFile });
+    if (gen !== requestGen) return;     // a newer file was chosen; drop this one
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({ error: "HTTP " + resp.status }));
       $("status").textContent =
@@ -112,6 +126,7 @@ $("run").addEventListener("click", async () => {
       return;
     }
     const blob = await resp.blob();
+    if (gen !== requestGen) return;     // ...and again after the body is read
     if (afterUrl) URL.revokeObjectURL(afterUrl);
     afterUrl = URL.createObjectURL(blob);
     $("after").src = afterUrl;
@@ -122,16 +137,21 @@ $("run").addEventListener("click", async () => {
     $("savings").textContent =
       `${humanSize(inBytes)} → ${humanSize(outBytes)}  ` +
       `(${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%)`;
-    const cmd = resp.headers.get("X-Gifscythe-Command");
-    if (cmd) $("command").textContent = cmd;
+    // Header is percent-encoded by the server so it stays ASCII-safe (U-50).
+    const rawCmd = resp.headers.get("X-Gifscythe-Command");
+    if (rawCmd) {
+      try { $("command").textContent = decodeURIComponent(rawCmd); }
+      catch { $("command").textContent = rawCmd; }
+    }
 
     $("download").href = afterUrl;
     $("download").hidden = false;
     $("status").textContent = "Done.";
   } catch (e) {
+    if (gen !== requestGen) return;     // U-46: do not report a stale failure
     $("status").textContent = "Failed — " + (e && e.message ? e.message : e);
   } finally {
-    run.disabled = false;
+    if (gen === requestGen) run.disabled = false;
   }
 });
 

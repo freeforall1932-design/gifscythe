@@ -88,7 +88,14 @@ if ./scripts/test_engine.sh 2>&1 | tail -1 | grep -q "0 failed"; then ok "A11" "
 if ./scripts/smoke_cli.sh 2>&1 | tail -1 | grep -q "0 failed"; then ok "A12" "smoke_cli.sh 7/7"; else bad "A12" "smoke_cli.sh"; fi
 
 # ---------- C6/C7/C8: cmake + honest GUI dispatch ----------
-if cmake -S . -B "$work/c6" -DCMAKE_BUILD_TYPE=Release >/dev/null 2>&1 \
+# Audit U-38: a missing toolchain is a SKIP, not a FAIL. This block used to
+# call cmake unconditionally and report FAIL on a machine without it (verified:
+# "19 passed, 1 failed (C6), 3 skipped"), while the [B] block 13 lines below
+# guarded the same tool with `command -v cmake`. The headline number was
+# therefore not reproducible off the author's machine.
+if ! command -v cmake >/dev/null 2>&1; then
+  skip "C6" "cmake not installed — run on a machine with cmake or in CI"
+elif cmake -S . -B "$work/c6" -DCMAKE_BUILD_TYPE=Release >/dev/null 2>&1 \
    && cmake --build "$work/c6" >/dev/null 2>&1; then
   ok "C6" "cmake configure+build (INTERFACE core)"
 else bad "C6" "cmake configure/build"; fi
@@ -114,18 +121,47 @@ else
 fi
 
 # ---------- D: packaging ----------
-if ./scripts/package_portable.sh >/dev/null 2>&1; then
+# The packager now fails closed (audit U-02): the GUI is REQUIRED unless the
+# caller opts out with --engine-cli-only. So this check first asks whether a GUI
+# was actually built, and then asserts the package matches that scope instead of
+# quietly accepting a GUI-less folder (the old check printed "portable package
+# complete" for exactly that).
+gui_built=0
+for cand in build/gifscythe build/gifscythe.exe build/gui/gifscythe \
+            build/cmake/gifscythe build-win/gifscythe.exe; do
+  [[ -f "$cand" ]] && { gui_built=1; break; }
+done
+pkg_args=()
+[[ "$gui_built" == "1" ]] || pkg_args=(--engine-cli-only)
+if ./scripts/package_portable.sh ${pkg_args+"${pkg_args[@]}"} >/dev/null 2>&1; then
   pkg="release/$version/Gifscythe"
   miss=""
   [[ -x "$pkg/gifsicle" ]] || miss+=" engine"
   [[ -x "$pkg/gifscythe-cli" ]] || miss+=" cli"
-  [[ -f "$pkg/LICENSE" ]] || miss+=" LICENSE"
-  [[ -f "$pkg/COPYING.gifsicle" ]] || miss+=" COPYING.gifsicle"
-  if [[ -z "$miss" ]]; then ok "D1/D2" "portable package complete (engine+CLI+licenses$([[ -f $pkg/gifscythe ]] && echo '+GUI'))"; else bad "D1/D2" "package missing:$miss"; fi
-else bad "D" "package_portable.sh failed"; fi
+  [[ -s "$pkg/LICENSE" ]] || miss+=" LICENSE"
+  [[ -s "$pkg/COPYING.gifsicle" ]] || miss+=" COPYING.gifsicle"
+  if [[ "$gui_built" == "1" ]]; then
+    { [[ -f "$pkg/gifscythe" ]] || [[ -f "$pkg/gifscythe.exe" ]]; } || miss+=" GUI"
+  fi
+  if [[ -z "$miss" ]]; then
+    ok "D1/D2" "portable package complete (engine+CLI+licenses$([[ $gui_built == 1 ]] && echo '+GUI' || echo ', headless by request'))"
+  else bad "D1/D2" "package missing:$miss"; fi
+else bad "D" "package_portable.sh failed${pkg_args:+ (headless mode)}"; fi
+
+# D5: negative packaging tests — an incomplete package MUST fail (audit U-14:
+# CI had no negative test, so a green build proved nothing about the contents).
+if ./scripts/test_package.sh 2>&1 | tail -1 | grep -q "0 failed"; then
+  ok "D5" "test_package.sh negative suite green (incomplete packages fail closed)"
+else bad "D5" "test_package.sh reported failures"; fi
 
 # ---------- E: new-pit probes ----------
-if ! grep -rn "system(\|/bin/sh\|cmd\.exe\|sh -c" src/ 2>/dev/null | grep -v "not for system()\|no shell\|NEVER\|never" | grep -q .; then
+# Audit U-30 follow-up: E3 is line-based, so a DOC COMMENT that merely mentions
+# "/bin/sh" used to trip it (verified: my own ProcessRunner.h comment turned a
+# green run into "22 passed, 1 failed"). Nothing can execute inside a `//` or
+# `*` comment line, so those are exempted here — code lines still must not match.
+if ! grep -rn "system(\|/bin/sh\|cmd\.exe\|sh -c" src/ 2>/dev/null \
+     | grep -v "not for system()\|no shell\|NEVER\|never" \
+     | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | grep -q .; then
   ok "E3" "no shell execution in src/"
 else bad "E3" "shell execution pattern found in src/"; fi
 if grep -rq "GIFSYCYTHE" src/ 2>/dev/null; then bad "E8" "GIFSYCYTHE typo present"; else ok "E8" "include guards GIFSCYTHE_*"; fi
@@ -143,6 +179,43 @@ if awk '/== "windows"/{f=1} f && /-include src\/win32cfg\.h/{found=1} END{exit !
    && ! { grep -B1 -A2 -- '-include src/win32cfg.h' scripts/build_engine.sh | grep -q -- '-DVERSION='; }; then
   ok "E5" "windows engine line: -include win32cfg.h, no -DVERSION override"
 else bad "E5" "windows engine config suspect"; fi
+
+# F-10/U-39: the proposed-workflow copy is hand-maintained next to the live one
+# and has already drifted once, so drift is a FAIL instead of a surprise.
+# One declared exception: the CI bot token has no `workflows` scope, so a change
+# to .github/ cannot always be pushed (docs/ci/README.md "Apply manually").
+# In that state the copies differ ON PURPOSE, and docs/ci/PENDING_WORKFLOW_CHANGE.md
+# records what is waiting and how to apply it. Declared drift is a SKIP; any
+# other drift is still a FAIL. Delete the marker once the change is applied.
+if diff -q ../../.github/workflows/build.yml ../../docs/ci/build.yml.proposed >/dev/null 2>&1; then
+  ok "E9" ".github/workflows/build.yml and docs/ci/build.yml.proposed are byte-identical"
+elif [[ -f ../../docs/ci/PENDING_WORKFLOW_CHANGE.md ]]; then
+  skip "E9" "declared pending workflow change — see docs/ci/PENDING_WORKFLOW_CHANGE.md (needs a token with the workflows scope)"
+else
+  bad "E9" "workflow and docs/ci/build.yml.proposed have drifted"
+fi
+
+# ---------- W: web demo parity (JS ⇄ C++) ----------
+# web/ is not the product path, but it ships a SECOND copy of the command
+# builder and — since audit U-30 — of the validation rules. Neither is checked
+# by the C++ suites, so both are cross-checked against the real gifscythe-cli
+# here; otherwise the two clients drift silently (audit U-03 proved they do).
+if command -v node >/dev/null 2>&1; then
+  if ( cd ../.. && node web/test/command.test.mjs 2>&1 | tail -1 | grep -q "ALL WEB COMMAND TESTS PASSED" ); then
+    ok "W1" "web command parity (web/command.mjs == src/core/GifsicleCommand.h)"
+  else bad "W1" "web command parity failed"; fi
+  if ( cd ../.. && node web/test/validate.test.mjs 2>&1 | tail -1 | grep -q "ALL WEB VALIDATION TESTS PASSED" ); then
+    ok "W2" "web validation parity (web/validate.mjs == src/core/Validate.h)"
+  else bad "W2" "web validation parity failed"; fi
+  # W3 drives the REAL server over HTTP: percent-encoding, latin1 header limits
+  # and the 422 path. Mutation-tested — re-adding the double decode fails 4
+  # cases, dropping encodeURIComponent fails 6, removing validate() fails 3.
+  if ( cd ../.. && node web/test/transport.test.mjs 2>&1 | tail -1 | grep -q "ALL WEB TRANSPORT TESTS PASSED" ); then
+    ok "W3" "web transport end-to-end (17 cases against a live server)"
+  else bad "W3" "web transport tests failed"; fi
+else
+  skip "W1/W2" "node not installed — web parity tests skipped"
+fi
 
 # ---------- Windows CI-only ----------
 skip "C1-C5" "GitHub Actions linux/windows jobs — check https://github.com/freeforall1932-design/gifscythe/actions after push"
