@@ -309,6 +309,25 @@ int main() {
     CHECK(win_quote_arg("a\\b c") == "\"a\\b c\"");
   }
 
+  // 20. Unknown keys are ignored WITHOUT warnings (forward compatibility).
+  //     The Qt GUI persists its own state keys (batch_dir, name_template)
+  //     alongside the core settings in the same file format; the CLI must
+  //     tolerate them silently (S7 settings-persistence design).
+  {
+    std::vector<LoadWarning> w;
+    std::istringstream input(
+        "mode = batch\n"
+        "optimize = 2\n"
+        "batch_dir = /tmp/out dir\n"
+        "name_template = {name}_small.gif\n"
+        "input = a.gif\n");
+    Settings s = load_settings(input, &w);
+    CHECK(s.mode == Mode::Batch);
+    CHECK(s.optimize_level == 2);
+    CHECK(s.inputs.size() == 1);
+    CHECK(w.empty());  // GUI keys must not raise load warnings
+  }
+
   if (failures == 0) {
     std::printf("ALL TESTS PASSED\n");
     return 0;

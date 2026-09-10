@@ -224,7 +224,6 @@ inline std::optional<Settings> load_settings_file(const std::string& path,
 
 // Exact inverse of load_settings — same keys, enums → strings.
 inline void save_settings(std::ostream& out, const Settings& s) {
-  auto b = [](bool v) -> const char* { return v ? "true" : "false"; };
   out << "# Gifscythe settings\n";
 
   switch (s.mode) {
@@ -294,7 +293,6 @@ inline void save_settings(std::ostream& out, const Settings& s) {
   for (const auto& in : s.inputs) out << "input = " << in << "\n";
   if (!s.output.empty()) out << "output = " << s.output << "\n";
   if (s.explode_by_name) out << "explode_by_name = true\n";
-  (void)b;  // silence unused if no bools above used the helper in some builds
 }
 
 inline bool save_settings_file(const std::string& path, const Settings& s) {
