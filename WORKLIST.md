@@ -54,22 +54,29 @@
 - [ ] One-time real-desktop GUI probes: B5 (kill engine mid-run), B6 physical
       drag-drop, B14 engine-missing GUI variant
 
-### GIF UI/UX → 1.0.0  (S4b retrofit landed 2026-09-07 — harness T1–T13, 143 checks)
+### GIF UI/UX → 1.0.0  (S4b retrofit 2026-09-07 + S7 polish 2026-09-10 — harness T1–T16, 243 checks)
 - [x] Input / Actions / Output tab flow (XNConvert feel) — QTabWidget + Preview
       pane in splitter; bottom live pane/progress/status bar kept
 - [x] Before/after preview (debounced 1200 ms, fully async, seq-guarded;
       honest captions; savings readout; refuses in Explode mode)
 - [x] File size/count display (row sizes + total label), output-folder actions
       (batch folder + Open folder via QDesktopServices)
-- [ ] Free-form naming templates (`{name}_opt` is fixed for now) — S3-25
+- [x] Free-form naming templates — **S7**: Output-tab `Name template`, default
+      `{name}_opt.gif` renders exactly the historical auto-name (E4 unchanged);
+      separators stripped, `.gif` appended, constant-template multi-file
+      collision REFUSED with dialog (S3-25, harness T16)
 - [x] Expose remaining `GifsicleSettings` controls (~30 widgets, engine-truth
       value lists; harness T11 asserts each control → exact flag)
-- [ ] Optional: queue reorder (move up/down) — S3-9 remainder
+- [x] Queue reorder (move up/down) — **S7**: list+model stay index-aligned,
+      selection follows, merge order = queue order (S3-9, harness T15)
 - [ ] Optional: two-way CLI pane (`gs::parse_args`) **or** keep one-way forever
-      (UI label now says one-way explicitly)
-- [ ] **Persist GUI settings between sessions** (offline-app expectation;
-      `SettingsIO` exists — wire load/save into the GUI) — S6 gap
-- [ ] Document release procedure
+      (UI label now says one-way explicitly) — owner decision
+- [x] **Persist GUI settings between sessions** — **S7**: SettingsIO-backed
+      load/save (ctor/closeEvent) at `AppConfigLocation/gifscythe.conf`,
+      override `GS_SETTINGS_PATH`; GUI keys `batch_dir`/`name_template`;
+      queue + Save-as deliberately NOT persisted; warnings surfaced
+      (S6 gap / audit row 15, harness T14)
+- [x] Document release procedure — **S7**: `docs/release/RELEASE_PROCEDURE.md`
 - [ ] Bump `VERSION.md` → **1.0.0** only after Windows CI green + desktop
       probes + the optional items above are decided (owner may take 0.2.0
       first per the minor-bump rule)
@@ -77,17 +84,17 @@
 ## Next actions (ordered)
 
 1. ~~Obtain a valid PAT / push / merge~~ **DONE** — PR #5 merged, main run
-   #23 green on both jobs with artifacts (2026-09-07).
-2. **Push this branch → let CI confirm the S5 GUI fixes** (offscreen harness on
-   linux + windows; the sandbox has no Qt, so CI is the only Qt verification).
+   #23 green on both jobs with artifacts (2026-09-07); S5/S6 merged via PR #6.
+2. **Push the S7 branch → let CI confirm** (persistence/reorder/templates +
+   shim removal on linux + windows; harness now 243 checks).
 3. Clean-VM windeployqt smoke from the `gifscythe-windows` artifact (C4/D3/D4)
    — checklist: `docs/ci/CLEAN_WINDOWS_SMOKE.md` (asset banked on Release
    `snapshot-2026-09-07`).
 4. One-time real-desktop GUI probes: B5 (kill engine mid-run), B6 physical
    drag-drop, B14 engine-missing GUI variant.
-5. Remaining 1.0.0 polish: **GUI settings persistence** (S6), naming templates,
-   queue reorder (both optional), release-procedure doc, then version decision
-   (0.2.0 vs straight 1.0.0).
+5. Owner decisions: two-way CLI pane **or** keep one-way forever; version
+   (0.2.0 for the S7 feature set per the minor-bump rule, vs straight 1.0.0
+   once 3+4 are green). Release how-to: `docs/release/RELEASE_PROCEDURE.md`.
 6. WebP/APNG stay blocked until all of the above ships.
 
 ## Deferred bucket list — after GIF `1.0.0`

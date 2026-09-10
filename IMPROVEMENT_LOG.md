@@ -4,6 +4,106 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## 2026-09-10 (S7) — Settings persistence, queue reorder, naming templates, release doc
+
+Working on branch `arena/s7-settings-persistence` (off `main` @ `c5efe07`).
+Version stays **0.1.0** — the minor-bump/1.0.0 decision is the owner's.
+
+### Implemented (the sandbox-codeable Phase-1 remainder)
+
+1. **GUI settings persistence** — closes the S6 gap
+   (`docs/planning/OFFLINE_BUILD_REVIEW.md` §6), audit §2.3 row 15 ("Config
+   persistence", OPEN since S3), and the WORKLIST item. Design decisions:
+   - **Serializer: core `SettingsIO`, not `QSettings`.** One format for CLI
+     conf files and GUI sessions means the two can read each other's files;
+     the flat `key = value` text stays diffable and Qt-independent.
+   - **Location:** `QStandardPaths::AppConfigLocation` + `/gifscythe.conf`
+     (`%APPDATA%\Gifscythe\gifscythe.conf` on Windows); **`GS_SETTINGS_PATH`**
+     env override mirrors the established `GS_ENGINE` pattern (portable use,
+     test isolation).
+   - **`SettingsPanel::readFrom()`** is the exact inverse of `writeInto()`:
+     every control restored signal-blocked (no `changed()` storm → no
+     preview/pane churn), dependent enabled states synced explicitly, values
+     the GUI cannot represent (`optimize = -1`, disposal 4..7, unknown
+     methods) leave the control at its default rather than forcing a wrong
+     "off".
+   - **GUI-only keys** `batch_dir` + `name_template` are appended after the
+     core dump in a commented "GUI state" section. `SettingsIO` ignores
+     unknown keys on load, so the CLI consumes GUI-saved files silently —
+     pinned by new **unit test 20** and a live CLI E2E run.
+   - **Not persisted (deliberate):** the queue (files move between sessions;
+     stale rows teach users to distrust the queue) and the Save-as field (a
+     per-run choice — silently restoring it could overwrite a stale path).
+   - **Honesty:** first launch (no file) → defaults, no error, nothing
+     written until first close; existing-but-unreadable file → status says
+     so; parse warnings → surfaced in the status bar (S5 rule: never
+     discard); failed save on close → warning dialog (never silent).
+   - Saved in `closeEvent` (standard desktop behavior; crash-loss window
+     accepted — settings are preferences, not work product).
+2. **Queue reorder (S3-9 remainder)** — `Move Up` / `Move Down` on the Input
+   tab. List rows and `inputs_` stay index-aligned (take/insert mirrored on
+   both), selection follows the item, bounds are honest no-ops, buttons
+   disabled while busy. Merge consumes the queue in order, and the live pane
+   + merge E2E prove it (harness T15).
+3. **Free-form naming templates (S3-25)** — Output-tab `Name template`
+   field, default `{name}_opt.gif`. The default renders **exactly** the
+   historical auto-name, so audit E4 ("auto `<name>_opt.gif` next to each
+   input") is byte-identical for untouched installs; harness T1/T2/T4/T13
+   keep pinning it. Safety/honesty rules: `{name}` = input base name
+   (case-insensitive replace); **path separators stripped** (a template
+   cannot escape the chosen output folder — `../../evil` → `evil.gif`);
+   `.gif` appended when missing (the engine only writes GIF); empty render
+   falls back to the default; **constant template (no `{name}`) + >1 queued
+   files = collision → summary warns and the run is REFUSED** with an
+   explanatory dialog instead of silently overwriting N-1 results.
+   The template is persisted (`name_template` GUI key) and restored.
+4. **Release procedure documented** — `docs/release/RELEASE_PROCEDURE.md`
+   (snapshot vs version rules, pre-flight suite + expected counts, version
+   bump mechanics, CI evidence, packaging contents incl. licenses, GitHub
+   Release/banking conventions with sha256, post-publish clean-Windows +
+   persistence spot checks, rollback = append-only).
+
+### Hygiene fixes found while reviewing
+
+- **`docs/ci/build.yml.proposed` had drifted** from the live workflow (line
+  98 still said `build_gifsicle.sh` after the maintainer updated
+  `.github/workflows/build.yml` in `c5efe07`) — the "byte-identical"
+  constraint was violated by the copy, not the original. Synced; `diff` is
+  now clean.
+- **`scripts/build_gifsicle.sh` shim removed.** Its only purpose was the
+  GitHub App's missing `workflows` permission; the maintainer's `c5efe07`
+  removed that reason (S5 log: "remove it once that happens"). No live
+  reference remains (the two dated review snapshots keep historical refs by
+  policy).
+- **Dead code:** the unused bool-string lambda in `SettingsIO::save_settings`
+  (silenced with `(void)b`) is gone.
+- **Stale user-facing strings:** two "<name>_opt.gif" texts now describe the
+  template default (dialog + comment) — behavior unchanged.
+- **Stale doc counts:** root/product READMEs said "143 checks" (S4b) while
+  the harness reported 150 since S5; both now state the S7 truth (243) with
+  history. The product README's S4-era status block (incl. the long-resolved
+  "PAT is invalid" note) is rewritten.
+
+### Tests
+
+- Harness `test_gui_offscreen.cpp`: **150 → 243 checks**. New **T14**
+  (persistence round-trip incl. file-content assertions, dependent-state
+  restore, not-persisted assertions, corrupt-file honesty), **T15** (reorder
+  sync/selection/bounds/merge-order + E2E), **T16** (template default =
+  E4 name, custom template pane/summary/E2E, separator escape, collision
+  refusal dialog + engine-never-started). `main()` now points
+  `GS_SETTINGS_PATH` at a run-scoped scratch file (no test touches the real
+  user config dir; run-order deterministic). T1 gained existence/default
+  checks for the three new widgets.
+- Unit suite: test 20 (unknown-key tolerance, no warnings).
+- Full local rerun (linux, Qt 6.4, offscreen): build.sh green · engine 5/5 ·
+  smoke 7/7 · **verify_audit 21 PASS / 0 FAIL / 2 SKIP** · harness 243/0 ·
+  web parity all passed · CLI-on-GUI-conf exit 0.
+- Windows side must be confirmed by CI on this branch (only Windows Qt
+  verification available).
+
+---
+
 ## 2026-09-09 (S5) — GUI honesty fixes, naming alignment, web build review + POC
 
 Working on branch `arena/01a086c5-gifscythe`. Version stays **0.1.0**.
