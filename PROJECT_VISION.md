@@ -6,12 +6,16 @@
 CLI, and GUI implemented; P0/P1 honesty fixes landed and were verified with
 evidence (audit §6); the XNConvert-style UI retrofit (tabs/controls/preview)
 landed 2026-09-07 (S4b). The portable Windows build is **CI-green and merged**
-(PR #5 → `0ad1ff5`; main runs #23/#24 green on both jobs); only the clean-VM /
-desktop smoke (C4/D3/D4, B5/B6/B14 — `docs/ci/CLEAN_WINDOWS_SMOKE.md`) remains
-before **1.0.0**. **2026-09-09 (S5/S6):** direction pinned to **offline-only**
-and the language **stays C++17/Qt6 through 1.0.0**; the `web/` build is a demo
-only. See `WORKLIST.md`, `COMPILED_AUDIT.md`, and
-`docs/planning/OFFLINE_BUILD_REVIEW.md`.
+(PR #5 → `0ad1ff5`; main runs #23/#24 green on both jobs). **2026-09-09
+(S5/S6):** direction pinned to **offline-only** and the language **stays
+C++17/Qt6 through 1.0.0**; the `web/` build is a demo only. **2026-09-10
+(S7):** the remaining sandbox-codeable Phase-1 items landed — **GUI settings
+persistence** (remember-me between sessions), **queue reorder**, **naming
+templates** (`{name}_opt.gif` default), and the **release-procedure doc**;
+harness at 243 checks. Only the clean-VM / desktop smoke (C4/D3/D4,
+B5/B6/B14 — `docs/ci/CLEAN_WINDOWS_SMOKE.md`) plus the owner decisions
+(two-way CLI, version) remain before **1.0.0**. See `WORKLIST.md`,
+`COMPILED_AUDIT.md`, and `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 
 ## Mission
 A portable, click-and-use desktop app for **animated (moving) images only** —
@@ -48,14 +52,15 @@ want the full gifsicle terminal control underneath.
 - **APNG + animated WebP:** **bucket-list / future task** — only after the
   GIF UI/UX retrofit is complete and 1.0.0 ships. See `WORKLIST.md`.
 
-## Progress snapshot (2026-09-09)
+## Progress snapshot (2026-09-10)
 | Area | State |
 |------|--------|
 | GIF engine subprocess | Done (native + Windows config path) |
 | Settings → argv control layer | Done |
 | CLI driver + tests | Done (honest exits, smoke suite) |
-| GUI | **Retrofit done (S4b):** Input/Actions/Output tabs, ~30 engine-truth controls, debounced async before/after preview, batch output folder — 143-check offscreen harness green |
+| GUI | **Retrofit done (S4b) + polish done (S7):** Input/Actions/Output tabs, ~30 engine-truth controls, debounced async before/after preview, batch output folder, **settings persistence between sessions, queue reorder, `{name}` naming templates** — 243-check offscreen harness green (T1–T16) |
 | Silent-failure class bugs | Fixed in code; re-verify via `COMPILED_AUDIT.md` §6 |
 | Offline-only direction + language decision | **Decided (S6)** — stay C++17/Qt6 through 1.0.0; see `docs/planning/OFFLINE_BUILD_REVIEW.md` |
+| Settings persistence (offline "remember me") | **Done (S7)** — SettingsIO-backed; `docs/release/RELEASE_PROCEDURE.md` documents the release flow |
 | Web build | **Demo only** (`web/`, server-side POC + JS⇄C++ command parity); not the product path |
-| 1.0.0 | **Not yet** — clean-VM smoke + desktop probes + owner decision remain |
+| 1.0.0 | **Not yet** — clean-VM smoke + desktop probes + owner decisions (two-way CLI, version) remain |

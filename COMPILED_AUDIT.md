@@ -148,16 +148,16 @@ Legend for **Status (code @ 2026-09-07)**:
 |--|--|
 | **Verdict** | **REAL** — **U-M2 / U-MISS-8** |
 | **Fresh?** | No |
-| **Status** | 🟡 **NEAR-DONE** — append+dedupe, Remove, Clear + **per-file size in row text + total count/size label** (S4b). Only move up/down reorder remains (optional). |
-| **Verify next** | §6.B B8–B10 (harness T3 incl. count label) |
+| **Status** | ✅ **DONE (S7, 2026-09-10)** — append+dedupe, Remove, Clear + per-file size in row text + total count/size label (S4b) + **Move Up/Move Down reorder** (S7): list rows and `inputs_` stay index-aligned, selection follows the item, bounds are no-ops, disabled while busy; Merge order = queue order (live pane reflects it). |
+| **Verify next** | §6.B B8–B10 (harness T3 incl. count label) + **T15** (reorder) |
 
 #### S3-10 · Output folder actions missing
 | | |
 |--|--|
 | **Verdict** | **REAL** — WORKLIST 4 |
 | **Fresh?** | Product gap (lightly covered as packaging/UX in S1) |
-| **Status** | 🟡 **MOSTLY DONE (S4b)** — Output tab: Save-as + **batch output folder** (mkpath'd honestly before running) + **Open output folder** via `QDesktopServices` (no shell-out) + honest per-mode output summary label. Harness T13. Remaining: free-form `{name}` naming templates (S3-25). |
-| **Verify next** | T13 + T4 (default next-to-input still works with empty folder field) |
+| **Status** | ✅ **DONE (S7, 2026-09-10)** — Output tab: Save-as + **batch output folder** (mkpath'd honestly before running) + **Open output folder** via `QDesktopServices` (no shell-out) + honest per-mode output summary label (S4b, harness T13) + **free-form `{name}` naming templates** (S3-25, S7): default `{name}_opt.gif` renders EXACTLY the historical auto-name (E4 unchanged); separators stripped (cannot escape the output folder); `.gif` appended if missing; constant template + multi-file batch = collision → summary warns and the run is **refused** with an explanatory dialog. Harness **T16**. |
+| **Verify next** | T13 + T4 (default next-to-input still works with empty folder field) + **T16** (templates + collision refusal) |
 
 #### S3-11 · Version string hardcoded in GUI
 | | |
@@ -192,7 +192,7 @@ Legend for **Status (code @ 2026-09-07)**:
 | S3 | Topic | Verdict | Fresh? | Status |
 |----|-------|---------|--------|--------|
 | **14** | Logging framework | Real enhancement, not a blocker | **Yes vs S1/S2** (net-new backlog) | ⏸️ optional post-1.0 |
-| **15** | Config persistence (QSettings) | Real; S1 had save_settings for conf, not app prefs | Partial overlap U-MISS-1 | ⬜ OPEN (app prefs) · conf save ✅ |
+| **15** | Config persistence (QSettings) | Real; S1 had save_settings for conf, not app prefs | Partial overlap U-MISS-1 | ✅ **DONE (S7, 2026-09-10)** — GUI loads/saves between sessions via the core **SettingsIO** format (not QSettings — one serializer, CLI-compatible): `AppConfigLocation/gifscythe.conf`, override `GS_SETTINGS_PATH`; GUI-only keys `batch_dir`/`name_template` ride along (unknown-key tolerant); queue + Save-as deliberately not persisted; load warnings surfaced. Harness **T14** · conf save ✅ |
 | **16** | i18n | Real enhancement | **Net-new** | ⏸️ post-1.0 |
 | **17** | RGBA frame model | Real — WORKLIST deferred bucket | No | ⏸️ **blocked** until GIF 1.0.0 |
 
@@ -268,7 +268,7 @@ Use this as the **authoritative** broken/misaligned/missing register. S3 IDs cro
 | U-MISS-5 | EngineLocator shared | S3-1 | ✅ | A1, B14 |
 | U-MISS-6 | Real integration tests | S3-19 | ✅ smoke_cli + engine in CI recipe | A1–A4, CI |
 | U-MISS-7 | Drag-drop | S3-6 | ✅ | B6 |
-| U-MISS-8 | Queue remove/clear | S3-9 | 🟡 | B9 |
+| U-MISS-8 | Queue remove/clear | S3-9 | ✅ remove/clear (B9) + reorder (T15, S7) | B9 |
 | U-MISS-9 | Mode selector | S3-4 | ✅ | B11 |
 | U-MISS-10 | Dither method | S3-4 | 🟡 core string; no GUI widget | later |
 | U-MISS-11 | LICENSE/COPYING | (missed) | ✅ | D2 |
@@ -355,14 +355,19 @@ Portable package:    release/0.1.0/Gifscythe/ (engine+CLI+licenses; no GUI in sa
 4. ✅ Remaining settings controls exposed (S3-4 / U-MISS-13) — harness T11
    (VP-1/2/3/5 + E7 guarded by assertions)
 5. ✅ Before/after preview, debounced + async (S3-7) — harness T12
-6. 🟡 Output folder actions ✅ (batch folder + Open folder, T13);
-   ⬜ free-form naming templates remain (S3-25)
-7. 🟡 Queue size/count display ✅ (row sizes + total label, T3);
-   ⬜ optional reorder remains (S3-9)
+6. ✅ Output folder actions (batch folder + Open folder, T13) + **free-form
+   naming templates** (S3-25 — S7, default `{name}_opt.gif` keeps E4 exact;
+   collision refusal; T16)
+7. ✅ Queue size/count display (row sizes + total label, T3) + **move up/down
+   reorder** (S3-9 — S7; merge order = queue order; T15)
+7b. ✅ **Persist GUI settings between sessions** (OFFLINE_BUILD_REVIEW §6 gap /
+   S3-15 — S7): SettingsIO-backed load/save, `GS_SETTINGS_PATH` override,
+   GUI keys `batch_dir`/`name_template`, corrupt-file honesty; T14
 8. ⬜ One-time real-desktop GUI probes: B5, B6 physical drop, B14 engine-missing
 9. ⬜ Decide two-way CLI: implement `parse_args` **or** keep one-way forever
    (U-MISS-14) — pane label now says "one-way" explicitly in the UI
-10. ⬜ Document release procedure; presets/templates (optional, S3-26)
+10. ✅ Release procedure documented (S7): `docs/release/RELEASE_PROCEDURE.md`;
+    presets remain optional (S3-26)
 11. ⬜ Only after 1+2+8: consider VERSION bump (owner decision: 0.2.0 for the
     retrofit per VERSION.md minor rule, or straight to 1.0.0 when everything
     above is green)
@@ -421,7 +426,10 @@ Portable package:    release/0.1.0/Gifscythe/ (engine+CLI+licenses; no GUI in sa
 New `tests/test_gui_offscreen.cpp` (CMake target `test_gui_offscreen`, runs in
 CI on both OSes) drives the real MainWindow with `QT_QPA_PLATFORM=offscreen`.
 S4 run: **81 checks**; after the S4b UI retrofit (tabs + full controls +
-preview): **143 checks, 0 failures** (T1–T13).
+preview): **143 checks** (T1–T13); S5 honesty regressions (T2/T9/T13):
+**150 checks**; after the S7 additions (settings persistence T14, queue
+reorder T15, naming templates T16 + persistence isolation):
+**243 checks, 0 failures** (rerun 2026-09-10, linux, Qt 6.4).
 
 - [x] **B1** Run-click returns in <3 s while a 3.6 s engine run continues
       async; event loop ticks ≥20×/600 ms during the run (UI thread alive) **[H]**
@@ -572,15 +580,19 @@ preview): **143 checks, 0 failures** (T1–T13).
 
 ## 11. Handoff one-liner for next session
 
-> §6 was **executed with evidence on 2026-09-07 (S4)** — rerun
+> §6 was **executed with evidence on 2026-09-07 (S4)** and **rerun green on
+> 2026-09-10 (S7)** — rerun
 > `working_code/gifscythe/scripts/verify_audit.sh` (expect 21 PASS / 2 SKIP)
 > plus `test_gui_offscreen` before trusting anything new. The former blocker
 > (dead push token) was resolved 2026-09-07: branch pushed SHA-identical,
 > PR #5 merged (`0ad1ff5`), C2 closed with main green on both jobs (run #24,
-> id 34092786153) — and the P1 GUI retrofit (tabs → controls → preview) is
-> itself done + harness-verified (S4b, 143 checks). What remains: C4/D3/D4
+> id 34092786153) — the P1 GUI retrofit (tabs → controls → preview) is
+> done + harness-verified (S4b), and **S7 (2026-09-10) landed the remaining
+> Phase-1 implementation items**: GUI settings persistence (T14), queue
+> reorder (T15), naming templates (T16), release-procedure doc — harness now
+> **243 checks, 0 failures**. What remains: C4/D3/D4
 > clean-Windows smoke (`docs/ci/CLEAN_WINDOWS_SMOKE.md`), desktop probes
-> B5/B6/B14, optional polish, version decision.
+> B5/B6/B14, the two-way-CLI decision, and the version decision.
 > Never “fix” §3.4 verified-correct behaviors; never start WebP/APNG
 > before GIF 1.0.0. If a change breaks A2/B10/B12/E3–E5 or any harness test,
 > it is a **new pit** — revert and redo.
