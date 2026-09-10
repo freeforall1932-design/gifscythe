@@ -10,20 +10,25 @@ full gifsicle terminal control underneath.
 This folder is the **working source code**. Reference material lives in the repo
 root `reference_code/` (read-only).
 
-## Status (2026-09-07, sessions S4 + S4b)
-- **0.1.0** — engine + control layer + CLI + GUI MVP.
-- `COMPILED_AUDIT.md` §6 was **executed with evidence**: §6.A all green,
-  §6.B green via the 81-check offscreen GUI harness, §6.E all green;
-  `verify_audit.sh` → 21 PASS / 0 FAIL / 2 SKIP (CI-gated items).
-- **Windows path proven under Wine**: engine exe (`1.96 (Windows)`), CLI E2E
-  with `C:\` paths + spaces, static-linked exes, honest exit codes. Two
-  Windows-only bugs fixed (engine `-I.` recipe; `_spawnvp` space-splitting →
-  `CreateProcessA` + `win_quote_arg`).
-- Windows CI job rerun + clean-machine windeployqt smoke still pending push
-  (see root `SESSION_HANDOFF.md` §0 — provided PAT is invalid).
-- **UI/UX retrofit implemented + harness-verified (S4b)**: tabs, ~30 controls,
-  async preview, batch folder. Remaining before **1.0.0**: Windows CI green,
-  desktop probes, optional naming templates/reorder. WebP/APNG deferred.
+## Status (2026-09-10, session S7)
+- **0.1.0** — engine + control layer + CLI + full GUI (S4b retrofit + S7 polish).
+- `COMPILED_AUDIT.md` §6 was **executed with evidence** (S4) and **rerun green
+  on 2026-09-10 (S7)**: §6.A all green, §6.B green via the offscreen GUI
+  harness (**243 checks, T1–T16**), §6.E all green; `verify_audit.sh` →
+  **21 PASS / 0 FAIL / 2 SKIP** (CI-gated items).
+- **Windows path proven under Wine + CI**: engine exe (`1.96 (Windows)`), CLI
+  E2E with `C:\` paths + spaces, static-linked exes, honest exit codes; main
+  green on both jobs (runs #23/#24), binaries banked on Release
+  `snapshot-2026-09-07`.
+- **S7 (2026-09-10): GUI settings persistence** (SettingsIO-backed
+  `gifscythe.conf`, `GS_SETTINGS_PATH` override), **queue reorder** (Move
+  Up/Down), **naming templates** (default `{name}_opt.gif` = the historical
+  auto-name; collision runs refused), release-procedure doc
+  (`docs/release/RELEASE_PROCEDURE.md`), `build_gifsicle.sh` shim removed
+  (workflow now calls `build_engine.sh`).
+- Remaining before **1.0.0**: clean-Windows windeployqt smoke (C4/D3/D4 —
+  `docs/ci/CLEAN_WINDOWS_SMOKE.md`), desktop probes (B5/B6/B14), owner
+  decisions (two-way CLI pane, version). WebP/APNG deferred.
 
 ## Build and test
 ```bash
@@ -40,7 +45,7 @@ root `reference_code/` (read-only).
 # Whole COMPILED_AUDIT §6 regression suite in one command
 ./scripts/verify_audit.sh
 
-# Offscreen GUI harness (81 checks; needs Qt6)
+# Offscreen GUI harness (243 checks, T1–T16; needs Qt6)
 cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release
 cmake --build build-cmake
 QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
@@ -93,17 +98,24 @@ GS_ENGINE=/path/to/gifsicle ./build/gifscythe-cli examples/animation.conf --run
 Default GUI mode is **Batch** (one optimized file per input). **Merge** is an
 explicit choice (concatenates animations).
 
-## GUI layout (S4b retrofit)
-- **Input** tab — queue with drag-drop, per-file size, count/total label.
+## GUI layout (S4b retrofit + S7 polish)
+- **Input** tab — queue with drag-drop, per-file size, count/total label,
+  **Move Up/Move Down reorder** (merge order = queue order).
 - **Actions** tab — every whole-GIF gifsicle control (value lists taken from
   the engine source: dither/resize/color methods, disposal, gamma).
-- **Output** tab — Save-as, batch output folder, Open-folder, honest
-  per-mode summary of what will be written.
+- **Output** tab — Save-as, batch output folder, **name template** (default
+  `{name}_opt.gif`; `{name}` = input base name; collision runs refused),
+  Open-folder, honest per-mode summary of what will be written.
 - **Preview** pane — before/after movies of the selected file; the "after"
   is a debounced (1.2 s), fully async single-file re-encode; captions stay
   honest (single-file semantics, Explode refusal, failure reasons).
 - Bottom bar — one-way live command pane, progress, run/cancel, status.
-- Regression net: `tests/test_gui_offscreen.cpp` (143 checks, runs in CI).
+- **Session persistence (S7)** — Actions state + batch folder + name
+  template are saved on close to `gifscythe.conf` in the standard app-config
+  location (`%APPDATA%\Gifscythe\` on Windows); override the path with
+  `GS_SETTINGS_PATH`. The queue and Save-as field are deliberately *not*
+  restored. Corrupt files apply their valid keys and warn in the status bar.
+- Regression net: `tests/test_gui_offscreen.cpp` (243 checks, runs in CI).
 
 ## Versioning
 0.1.0 → 1.0.0–1.9.9 (finished GIF product) → 2.0.0–3.0.0 (WebP + APNG).  
