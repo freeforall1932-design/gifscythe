@@ -59,7 +59,13 @@ based on `main` commit `190d030` ·
    not been re-measured since; the file currently holds **226 `CHECK(` source
    sites**, which is *not* the runtime count (loops expand checks).
 
-5. **What remains before 1.0.0** — the audit's criterion is *"no Critical/High
+5. **State of this branch:** pushed as `a43885b` on
+   `arena/01a08bb3-gifscythe` (remote ref verified equal to local `HEAD`), CI
+   green on both jobs. **No PR was opened** — that is the owner's call. The
+   `.github/workflows/` change is still blocked on the `workflows` scope; see
+   `docs/ci/PENDING_WORKFLOW_CHANGE.md`.
+
+6. **What remains before 1.0.0** — the audit's criterion is *"no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the
    exact tagged SHA"*: re-cut release artifacts from the tagged SHA (**U-09**) →
    clean-Windows `windeployqt` smoke (C4/D3/D4,
@@ -67,11 +73,11 @@ based on `main` commit `190d030` ·
    decisions (two-way CLI pane, version). Cut releases per
    `docs/release/RELEASE_PROCEDURE.md`.
 
-6. **Direction unchanged:** offline-only; C++17 + Qt6 Widgets through 1.0.0;
+7. **Direction unchanged:** offline-only; C++17 + Qt6 Widgets through 1.0.0;
    `web/` is a demo/parity harness only (see
    `docs/planning/OFFLINE_BUILD_REVIEW.md`).
 
-7. **Naming policy in force:** *Gifscythe* = product; *gifsicle* = upstream
+8. **Naming policy in force:** *Gifscythe* = product; *gifsicle* = upstream
    engine only. Engine script: `scripts/build_engine.sh` (the
    `build_gifsicle.sh` shim is gone — do not reintroduce it).
 
@@ -150,11 +156,11 @@ site count.
 | `node web/test/command.test.mjs` | ✅ 14/14 |
 | `node web/test/validate.test.mjs` | ✅ 19/19 |
 | `node web/test/transport.test.mjs` (live server) | ✅ 17/17 |
-| `scripts/check_docs.sh` (documentation gate) | ✅ green, exit 0 |
+| `scripts/check_docs.sh` (documentation gate) | ✅ **21 passed, 0 failed, 1 skipped, exit 0** (the skip is G7, the declared-pending workflow change) |
 | `scripts/verify_audit.sh` | ✅ **25 PASS / 0 FAIL / 5 SKIP, exit 0** (skips = cmake, Qt6, E9 declared-pending workflow, CI-gated, clean-Windows) |
 | GUI offscreen harness (`test_gui_offscreen`) | ⏳ **not runnable here** — no cmake/Qt6. **CI-COMPILED ONLY.** Last *measured* runtime count **243** (S7 sandbox); the file holds **226 `CHECK(` source sites** now (T17 added, T8 rewritten in S8) — a source count, not a runtime count |
 | `diff .github/workflows/build.yml docs/ci/build.yml.proposed` | ⏳ **differ on purpose** — S9's doc-gate step cannot be pushed (no `workflows` scope); it lives in `docs/ci/build.yml.proposed` + `docs/ci/PENDING_WORKFLOW_CHANGE.md`. E9/G7 SKIP for declared drift, FAIL for undeclared |
-| Windows CI / linux CI | ⏳ not re-run this session (no code under `src/` changed) |
+| GitHub Actions, this branch | ✅ **green on both pushes** — runs for `089f76b` and `a43885b` both `completed/success`, `linux` and `windows` each `success`. This is the first compilation of the S9 `build.sh` change (the `bootstrap_hooks.sh` call). **Caveat:** the Actions *log host* is unreachable from this sandbox (`results-receiver.actions.githubusercontent.com` → `EOF`), so a green job is proven but its log lines are not readable here |
 
 **Counts are stated by kind on purpose.** `grep -c 'CHECK('` counts **lines**;
 `grep -o 'CHECK(' \| wc -l` counts **occurrences** (unit suite: 193 lines vs
@@ -179,9 +185,12 @@ section of this file.**
   `-j4` OOMs; use `-j2`.
 * If apt is blocked again, the S5 fallback was `pip install cmake ninja PySide6`
   for the cmake steps; GUI verification then belongs to CI.
-* **The clone is shallow (1 commit).** Anything that reads git history —
-  `check_docs.sh` **G11** (log currency) and **G10** (branch/SHA freshness) —
-  has only `190d030` to work with. Recorded as risk **R-02**.
+* **The clone is shallow** (`.git/shallow` exists), so history depth is
+  truncated at `190d030` — the session's own commits are on top of it (5 in
+  `git log` as of `a43885b`) but nothing before the branch point is visible.
+  Anything that reads history — `check_docs.sh` **G11** (log currency) and
+  **G10** (branch/SHA freshness) — therefore cannot look further back than
+  `190d030`. Recorded as risk **R-02**. `git fetch --unshallow` if depth matters.
 
 ## Document map
 
