@@ -37,7 +37,7 @@ that is stated instead of implied.
 | `scripts/test_engine.sh` | 5 passed, 0 failed | **5 passed, 0 failed** |
 | `scripts/smoke_cli.sh` | 7 passed, 0 failed | **7 passed, 0 failed** |
 | `scripts/test_package.sh` | *did not exist* | **9 passed, 0 failed** (new) |
-| `scripts/verify_audit.sh` | **19 passed, 1 FAILED (C6), 3 skipped — exit 1** | **24 passed, 0 failed, 4 skipped — exit 0** |
+| `scripts/verify_audit.sh` | **19 passed, 1 FAILED (C6), 3 skipped — exit 1** | **23 passed, 0 failed, 5 skipped — exit 0** (E9 SKIPs: the CI workflow change needs a `workflows`-scoped token — 24/0/4 once applied) |
 | `node web/test/command.test.mjs` | 13 PASS | **all PASS, 14 fixtures** (caught the U-03 divergence mid-change) |
 | `node web/test/validate.test.mjs` | *did not exist* | **19 PASS** — JS `validate()` vs the real C++ `validate()` (new) |
 | `node web/test/transport.test.mjs` | *did not exist* | **17 PASS** — live server: percent-encoding, latin1 headers, 422 path (new) |
@@ -489,6 +489,38 @@ Writing it corrected two of my own claims:
 Mutation-tested in all three directions (see §0). This closes P2-8, P2-9 and
 P2-10, which asked for exactly this round-trip coverage.
 
+### The CI change could not be pushed — recorded, not hidden
+
+Both workflow files were edited together and verified byte-identical. The push
+was then rejected:
+
+```
+! [remote rejected] arena/01a08a10-gifscythe -> arena/01a08a10-gifscythe
+  (refusing to allow a GitHub App to create or update workflow
+   `.github/workflows/build.yml` without `workflows` permission)
+```
+
+So the live `.github/workflows/build.yml` was reverted to base and the change
+now lives in `docs/ci/build.yml.proposed` plus a new
+**`docs/ci/PENDING_WORKFLOW_CHANGE.md`** that states what is waiting, why, and
+the exact `cp` + `git rm` + push to apply it. This is precisely the situation
+`docs/ci/README.md` says the proposed copy exists for (*"so the recipe survives
+even when workflow pushes are blocked"*).
+
+**E9 was extended rather than deleted.** Undeclared drift still fails; drift
+*declared* by that marker file is a SKIP. Mutation-tested in all four states:
+
+| State | E9 |
+|---|---|
+| files identical, no marker | **PASS** |
+| files differ, marker present | **SKIP** (declared) |
+| files differ, **no** marker | **FAIL** (undeclared drift) |
+| files identical, marker present | PASS (marker is simply redundant) |
+
+Consequence for the headline number: `verify_audit.sh` is now
+**23 passed, 0 failed, 5 skipped, exit 0**, and becomes **24/0/4** the moment a
+maintainer applies the pending change and deletes the marker.
+
 ### Guard regression caught by re-running the gate
 
 Batch 2's own comment in `ProcessRunner.h` — "(no /bin/sh, no cmd.exe)." —
@@ -534,7 +566,7 @@ re-read and corrected rather than left to disagree with the register:
 
 | Doc | What was stale | Now |
 |---|---|---|
-| `README.md` (root) | "243 checks (T1–T16)" and "21 PASS" presented as current; S8 described as batch 1 only | 31 findings, 24 PASS / 0 FAIL / 4 SKIP, harness count labelled as the **S7 measurement** |
+| `README.md` (root) | "243 checks (T1–T16)" and "21 PASS" presented as current; S8 described as batch 1 only | 31 findings, current gate numbers, harness count labelled as the **S7 measurement** |
 | `SESSION_HANDOFF.md` | header said *"all run locally, linux + Qt 6.4"* — false for this sandbox; "green locally (Qt 6.4)"; "close U-01/U-02/U-03" as still to do; U-38 listed as an open portability problem | header split into ✅ run-here vs ⏳ cannot-run-here; S7 claims labelled as S7's sandbox; a full **"What S8 did"** section added |
 | `WORKLIST.md` | still-open list included U-21/U-30/U-31/U-32/U-44 | new S8 board + the 15 rows that are genuinely open |
 | `PROJECT_VISION.md` | "harness at 243 checks" with no measurement caveat | S8 summary + caveat that 243 is the last *measured* figure |

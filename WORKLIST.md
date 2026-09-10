@@ -65,8 +65,9 @@
       evidence: §6.A 12/12 + new A13 (Wine), §6.B via 81-check offscreen harness,
       §6.C local items, §6.D local items, §6.E 8/8. One-command rerun:
       `working_code/gifscythe/scripts/verify_audit.sh` (that S4-era run reported
-      21 PASS / 0 FAIL / 2 SKIP; **as of S8 it is 24 PASS / 0 FAIL / 4 SKIP,
-      exit 0**)
+      21 PASS / 0 FAIL / 2 SKIP; **as of S8 it is 23 PASS / 0 FAIL / 5 SKIP,
+      exit 0** — E9 SKIPs while `docs/ci/PENDING_WORKFLOW_CHANGE.md` is pending,
+      24/0/4 once applied)
 - [x] Windows engine + CLI **proven under Wine**: `gifsicle.exe` runs
       (`1.96 (Windows)`), CLI E2E with `C:\` paths + spaces + honest exit 1;
       found & fixed two Windows-only bugs (engine `-I.` recipe, `_spawnvp`

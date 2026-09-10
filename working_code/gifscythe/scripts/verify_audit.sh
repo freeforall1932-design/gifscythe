@@ -181,10 +181,19 @@ if awk '/== "windows"/{f=1} f && /-include src\/win32cfg\.h/{found=1} END{exit !
 else bad "E5" "windows engine config suspect"; fi
 
 # F-10/U-39: the proposed-workflow copy is hand-maintained next to the live one
-# and has already drifted once, so make drift a FAIL instead of a surprise.
+# and has already drifted once, so drift is a FAIL instead of a surprise.
+# One declared exception: the CI bot token has no `workflows` scope, so a change
+# to .github/ cannot always be pushed (docs/ci/README.md "Apply manually").
+# In that state the copies differ ON PURPOSE, and docs/ci/PENDING_WORKFLOW_CHANGE.md
+# records what is waiting and how to apply it. Declared drift is a SKIP; any
+# other drift is still a FAIL. Delete the marker once the change is applied.
 if diff -q ../../.github/workflows/build.yml ../../docs/ci/build.yml.proposed >/dev/null 2>&1; then
   ok "E9" ".github/workflows/build.yml and docs/ci/build.yml.proposed are byte-identical"
-else bad "E9" "workflow and docs/ci/build.yml.proposed have drifted"; fi
+elif [[ -f ../../docs/ci/PENDING_WORKFLOW_CHANGE.md ]]; then
+  skip "E9" "declared pending workflow change — see docs/ci/PENDING_WORKFLOW_CHANGE.md (needs a token with the workflows scope)"
+else
+  bad "E9" "workflow and docs/ci/build.yml.proposed have drifted"
+fi
 
 # ---------- W: web demo parity (JS ⇄ C++) ----------
 # web/ is not the product path, but it ships a SECOND copy of the command

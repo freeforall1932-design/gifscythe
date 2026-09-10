@@ -64,7 +64,7 @@ HTTP 200; it now answers 422 naming the field.
 | Check | Result |
 |---|---|
 | `./build.sh` | **211 checks, 0 failures** (tests 28–30 added) |
-| `scripts/verify_audit.sh` | **24 passed, 0 failed, 4 skipped, exit 0** (new gates W1/W2/W3) |
+| `scripts/verify_audit.sh` | **23 passed, 0 failed, 5 skipped, exit 0** (new gates W1/W2/W3; E9 SKIPs — see below) |
 | `node web/test/command.test.mjs` | **14/14 PASS** |
 | `node web/test/validate.test.mjs` (new) | **19/19 PASS** |
 | `node web/test/transport.test.mjs` (new) | **17/17 PASS** against a live server |
@@ -77,7 +77,14 @@ HTTP 200; it now answers 422 naming the field.
 The linux job now runs all three web suites. It previously ran **none** of them, so
 the JS copies of the command builder and the validation rules had no automated
 guard at all. `.github/workflows/build.yml` and `docs/ci/build.yml.proposed`
-were edited together and remain byte-identical (E9).
+were edited together. **They are NOT identical on this branch, on purpose:**
+the push was rejected with *"refusing to allow a GitHub App to create or update
+workflow `.github/workflows/build.yml` without `workflows` permission"*, so the
+live workflow was reverted to base and the change lives in
+`docs/ci/build.yml.proposed` + **`docs/ci/PENDING_WORKFLOW_CHANGE.md`** —
+exactly the situation `docs/ci/README.md` says that copy exists for. E9 was
+extended with one tolerated state: declared drift (that marker file present) is
+a SKIP, undeclared drift still FAILs. Mutation-tested in all four states.
 
 ### Documentation consistency sweep
 

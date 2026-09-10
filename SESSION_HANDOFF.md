@@ -22,7 +22,8 @@
    **Gates (all run locally this session):** `./build.sh` **211 checks,
    0 failures** · `test_package.sh` **9/9** · `test_engine.sh` **5/5** ·
    `smoke_cli.sh` **7/7** · web **14/14 + 19/19 + 17/17** ·
-   `verify_audit.sh` **24 PASS / 0 FAIL / 4 SKIP, exit 0**.
+   `verify_audit.sh` **23 PASS / 0 FAIL / 5 SKIP, exit 0** (E9 SKIPs while the
+   CI workflow change awaits a `workflows`-scoped token).
    **Caveat the next session must not lose:** this sandbox has no cmake and no
    Qt6, so `src/qtui/` and harness **T8/T17** were written and reviewed but
    **never compiled here** — CI is their first compiler. If CI fails, look
@@ -231,13 +232,13 @@ sections of this file are historical, not current.
 | `scripts/test_engine.sh` | ✅ 5/5 |
 | `scripts/smoke_cli.sh` | ✅ 7/7 |
 | `scripts/test_package.sh` (packaging negative suite) | ✅ 9/9 |
-| `scripts/verify_audit.sh` | ✅ **24 PASS / 0 FAIL / 4 SKIP, exit 0** (skips = cmake, Qt6, CI-gated, clean-Windows) |
+| `scripts/verify_audit.sh` | ✅ **23 PASS / 0 FAIL / 5 SKIP, exit 0** (skips = cmake, Qt6, E9 pending-workflow, CI-gated, clean-Windows) |
 | GUI offscreen harness (`test_gui_offscreen`) | ⏳ **T1–T17, CI-only** — no cmake/Qt6 in this sandbox |
 | `node web/test/command.test.mjs` (JS ⇄ C++ command parity) | ✅ **14/14 PASS** |
 | `node web/test/validate.test.mjs` (JS ⇄ C++ validation parity) | ✅ **19/19 PASS** |
 | `node web/test/transport.test.mjs` (live-server end-to-end) | ✅ **17/17 PASS** |
 | CLI reads a GUI-saved conf (GUI keys present) | ✅ exit 0, zero warnings |
-| `diff .github/workflows/build.yml docs/ci/build.yml.proposed` | ✅ byte-identical (enforced by `verify_audit.sh` E9) |
+| `diff .github/workflows/build.yml docs/ci/build.yml.proposed` | ⏳ **differ on purpose** — the CI change is blocked by the missing `workflows` scope; it lives in `docs/ci/PENDING_WORKFLOW_CHANGE.md`. E9 SKIPs for declared drift, FAILs for undeclared |
 | Windows CI (linux job too) | ⏳ **must confirm this branch** — the only Windows Qt verification |
 
 **S8 batch 2 (2026-09-10)** closed U-21, U-30, U-31, U-32, U-44, U-46, U-49,
