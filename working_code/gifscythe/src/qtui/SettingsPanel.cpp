@@ -12,8 +12,11 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
+
+#include <vector>
 
 namespace {
 
@@ -605,4 +608,157 @@ void SettingsPanel::writeInto(gs::Settings& s) const {
   s.comments.clear();
   for (int i = 0; i < commentList_->count(); ++i)
     s.comments.push_back(commentList_->item(i)->text().toStdString());
+}
+
+void SettingsPanel::readFrom(const gs::Settings& s) {
+  // Block every control's signals while restoring: no per-widget changed()
+  // storm and no toggled-lambda side effects. Enabled-state sync is done
+  // explicitly at the end instead.
+  const std::vector<QWidget*> controls = {
+      modeCombo_, explodeByNameCheck_, optimizeSpin_, lossySpin_, colorsCheck_,
+      colorsSpin_, ditherCombo_, colorMethodCombo_, carefulCheck_,
+      resizeKindCombo_, resizeWSpin_, resizeHSpin_, scaleXSpin_, scaleYSpin_,
+      resizeMethodCombo_, rotateCombo_, flipHCheck_, flipVCheck_,
+      interlaceCheck_, positionCheck_, posXSpin_, posYSpin_, cropCheck_,
+      cropXSpin_, cropYSpin_, cropWSpin_, cropHSpin_, cropTransparencyCheck_,
+      delayCheck_, delaySpin_, loopCombo_, loopSpin_, disposalCombo_,
+      unoptimizeCheck_, threadsSpin_, gammaCombo_, gammaEdit_, backgroundEdit_,
+      transparentEdit_, removeCommentsCheck_, removeNamesCheck_,
+      removeExtensionsCheck_, commentList_};
+  std::vector<QSignalBlocker> blockers;
+  blockers.reserve(controls.size());
+  for (QWidget* w : controls) blockers.emplace_back(w);
+
+  // Helpers: combo lookup by itemData; spin clamp into widget range.
+  const auto selectByData = [](QComboBox* combo, const QVariant& data) {
+    const int idx = combo->findData(data);
+    if (idx >= 0) combo->setCurrentIndex(idx);
+  };
+  const auto setSpin = [](QSpinBox* spin, int v) {
+    spin->setValue(qBound(spin->minimum(), v, spin->maximum()));
+  };
+
+  // ---- Mode ----
+  selectByData(modeCombo_, static_cast<int>(s.mode));
+  explodeByNameCheck_->setChecked(s.explode_by_name);
+
+  // ---- Optimize / quantize ----
+  // optimize_level -1 ("no -O flag") is not GUI-representable; only apply
+  // values the panel could have produced (0..3). GUI saves always contain it.
+  if (s.optimize_level >= 0 && s.optimize_level <= 3)
+    setSpin(optimizeSpin_, s.optimize_level);
+  // lossy: GUI maps spin 0 -> -1 on write; map -1 back to 0 (Off).
+  lossySpin_->setValue(s.lossy >= 0 ? qBound(0, s.lossy, 200) : 0);
+  if (s.color_count >= 2 && s.color_count <= 256) {
+    colorsCheck_->setChecked(true);
+    setSpin(colorsSpin_, s.color_count);
+  } else {
+    colorsCheck_->setChecked(false);
+  }
+  if (!s.dither_method.empty()) {
+    selectByData(ditherCombo_, QString::fromStdString(s.dither_method));
+    if (ditherCombo_->currentData().toString() !=
+        QString::fromStdString(s.dither_method))
+      ditherCombo_->setCurrentIndex(0);  // unknown method -> honest Off
+  } else {
+    ditherCombo_->setCurrentIndex(s.dither ? 1 : 0);  // 1 = "Default" (bare -f)
+  }
+  if (!s.color_method.empty()) {
+    selectByData(colorMethodCombo_, QString::fromStdString(s.color_method));
+    if (colorMethodCombo_->currentData().toString() !=
+        QString::fromStdString(s.color_method))
+      colorMethodCombo_->setCurrentIndex(0);
+  } else {
+    colorMethodCombo_->setCurrentIndex(0);
+  }
+  carefulCheck_->setChecked(s.careful);
+
+  // ---- Resize / scale ----
+  selectByData(resizeKindCombo_, static_cast<int>(s.resize_kind));
+  if (s.resize_w >= 1) setSpin(resizeWSpin_, static_cast<int>(s.resize_w));
+  if (s.resize_h >= 1) setSpin(resizeHSpin_, static_cast<int>(s.resize_h));
+  if (s.scale_x > 0.0)
+    scaleXSpin_->setValue(qBound(scaleXSpin_->minimum(), s.scale_x * 100.0,
+                                 scaleXSpin_->maximum()));
+  if (s.scale_y > 0.0)
+    scaleYSpin_->setValue(qBound(scaleYSpin_->minimum(), s.scale_y * 100.0,
+                                 scaleYSpin_->maximum()));
+  if (!s.resize_method.empty()) {
+    selectByData(resizeMethodCombo_, QString::fromStdString(s.resize_method));
+    if (resizeMethodCombo_->currentData().toString() !=
+        QString::fromStdString(s.resize_method))
+      resizeMethodCombo_->setCurrentIndex(0);
+  } else {
+    resizeMethodCombo_->setCurrentIndex(0);
+  }
+
+  // ---- Geometry ----
+  selectByData(rotateCombo_, static_cast<int>(s.rotation));
+  flipHCheck_->setChecked(s.flip_horizontal);
+  flipVCheck_->setChecked(s.flip_vertical);
+  interlaceCheck_->setChecked(s.interlace);
+  positionCheck_->setChecked(s.has_position);
+  setSpin(posXSpin_, static_cast<int>(s.position_x));
+  setSpin(posYSpin_, static_cast<int>(s.position_y));
+
+  // ---- Crop ----
+  cropCheck_->setChecked(s.crop);
+  setSpin(cropXSpin_, static_cast<int>(s.crop_x));
+  setSpin(cropYSpin_, static_cast<int>(s.crop_y));
+  setSpin(cropWSpin_, static_cast<int>(s.crop_w));
+  setSpin(cropHSpin_, static_cast<int>(s.crop_h));
+  cropTransparencyCheck_->setChecked(s.crop_transparency);
+
+  // ---- Animation ----
+  delayCheck_->setChecked(s.delay_cs >= 0);
+  if (s.delay_cs >= 0) setSpin(delaySpin_, s.delay_cs);
+  if (s.loopcount == 0) {
+    selectByData(loopCombo_, 1);  // forever (VP-1: emits --loopcount=0)
+  } else if (s.loopcount > 0) {
+    selectByData(loopCombo_, 2);  // loop N times
+    setSpin(loopSpin_, s.loopcount);
+  } else {
+    selectByData(loopCombo_, 0);  // keep original
+  }
+  selectByData(disposalCombo_, s.disposal);  // -1..3; 4..7 not GUI-representable
+  unoptimizeCheck_->setChecked(s.unoptimize);
+  if (s.threads >= 0 && s.threads <= 64) setSpin(threadsSpin_, s.threads);
+
+  // ---- Colors / gamma / transparency ----
+  // gamma_str is authoritative (load_settings always fills it from the file);
+  // the legacy numeric gamma only applies when no string form is present.
+  if (!s.gamma_str.empty()) {
+    const QString g = QString::fromStdString(s.gamma_str);
+    if (g == QLatin1String("srgb")) selectByData(gammaCombo_, 1);
+    else if (g == QLatin1String("oklab")) selectByData(gammaCombo_, 2);
+    else { selectByData(gammaCombo_, 3); gammaEdit_->setText(g); }
+  } else if (s.gamma >= 0) {
+    selectByData(gammaCombo_, 3);
+    gammaEdit_->setText(QString::number(s.gamma));
+  } else {
+    selectByData(gammaCombo_, 0);  // keep original
+  }
+  backgroundEdit_->setText(QString::fromStdString(s.background));
+  transparentEdit_->setText(QString::fromStdString(s.transparent));
+
+  // ---- Metadata ----
+  removeCommentsCheck_->setChecked(s.remove_comments);
+  removeNamesCheck_->setChecked(s.remove_names);
+  removeExtensionsCheck_->setChecked(s.remove_extensions);
+  commentList_->clear();
+  for (const auto& c : s.comments)
+    commentList_->addItem(QString::fromStdString(c));
+
+  // ---- Enabled-state sync (the blocked toggled-lambdas would have done this) ----
+  updateModeDependentUi();
+  updateResizeUi();
+  colorsSpin_->setEnabled(colorsCheck_->isChecked());
+  posXSpin_->setEnabled(positionCheck_->isChecked());
+  posYSpin_->setEnabled(positionCheck_->isChecked());
+  for (QSpinBox* sp : {cropXSpin_, cropYSpin_, cropWSpin_, cropHSpin_})
+    sp->setEnabled(cropCheck_->isChecked());
+  cropTransparencyCheck_->setEnabled(cropCheck_->isChecked());
+  delaySpin_->setEnabled(delayCheck_->isChecked());
+  loopSpin_->setEnabled(loopCombo_->currentData().toInt() == 2);
+  gammaEdit_->setEnabled(gammaCombo_->currentData().toInt() == 3);
 }
