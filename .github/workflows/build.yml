@@ -25,17 +25,6 @@ jobs:
         working-directory: working_code/gifscythe
         run: ./scripts/smoke_cli.sh
 
-      # The web/ demo ships a SECOND copy of the command builder and the
-      # validation rules. Nothing in the C++ suites touches them, so without
-      # these two the JS and C++ sides drift silently (audit U-03 proved they
-      # do). They need only the CLI built above plus the Node on the runner.
-      - name: Web JS/C++ parity + transport tests
-        run: |
-          set -euo pipefail
-          node web/test/command.test.mjs
-          node web/test/validate.test.mjs
-          node web/test/transport.test.mjs
-
       - name: GUI offscreen tests (COMPILED_AUDIT 6.B harness)
         timeout-minutes: 12
         working-directory: working_code/gifscythe
@@ -48,31 +37,6 @@ jobs:
       - name: Package portable
         working-directory: working_code/gifscythe
         run: ./scripts/package_portable.sh
-
-      # Audit U-02/U-08/U-14: the packager used to exit 0 for a folder with no
-      # application in it, and CI uploaded that folder without ever looking
-      # inside — so a green build proved nothing about the release. These two
-      # steps make the contents a gate.
-      - name: Packaging negative tests (incomplete packages must fail)
-        working-directory: working_code/gifscythe
-        run: ./scripts/test_package.sh
-
-      - name: Assert package manifest
-        working-directory: working_code/gifscythe
-        run: |
-          set -euo pipefail
-          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' VERSION.md \
-            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-          pkg="release/$version/Gifscythe"
-          for f in gifsicle gifscythe-cli gifscythe LICENSE COPYING.gifsicle README.txt; do
-            if [[ ! -s "$pkg/$f" ]]; then
-              echo "FAIL: $pkg/$f is missing or empty" >&2
-              ls -la "$pkg" >&2 || true
-              exit 1
-            fi
-          done
-          echo "package manifest OK"
-          ls -la "$pkg"
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4

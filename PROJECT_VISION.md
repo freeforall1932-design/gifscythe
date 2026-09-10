@@ -14,7 +14,9 @@ persistence** (remember-me between sessions), **queue reorder**, **naming
 templates** (`{name}_opt.gif` default), and the **release-procedure doc**;
 harness reached 243 checks there. **2026-09-10 (S8):** the audit register was
 worked down — **31 findings closed with executed proof** (both release blockers
-included) and the one-command gate is green at **24 PASS / 0 FAIL / 4 SKIP**.
+included) and the one-command gate is green at **23 PASS / 0 FAIL / 5 SKIP,
+exit 0** (E9 SKIPs while the CI workflow change awaits a `workflows`-scoped
+token; 24/0/4 once applied).
 Note the S8 sandbox had no cmake/Qt6, so 243 is the last *measured* harness
 figure and the GUI edits since then are CI-verified only. Remaining: the
 clean-VM / desktop smoke (C4/D3/D4,

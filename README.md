@@ -22,8 +22,9 @@ two batches, each with executed proof** — including both release blockers:
 source file*, rc=0) and **U-02** (`package_portable.sh` exited 0 with no GUI in
 the folder). New `src/core/OutputPlan.h` + `OutputName.h`,
 `scripts/test_package.sh` (9 negative cases), and three web suites; unit suite
-at **211 checks, 0 failures**; `verify_audit.sh` now **24 PASS / 0 FAIL /
-4 SKIP, exit 0**. See `docs/audit/REMEDIATION_2026-09-10.md`. Remaining: clean-Windows
+at **211 checks, 0 failures**; `verify_audit.sh` now **23 PASS / 0 FAIL /
+5 SKIP, exit 0** (E9 SKIPs while the CI workflow change awaits a
+`workflows`-scoped token — `docs/ci/PENDING_WORKFLOW_CHANGE.md`). See `docs/audit/REMEDIATION_2026-09-10.md`. Remaining: clean-Windows
 desktop probes (C4/D3/D4, B5/B6/B14 — checklist in
 `docs/ci/CLEAN_WINDOWS_SMOKE.md`), the Windows-only findings (U-07/U-21 rule
 sets are implemented and unit-tested; U-07 is not), the release re-cut (U-09),
