@@ -33,8 +33,11 @@ function settings() {
     resize_kind: resize,
     resize_w: Number($("w").value),
     resize_h: Number($("h").value),
-    scale_x: Number($("scalePct").value) / 100,
-    scale_y: Number($("scalePct").value) / 100,
+    // Audit U-42: independent X/Y scale, mirroring the desktop's scale_x /
+    // scale_y controls. The single shared "Scale %" input silently forced
+    // both axes to the same factor — a parity gap the desktop never had.
+    scale_x: Number($("scalePctX").value) / 100,
+    scale_y: Number($("scalePctY").value) / 100,
     loopcount: loop === "keep" ? -1 : loop === "forever" ? 0 : Number($("loopN").value),
     delay_cs: $("delayOn").checked ? Number($("delay").value) : -1,
   };
@@ -95,7 +98,7 @@ function humanSize(bytes) {
 
 // controls -> live pane
 for (const id of ["optimize", "lossy", "colors", "colorsOn", "dither", "resize",
-  "w", "h", "scalePct", "loop", "loopN", "delay", "delayOn"]) {
+  "w", "h", "scalePctX", "scalePctY", "loop", "loopN", "delay", "delayOn"]) {
   $(id).addEventListener("input", refreshCommand);
   $(id).addEventListener("change", () => { updateControlState(); refreshCommand(); });
 }

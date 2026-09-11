@@ -17,8 +17,8 @@ root `reference_code/` (read-only).
 - **0.1.0** — engine + control layer + CLI + full GUI (S4b retrofit + S7 polish).
 - `COMPILED_AUDIT.md` §6 was **executed with evidence** (S4) and **rerun green
   on 2026-09-10 (S7)**: §6.A all green, §6.B green via the offscreen GUI
-  harness (**243 checks, T1–T16**, measured in the S7 sandbox), §6.E all green;
-  `verify_audit.sh` → **25 PASS / 0 FAIL / 5 SKIP, exit 0** (E9 SKIPs while the
+  harness (**306 checks, T1–T20**, measured in the S10 sandbox; 243 in S7), §6.E all green;
+  `verify_audit.sh` → **27 PASS / 0 FAIL / 3 SKIP, exit 0** (E9 SKIPs while the
   CI workflow change awaits a `workflows`-scoped token; F1/F2 are the S9
   documentation gate).
 - **Windows path proven under Wine + CI**: engine exe (`1.96 (Windows)`), CLI
@@ -125,8 +125,9 @@ explicit choice (concatenates animations).
   location (`%APPDATA%\Gifscythe\` on Windows); override the path with
   `GS_SETTINGS_PATH`. The queue and Save-as field are deliberately *not*
   restored. Corrupt files apply their valid keys and warn in the status bar.
-- Regression net: `tests/test_gui_offscreen.cpp` — T1–T17, 226 `CHECK(` sites in
-  source; last measured at 243 runtime checks (T1–T16) in the S7 sandbox. Runs
+- Regression net: `tests/test_gui_offscreen.cpp` — T1–T20, 240 `CHECK(` sites in
+  source; last measured at **306 runtime checks** in the S10 sandbox (Qt 6.4.2);
+  243 in the S7 sandbox before that. Runs
   in CI; this sandbox has no Qt6/cmake.
 
 ## Versioning

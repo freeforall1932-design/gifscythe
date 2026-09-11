@@ -22,9 +22,10 @@ two batches, each with executed proof** — including both release blockers:
 source file*, rc=0) and **U-02** (`package_portable.sh` exited 0 with no GUI in
 the folder). New `src/core/OutputPlan.h` + `OutputName.h`,
 `scripts/test_package.sh` (9 negative cases), and three web suites; unit suite
-at **211 checks, 0 failures**; `verify_audit.sh` now **25 PASS / 0 FAIL /
-5 SKIP, exit 0** (E9 SKIPs while the CI workflow change awaits a
-`workflows`-scoped token — `docs/ci/PENDING_WORKFLOW_CHANGE.md`). See `docs/audit/REMEDIATION_2026-09-10.md`.
+at **238 checks, 0 failures** (S10); `verify_audit.sh` now **27 PASS / 0 FAIL /
+3 SKIP, exit 0** as measured in the S10 Qt6+cmake sandbox (E9 SKIPs while the
+CI workflow change awaits a `workflows`-scoped token —
+`docs/ci/PENDING_WORKFLOW_CHANGE.md`). See `docs/audit/REMEDIATION_2026-09-10.md`.
 **S9 (2026-09-10) added the status-tracking system:** `STATUS.md` is now the
 single status register (four states — DONE / PARTIAL / OPEN / UNTRIAGED),
 `scripts/check_docs.sh` emits and enforces it, `verify_audit.sh` gates **F1/F2**
@@ -38,6 +39,21 @@ desktop probes (C4/D3/D4, B5/B6/B14 — checklist in
 sets are implemented and unit-tested; U-07 is not), the release re-cut (U-09),
 the two-way-CLI decision, and the version decision (0.2.0 vs 1.0.0, owner's
 call). WebP/APNG deferred.
+**S10 (2026-09-11) closed 9 audit findings plus the untriaged N-03, with
+executed proof.** The S10 sandbox installed the full toolchain (cmake 3.25.1 +
+Qt 6.4.2 via apt), so for the first time since S7 the offscreen GUI harness was
+compiled **and run locally**: **306 checks, 0 failures** (T1–T20). Closed:
+**U-45** (the last P0-1 gap — the whole output group, Browse buttons included,
+locks during a run), **U-16** (atomic settings persistence: tmp+fsync+rename in
+core, QSaveFile in the GUI), **U-34/U-47** (preview invalidation + temp-file
+hygiene), **U-35** (Run re-enable re-checks the engine), **U-36** (the third
+settings parser is gone), **U-37** ("persistence unavailable" status note),
+**U-40** (`--strict`, exit 3), **U-42** (web Scale X/Y parity). **N-03**: the
+screenshots were re-shot offscreen from the current UI and are now linked from
+this README. **R-01** closed by the local measurement. Suite counts this
+session: unit **238**, smoke **9/9**, web **15/15 + 19/19 + 18/18**, harness
+**306**. **Not pushed:** the S10 token was read-only — CI verification of the
+S10 changes is pending on the next push.
 **Direction (2026-09-09): offline-only, language stays C++17/Qt6 through 1.0.0**
 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 
@@ -57,6 +73,12 @@ cd working_code/gifscythe
 ./build.sh --all            # also Qt6 GUI (fails honestly if Qt missing)
 ./scripts/check_docs.sh     # documentation gate — green before any PR
 ```
+
+## Screenshots (S10 refresh, offscreen Qt 6.4.2 — see docs/screenshots/README.md)
+
+| Input tab — queue, reorder, before/after preview | Actions tab — full control surface | Output tab — template, batch folder, summary |
+|---|---|---|
+| ![Input tab](docs/screenshots/shot_input_tab.png) | ![Actions tab](docs/screenshots/shot_actions_tab.png) | ![Output tab](docs/screenshots/shot_output_tab.png) |
 
 ## Repo layout
 

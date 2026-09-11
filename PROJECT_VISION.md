@@ -18,16 +18,19 @@ C++17/Qt6 through 1.0.0**; the `web/` build is a demo only. **2026-09-10
 persistence** (remember-me between sessions), **queue reorder**, **naming
 templates** (`{name}_opt.gif` default), and the **release-procedure doc**;
 the offscreen harness was **last measured at 243 runtime checks in that S7
-sandbox** — it has not been re-measured since, because the S8 and S9 sandboxes
-have no cmake/Qt6. **2026-09-10 (S8):** the audit register was
+sandbox**. **2026-09-10 (S8):** the audit register was
 worked down — **31 findings closed with executed proof** (both release blockers
 included). **2026-09-10 (S9):** the status-tracking system landed — `STATUS.md`,
 `scripts/check_docs.sh`, the `verify_audit.sh` **F1/F2** gates and a pre-push
-hook — and the one-command gate is green at **25 PASS / 0 FAIL / 5 SKIP,
-exit 0** (E9 SKIPs while the CI workflow change awaits a `workflows`-scoped
-token).
-Because no sandbox since S7 has had cmake/Qt6, **243 remains the last *measured*
-harness figure** and every GUI edit since is CI-verified only. Remaining: the
+hook — and the one-command gate is green at **27 PASS / 0 FAIL / 3 SKIP,
+exit 0** as measured in the S10 sandbox (E9 SKIPs while the CI workflow change
+awaits a `workflows`-scoped token).
+**2026-09-11 (S10):** the S10 sandbox had cmake + Qt6 (apt-installed), so the
+harness was re-measured locally for the first time since S7 — **306 runtime
+checks, 0 failures (T1–T20)** — and 9 findings closed with executed proof
+(U-16, U-34, U-35, U-36, U-37, U-40, U-42, U-45, U-47), plus the N-03
+screenshot re-shoot. **306 is now the last *measured* harness figure**; the
+S8/S9-era GUI edits that were CI-verified only have now also run locally. Remaining: the
 clean-VM / desktop smoke (C4/D3/D4,
 B5/B6/B14 — `docs/ci/CLEAN_WINDOWS_SMOKE.md`) plus the owner decisions
 (two-way CLI, version) remain before **1.0.0**. See `WORKLIST.md`,
@@ -74,7 +77,7 @@ want the full gifsicle terminal control underneath.
 | GIF engine subprocess | Done (native + Windows config path) |
 | Settings → argv control layer | Done |
 | CLI driver + tests | Done (honest exits, smoke suite) |
-| GUI | **Retrofit done (S4b) + polish done (S7):** Input/Actions/Output tabs, ~30 engine-truth controls, debounced async before/after preview, batch output folder, **settings persistence between sessions, queue reorder, `{name}` naming templates** — offscreen harness **last measured at 243 runtime checks (T1–T16) in the S7 sandbox**; S8 added **T17** and rewrote **T8**, and those are **CI-verified only** (no cmake/Qt6 in any sandbox since) |
+| GUI | **Retrofit done (S4b) + polish done (S7) + honesty/lock fixes (S10):** Input/Actions/Output tabs, ~30 engine-truth controls, debounced async before/after preview, batch output folder, **settings persistence between sessions, queue reorder, `{name}` naming templates**, locked output group during runs (S10) — offscreen harness **last measured at 306 runtime checks (T1–T20) in the S10 sandbox** (Qt 6.4.2; 243 in S7 before that) |
 | Audit remediation | **S8 (2026-09-10):** 31 of the 52 registered findings closed with executed proof — see `docs/audit/REMEDIATION_2026-09-10.md`. Current state of all 52: `STATUS.md` |
 | Status tracking | **Done (S9)** — `STATUS.md` register (4 states), `scripts/check_docs.sh` emitter+gate, `verify_audit.sh` F1/F2, `.githooks/pre-push`. Docs can no longer drift silently |
 | Silent-failure class bugs | Fixed in code; re-verify via `COMPILED_AUDIT.md` §6 |

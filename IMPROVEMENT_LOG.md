@@ -4,6 +4,107 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S10 — Nine findings + N-03 closed with executed proof; the harness ran locally again  (2026-09-11)
+
+Same branch family (`main`), same version (0.1.0). The S10 sandbox turned out to
+have a working apt: g++ 12.2, then cmake 3.25.1 + Qt 6.4.2 + ninja, plus node
+and DejaVu fonts. For the first time since S7 every layer — core, CLI, GUI,
+harness, web — was compiled AND run in one sandbox.
+
+**Changed:**
+
+* **U-45 (the last P0-1 gap).** `browseOutputButton`/`browseBatchDirButton` are
+  now members locked by `setBusy()`, and `chooseOutput()`/`chooseBatchDir()`
+  guard `busy_`. A picker can call `setText()` on a DISABLED QLineEdit, which is
+  exactly how the batch destination used to move mid-run; T18 clicks the locked
+  button and force-writes the field mid-run and proves the outputs still land
+  where the plan said. P0-1 (plan + refuse + lock) is now fully closed.
+* **U-35.** `setBusy(false)` re-enables Run only through `ensureEngine()` (the
+  `&&` short-circuits, so entering busy never re-probes or stomps the status).
+* **U-16.** `save_settings_file` is now tmp + fsync + rename (fail-closed, stray
+  cleaned); the GUI save is `QSaveFile`. Unit test 32 (success/overwrite/
+  directory-target/empty-path) + T19 (exactly one file left, no strays).
+* **U-36.** `guiStateKey` — the third parser for the conf format — deleted.
+  `set_field` reports recognised keys; `load_settings` collects the rest into a
+  map the GUI reads `batch_dir`/`name_template` from. Unit test 31 + T14/T19
+  round-trips.
+* **U-37.** One-time status-bar note when `sessionFilePath()` is empty.
+* **U-34/U-47 (P1-10).** `invalidatePreview()` (seq++) now runs on every
+  schedule/clear/cancel/busy-entry, so stale completions die at the guard
+  instead of repainting the panes; stale and failed runs delete their own file
+  and every success sweeps `preview_*.gif` except the displayed one. T20 drives
+  a 360-frame preview in flight through clear-queue and Explode-switch and
+  asserts zero leaked files and no ghost After image.
+* **U-40.** `--strict`: any parse or validation warning refuses with exit 3
+  before anything prints or runs; `--help` documents the policy and the exit
+  code table. Smoke suite 7 → 9 cases.
+* **U-42.** Web demo: one shared "Scale %" input replaced by Scale X % / Scale
+  Y % feeding `scale_x`/`scale_y` like the desktop; asymmetric parity fixture
+  (`0.5x2`) + a live transport case (1×1 GIF → 1×2, `--scale 0.5x2` on the wire).
+* **N-03.** Screenshots re-shot offscreen (Qt 6.4.2) from the CURRENT MainWindow
+  with the documented scenario (logo+logo1 queued, lossy=30, colors=128, preview
+  finished) and linked from the root README; `docs/screenshots/README.md`
+  rewritten. The capture driver is a throwaway dev tool kept outside the repo
+  (`~/devtools/capture` in this sandbox) on purpose.
+* **Docs/status:** register rows for the nine findings + N-03 + R-01/R-02;
+  WORKLIST S10 section; gate numbers re-synced to this sandbox's measurements
+  (G6/G9/G10/G11 were red on a fresh `main` clone before this session: docs
+  quoted the S9 sandbox's 25/0/5 and base `190d030`, while origin/main is
+  `414f5fc`).
+
+**Partial:**
+
+* Nothing new. U-10/U-14/U-18 stay PARTIAL from S8, untouched this session.
+
+**Left:**
+
+* **Not pushed.** The S10 token is read-only, so the changes live in the local
+  clone only; GitHub Actions has not compiled any S10 code yet. The next push
+  must run `check_docs.sh` (rule 3) and watch the CI matrix.
+* U-07/U-09/U-12/U-15/U-17/U-41 remain OPEN (Windows-only, release infra, or
+  unscoped); W-18/W-19/W-26/W-29/W-30 and D-01…D-08 unchanged.
+* The U-37 empty-path branch and the Windows `_commit` half of the atomic save
+  are review-verified only (see below).
+
+**Verified (run in this sandbox):**
+
+* `./build.sh` → **238 checks, 0 failures**; `test_engine.sh` 5/5;
+  `smoke_cli.sh` **9/9**; `test_package.sh` 9/9.
+* GUI offscreen harness (compiled locally, first time since S7): **306 checks,
+  0 failures** (T1–T20) — the new last-measured figure (was 243 @ S7).
+* Web: `command.test.mjs` **15/15**, `validate.test.mjs` 19/19,
+  `transport.test.mjs` **18/18** (live server + real engine).
+* `verify_audit.sh` → **27 PASS / 0 FAIL / 3 SKIP, exit 0** (skips: E9
+  declared-pending workflow, CI-gated, clean-Windows); `check_docs.sh` →
+  **21 passed, 0 failed, 1 skipped** (the skip is G7, same declared drift).
+* Screenshots viewed pixel-by-pixel after capture (queue rows, reorder
+  buttons, savings readout, template row, per-file command pane all present).
+
+**Not verifiable here:**
+
+* The U-37 empty-`sessionFilePath()` branch cannot be forced on Linux: Qt falls
+  back to `getpwuid()` for the home dir, so a config location always resolves
+  (T19 pins that reality instead of pretending). The status note is
+  review-verified for platforms where the path really is empty.
+* The `_WIN32` half of the atomic save (`_commit`/`_fileno`) never executed here
+  (no Windows, no mingw installed this session); CI's windows job is its first
+  compilation.
+* Clean-Windows smoke (C4/D3/D4), desktop probes B5/B6/B14, and the U-09
+  release re-cut still need machines/credentials this sandbox does not have.
+* GitHub Actions for the S10 changes — read-only token, no push possible.
+
+**Docs touched:**
+
+* `COMPILED_AUDIT.md` (§5 rows for the nine findings, §6 P2-5, §7 A12 count,
+  header base commit), `STATUS.md` (rows + regenerated), `WORKLIST.md` (S10
+  section, ticks, next actions), `SESSION_HANDOFF.md` (S10 rewrite),
+  `README.md` (S10 paragraph + screenshots section), `PROJECT_VISION.md`,
+  `docs/release/RELEASE_PROCEDURE.md`, `docs/ci/README.md`,
+  `working_code/gifscythe/README.md`, `docs/screenshots/README.md` + the three
+  PNGs, `web/README.md` untouched (its settings list was already accurate).
+
+---
+
 ## S9 — Status-tracking system: one register, one vocabulary, one gate  (2026-09-10)
 
 Same branch family, same version (0.1.0). No product code under `src/` changed

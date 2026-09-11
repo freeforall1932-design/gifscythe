@@ -688,6 +688,104 @@ int main() {
     CHECK(o2.str().find("input = /some path/in.gif\n") != std::string::npos);
   }
 
+  // 31. Unknown keys are collected for the GUI (audit U-36 / P3-7). set_field
+  //     now reports whether a key is recognised, and load_settings fills an
+  //     extra_keys map: lowercased key, trimmed value, last occurrence wins —
+  //     the same override semantics the known keys have. The GUI's third
+  //     parser (guiStateKey in MainWindow.cpp) is gone; this is the one
+  //     channel for GUI-only keys like batch_dir / name_template.
+  {
+    Settings dummy;
+    CHECK(set_field(dummy, "mode", "batch") == true);    // known core key
+    CHECK(set_field(dummy, "batch_dir", "/x") == false);  // GUI key: unknown to core
+    CHECK(set_field(dummy, "no_such_key", "1") == false);
+
+    std::istringstream in(
+        "# a GUI-written conf\n"
+        "mode = merge\n"
+        "batch_dir = /first/path\n"
+        "Name_Template = {name}_x.gif\n"
+        "batch_dir = /second/path\n"
+        "future_key = still ignored\n");
+    std::vector<LoadWarning> w;
+    std::map<std::string, std::string> extra;
+    Settings s = load_settings(in, &w, &extra);
+    CHECK(s.mode == Mode::Merge);          // known keys still apply as before
+    CHECK(w.empty());
+    CHECK(extra.size() == 3);              // batch_dir, name_template, future_key
+    CHECK(extra["batch_dir"] == "/second/path");   // last occurrence wins
+    CHECK(extra["name_template"] == "{name}_x.gif");  // key matched case-insensitively
+    CHECK(extra.count("future_key") == 1);
+    CHECK(extra.count("mode") == 0);       // known keys never leak into extras
+
+    // The file-level entry point passes the channel through...
+    const std::string p =
+        (std::filesystem::temp_directory_path() / "gs_extra_keys_test.conf").string();
+    {
+      std::ofstream out(p);
+      out << "lossy = 30\nbatch_dir = /gui/dir\n";
+    }
+    std::map<std::string, std::string> extra2;
+    auto loaded = load_settings_file(p, nullptr, &extra2);
+    CHECK(loaded.has_value());
+    CHECK(loaded->lossy == 30);
+    CHECK(extra2["batch_dir"] == "/gui/dir");
+    std::remove(p.c_str());
+    // ...and a missing file is still nullopt, not silent defaults (test 10).
+    std::map<std::string, std::string> extra3;
+    CHECK(!load_settings_file("/no/such/path/gifscythe_missing_test.conf", nullptr, &extra3)
+               .has_value());
+    CHECK(extra3.empty());
+  }
+
+  // 32. Atomic save_settings_file (audit U-16 / P1-18): write tmp + fsync +
+  //     rename, so a reader sees either the old file or the complete new one —
+  //     never a truncated mix. The pre-fix form (ofstream Truncate + write)
+  //     destroyed the previous file before the new bytes existed.
+  {
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() / "gs_atomic_save_test";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    const std::string p = (dir / "gifscythe.conf").string();
+
+    Settings s;
+    s.mode = Mode::Batch;
+    s.lossy = 30;
+    s.comments = {"hello"};
+    CHECK(save_settings_file(p, s) == true);
+    CHECK(fs::exists(p));
+    CHECK(!fs::exists(p + ".tmp"));  // success leaves no stray temp file
+
+    auto r = load_settings_file(p);
+    CHECK(r.has_value());
+    CHECK(r->mode == Mode::Batch && r->lossy == 30 && r->comments.size() == 1);
+
+    // Overwriting an existing file works (rename must REPLACE: POSIX rename
+    // does; Windows needs fs::rename's MoveFileEx(REPLACE_EXISTING) path).
+    Settings s2;
+    s2.mode = Mode::Merge;
+    CHECK(save_settings_file(p, s2) == true);
+    auto r2 = load_settings_file(p);
+    CHECK(r2.has_value() && r2->mode == Mode::Merge);
+    CHECK(!fs::exists(p + ".tmp"));
+
+    // Fail closed, clean up after itself: the target is a DIRECTORY, so the
+    // rename cannot replace it. save must return false, leave the target
+    // untouched, and remove its own .tmp stray (the error branch is what
+    // keeps a failed save from littering next to the user's conf).
+    const std::string as_dir = (dir / "adir.conf").string();
+    fs::create_directories(as_dir);
+    CHECK(save_settings_file(as_dir, s) == false);
+    CHECK(!fs::exists(as_dir + ".tmp"));
+    CHECK(fs::is_directory(as_dir));
+
+    // Empty path: false, no crash.
+    CHECK(save_settings_file("", s) == false);
+
+    fs::remove_all(dir);
+  }
+
   std::printf("==> %d checks, %d failures\n", checks, failures);
   if (failures == 0) {
     std::printf("ALL TESTS PASSED\n");

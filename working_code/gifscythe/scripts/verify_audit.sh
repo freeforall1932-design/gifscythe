@@ -85,7 +85,11 @@ else bad "A10" "engine version line: $vline"; fi
 
 # ---------- A11/A12: scripts ----------
 if ./scripts/test_engine.sh 2>&1 | tail -1 | grep -q "0 failed"; then ok "A11" "test_engine.sh 5/5"; else bad "A11" "test_engine.sh"; fi
-if ./scripts/smoke_cli.sh 2>&1 | tail -1 | grep -q "0 failed"; then ok "A12" "smoke_cli.sh 7/7"; else bad "A12" "smoke_cli.sh"; fi
+smoke_out="$(./scripts/smoke_cli.sh 2>&1 | tail -1)"
+if grep -q "0 failed" <<<"$smoke_out"; then
+  smoke_n="$(grep -oE '[0-9]+ passed' <<<"$smoke_out" | grep -oE '^[0-9]+')"
+  ok "A12" "smoke_cli.sh ${smoke_n:-?}/${smoke_n:-?}"
+else bad "A12" "smoke_cli.sh"; fi
 
 # ---------- C6/C7/C8: cmake + honest GUI dispatch ----------
 # Audit U-38: a missing toolchain is a SKIP, not a FAIL. This block used to
@@ -243,8 +247,10 @@ if command -v node >/dev/null 2>&1; then
   # W3 drives the REAL server over HTTP: percent-encoding, latin1 header limits
   # and the 422 path. Mutation-tested — re-adding the double decode fails 4
   # cases, dropping encodeURIComponent fails 6, removing validate() fails 3.
-  if ( cd ../.. && node web/test/transport.test.mjs 2>&1 | tail -1 | grep -q "ALL WEB TRANSPORT TESTS PASSED" ); then
-    ok "W3" "web transport end-to-end (17 cases against a live server)"
+  w3_out="$( cd ../.. && node web/test/transport.test.mjs 2>&1 )"
+  if grep -q "ALL WEB TRANSPORT TESTS PASSED" <<<"$w3_out"; then
+    w3_n="$(grep -c '^PASS' <<<"$w3_out")"
+    ok "W3" "web transport end-to-end (${w3_n:-?} cases against a live server)"
   else bad "W3" "web transport tests failed"; fi
 else
   skip "W1/W2" "node not installed — web parity tests skipped"

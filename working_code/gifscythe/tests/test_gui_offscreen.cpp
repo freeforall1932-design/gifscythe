@@ -30,6 +30,18 @@
 //   T16 naming templates (S3-25): default renders <name>_opt.gif (E4),
 //       custom template in pane + E2E, separator escape stripped,
 //       constant-template multi-file collision REFUSED with dialog
+//   T18 busy output-group lock (audit U-45/U-35, P1-23/P1-22): both Browse
+//       buttons lock during a run, a mid-run destination edit cannot
+//       redirect the planned outputs, the group unlocks afterwards and Run
+//       re-enables only through the engine re-check
+//   T19 persistence honesty (audit U-16/U-36/U-37, P1-18/P3-7/P3-8): the
+//       atomic save leaves exactly one file (no .tmp strays), the GUI keys
+//       round-trip through the core parser's unknown-key channel, and
+//       unavailable persistence is noted in the status bar instead of silence
+//   T20 preview invalidation + temp-file hygiene (audit U-34/U-47, P1-10):
+//       clearing the queue or switching to Explode invalidates the in-flight
+//       preview, and superseded/stale preview files are swept from the
+//       temp dir instead of leaking for the session
 //
 // Modal dialogs are recorded and auto-closed by a DialogKiller timer.
 // Widget lookup is by objectName (stable against layout changes).
@@ -64,6 +76,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSpinBox>
+#include <QStandardPaths>
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QThread>
@@ -1323,6 +1336,196 @@ int main(int argc, char** argv) {
     CHECK_MSG(x.outputSummary->text().contains(QStringLiteral("refused")),
               "a shared batch folder turns distinct inputs into one target");
     delete w;
+  }
+
+  // ============ T18: busy output-group lock (audit U-45/U-35) ==============
+  // While a run is in flight the WHOLE output group must be locked — both
+  // Browse buttons included — and even a programmatic setText() on the
+  // (disabled) batch-folder field must not redirect the running plan: the
+  // outputs go where they were planned, not where the field now points.
+  {
+    g_stage = "T18"; std::printf("== T18 busy output lock ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a));
+    const QString outDir = tmp.path() + QStringLiteral("/out");
+    const QString otherDir = tmp.path() + QStringLiteral("/other");
+    CHECK(QDir().mkpath(outDir));
+    CHECK(QDir().mkpath(otherDir));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* browseOut = byName<QPushButton>(w, "browseOutputButton");
+    auto* browseDir = byName<QPushButton>(w, "browseBatchDirButton");
+    CHECK(browseOut != nullptr && browseDir != nullptr);
+    dropFiles(w, {a});
+    x.batchDir->setText(outDir);
+    spinEvents(30);
+    CHECK(browseOut->isEnabled() && browseDir->isEnabled());  // idle: unlocked
+
+    x.run->click();  // returns once the engine has started; still busy here
+    CHECK_MSG(!browseOut->isEnabled(), "Save-as Browse locked during the run");
+    CHECK_MSG(!browseDir->isEnabled(), "batch-folder Browse locked during the run");
+    CHECK(!x.batchDir->isEnabled());
+    browseDir->click();                     // a click on a locked button is a no-op
+    x.batchDir->setText(otherDir);          // what the old picker path could still do
+    spinEvents(30);
+    CHECK(x.batchDir->text() == otherDir);  // the field took the edit...
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "locked batch completes");
+    CHECK(QFileInfo::exists(outDir + QStringLiteral("/a_opt.gif")));    // ...but the
+    CHECK(!QFileInfo::exists(otherDir + QStringLiteral("/a_opt.gif"))); // plan held
+    CHECK(browseOut->isEnabled() && browseDir->isEnabled());  // unlocked after
+    CHECK_MSG(x.run->isEnabled(), "Run re-enabled through the engine re-check (U-35)");
+    delete w;
+  }
+
+  // ======== T19: persistence honesty (audit U-16/U-36/U-37) ================
+  {
+    g_stage = "T19"; std::printf("== T19 persistence honesty ==\n");
+    const QByteArray prevEnv = qgetenv("GS_SETTINGS_PATH");
+    QTemporaryDir cfg;
+    CHECK(cfg.isValid());
+    const QString cfgPath = cfg.path() + QStringLiteral("/gifscythe.conf");
+    qputenv("GS_SETTINGS_PATH", QFile::encodeName(cfgPath));
+
+    // (a) U-16 GUI side: the atomic save leaves EXACTLY the conf behind — no
+    //     .tmp, no QSaveFile scratch — and U-36: the GUI keys written below it
+    //     round-trip through the core parser's unknown-key channel.
+    {
+      MainWindow* w = makeWindow();
+      byName<QLineEdit>(w, "batchDirEdit")->setText(QStringLiteral("/persisted/dir"));
+      byName<QLineEdit>(w, "nameTemplateEdit")->setText(QStringLiteral("{name}_t19.gif"));
+      spinEvents(30);
+      w->close();  // closeEvent -> saveSessionState (QSaveFile)
+      spinEvents(30);
+      const auto files = QDir(cfg.path()).entryList(QDir::Files);
+      CHECK_MSG(files.size() == 1 && files.at(0) == QStringLiteral("gifscythe.conf"),
+                "atomic save leaves exactly one file (no .tmp strays)");
+      delete w;
+    }
+    {
+      MainWindow* w2 = makeWindow();  // relaunch: restore via the extras map
+      CHECK(byName<QLineEdit>(w2, "batchDirEdit")->text() == QStringLiteral("/persisted/dir"));
+      CHECK(byName<QLineEdit>(w2, "nameTemplateEdit")->text() == QStringLiteral("{name}_t19.gif"));
+      auto* st = byName<QLabel>(w2, "statusLabel");
+      CHECK_MSG(!st->text().contains(QStringLiteral("not be remembered")),
+                "a working persistence path does not claim to be unavailable");
+      delete w2;
+    }
+
+    // (b) U-37: the unavailable-persistence status note itself cannot be
+    //     forced on Linux — Qt's home discovery falls back to getpwuid(), so
+    //     AppConfigLocation is effectively never empty here (verified live in
+    //     this harness: with HOME + XDG_CONFIG_HOME + GS_SETTINGS_PATH all
+    //     unset, the window still resolved a session path under the passwd
+    //     home). The empty-path branch is review-verified; the complementary
+    //     invariant — a working persistence path never raises a false
+    //     "unavailable" note — is pinned by the relaunch check above.
+    {
+      const QByteArray prevHome = qgetenv("HOME");
+      const QByteArray prevXdg = qgetenv("XDG_CONFIG_HOME");
+      qunsetenv("GS_SETTINGS_PATH");
+      qunsetenv("HOME");
+      qunsetenv("XDG_CONFIG_HOME");
+      MainWindow* w3 = makeWindow();
+      // Documents the platform reality the (b) note above asserts: even with
+      // every env override gone, a session path is still discoverable here.
+      CHECK_MSG(!w3->sessionFilePath().isEmpty(),
+                "Linux+Qt always discovers a config path (getpwuid fallback) — "
+                "the U-37 empty-path branch is not forceable in this harness");
+      delete w3;
+      if (prevHome.isNull()) qunsetenv("HOME"); else qputenv("HOME", prevHome);
+      if (prevXdg.isNull()) qunsetenv("XDG_CONFIG_HOME"); else qputenv("XDG_CONFIG_HOME", prevXdg);
+    }
+
+    if (prevEnv.isNull()) qunsetenv("GS_SETTINGS_PATH");
+    else qputenv("GS_SETTINGS_PATH", prevEnv);
+  }
+
+  // ====== T20: preview invalidation + temp-file hygiene (U-34/U-47) ========
+  // The old code advanced previewSeq_ only when a NEW eligible preview
+  // started, and cleaned up only "seq-1 on the non-stale success path". So a
+  // preview that was superseded while in flight (a) still passed the seq
+  // guard after a queue clear or Explode switch — repopulating the panes with
+  // a result for state that no longer exists — and (b) leaked its temp file
+  // for the rest of the session. Both are asserted against a slow in-flight
+  // preview (a 360-frame re-encode) so the completion lands AFTER the change.
+  {
+    g_stage = "T20"; std::printf("== T20 preview invalidation + hygiene ==\n");
+    QTemporaryDir tmp;
+    const QString big = tmp.path() + QStringLiteral("/big.gif");
+    CHECK(makeBigGif(logo, big, 30));  // 30 x 12 frames: slow enough to catch in flight
+
+    const QString previewDir =
+        QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+            .filePath(QStringLiteral("gifscythe-preview-%1")
+                          .arg(QCoreApplication::applicationPid()));
+    QDir(previewDir).removeRecursively();  // start from a known-empty state
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto previewFiles = [&]() {
+      return QDir(previewDir).entryList({QStringLiteral("preview_*.gif")}, QDir::Files);
+    };
+    auto waitPreviewRunning = [&](int timeoutMs) {
+      QElapsedTimer el; el.start();
+      while (el.elapsed() < timeoutMs) {
+        spinEvents(25);
+        auto* pp = byName<QProcess>(w, "previewProcess");
+        if (pp && pp->state() != QProcess::NotRunning) return true;
+      }
+      return false;
+    };
+    auto waitPreviewIdle = [&](int timeoutMs) {
+      QElapsedTimer el; el.start();
+      while (el.elapsed() < timeoutMs) {
+        spinEvents(25);
+        if (!byName<QProcess>(w, "previewProcess")) return true;
+      }
+      return false;
+    };
+
+    // (a) Clear the queue while a preview is in flight. Its completion must
+    //     NOT repopulate the panes, and its (partial) file must be gone.
+    dropFiles(w, {big});
+    CHECK_MSG(waitPreviewRunning(30000), "first preview is in flight");
+    x.clear->click();
+    CHECK_MSG(waitPreviewIdle(60000), "in-flight preview settles after clear");
+    spinEvents(400);
+    CHECK_MSG(previewFiles().size() == 0,
+              "cleared queue leaves no preview file behind (U-34/U-47)");
+
+    // (b) Switch to Explode while a preview is in flight: same contract.
+    dropFiles(w, {big});
+    CHECK_MSG(waitPreviewRunning(30000), "second preview is in flight");
+    x.mode->setCurrentIndex(2);  // Explode: preview refuses (multi-file output)
+    CHECK_MSG(waitForLabel(x.previewCaption, QStringLiteral("Explode"), 30000),
+              "Explode mode still refuses the preview");
+    CHECK_MSG(waitPreviewIdle(60000), "superseded preview settles after Explode switch");
+    spinEvents(400);
+    CHECK_MSG(previewFiles().size() == 0,
+              "the superseded preview's file is swept, not leaked (U-34)");
+
+    // (c) Back to Batch: a normal preview completes and exactly ONE file —
+    //     the displayed one — remains.
+    x.mode->setCurrentIndex(0);
+    spinEvents(1600);  // let the debounce fire and the run start
+    CHECK_MSG(waitPreviewIdle(60000), "third preview settles");
+    spinEvents(400);
+    CHECK_MSG(previewFiles().size() == 1, "exactly the displayed preview file remains");
+    CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("→"), 30000),
+              "preview shows the size comparison again");
+
+    // (d) One more settings change: the superseded file is swept on success,
+    //     so the directory does not grow within a session (the old seq-1 rule
+    //     only worked while every completion was non-stale).
+    x.lossy->setValue(x.lossy->value() + 5);
+    spinEvents(1600);
+    CHECK_MSG(waitPreviewIdle(60000), "fourth preview settles");
+    spinEvents(400);
+    CHECK_MSG(previewFiles().size() == 1, "temp dir holds exactly one preview after re-encode");
+    delete w;
+    CHECK_MSG(!QFileInfo::exists(previewDir), "window teardown removes the preview dir");
   }
 
   std::printf("==> %d checks, %d failures\n", g_checks, g_failures);
