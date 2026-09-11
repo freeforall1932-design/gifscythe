@@ -131,5 +131,43 @@ else
   fi
 fi
 
+# 7. --strict refuses any conf that produced a settings warning (audit U-40):
+#    exit 3, nothing printed, nothing run. Without --strict the same conf
+#    warns on stderr and proceeds (the documented policy).
+cat > "$WORK/strict.conf" <<EOF
+mode = auto
+colors = 999
+input = $SRC_GIF
+output = $WORK/strict_out.gif
+EOF
+set +e
+"$CLI" "$WORK/strict.conf" --strict --engine "$ENGINE" >"$WORK/out7.txt" 2>"$WORK/err7.txt"
+rc_strict=$?
+"$CLI" "$WORK/strict.conf" --run --strict --engine "$ENGINE" >"$WORK/out7r.txt" 2>"$WORK/err7r.txt"
+rc_strict_run=$?
+"$CLI" "$WORK/strict.conf" --engine "$ENGINE" >"$WORK/out7p.txt" 2>"$WORK/err7p.txt"
+rc_plain=$?
+set -e
+if [[ "$rc_strict" -eq 3 && "$rc_strict_run" -eq 3 && "$rc_plain" -eq 0 ]] \
+   && grep -q -- "--strict" "$WORK/err7.txt" \
+   && [[ ! -s "$WORK/out7.txt" ]] \
+   && grep -qi "WARNING" "$WORK/err7p.txt" \
+   && [[ ! -f "$WORK/strict_out.gif" ]]; then
+  ok "--strict refuses warned confs with rc=3 (print+run); plain mode warns and proceeds"
+else
+  bad "--strict behavior wrong (strict rc=$rc_strict, strict-run rc=$rc_strict_run, plain rc=$rc_plain)"
+fi
+
+# 8. --strict on a CLEAN conf is a pass-through (rc=0, command printed).
+set +e
+"$CLI" "$WORK/one.conf" --strict --engine "$ENGINE" >"$WORK/out8.txt" 2>"$WORK/err8.txt"
+rc=$?
+set -e
+if [[ "$rc" -eq 0 ]] && grep -q "gifsicle" "$WORK/out8.txt" && [[ ! -s "$WORK/err8.txt" ]]; then
+  ok "--strict passes a clean conf (rc=0, command on stdout)"
+else
+  bad "--strict mishandled a clean conf (rc=$rc)"
+fi
+
 echo "==> Done. $PASS passed, $FAIL failed."
 [[ "$FAIL" -eq 0 ]]

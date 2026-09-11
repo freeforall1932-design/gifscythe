@@ -123,6 +123,14 @@ class MainWindow : public QMainWindow {
   void startPreview();
   void onSelectionChanged();
   void killPreview();
+  // Preview invalidation + temp-file hygiene (audit U-34/U-47, fix-order
+  // P1-10). invalidatePreview() advances previewSeq_ so every in-flight
+  // preview becomes stale the MOMENT the selection/settings/queue change —
+  // not only when a new eligible preview starts. cleanupPreviewFiles()
+  // sweeps superseded/failed preview_*.gif out of the temp dir (all but the
+  // file currently on display — QMovie reads it lazily).
+  void invalidatePreview();
+  void cleanupPreviewFiles(const QString& keep = QString());
   QString selectedInput() const;
 
   // Widgets
@@ -133,6 +141,12 @@ class MainWindow : public QMainWindow {
   QLineEdit* outputEdit_ = nullptr;
   QLineEdit* batchDirEdit_ = nullptr;
   QLineEdit* nameTemplateEdit_ = nullptr;
+  // Browse buttons kept as members so setBusy() can lock the WHOLE output
+  // group while a run is in flight (audit U-45, fix-order P1-23): a picker
+  // can still setText() on a disabled QLineEdit, so disabling only the text
+  // fields left the run's destination one dialog away from changing mid-run.
+  QPushButton* outputBrowse_ = nullptr;
+  QPushButton* batchDirBrowse_ = nullptr;
   QPushButton* openDirButton_ = nullptr;
   QLabel* outputSummaryLabel_ = nullptr;
   PreviewPanel* previewPanel_ = nullptr;
@@ -163,6 +177,7 @@ class MainWindow : public QMainWindow {
   QTimer* previewTimer_ = nullptr;      // single-shot debounce (1200 ms)
   int previewSeq_ = 0;                  // stale-completion guard
   QString previewDir_;                  // temp dir for preview outputs
+  QString lastPreviewPath_;             // file currently shown as After (never swept)
 };
 
 #endif  // GIFSCYTHE_MAINWINDOW_H

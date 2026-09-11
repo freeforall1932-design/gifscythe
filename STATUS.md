@@ -29,8 +29,8 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 61 DONE · 4 PARTIAL · 31 OPEN · 1 UNTRIAGED · 97 total
-**Last regenerated:** S9 · 2026-09-10 · by scripts/check_docs.sh --emit
+**Counts (generated - do not edit by hand):** 72 DONE · 4 PARTIAL · 21 OPEN · 0 UNTRIAGED · 97 total
+**Last regenerated:** S10 · 2026-09-11 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
 
@@ -52,7 +52,7 @@ hand-fudged roll-up fails the gate.
 | U-13 | Drag-and-drop accepts any existing file. | DONE | S8 | drop filter `&&`; empty comments skipped (C++ + JS) | - |
 | U-14 | Green CI does not enforce the claims used as release gates. | PARTIAL | S8 | negative packaging tests + manifest assertion in CI | P2-1: Run `verify_audit.sh` in CI. |
 | U-15 | CMake writes into the source tree. | OPEN | - | not started; scoped as P2-2 in COMPILED_AUDIT.md §6 | P2-2: Stop CMake writing into `src/`. |
-| U-16 | Settings persistence is non-atomic (Truncate + write). | OPEN | - | not started; scoped as P1-18 in COMPILED_AUDIT.md §6 | P1-18: Atomic settings persistence. |
+| U-16 | Settings persistence is non-atomic (Truncate + write). | DONE | S10 | `save_settings_file` is tmp+fsync+rename; GUI save is QSaveFile; unit test 32 + T19 no-stray check | - |
 | U-17 | Explode mode never verifies any frame was written. | OPEN | - | not started; scoped as P1-19 in COMPILED_AUDIT.md §6 | P1-19: Explode frame verification. |
 | U-18 | The regression suite does not cover any of the failure classes above. | PARTIAL | S8 | planning/threads/validate/bool/comment unit tests, T17, package suite | P2-4: Regression suite expansion. |
 | U-19 | `readFrom()` is not the "exact inverse" of `writeInto()`. | DONE | S8 | not reproducible with toggles on; wording fixed, pinned by unit test 26 | - |
@@ -70,20 +70,20 @@ hand-fudged roll-up fails the gate.
 | U-31 | `build.sh` never links `-lstdc++fs`; `EngineLocator.h` uses `std::filesystem`, so g++ 7/8 hosts fail at link. | DONE | S8 | `build.sh` link-probes `-lstdc++fs` (writes `build/.fs_probe.cpp`, tries with/without, cleans up) | - |
 | U-32 | POSIX `run_argv` returns 1 on a signalled child instead of the `128+signum` convention. | DONE | S8 | `run_argv` returns `128+WTERMSIG`; test 28: SIGTERM→143, SIGKILL→137, `exit 3`→3, missing binary→127 | - |
 | U-33 | Setting only `position_x` or `position_y` in a conf sets `has_position = true`, yielding a half-specified `-p X,0`. | DONE | S8 | `-p` needs both halves | - |
-| U-34 | Preview temp files leak within a session: cleanup removes only `preview_{seq-1}` and only on the non-stale path, so superseded... | OPEN | - | not started; scoped as P1-10 in COMPILED_AUDIT.md §6 | P1-10: Preview invalidation + cleanup. |
-| U-35 | `setBusy(false)` re-enables Run without re-checking the engine, unlike `appendInputs`. | OPEN | - | not started; scoped as P1-22 in COMPILED_AUDIT.md §6 | P1-22: `setBusy(false)` engine re-check. |
-| U-36 | A third parser for the settings format (`guiStateKey`) re-opens and re-parses the file twice per load. | OPEN | - | not started; scoped as P3-7 in COMPILED_AUDIT.md §6 | P3-7: Third-parser consolidation. |
-| U-37 | "Persistence unavailable" is silent — no dialog, no status note. | OPEN | - | not started; scoped as P3-8 in COMPILED_AUDIT.md §6 | P3-8: "Persistence unavailable" status note. |
+| U-34 | Preview temp files leak within a session: cleanup removes only `preview_{seq-1}` and only on the non-stale path, so superseded... | DONE | S10 | stale/failed runs delete their own file; every success sweeps all `preview_*.gif` except the displayed one; T20 | - |
+| U-35 | `setBusy(false)` re-enables Run without re-checking the engine, unlike `appendInputs`. | DONE | S10 | `setBusy(false)` re-enables Run only through `ensureEngine()`; T18 asserts the re-enable after a run | - |
+| U-36 | A third parser for the settings format (`guiStateKey`) re-opens and re-parses the file twice per load. | DONE | S10 | `load_settings` collects unknown keys into a map; `guiStateKey` deleted; GUI reads its keys from the map; test 31 + T14/T19 | - |
+| U-37 | "Persistence unavailable" is silent — no dialog, no status note. | DONE | S10 | one-time status note when `sessionFilePath()` is empty; empty-path branch is unforceable on Linux (getpwuid), review-verified | - |
 | U-38 | `verify_audit.sh` FAILs instead of SKIPping C6 when `cmake` is absent (`[B]` guards properly 13 lines later). | DONE | S8 | C6 SKIPs without cmake | - |
 | U-39 | `docs/ci/build.yml.proposed` is a hand-maintained byte copy of the live workflow (already drifted once). | DONE | S8 | `verify_audit.sh` E9 drift guard | - |
-| U-40 | CLI prints `validate()` warnings and runs anyway; the GUI refuses. | OPEN | - | not started; scoped as P3-5 in COMPILED_AUDIT.md §6 | P3-5: Document CLI warning policy. |
+| U-40 | CLI prints `validate()` warnings and runs anyway; the GUI refuses. | DONE | S10 | `--strict` refuses any warned conf with rc=3 (print+run); usage documents the policy and exit codes; smoke 7→9 cases | - |
 | U-41 | Web POC is single-file Auto mode only — no batch/merge/explode. | OPEN | - | not started; NOT scoped in COMPILED_AUDIT.md §6 | scope it in COMPILED_AUDIT.md §6, then work it |
-| U-42 | Web has one `scalePct` for both axes; desktop has independent X/Y. | OPEN | - | not started; NOT scoped in COMPILED_AUDIT.md §6 | scope it in COMPILED_AUDIT.md §6, then work it |
+| U-42 | Web has one `scalePct` for both axes; desktop has independent X/Y. | DONE | S10 | web UI now has Scale X % / Scale Y % inputs; asymmetric parity fixture + live transport case pin per-axis factors | - |
 | U-43 | Summary reads `Batch (1 files) → X … X` (plural + duplicated path) for one input with no Save-as. | DONE | S8 | "Batch (1 file)" (CI-compiled) | - |
 | U-44 | The two dated review snapshots sit at repo root while newer material lives in `docs/`. | DONE | S8 | `git mv` to `docs/archive/`; the 3 prose references updated; README layout lists it | - |
-| U-45 | Batch output destination can change during a run — `setBusy()` only disables `batchDirEdit_` text field, not the Browse button; the picker can still call `setText()` on the disabled field. | OPEN | - | not started; scoped as P0-1 in COMPILED_AUDIT.md §6 | P0-1: Plan all batch outputs before the first process starts. |
+| U-45 | Batch output destination can change during a run — `setBusy()` only disables `batchDirEdit_` text field, not the Browse button; the picker can still call `setText()` on the disabled field. | DONE | S10 | both Browse buttons are members locked by `setBusy`; chooser slots guard `busy_`; a mid-run field edit cannot redirect the plan; T18 | - |
 | U-46 | A previous web request can replace the current result — `setFile()` resets preview + re-enables Run without cancelling the pending fetch. | DONE | S8 | `requestGen` counter in `app.js`, checked after fetch, after blob read, in catch and finally | - |
-| U-47 | Desktop preview invalidation happens too late — `previewSeq_` only advances when a *new eligible preview starts*, not on selection/settings change. | OPEN | - | not started; scoped as P1-10 in COMPILED_AUDIT.md §6 | P1-10: Preview invalidation + cleanup. |
+| U-47 | Desktop preview invalidation happens too late — `previewSeq_` only advances when a *new eligible preview starts*, not on selection/settings change. | DONE | S10 | `invalidatePreview()` runs on every schedule/clear/cancel/busy; stale completions are discarded and their file removed; T20 | - |
 | U-48 | Empty comments remove a required argv operand — `--comment` is emitted with no following argument when `s.comments` contains an empty string (from `comment = ` in a conf). | DONE | S8 | empty comments skipped in C++ + JS, parity fixture added | - |
 | U-49 | Settings query values are decoded twice — `searchParams.get()` already decodes, but `decodeURIComponent(raw)` decodes again. | DONE | S8 | double `decodeURIComponent` removed; live-reproduced `{"comments":["100%"]}` → HTTP 400, now HTTP 200 / 8679 B + `transport.test.mjs` regression net | - |
 | U-50 | Valid command text can break HTTP response headers — the full command (with CJK comments, newlines, or Unicode engine path) is inserted into `X-Gifscythe-Command` header without header-safe encoding. | DONE | S8 | header percent-encoded + decoded in `app.js`; `{"comments":["作品"]}` went HTTP 500 → HTTP 200 / 8681 B + `transport.test.mjs` regression net | - |
@@ -101,18 +101,18 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 |----|-------|-------|---------|-----------------|-------------|
 | W-01 | Project setup: `reference_code/` vs `working_code/` separation | DONE | S1 | split in place; README "What is reference vs. working" states the rule | - |
 | W-02 | GIF engine build + upstream identity verification | DONE | S8 | `verify_audit.sh` A10: `release/0.1.0/gifsicle --version` prints `LCDF Gifsicle 1.96` | - |
-| W-03 | Qt-independent command/settings control layer | DONE | S4 | `src/core/*.h` compile with plain g++ (no Qt); unit suite 211 checks | - |
-| W-04 | CLI driver + unit tests + integration smoke | DONE | S8 | `./build.sh` 211 checks, 0 failures; `scripts/smoke_cli.sh` 7/7 | - |
+| W-03 | Qt-independent command/settings control layer | DONE | S4 | `src/core/*.h` compile with plain g++ (no Qt); unit suite 238 checks (S10 count) | - |
+| W-04 | CLI driver + unit tests + integration smoke | DONE | S10 | `./build.sh` 238 checks, 0 failures; `scripts/smoke_cli.sh` 9/9 | - |
 | W-05 | Qt6 GUI MVP (Batch default, mode combo, async run, queue, DnD) | DONE | S8 | CI run `34471563229` green on linux + windows; NOT compiled in the S8/S9 sandboxes (no Qt6) | - |
 | W-06 | Portable + system-dependent packaging scripts | DONE | S8 | `scripts/test_package.sh` 9/9 negative cases; `verify_audit.sh` D1/D2/D5 | - |
 | W-07 | Linux GitHub Actions path with Qt6 + artifacts | DONE | S8 | `.github/workflows/build.yml`; main runs #23/#24 green both jobs | - |
 | W-08 | Root LICENSE / COPYING.gifsicle / .gitignore / .gitattributes | DONE | S8 | CI "Assert package manifest" step requires LICENSE + COPYING.gifsicle in the package | - |
 | W-09 | P0 silent-failure fixes (2026-09-07) | DONE | S4 | `COMPILED_AUDIT.md` §6.A re-run green | - |
 | W-10 | P1 honesty work (2026-09-07) | DONE | S4 | `COMPILED_AUDIT.md` §6.E 8/8 | - |
-| W-11 | Smoke suite + engine test scripts | DONE | S8 | `scripts/test_engine.sh` 5/5; `scripts/smoke_cli.sh` 7/7 | - |
+| W-11 | Smoke suite + engine test scripts | DONE | S10 | `scripts/test_engine.sh` 5/5; `scripts/smoke_cli.sh` 9/9 | - |
 | W-12 | Apply `docs/ci/build.yml.proposed` to the live workflow | DONE | S4 | maintainer `821a310` + S4 hardening; copies kept byte-identical (gate E9) | - |
 | W-13 | Merge the compiled audit into one register | DONE | S3 | `COMPILED_AUDIT.md` §5 holds all 52 findings | - |
-| W-14 | One-command verification of `COMPILED_AUDIT.md` §6 | DONE | S9 | `scripts/verify_audit.sh` 25 PASS / 0 FAIL / 5 SKIP, exit 0 | - |
+| W-14 | One-command verification of `COMPILED_AUDIT.md` §6 | DONE | S10 | `scripts/verify_audit.sh` 27 PASS / 0 FAIL / 3 SKIP, exit 0 (re-measured in the S10 Qt6+cmake sandbox; the S9 sandbox measured 25/0/5 because C6/C7*/B skipped there) | - |
 | W-15 | Windows engine + CLI proven under Wine | DONE | S4 | `gifsicle.exe` reports `1.96 (Windows)`; CLI E2E with `C:\` paths, spaces, honest exit 1 | - |
 | W-16 | Valid push token | DONE | S4 | PR #5 merged into `main` as `0ad1ff5` | - |
 | W-17 | Windows CI job green with downloadable artifact | DONE | S8 | PR #11 run `34471563229`: windows pass 2m56s, linux pass 1m14s | - |
@@ -137,13 +137,13 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 | D-06 | Optional: logging framework, i18n, dark mode, system tray | OPEN | - | optional polish with no owner commitment yet | propose to the owner after 1.0.0 |
 | D-07 | Web client-side `gifsicle.wasm` + web UI (Option 4) | OPEN | - | not the product path under the offline-only decision (S6); see `docs/web/WEB_FEASIBILITY.md` | only on an explicit owner decision |
 | D-08 | Language migration spike: Rust + Tauri | OPEN | - | trigger-based only; comparison matrix in `docs/planning/OFFLINE_BUILD_REVIEW.md` §4 | watch for a documented trigger, then spike |
-| R-01 | No cmake and no Qt6 in this sandbox, so `src/qtui/` and the GUI harness are CI-compiled only | OPEN | S9 | `command -v cmake` and `command -v qmake6` are both empty; `verify_audit.sh` gates C6 and B SKIP for that reason | run the harness in CI, or install `qt6-base-dev` + cmake and re-measure the runtime count |
-| R-02 | The clone is shallow, so history-based checks cannot see past the branch point | OPEN | S9 | `.git/shallow` exists; history is truncated at `190d030` (this session's own commits sit on top, but nothing before the branch point is visible), so gates G10/G11 cannot look further back than `190d030` | `git fetch --unshallow` where depth matters, then re-run `check_docs.sh` |
+| R-01 | No cmake and no Qt6 in this sandbox, so `src/qtui/` and the GUI harness are CI-compiled only | DONE | S10 | S10 sandbox installed cmake 3.25.1 + Qt 6.4.2 via apt (root); the offscreen harness was compiled AND run here: **306 checks, 0 failures** (T1–T20), replacing the S7-era 243 as the last measured figure | - |
+| R-02 | The clone is shallow, so history-based checks cannot see past the branch point | OPEN | S10 | clone-dependent, not repo state: the S9 clone was shallow (truncated at `190d030`); the S10 clone is FULL, so G10/G11 ran against complete history and G10 caught the S9→main drift | clone without `--depth` (or `git fetch --unshallow`) where depth matters, then re-run `check_docs.sh` |
 | R-03 | The CI token has no `workflows` scope, so `.github/workflows/` cannot be pushed | OPEN | S9 | push rejected: "refusing to allow a GitHub App to create or update workflow ... without `workflows` permission"; drift is tolerated only via `docs/ci/PENDING_WORKFLOW_CHANGE.md` | a maintainer applies the pending change with a `workflows`-scoped token |
 | R-04 | Git does not copy `.githooks/` on clone, so the pre-push doc gate is inert in a fresh clone | PARTIAL | S9 | bootstrap is wired — `build.sh` calls `scripts/bootstrap_hooks.sh` and `git config core.hooksPath` is `.githooks` here. **Still missing:** a fresh clone is unprotected until it runs `build.sh` once, and nothing forces that | the one manual command is documented in `SESSION_HANDOFF.md` + `WORKLIST.md`; gate G15 fails a clone that never bootstrapped |
 | N-01 | The pending-workflow marker outlived the change it described, so every doc quoted a gate count that was already wrong | DONE | S9 | marker still present while the two workflow copies were byte-identical, so E9 PASSED and the real run measured 24 passed / 0 failed / 4 skipped against 23/0/5 quoted in 8 doc locations; marker rewritten, numbers corrected, new gate G6 measures the real count | - |
 | N-02 | `web/README.md` documented the pre-U-06 bind address | DONE | S9 | README said "binds 0.0.0.0" while `web/server.mjs` defaults to `127.0.0.1`; corrected, plus a `GS_WEB_HOST` note | - |
-| N-03 | `docs/screenshots/*.png` may no longer match the UI, are linked from nowhere, and cannot be regenerated here | UNTRIAGED | S9 | 3 PNGs + a README claiming an S7 refresh; S8 changed `src/qtui/` afterwards; no Qt6 in this sandbox to re-shoot them | scope it: re-shoot on a Qt machine and link from `README.md`, or label them historical |
+| N-03 | `docs/screenshots/*.png` may no longer match the UI, are linked from nowhere, and cannot be regenerated here | DONE | S10 | re-shot offscreen in the S10 sandbox (Qt 6.4.2, same documented scenario) from the CURRENT MainWindow; `docs/screenshots/README.md` rewritten for S10; the three shots are now linked from the root README | - |
 <!-- END HAND-MAINTAINED -->
 
 ## How to add a row
