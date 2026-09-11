@@ -10,13 +10,17 @@ full gifsicle terminal control underneath.
 This folder is the **working source code**. Reference material lives in the repo
 root `reference_code/` (read-only).
 
-## Status (2026-09-10, session S7)
+## Status (2026-09-10, session S9)
+- **Status register:** `../../STATUS.md` — the roll-up of everything this repo
+  tracks, in four states. This file is the product-level summary; `STATUS.md` is
+  the register and `COMPILED_AUDIT.md` is the per-finding detail.
 - **0.1.0** — engine + control layer + CLI + full GUI (S4b retrofit + S7 polish).
 - `COMPILED_AUDIT.md` §6 was **executed with evidence** (S4) and **rerun green
   on 2026-09-10 (S7)**: §6.A all green, §6.B green via the offscreen GUI
   harness (**243 checks, T1–T16**, measured in the S7 sandbox), §6.E all green;
-  `verify_audit.sh` → **23 PASS / 0 FAIL / 5 SKIP, exit 0** (E9 SKIPs while the
-  CI workflow change awaits a `workflows`-scoped token).
+  `verify_audit.sh` → **25 PASS / 0 FAIL / 5 SKIP, exit 0** (E9 SKIPs while the
+  CI workflow change awaits a `workflows`-scoped token; F1/F2 are the S9
+  documentation gate).
 - **Windows path proven under Wine + CI**: engine exe (`1.96 (Windows)`), CLI
   E2E with `C:\` paths + spaces, static-linked exes, honest exit codes; main
   green on both jobs (runs #23/#24), binaries banked on Release

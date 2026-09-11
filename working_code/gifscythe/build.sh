@@ -35,6 +35,14 @@ done
 
 fail() { echo "ERROR: $*" >&2; exit 1; }
 
+# 0. Bootstrap the repo's git hooks. Git does not copy .githooks/ on clone, so
+#    the pre-push documentation gate is inert until this runs. Building is the
+#    one thing every session does, which is what makes the bootstrap reliable;
+#    scripts/bootstrap_hooks.sh is a no-op when it is already set, or when the
+#    developer chose a different hooksPath on purpose. A failure here must not
+#    fail a build.
+"$self/scripts/bootstrap_hooks.sh" || echo "   (hook bootstrap skipped)"
+
 # Keep src/core/version.h in sync with VERSION.md for direct g++ builds.
 # Header text must stay byte-identical to what CMake generates from
 # version.h.in, otherwise the two generators dirty each other's output.

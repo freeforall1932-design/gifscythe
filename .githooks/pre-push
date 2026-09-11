@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+#
+# pre-push - block a push whose documentation gate is red.
+#
+# WHY: the docs are the context the next session starts from, so pushing with a
+# stale STATUS.md / SESSION_HANDOFF.md ships corrupted input. The rule is "run
+# check_docs.sh until green before the PR boundary" - this makes it mechanical
+# instead of a promise.
+#
+# NOT SHARED BY CLONES: git does not copy .githooks/ on clone. Run
+#   working_code/gifscythe/scripts/bootstrap_hooks.sh
+# once per clone (build.sh does it for you). Check it is live with:
+#   git config core.hooksPath     # must print .githooks
+#
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+checker="$root/working_code/gifscythe/scripts/check_docs.sh"
+
+if [[ ! -x "$checker" ]]; then
+  echo "pre-push: $checker not found or not executable - skipping doc gate." >&2
+  exit 0
+fi
+
+echo "==> pre-push: running the documentation gate (check_docs.sh)"
+if "$checker"; then
+  echo "==> pre-push: documentation gate green."
+  exit 0
+fi
+
+cat >&2 <<'MSG'
+
+==> pre-push: BLOCKED - the documentation gate failed.
+
+Fix every FAIL above, then re-run until green:
+
+    working_code/gifscythe/scripts/check_docs.sh          # check
+    working_code/gifscythe/scripts/check_docs.sh --emit   # regenerate STATUS.md
+
+Do not push, open a PR, or merge with a red doc check. If you believe a
+failure is wrong, fix the checker in the same commit - do not bypass it
+with --no-verify, which leaves the next session reading stale docs.
+
+MSG
+exit 1

@@ -25,6 +25,17 @@ jobs:
         working-directory: working_code/gifscythe
         run: ./scripts/smoke_cli.sh
 
+      # The docs are the context the next session starts from, so a stale
+      # STATUS.md is corrupted input rather than a cosmetic problem. This gate
+      # regenerates the status register from the repo and diffs it against the
+      # committed one, so a hand-fudged roll-up cannot pass. --no-gate-run keeps
+      # it from re-running verify_audit.sh, whose build/package/web steps this
+      # job already runs (the same reason the whole of verify_audit.sh is
+      # deliberately not a CI step).
+      - name: Documentation status gate (STATUS.md register)
+        working-directory: working_code/gifscythe
+        run: ./scripts/check_docs.sh --no-gate-run
+
       # The web/ demo ships a SECOND copy of the command builder and the
       # validation rules. Nothing in the C++ suites touches them, so without
       # these two the JS and C++ sides drift silently (audit U-03 proved they

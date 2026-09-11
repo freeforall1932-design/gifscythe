@@ -22,9 +22,17 @@ two batches, each with executed proof** — including both release blockers:
 source file*, rc=0) and **U-02** (`package_portable.sh` exited 0 with no GUI in
 the folder). New `src/core/OutputPlan.h` + `OutputName.h`,
 `scripts/test_package.sh` (9 negative cases), and three web suites; unit suite
-at **211 checks, 0 failures**; `verify_audit.sh` now **23 PASS / 0 FAIL /
+at **211 checks, 0 failures**; `verify_audit.sh` now **25 PASS / 0 FAIL /
 5 SKIP, exit 0** (E9 SKIPs while the CI workflow change awaits a
-`workflows`-scoped token — `docs/ci/PENDING_WORKFLOW_CHANGE.md`). See `docs/audit/REMEDIATION_2026-09-10.md`. Remaining: clean-Windows
+`workflows`-scoped token — `docs/ci/PENDING_WORKFLOW_CHANGE.md`). See `docs/audit/REMEDIATION_2026-09-10.md`.
+**S9 (2026-09-10) added the status-tracking system:** `STATUS.md` is now the
+single status register (four states — DONE / PARTIAL / OPEN / UNTRIAGED),
+`scripts/check_docs.sh` emits and enforces it, `verify_audit.sh` gates **F1/F2**
+run it as part of the one-command suite, and `.githooks/pre-push` blocks a push
+whose docs are stale. S9 also found and fixed two doc/code drifts the old
+process had missed (**N-01**: the pending-workflow marker outlived the change it
+described, leaving eight doc locations quoting the wrong gate count; **N-02**:
+`web/README.md` documented the pre-U-06 bind address). Remaining: clean-Windows
 desktop probes (C4/D3/D4, B5/B6/B14 — checklist in
 `docs/ci/CLEAN_WINDOWS_SMOKE.md`), the Windows-only findings (U-07/U-21 rule
 sets are implemented and unit-tested; U-07 is not), the release re-cut (U-09),
@@ -47,12 +55,14 @@ cd working_code/gifscythe
 ./build/gifscythe-cli examples/animation.conf          # print command
 ./build/gifscythe-cli examples/animation.conf --run    # run engine
 ./build.sh --all            # also Qt6 GUI (fails honestly if Qt missing)
+./scripts/check_docs.sh     # documentation gate — green before any PR
 ```
 
 ## Repo layout
 
 ```
 gifscythe/                        (repo root)
+  STATUS.md                       THE status register (4 states, generated)
   PROJECT_VISION.md               what the product is
   WORKLIST.md                     task board (P0–P3)
   SESSION_HANDOFF.md              notes for the next session
@@ -69,6 +79,8 @@ gifscythe/                        (repo root)
     release/RELEASE_PROCEDURE.md       how to cut snapshots/releases (S7)
     web/WEB_FEASIBILITY.md             web-run review (web/ = demo only)
     ci/                            workflow docs + clean-Windows smoke checklist
+    screenshots/                   UI screenshots (see docs/screenshots/README.md)
+  .githooks/pre-push               blocks a push with a red documentation gate
   web/                             server-side web POC + JS⇄C++ command parity test
 
   reference_code/                 SOURCE MATERIAL — do not edit, do not ship
@@ -90,7 +102,11 @@ gifscythe/                        (repo root)
   are gitignored; re-fetch or see `reference_code/REFERENCE_MANIFEST.md`.
 
 ## Docs for reviewers / next session
+0. **`STATUS.md`** — the single status register. Start here: one row per tracked
+   item, four states, and a generated header that says how much is done. Run
+   `working_code/gifscythe/scripts/check_docs.sh` to verify it is current.
 1. **`COMPILED_AUDIT.md`** — findings, what was fixed, §6 verify-before-trust.
+   This is the *detail* behind the `U-nn` rows in `STATUS.md`.
 2. **`SESSION_HANDOFF.md`** — current state + constraints.
 3. **`WORKLIST.md`** — short checkbox board toward 1.0.0.
 4. **`docs/planning/OFFLINE_BUILD_REVIEW.md`** — offline-only feasibility,
