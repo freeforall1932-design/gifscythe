@@ -193,7 +193,11 @@ fix_order_map() {
       if (match(act, /\.[ ]/)) act = substr(act, 1, RSTART)
       if (length(act) > 110) act = substr(act, 1, 107) "..."
       gsub(/[|]/, "\\|", act)
-      n = split($closes_idx, ids, /[^U-0-9]+/)
+      # Split "U-01,U-45" into ids. The character class must list the dash
+      # LAST: [^U-0-9] reads "U-0" as a range, which gawk (the CI awk) rejects
+      # with "Invalid range end" while mawk silently accepts - CI-linux died
+      # on it (PR #13). [^0-9U-] is the same class, portable to both.
+      n = split($closes_idx, ids, /[^0-9U-]+/)
       for (i = 1; i <= n; i++) {
         if (ids[i] ~ /^U-[0-9]+$/ && !(ids[i] in seen)) { seen[ids[i]]=1; print ids[i] "\t" aid "\t" act }
       }

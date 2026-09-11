@@ -74,9 +74,16 @@ harness, web — was compiled AND run in one sandbox.
     "unknown to this clone". G10 now SKIPs when the clone has no main ref at
     all (full clones and the pre-push hook still enforce it). Verified with a
     depth-1 clone sim: 19 passed, 0 failed, 4 skipped with `--no-gate-run`.
+  - linux docs gate, second layer: `fix_order_map`'s id-split class
+    `[^U-0-9]` reads `U-0` as a range — gawk (the CI awk) rejects it with
+    "Invalid range end" while mawk (every sandbox so far) accepts it, so the
+    FIXMAP died only in CI and the emitter regenerated every scoped row as
+    "NOT scoped" (G0 drift). Class fixed to `[^0-9U-]` (dash last); the whole
+    gate + verify_audit verified identical under mawk AND gawk (21/0/1 and
+    20/0/2 with --no-gate-run).
   - Also learned: the Actions **job logs ARE reachable** from this sandbox via
     the jobs API redirect (S9's unreachable-host note applied to a different
-    endpoint) — that is how both failures were diagnosed.
+    endpoint) — that is how all three failures were diagnosed.
 * U-07/U-09/U-12/U-15/U-17/U-41 remain OPEN (Windows-only, release infra, or
   unscoped); W-18/W-19/W-26/W-29/W-30 and D-01…D-08 unchanged.
 * The U-37 empty-path branch and the Windows `_commit` half of the atomic save
