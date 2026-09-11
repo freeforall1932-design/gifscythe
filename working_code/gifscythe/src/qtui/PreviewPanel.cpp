@@ -58,9 +58,25 @@ PreviewPanel::PreviewPanel(QWidget* parent) : QWidget(parent) {
 void PreviewPanel::stopMovie(QMovie** movie) {
   if (*movie) {
     (*movie)->stop();
-    (*movie)->deleteLater();
+    // Deleted SYNCHRONOUSLY, not via deleteLater (S10): on Windows an open
+    // QMovie keeps a delete-lock on its GIF file until the object is really
+    // gone, so a deleteLater left the superseded preview file undeletable in
+    // the same event-loop tick (CI-windows T20: sweep and teardown both hit
+    // the locked file). Every call site here is outside the movie's own
+    // signals, so synchronous deletion is safe.
+    delete *movie;
     *movie = nullptr;
   }
+}
+
+void PreviewPanel::releaseMovies() {
+  // Drop both movie handles NOW (S10): MainWindow's destructor sweeps the
+  // preview temp dir, and on Windows that sweep fails while any QMovie still
+  // holds a file open.
+  stopMovie(&afterMovie_);
+  afterLabel_->setMovie(nullptr);
+  stopMovie(&beforeMovie_);
+  beforeLabel_->setMovie(nullptr);
 }
 
 void PreviewPanel::setBefore(const QString& gifPath) {

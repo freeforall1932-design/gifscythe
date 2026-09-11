@@ -62,6 +62,21 @@ harness, web — was compiled AND run in one sandbox.
   **PR #13** opened against `main` after the push-time gate run; CI on the PR
   is the first compilation of the S10 code (incl. the Windows `_commit` half
   of the atomic save). Merge remains the owner's call (rule 3 re-applies).
+* **PR #13's first CI runs FAILED, and both failures were real findings about
+  sandbox asymmetry, fixed in the follow-up commit:**
+  - windows harness T20: on Windows a live `QMovie` delete-locks its GIF file,
+    and `PreviewPanel::stopMovie` used `deleteLater()`, so the same-tick sweep
+    (and the teardown sweep, movie still alive) could not remove preview
+    files. `stopMovie` now deletes synchronously and `releaseMovies()` drops
+    both handles before the destructor's temp-dir sweep.
+  - linux docs gate: CI checks out with fetch-depth 1, so the clone has no
+    `origin/main`/`main` ref and gate **G10** failed every base-commit claim as
+    "unknown to this clone". G10 now SKIPs when the clone has no main ref at
+    all (full clones and the pre-push hook still enforce it). Verified with a
+    depth-1 clone sim: 19 passed, 0 failed, 4 skipped with `--no-gate-run`.
+  - Also learned: the Actions **job logs ARE reachable** from this sandbox via
+    the jobs API redirect (S9's unreachable-host note applied to a different
+    endpoint) — that is how both failures were diagnosed.
 * U-07/U-09/U-12/U-15/U-17/U-41 remain OPEN (Windows-only, release infra, or
   unscoped); W-18/W-19/W-26/W-29/W-30 and D-01…D-08 unchanged.
 * The U-37 empty-path branch and the Windows `_commit` half of the atomic save

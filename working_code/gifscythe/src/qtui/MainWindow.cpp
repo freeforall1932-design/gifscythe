@@ -170,6 +170,9 @@ MainWindow::~MainWindow() {
     process_->kill();
     process_->waitForFinished(2000);
   }
+  // Release the preview movie file handles BEFORE sweeping the temp dir:
+  // on Windows a live QMovie delete-locks its GIF (S10, CI-windows T20).
+  if (previewPanel_) previewPanel_->releaseMovies();
   QDir(previewDir_).removeRecursively();
 }
 

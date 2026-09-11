@@ -817,7 +817,15 @@ main_ref=""
 for cand in origin/main main; do
   git rev-parse --verify -q "$cand" >/dev/null 2>&1 && { main_ref="$cand"; break; }
 done
-[[ -n "$main_ref" ]] || main_ref=HEAD
+if [[ -z "$main_ref" ]]; then
+  # S10: CI checks out with fetch-depth 1, so neither origin/main nor main
+  # exists in the runner's clone and every base-commit claim is "unknown to
+  # this clone" — the gate failed CI on its very first run there (PR #13).
+  # With no main ref there is nothing to compare against: SKIP honestly
+  # instead of guessing. Local clones and the pre-push hook (full history)
+  # still enforce this.
+  skip "G10" "no origin/main or main ref in this clone (shallow CI checkout) - base-commit claims are enforced locally and by the pre-push hook, not here"
+else
 full_main="$(git rev-parse "$main_ref" 2>/dev/null)"
 main_sha="$(git rev-parse --short=7 "$main_ref" 2>/dev/null)"
 branch_now="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
@@ -841,6 +849,7 @@ if [[ -z "$stale_base" ]]; then
   ok "G10" "every doc naming the base commit names the real one ($main_ref = $main_sha; branch is $branch_now)"
 else
   bad "G10" "stale base commit - $stale_base"
+fi
 fi
 
 # ---------------------------------------------------------------------------

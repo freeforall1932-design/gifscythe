@@ -165,7 +165,7 @@ Everything marked ✅ was **run in this sandbox**; ⏳ could not be. Quote the
 | `scripts/check_docs.sh` (documentation gate) | ✅ **21 passed, 0 failed, 1 skipped, exit 0** (the skip is G7, the declared-pending workflow change) |
 | `scripts/verify_audit.sh` | ✅ **27 PASS / 0 FAIL / 3 SKIP, exit 0** (skips = E9 declared-pending workflow, CI-gated, clean-Windows) |
 | `diff .github/workflows/build.yml docs/ci/build.yml.proposed` | ⏳ **differ on purpose** — the doc-gate step cannot be pushed without `workflows` scope; declared in `docs/ci/PENDING_WORKFLOW_CHANGE.md`. E9/G7 SKIP for declared drift, FAIL for undeclared |
-| GitHub Actions, S10 changes | ⏳ **PR #13** (`arena/s10-gifscythe`) opened 2026-09-11 — its CI run is the first compilation of the S10 code; re-check the run, do not trust this row |
+| GitHub Actions, S10 changes | ⏳ **PR #13** (`arena/s10-gifscythe`): first runs on `44f3617`/`4337f0d` **failed** (windows T20 QMovie file-lock; linux G10 in a depth-1 clone). Fixes in the follow-up commit; the run on THAT commit is the one to trust — re-check it, do not trust this row |
 
 **Counts are stated by kind on purpose.** `grep -c 'CHECK('` counts **lines**;
 `grep -o 'CHECK(' | wc -l` counts **occurrences** (S10: harness **240**, unit
@@ -183,7 +183,10 @@ section of this file.**
   12.2.0, cmake 3.25.1, Qt 6.4.2, ninja); node v20.20.2; python3 3.11;
   DejaVu fonts present (offscreen screenshots render text correctly). So
   **every local gate including the GUI harness was runnable here.** No mingw,
-  no wine, no `gh`, and the push token was **read-only**.
+  no wine, no `gh`. First token read-only; the second had write scope (branch
+  push + PR #13). **GitHub Actions job logs ARE readable from here** via
+  `GET /repos/…/actions/jobs/<id>/logs` (302 to a working blob host) — S9's
+  "log host unreachable" note applied to a different endpoint.
 * **S10 sandbox quirk worth knowing:** the shell/tooling layer rewrites the
   literal string `/home/user` to `$ARENA_WORKSPACE` inside *file contents*
   written through bash heredocs (shell commands still work because bash
