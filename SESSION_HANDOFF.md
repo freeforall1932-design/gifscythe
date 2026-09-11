@@ -1,7 +1,7 @@
 # Session Handoff
 
-**Date:** 2026-09-11 (session S10) · **Branch:** local `main` (not pushed —
-the S10 token is read-only) → based on `main` commit `414f5fc` ·
+**Date:** 2026-09-11 (session S10) · **Branch:** `arena/s10-gifscythe` (pushed;
+**PR #13** open against `main`) → based on `main` commit `414f5fc` ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending)
 
 ## TL;DR for the next session
@@ -55,11 +55,14 @@ the S10 token is read-only) → based on `main` commit `414f5fc` ·
    **27 PASS / 0 FAIL / 3 SKIP, exit 0** (skips: E9 declared-pending workflow,
    CI-gated, clean-Windows).
 
-4. **NOT PUSHED.** The S10 token was read-only: everything lives in the local
-   clone. **Next push must run `check_docs.sh` first (rule 3)** and then watch
-   the CI matrix — GitHub Actions has not compiled any S10 code yet. The
-   Windows half of the atomic save (`_commit`/`_fileno`) gets its first
-   compilation there, as does everything else.
+4. **PUSHED, PR OPEN.** Branch `arena/s10-gifscythe` was pushed with the
+   write token and **PR #13** opened against `main` (rule 3 honored:
+   `check_docs.sh` green before the push and again via the pre-push hook).
+   **CI on PR #13 is the first compilation of the S10 code** — watch the
+   linux + windows jobs, especially the Windows half of the atomic save
+   (`_commit`/`_fileno`), which had never been compiled before. Re-check the
+   run rather than trusting this row. Merge is the owner's call (rule 3
+   applies again before merge).
 
 5. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against
@@ -162,7 +165,7 @@ Everything marked ✅ was **run in this sandbox**; ⏳ could not be. Quote the
 | `scripts/check_docs.sh` (documentation gate) | ✅ **21 passed, 0 failed, 1 skipped, exit 0** (the skip is G7, the declared-pending workflow change) |
 | `scripts/verify_audit.sh` | ✅ **27 PASS / 0 FAIL / 3 SKIP, exit 0** (skips = E9 declared-pending workflow, CI-gated, clean-Windows) |
 | `diff .github/workflows/build.yml docs/ci/build.yml.proposed` | ⏳ **differ on purpose** — the doc-gate step cannot be pushed without `workflows` scope; declared in `docs/ci/PENDING_WORKFLOW_CHANGE.md`. E9/G7 SKIP for declared drift, FAIL for undeclared |
-| GitHub Actions, S10 changes | ⏳ **not run** — read-only token, nothing pushed. CI verification pending on the next push (rule 3 first) |
+| GitHub Actions, S10 changes | ⏳ **PR #13** (`arena/s10-gifscythe`) opened 2026-09-11 — its CI run is the first compilation of the S10 code; re-check the run, do not trust this row |
 
 **Counts are stated by kind on purpose.** `grep -c 'CHECK('` counts **lines**;
 `grep -o 'CHECK(' | wc -l` counts **occurrences** (S10: harness **240**, unit

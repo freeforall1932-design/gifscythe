@@ -58,9 +58,10 @@ harness, web — was compiled AND run in one sandbox.
 
 **Left:**
 
-* **Not pushed.** The S10 token is read-only, so the changes live in the local
-  clone only; GitHub Actions has not compiled any S10 code yet. The next push
-  must run `check_docs.sh` (rule 3) and watch the CI matrix.
+* **Not pushed** is no longer true: branch `arena/s10-gifscythe` pushed and
+  **PR #13** opened against `main` after the push-time gate run; CI on the PR
+  is the first compilation of the S10 code (incl. the Windows `_commit` half
+  of the atomic save). Merge remains the owner's call (rule 3 re-applies).
 * U-07/U-09/U-12/U-15/U-17/U-41 remain OPEN (Windows-only, release infra, or
   unscoped); W-18/W-19/W-26/W-29/W-30 and D-01…D-08 unchanged.
 * The U-37 empty-path branch and the Windows `_commit` half of the atomic save
