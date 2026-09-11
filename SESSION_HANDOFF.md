@@ -193,6 +193,11 @@ section of this file.**
   re-expands it, but CMake/scripts see an undefined variable). Write files
   that must contain workspace paths with the file tool, or pass such paths in
   via `-D`/argv/env at run time. Cost S10 ~20 minutes of confusion.
+* **awk portability is now a gate concern:** CI runners use gawk, sandboxes so
+  far used mawk. gawk rejects bracket classes like `[^U-0-9]` (invalid range)
+  that mawk accepts — this broke CI-linux only (PR #13). If a script's awk
+  one-liner ever behaves differently here than in CI, check the character
+  classes first (dash last or first).
 * **S9 sandbox:** no cmake, no Qt6 (g++ 12.2.0, make, git, node v22.22.3,
   python3). Its numbers (25/0/5) were true there; G6 re-syncs them per sandbox.
 * **S8 sandbox:** apt blocked (`Acquire (13: Permission denied)`, uid 1001).
