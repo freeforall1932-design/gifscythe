@@ -165,7 +165,7 @@ Everything marked ✅ was **run in this sandbox**; ⏳ could not be. Quote the
 | `scripts/check_docs.sh` (documentation gate) | ✅ **21 passed, 0 failed, 1 skipped, exit 0** (the skip is G7, the declared-pending workflow change) |
 | `scripts/verify_audit.sh` | ✅ **27 PASS / 0 FAIL / 3 SKIP, exit 0** (skips = E9 declared-pending workflow, CI-gated, clean-Windows) |
 | `diff .github/workflows/build.yml docs/ci/build.yml.proposed` | ⏳ **differ on purpose** — the doc-gate step cannot be pushed without `workflows` scope; declared in `docs/ci/PENDING_WORKFLOW_CHANGE.md`. E9/G7 SKIP for declared drift, FAIL for undeclared |
-| GitHub Actions, S10 changes | ⏳ **PR #13** (`arena/s10-gifscythe`): first runs on `44f3617`/`4337f0d` **failed** (windows T20 QMovie file-lock; linux G10 in a depth-1 clone). Fixes in the follow-up commit; the run on THAT commit is the one to trust — re-check it, do not trust this row |
+| GitHub Actions, S10 changes | ✅ run `34571933676` on `9435d71`: **linux success + windows success** (first runs on `44f3617`/`4337f0d` had failed: windows T20 QMovie file-lock, linux G10 in a depth-1 clone, then the gawk bracket-range bug — all fixed in the two follow-ups). Re-check the current tip before merging, not this row |
 
 **Counts are stated by kind on purpose.** `grep -c 'CHECK('` counts **lines**;
 `grep -o 'CHECK(' | wc -l` counts **occurrences** (S10: harness **240**, unit

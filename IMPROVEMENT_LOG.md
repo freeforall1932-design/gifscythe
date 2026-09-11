@@ -84,6 +84,9 @@ harness, web — was compiled AND run in one sandbox.
   - Also learned: the Actions **job logs ARE reachable** from this sandbox via
     the jobs API redirect (S9's unreachable-host note applied to a different
     endpoint) — that is how all three failures were diagnosed.
+  - **Verdict:** run `34571933676` on `9435d71` — **linux success + windows
+    success**. PR #13 fully green at that commit; re-check the tip before
+    merging (rule 3 re-applies: check_docs green before merge).
 * U-07/U-09/U-12/U-15/U-17/U-41 remain OPEN (Windows-only, release infra, or
   unscoped); W-18/W-19/W-26/W-29/W-30 and D-01…D-08 unchanged.
 * The U-37 empty-path branch and the Windows `_commit` half of the atomic save
