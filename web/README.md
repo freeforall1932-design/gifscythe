@@ -25,13 +25,19 @@ browser (index.html + app.js)          Node (server.mjs)          gifsicle engin
 # 1. build the engine + CLI (once)
 cd working_code/gifscythe && ./build.sh && cd ../..
 
-# 2. start the web server (binds 0.0.0.0)
+# 2. start the web server (binds 127.0.0.1 — loopback only)
 node web/server.mjs 8000
 
 # 3. open http://localhost:8000 (or use the live preview)
 ```
 
 `GS_ENGINE=/path/to/gifsicle` overrides the engine location.
+
+**Binding (audit U-06).** The server listens on **`127.0.0.1`** by default and
+says so on startup. It used to bind `0.0.0.0` unconditionally, which exposed an
+unauthenticated engine-runner to the whole network. Set
+`GS_WEB_HOST=0.0.0.0` to expose it deliberately — this is a demo, not a
+deployable service.
 
 ## Test (parity with the desktop app)
 

@@ -33,6 +33,8 @@ From `working_code/gifscythe/`:
 ./build.sh                    # engine + CLI + unit tests      -> ALL TESTS PASSED
 ./scripts/test_engine.sh      # engine pipeline                -> 5/5
 ./scripts/smoke_cli.sh        # CLI integration                -> 7/7
+./scripts/test_package.sh     # packaging negative suite       -> 0 failed
+./scripts/check_docs.sh       # documentation status gate      -> 0 failed
 ./scripts/verify_audit.sh     # whole COMPILED_AUDIT §6 suite  -> 0 FAIL
 # GUI harness (needs Qt6):
 cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON
@@ -42,18 +44,29 @@ QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen   # -> 0 failures
 node ../../web/test/command.test.mjs                         # -> ALL PASSED
 ```
 
-Expected counts as of S7 (2026-09-10): unit suite 20 tests, harness
-**243 checks** *(S7 measurement — re-run it on a Qt machine before trusting the
-number)*, `verify_audit.sh` **23 PASS / 0 FAIL / 5 SKIP, exit 0** (skips are
+Expected counts as of S9 (2026-09-10): unit suite **211 checks, 0 failures**
+(the runtime counter, not the 196 `CHECK(` source sites), GUI harness **243
+runtime checks** *(last measured in the S7 sandbox — re-run it on a Qt machine
+before trusting the number; the file now holds 226 `CHECK(` source sites, which
+is a different quantity)*, `verify_audit.sh` **25 PASS / 0 FAIL / 5 SKIP,
+exit 0** (skips are cmake, Qt6, the declared-pending workflow change, and the
 CI-gated + clean-Windows items). If a count changed, update the docs in the
-same PR — stale counts are treated as a finding.
+same PR — stale counts are treated as a finding, and `check_docs.sh` gates
+**G6/G9** now fail the build over them instead of leaving it to review.
 
 Also verify before packaging:
 
+- **The documentation gate is green.** `./scripts/check_docs.sh` must report
+  `0 failed`. If `STATUS.md` has drifted, run `./scripts/check_docs.sh --emit`,
+  inspect the diff, and commit it. Do not release with a red doc gate and do not
+  hand-edit the generated block to make it pass.
 - `git status` clean; `.github/workflows/build.yml` and
   `docs/ci/build.yml.proposed` are **byte-identical** (`diff` them) — unless
   `docs/ci/PENDING_WORKFLOW_CHANGE.md` exists, which declares a workflow change
-  waiting on a token with the `workflows` scope. Apply it before releasing.
+  waiting on a token with the `workflows` scope. Apply it before releasing, and
+  **delete that marker in the same commit** — S9 found it left behind after the
+  previous change had already landed, with every doc still quoting the old gate
+  numbers (`STATUS.md` N-01).
 - Engine identity: `release/<ver>/gifsicle --version` → `LCDF Gifsicle 1.96`.
 
 ## 2. Bump the version (if not a snapshot)
@@ -133,12 +146,27 @@ on Releases instead (policy since 2026-09-07):
 - Download-and-run one zip on a second machine/profile (portable promise:
   no installer, no admin, offline).
 
-## 7. Record the evidence
+## 7. Record the evidence — and close the docs loop
 
-- `COMPILED_AUDIT.md` §6: tick/annotate the items this release proves.
-- `IMPROVEMENT_LOG.md`: add the release entry (newest on top).
-- `SESSION_HANDOFF.md` + `WORKLIST.md`: update current state and gates.
-- `PROJECT_VISION.md` progress snapshot if a milestone changed.
+**Every session ends by updating the docs, then running `check_docs.sh` until
+green.** For a release that means, in this order:
+
+1. `STATUS.md` — re-emit it (`./scripts/check_docs.sh --emit`) so the register
+   and its generated counts match the repo. A release changes states; the
+   register must say so.
+2. `COMPILED_AUDIT.md` §6: tick/annotate the items this release proves. If a
+   finding closed, its §5 row's status marker is what `STATUS.md` is generated
+   from — update it there, not in `STATUS.md`.
+3. `IMPROVEMENT_LOG.md`: add the release entry (newest on top) using the
+   standard template — `Changed / Partial / Left / Verified / Not verifiable
+   here / Docs touched`. The **`Not verifiable here`** line is mandatory.
+4. `SESSION_HANDOFF.md` + `WORKLIST.md`: update current state and gates.
+5. `PROJECT_VISION.md` progress snapshot if a milestone changed.
+6. `./scripts/check_docs.sh` → **0 failed**. Then, and only then, push.
+
+Anything discovered while cutting the release goes in **the same session**:
+`UNTRIAGED` in `STATUS.md` plus a pending `- [ ]` line in `WORKLIST.md`. A
+release is not a reason to defer recording a finding.
 
 ---
 

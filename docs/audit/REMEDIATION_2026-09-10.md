@@ -1,5 +1,17 @@
 # Remediation — 2026-09-10 · what was fixed and the proof it was fixed
 
+> **⚠️ DATED SNAPSHOT — the numbers below are session S8's, not current.**
+> This file records what S8 fixed, with the executed before/after evidence and the
+> mutation-test record; that evidence does not expire. Its **gate counts do**: they
+> were measured while `docs/ci/PENDING_WORKFLOW_CHANGE.md` described a change that
+> had not been applied. The maintainer applied it in `190d030`, and S9 then added
+> gates F1/F2 — so the current number is in `SESSION_HANDOFF.md` and `STATUS.md`,
+> and `check_docs.sh` gate **G6** measures it rather than trusting any doc.
+> This file is on `check_docs.sh`'s dated-snapshot exclusion list for that reason.
+>
+> **For current state read `STATUS.md`. For per-finding evidence, read on.**
+
+
 **Branch:** `arena/01a08a10-gifscythe` · **Tree:** `a55a68d` ·
 **Register:** `docs/audit/CONSOLIDATED_AUDIT_2026-09-10.md` (U-01…U-44) ·
 **Pick rationale:** `docs/audit/FIX_PICK_2026-09-10.md`
