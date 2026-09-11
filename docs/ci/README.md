@@ -16,9 +16,9 @@
 
 - `.github/workflows/build.yml` builds **linux + windows** jobs: engine,
   static-linked CLI/tests, GUI (CMake; Ninja+MinGW on Windows), native E2E
-  smokes, the offscreen GUI harness (`test_gui_offscreen`, 243 checks as last
-  *measured* in the S7 sandbox — not re-measured since, this sandbox has no
-  cmake/Qt6), `windeployqt` staging, the three web parity/transport suites and
+  smokes, the offscreen GUI harness (`test_gui_offscreen`, **306 checks as last
+  *measured* in the S10 sandbox** — Qt 6.4.2; 243 in the S7 sandbox before
+  that), `windeployqt` staging, the three web parity/transport suites and
   the package-manifest assertion (both added by `190d030`), portable packaging,
   and artifact upload (`gifscythe-linux`, `gifscythe-windows`, 14-day
   retention — binaries are banked on Releases instead; see

@@ -46,10 +46,13 @@ reads them in a file, not in a conversation.
 
 Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
-- [ ] **N-03** — `docs/screenshots/*.png` (3 shots) claim to show the S7 UI; S8
+- [x] **N-03** — `docs/screenshots/*.png` (3 shots) claim to show the S7 UI; S8
       changed `src/qtui/` afterwards, nothing links to them, and this sandbox has
       no Qt6 to regenerate them. Decide: re-shoot on a Qt machine and link them
-      from `README.md`, or mark them historical. **UNTRIAGED — scope it.**
+      from `README.md`, or mark them historical. **Resolved in S10:** the S10
+      sandbox HAD Qt6 (apt), so the shots were re-taken offscreen from the
+      current UI and are now linked from the root README; see
+      `docs/screenshots/README.md`.
 
 ## Direction decisions (2026-09-09 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`)
 
@@ -86,8 +89,10 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 ### Gates before more features
 - [x] **Verify fixes** (`COMPILED_AUDIT.md` §6) — one-command rerun:
       `working_code/gifscythe/scripts/verify_audit.sh`, currently
-      **25 PASS / 0 FAIL / 5 SKIP, exit 0** (skips: cmake, Qt6, E9
-      declared-pending workflow, CI-gated, clean-Windows)
+      **27 PASS / 0 FAIL / 3 SKIP, exit 0** (skips: E9 declared-pending
+      workflow, CI-gated, clean-Windows; measured in the S10 sandbox which has
+      cmake+Qt6 — a toolchain-less sandbox skips C6/C7*/B as well and measures
+      25/0/5)
 - [x] **Documentation gate** (NEW S9) — `scripts/check_docs.sh` emits and
       enforces `STATUS.md`; wired into `verify_audit.sh` as **F1/F2**, into CI
       (pending — see `docs/ci/PENDING_WORKFLOW_CHANGE.md`) and into
@@ -128,10 +133,14 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       **W2** validation (19) · **W3** transport (17)
 - [x] **CI confirms `src/qtui/` and harness T8/T17** — PR #11 run `34471563229`:
       **linux pass 1m14s, windows pass 2m56s**
-- [ ] **U-40** — CLI prints `validate()` warnings and runs anyway while the GUI
-      refuses. Intentional, but undocumented at the point of use (P3-5)
-- [ ] Qt-only findings still need a Qt machine to *change*: U-12, U-15, U-16,
-      U-17, U-34, U-35, U-36, U-37, U-45, U-47.
+- [x] **U-40** — CLI prints `validate()` warnings and runs anyway while the GUI
+      refuses. **S10:** `--strict` flag added (any parse/validation warning →
+      refusal, exit 3, nothing printed or run); `--help` documents the warning
+      policy and the exit-code table; smoke suite 7 → 9 cases.
+- [ ] Qt-only findings still need a Qt machine to *change*: U-12, U-15, U-17.
+      (S10 closed U-16, U-34, U-35, U-36, U-37, U-45 and U-47 locally — the S10
+      sandbox installed Qt6, so the harness compiled AND ran here for the first
+      time since S7.)
 - [ ] Windows-only: **U-07** ANSI process APIs (needs a real Windows run).
 - [ ] **U-09** re-cut the release from *this* SHA.
 
@@ -142,9 +151,27 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       pending change; gate **G6** now measures the real number and compares.
 - [x] **N-02** — `web/README.md` documented the pre-U-06 bind address
       (`0.0.0.0`); now states `127.0.0.1` + `GS_WEB_HOST`.
-- [ ] **N-03** — see "Found this session" above. **UNTRIAGED.**
 
-### GIF UI/UX → 1.0.0  (S4b retrofit 2026-09-07 + S7 polish 2026-09-10 — harness T1–T16 last *measured* at 243 runtime checks in the S7 sandbox; S8 added T17 + rewrote T8, **both CI-green on PR #11**)
+### Session S10 (2026-09-11) — the sandbox finally had Qt6; closed 9 findings + N-03
+- [x] **N-03** — screenshots re-shot offscreen (Qt 6.4.2) from the current UI and
+      linked from the root README; `docs/screenshots/README.md` rewritten.
+- [x] **U-45 (P0-1 last gap)** — output group (incl. both Browse buttons) locked
+      during runs; chooser slots guard `busy_`; T18 proves a mid-run folder edit
+      cannot redirect the planned outputs. **P0-1 is now fully closed.**
+- [x] **U-16** — atomic settings persistence: core `save_settings_file` is
+      tmp+fsync+rename; GUI save is `QSaveFile`; unit test 32 + T19.
+- [x] **U-34 / U-47 (P1-10)** — `invalidatePreview()` on every schedule/clear/
+      cancel/busy; stale+failed previews delete their file; every success
+      sweeps `preview_*.gif` except the displayed one; T20.
+- [x] **U-35** — `setBusy(false)` re-enables Run only through `ensureEngine()`.
+- [x] **U-36** — `guiStateKey` (the third parser) deleted; `load_settings`
+      collects unknown keys; GUI reads its keys from that map; test 31.
+- [x] **U-37** — one-time status note when persistence is unavailable.
+- [x] **U-40** — `--strict` (rc=3) + documented warning policy/exit codes.
+- [x] **U-42** — web Scale X/Y inputs; asymmetric parity fixture + transport case.
+- [x] **R-01** — harness measured locally at last: **306 checks, 0 failures**.
+
+### GIF UI/UX → 1.0.0  (S4b retrofit 2026-09-07 + S7 polish 2026-09-10 + S10 fixes — harness T1–T20 last *measured* at **306 runtime checks** in the S10 sandbox (Qt 6.4.2); before that the last measurement was 243 in the S7 sandbox; S8's T17/T8 additions were CI-green on PR #11)
 - [x] Input / Actions / Output tab flow (XNConvert feel) — QTabWidget + Preview
       pane in splitter; bottom live pane/progress/status bar kept
 - [x] Before/after preview (debounced 1200 ms, fully async, seq-guarded;
@@ -173,25 +200,29 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
 ## Next actions (ordered)
 
-1. **Scope N-03** (the screenshot question) — it is the only `UNTRIAGED` row and
-   rule 2 says it may not survive the session boundary.
-2. **U-09** — re-cut release artifacts from the tagged SHA (the banked zip
-   predates S7; its notes pin `d3544b1`). Needs a tag + `gh release`.
-3. **Apply the pending CI change** — needs a token with the `workflows` scope.
+1. **U-09** — re-cut release artifacts from the tagged SHA (the banked zip
+   predates S7; its notes pin `d3544b1`). Needs a tag + `gh release` (and a
+   token with write scope — the S10 token was read-only).
+2. **Apply the pending CI change** — needs a token with the `workflows` scope.
    Steps + the follow-up doc-number refresh are in
    `docs/ci/PENDING_WORKFLOW_CHANGE.md`.
-4. Clean-VM `windeployqt` smoke from the `gifscythe-windows` artifact (C4/D3/D4)
+3. Clean-VM `windeployqt` smoke from the `gifscythe-windows` artifact (C4/D3/D4)
    — checklist: `docs/ci/CLEAN_WINDOWS_SMOKE.md`. **Blocked by U-09.**
-5. One-time real-desktop GUI probes: B5 (kill engine mid-run), B6 physical
-   drag-drop, B14 engine-missing GUI variant.
-6. Owner decisions: two-way CLI pane **or** keep one-way forever; version
+4. One-time real-desktop GUI probes: B5 (kill engine mid-run), B6 physical
+   drag-drop, B14 engine-missing GUI variant. (S10 note: the offscreen harness
+   now covers busy-locking and preview invalidation, but these three still need
+   a physical desktop.)
+5. Owner decisions: two-way CLI pane **or** keep one-way forever; version
    (0.2.0 for the S7 feature set per the minor-bump rule, vs straight 1.0.0
-   once 4+5 are green). Release how-to: `docs/release/RELEASE_PROCEDURE.md`.
+   once 3+4 are green). Release how-to: `docs/release/RELEASE_PROCEDURE.md`.
    Audit release criterion: *no Critical/High open, package-negative tests green,
    clean-Windows smoke against the exact tagged SHA.*
-7. The 15 `OPEN` audit findings — see `STATUS.md`; all except U-09 are Qt-only or
-   Windows-only paths this sandbox cannot compile.
-8. WebP/APNG stay blocked until all of the above ships.
+6. The 6 remaining `OPEN` audit findings — U-07 (Windows Unicode APIs), U-09
+   (release re-cut), U-12 (UI-thread waits, unscoped), U-15 (CMake writes into
+   `src/`), U-17 (explode frame verification), U-41 (web batch/merge/explode,
+   unscoped) — see `STATUS.md`. S10 could not take these: they need Windows,
+   release infra, or a scoping decision first.
+7. WebP/APNG stay blocked until all of the above ships.
 
 ## Deferred bucket list — after GIF `1.0.0`
 

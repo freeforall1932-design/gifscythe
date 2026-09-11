@@ -132,6 +132,11 @@ const cases = [
   { name: "U-30 colors 900", settings: { color_count: 900 },
     expect: { status: 422, issueField: "colors" } },
 
+  // --- U-42: independent X/Y scale factors reach the engine per axis ---
+  { name: "U-42 asymmetric scale runs per axis (0.5x2 on the 1x1 GIF -> 1x2)",
+    settings: { resize_kind: "scale", scale_x: 0.5, scale_y: 2 },
+    expect: { status: 200, commandIncludes: "--scale 0.5x2" } },
+
   // --- malformed / empty requests keep their distinct codes ---
   { name: "sane settings still succeed", settings: { optimize_level: 2 },
     expect: { status: 200 } },

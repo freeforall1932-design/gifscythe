@@ -34,16 +34,17 @@
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QSaveFile>
 #include <QSplitter>
 #include <QStandardPaths>
 #include <QTabWidget>
-#include <QTextStream>
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
 
 #include <algorithm>
 #include <functional>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -62,26 +63,6 @@ QString humanSize(qint64 bytes) {
 // The historical fixed suffix was "<name>_opt.gif" (audit E4) — the default
 // template renders exactly that, so verified behavior is unchanged.
 const char* kDefaultNameTemplate = "{name}_opt.gif";
-
-// Read one GUI-only key ("batch_dir", "name_template", ...) from a settings
-// file. SettingsIO ignores unknown keys while parsing core Settings; this
-// scans the same "key = value" lines for the GUI's own state. Last
-// occurrence wins, matching SettingsIO's override semantics.
-QString guiStateKey(const QString& path, const QString& key) {
-  QFile f(path);
-  if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return {};
-  QTextStream in(&f);
-  QString result;
-  while (!in.atEnd()) {
-    const QString line = in.readLine().trimmed();
-    if (line.isEmpty() || line.startsWith(QLatin1Char('#'))) continue;
-    const int eq = line.indexOf(QLatin1Char('='));
-    if (eq < 0) continue;
-    if (line.left(eq).trimmed().compare(key, Qt::CaseInsensitive) == 0)
-      result = line.mid(eq + 1).trimmed();
-  }
-  return result;
-}
 
 }  // namespace
 
@@ -255,11 +236,11 @@ QWidget* MainWindow::buildOutputTab() {
   outputEdit_->setObjectName(QStringLiteral("outputEdit"));
   outputEdit_->setPlaceholderText(
       QStringLiteral("Save as… (required for Merge; single-file Batch honors it)"));
-  auto* browse = new QPushButton(QStringLiteral("Browse…"), box);
-  browse->setObjectName(QStringLiteral("browseOutputButton"));
-  connect(browse, &QPushButton::clicked, this, &MainWindow::chooseOutput);
+  outputBrowse_ = new QPushButton(QStringLiteral("Browse…"), box);
+  outputBrowse_->setObjectName(QStringLiteral("browseOutputButton"));
+  connect(outputBrowse_, &QPushButton::clicked, this, &MainWindow::chooseOutput);
   outputRow->addWidget(outputEdit_);
-  outputRow->addWidget(browse);
+  outputRow->addWidget(outputBrowse_);
   form->addRow(QStringLiteral("Save as"), outputRow);
 
   auto* batchRow = new QHBoxLayout();
@@ -267,11 +248,11 @@ QWidget* MainWindow::buildOutputTab() {
   batchDirEdit_->setObjectName(QStringLiteral("batchDirEdit"));
   batchDirEdit_->setPlaceholderText(
       QStringLiteral("Batch folder — default: next to each input"));
-  auto* browseDir = new QPushButton(QStringLiteral("Browse…"), box);
-  browseDir->setObjectName(QStringLiteral("browseBatchDirButton"));
-  connect(browseDir, &QPushButton::clicked, this, &MainWindow::chooseBatchDir);
+  batchDirBrowse_ = new QPushButton(QStringLiteral("Browse…"), box);
+  batchDirBrowse_->setObjectName(QStringLiteral("browseBatchDirButton"));
+  connect(batchDirBrowse_, &QPushButton::clicked, this, &MainWindow::chooseBatchDir);
   batchRow->addWidget(batchDirEdit_);
-  batchRow->addWidget(browseDir);
+  batchRow->addWidget(batchDirBrowse_);
   form->addRow(QStringLiteral("Batch outputs"), batchRow);
 
   // Naming template (S3-25). Default renders the historical <name>_opt.gif
@@ -464,11 +445,20 @@ void MainWindow::clearQueue() {
   updateStatus(QStringLiteral("Queue cleared."));
   refreshCommand();
   refreshOutputSummary();
+  // P1-10: clearing the queue invalidates in-flight previews (their stale
+  // completions must not repopulate the panes) and sweeps their temp files —
+  // with nothing selected there is no displayed After image left to keep.
+  invalidatePreview();
+  cleanupPreviewFiles();
+  lastPreviewPath_.clear();
   previewPanel_->setBefore(QString());
   previewPanel_->clearAfter(QStringLiteral("queue empty"));
 }
 
 void MainWindow::chooseOutput() {
+  // Locked while a run is in flight (audit U-45 / P1-23): the planned output
+  // of a running process must not be one dialog away from changing under it.
+  if (busy_) return;
   const auto file = QFileDialog::getSaveFileName(
       this, QStringLiteral("Save optimized GIF"), QString(),
       QStringLiteral("GIF files (*.gif)"));
@@ -479,6 +469,10 @@ void MainWindow::chooseOutput() {
 }
 
 void MainWindow::chooseBatchDir() {
+  // Locked while a run is in flight (audit U-45 / P1-23). A picker could call
+  // setText() on the DISABLED batchDirEdit_ — the running batch would keep
+  // writing to its planned folder while every readout claimed the new one.
+  if (busy_) return;
   const auto dir = QFileDialog::getExistingDirectory(
       this, QStringLiteral("Choose batch output folder"), batchDirEdit_->text());
   if (!dir.isEmpty()) batchDirEdit_->setText(dir);
@@ -713,19 +707,35 @@ void MainWindow::refreshCommand() {
 
 void MainWindow::setBusy(bool busy) {
   busy_ = busy;
-  runButton_->setEnabled(!busy && !inputs_.isEmpty());
+  // Audit U-35 / P1-22: leaving busy re-enables Run only after re-checking
+  // the engine, exactly like appendInputs/removeSelected do — an engine that
+  // vanished mid-run must not light Run back up. The && short-circuits, so
+  // ensureEngine() never runs when ENTERING busy (its "Ready —" status line
+  // must not stomp the caller's "Optimizing…" / it would re-probe per file).
+  runButton_->setEnabled(!busy && !inputs_.isEmpty() && ensureEngine());
   cancelButton_->setEnabled(busy);
   removeButton_->setEnabled(!busy);
   clearButton_->setEnabled(!busy);
   moveUpButton_->setEnabled(!busy);
   moveDownButton_->setEnabled(!busy);
   settingsPanel_->setEnabled(!busy);
+  // Audit U-45 / P1-23: lock the WHOLE output group, Browse buttons included.
+  // Disabling only the text fields left a hole: a picker dialog can still call
+  // setText() on a disabled QLineEdit, so the batch destination could change
+  // mid-run while every readout (summary, live pane) drifted from the plan
+  // the running processes were actually writing to.
   outputEdit_->setEnabled(!busy);
+  outputBrowse_->setEnabled(!busy);
   batchDirEdit_->setEnabled(!busy);
+  batchDirBrowse_->setEnabled(!busy);
   nameTemplateEdit_->setEnabled(!busy);
   progressBar_->setVisible(busy);
   if (busy) {
     previewTimer_->stop();
+    // P1-10: invalidate BEFORE killing so the kill's finished() signal is
+    // recognized as stale — otherwise it passes the seq guard and paints
+    // "preview failed" over a run that has only just started.
+    invalidatePreview();
     killPreview();
   }
 }
@@ -898,6 +908,7 @@ void MainWindow::cancelRun() {
   cancelling_ = false;
   batchQueue_.clear();
   batchIndex_ = -1;
+  invalidatePreview();  // P1-10: a cancelled run invalidates any preview state
   setBusy(false);
   updateStatus(QStringLiteral("Cancelled."));
 }
@@ -1003,8 +1014,32 @@ void MainWindow::onSelectionChanged() {
 }
 
 void MainWindow::schedulePreview() {
+  // P1-10 / U-47: a selection/settings/queue change invalidates any in-flight
+  // preview IMMEDIATELY — the old code advanced previewSeq_ only when a new
+  // eligible preview started, so a stale completion that arrived during the
+  // debounce window (or after an Explode/clear early-return) still passed the
+  // seq guard and displayed a result for settings that no longer exist.
+  invalidatePreview();
   if (busy_) return;  // main run active; preview resumes after it finishes
   previewTimer_->start();  // restart debounce
+}
+
+void MainWindow::invalidatePreview() {
+  ++previewSeq_;  // every captured-seq completion older than this is now stale
+}
+
+void MainWindow::cleanupPreviewFiles(const QString& keep) {
+  // U-34 / P1-10: sweep EVERY superseded preview file, not just "seq-1 on the
+  // non-stale success path" — the old rule leaked the output of every killed,
+  // failed or superseded run for the whole session. `keep` is the file the
+  // After pane is currently playing (QMovie reads lazily; deleting the
+  // displayed file would break the animation).
+  QDir d(previewDir_);
+  const auto entries = d.entryList({QStringLiteral("preview_*.gif")}, QDir::Files);
+  for (const auto& name : entries) {
+    const QString abs = d.absoluteFilePath(name);
+    if (abs != keep) QFile::remove(abs);
+  }
 }
 
 void MainWindow::killPreview() {
@@ -1056,19 +1091,27 @@ void MainWindow::startPreview() {
             p->readAllStandardError();
             p->deleteLater();
             if (previewProcess_ == p) previewProcess_ = nullptr;  // no dangling member
-            if (seq != previewSeq_) return;  // stale — a newer preview superseded it
+            if (seq != previewSeq_) {
+              // Stale — superseded before completion. U-34: delete the file it
+              // wrote; the old code returned here WITHOUT cleanup, so every
+              // superseded preview leaked into the temp dir for the session.
+              QFile::remove(outPath);
+              return;
+            }
             const QFileInfo outFi(outPath);
             if (status != QProcess::NormalExit || exitCode != 0 || !outFi.exists() ||
                 outFi.size() == 0) {
+              QFile::remove(outPath);  // U-34: never leave a failed/partial preview behind
               previewPanel_->clearAfter(
                   QStringLiteral("preview failed (engine exit %1) — check the command pane")
                       .arg(exitCode));
               return;
             }
             previewPanel_->setAfter(outPath, QFileInfo(input).size(), outFi.size());
-            // Keep the temp dir from growing: remove the previous preview file.
-            if (seq > 1)
-              QFile::remove(previewDir_ + QStringLiteral("/preview_%1.gif").arg(seq - 1));
+            // U-34: sweep every older preview file (not just "seq-1"), keeping
+            // only the one now on display.
+            lastPreviewPath_ = outPath;
+            cleanupPreviewFiles(outPath);
           });
   connect(p, &QProcess::errorOccurred, this, [this, p, seq](QProcess::ProcessError err) {
     if (err == QProcess::FailedToStart) {
@@ -1103,11 +1146,20 @@ QString MainWindow::sessionFilePath() const {
 
 void MainWindow::loadSessionState() {
   const QString path = sessionFilePath();
-  if (path.isEmpty()) return;             // persistence unavailable -> defaults
+  if (path.isEmpty()) {
+    // U-37 / P3-8: "persistence unavailable" used to be completely silent —
+    // the user had no way to know settings would not be remembered. One
+    // honest status-bar note (a startup dialog would be noise for something
+    // that changes nothing about this session).
+    updateStatus(QStringLiteral("Settings persistence is unavailable on this system — "
+                                  "changes will not be remembered between sessions."));
+    return;
+  }
   if (!QFileInfo::exists(path)) return;   // first launch -> defaults (normal)
 
   std::vector<gs::LoadWarning> warnings;
-  auto loaded = gs::load_settings_file(path.toStdString(), &warnings);
+  std::map<std::string, std::string> guiKeys;
+  auto loaded = gs::load_settings_file(path.toStdString(), &warnings, &guiKeys);
   if (!loaded) {
     // The file exists but is unreadable — say so instead of silently
     // pretending this is a first launch.
@@ -1118,10 +1170,17 @@ void MainWindow::loadSessionState() {
 
   settingsPanel_->readFrom(*loaded);
 
-  // GUI-only keys (SettingsIO ignores them while parsing core settings).
-  const QString batch = guiStateKey(path, QStringLiteral("batch_dir"));
+  // GUI-only keys now arrive from the SAME parse as the core settings (audit
+  // U-36 / P3-7): load_settings collects every key it does not recognize into
+  // `guiKeys`. The former third parser (guiStateKey) re-opened and re-parsed
+  // the file once per key; it is gone.
+  auto guiKey = [&guiKeys](const char* k) -> QString {
+    const auto it = guiKeys.find(k);
+    return it == guiKeys.end() ? QString() : QString::fromStdString(it->second);
+  };
+  const QString batch = guiKey("batch_dir");
   if (!batch.isEmpty()) batchDirEdit_->setText(batch);
-  const QString tmpl = guiStateKey(path, QStringLiteral("name_template"));
+  const QString tmpl = guiKey("name_template");
   if (!tmpl.isEmpty()) nameTemplateEdit_->setText(tmpl);
 
   // Surfaced, not discarded (S5 rule): a corrupt/partial file still applies
@@ -1160,17 +1219,26 @@ bool MainWindow::saveSessionState() {
   if (!tmpl.isEmpty() && tmpl != QString::fromLatin1(kDefaultNameTemplate))
     oss << "name_template = " << tmpl.toStdString() << "\n";
 
-  QFile f(path);
-  if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+  const QByteArray data = QByteArray::fromStdString(oss.str());
+  // Atomic save (audit U-16 / P1-18): QSaveFile writes a sibling temp file and
+  // renames it over the target on commit(), so a crash or a full disk mid-write
+  // can no longer truncate the previous session file — a reader sees either the
+  // old conf or the complete new one. (The core-SettingsIO equivalent,
+  // save_settings_file, got the same tmp+fsync+rename treatment.)
+  QSaveFile f(path);
+  if (!f.open(QIODevice::WriteOnly)) {
     qWarning("Gifscythe: cannot open settings file for writing: %s (%s)",
              qPrintable(path), qPrintable(f.errorString()));
     return false;
   }
-  const QByteArray data = QByteArray::fromStdString(oss.str());
-  const qint64 written = f.write(data);
-  f.close();
-  if (written != data.size()) {
+  if (f.write(data) != data.size()) {
     qWarning("Gifscythe: short write to settings file: %s", qPrintable(path));
+    f.cancelWriting();
+    return false;
+  }
+  if (!f.commit()) {
+    qWarning("Gifscythe: cannot commit settings file: %s (%s)",
+             qPrintable(path), qPrintable(f.errorString()));
     return false;
   }
   return true;

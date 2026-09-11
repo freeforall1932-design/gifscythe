@@ -76,6 +76,16 @@ const fixtures = [
     },
   },
   {
+    // Audit U-42: the web UI used to drive both axes from one "Scale %" input.
+    // The builders always supported independent factors; this fixture pins the
+    // asymmetric command shape so a regression to a shared factor is visible.
+    name: "asymmetric scale X/Y (audit U-42)",
+    s: {
+      mode: "auto", resize_kind: "scale", scale_x: 0.5, scale_y: 2,
+      inputs: ["/tmp/parity/in.gif"],
+    },
+  },
+  {
     name: "gamma named + disposal + threads + unoptimize",
     s: {
       mode: "auto", gamma_str: "oklab", disposal: 2, threads: 2, unoptimize: true,
