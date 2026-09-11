@@ -34,16 +34,21 @@ namespace fs = std::filesystem;
 namespace {
 
 void print_usage(const char* argv0, std::FILE* to) {
-  std::fprintf(to, "Usage: %s <settings.conf> [--run] [--engine <path>]\n", argv0);
+  std::fprintf(to, "Usage: %s <settings.conf> [--run] [--strict] [--engine <path>]\n", argv0);
   std::fprintf(to, "  Without --run: print the engine command line (live pane) on stdout.\n");
   std::fprintf(to, "  With --run:    execute it against the bundled gifsicle engine.\n");
   std::fprintf(to, "                 All commentary goes to stderr, so stdout stays a\n");
   std::fprintf(to, "                 clean byte stream when the settings have no output.\n");
+  std::fprintf(to, "  --strict       refuse to continue when ANY settings warning was\n");
+  std::fprintf(to, "                 printed (parse or validation); exit code 3.\n");
   std::fprintf(to, "  --engine PATH  use this gifsicle instead of the located one.\n");
   std::fprintf(to, "  --version      print the Gifscythe version and exit.\n");
   std::fprintf(to, "  Warning policy: out-of-range settings print a WARNING and the run\n");
-  std::fprintf(to, "                proceeds anyway (the GUI refuses instead). An UNSAFE\n");
-  std::fprintf(to, "                output target is always refused with exit code 2.\n");
+  std::fprintf(to, "                proceeds anyway (the GUI refuses instead); pass\n");
+  std::fprintf(to, "                --strict to make the CLI refuse like the GUI does.\n");
+  std::fprintf(to, "                An UNSAFE output target is always refused with exit\n");
+  std::fprintf(to, "                code 2. Exit codes: 0 ok, 1 engine/path failure,\n");
+  std::fprintf(to, "                2 usage or unsafe target, 3 --strict refusal.\n");
   std::fprintf(to, "  GS_ENGINE env: override default engine path.\n");
   std::fprintf(to, "  Gifscythe %s\n", GS_VERSION);
 }
@@ -104,6 +109,7 @@ int main(int argc, char** argv) {
 
   std::string settings_arg = argv[1];
   bool do_run = false;
+  bool strict = false;
   std::string engine_override;
 
   // Strict argument parsing (audit U-23). Previously the loop below had no
@@ -124,6 +130,8 @@ int main(int argc, char** argv) {
     const std::string a = argv[i];
     if (a == "--run") {
       do_run = true;
+    } else if (a == "--strict") {
+      strict = true;
     } else if (a == "--engine") {
       if (i + 1 >= argc) {
         std::fprintf(stderr, "ERROR: --engine requires a path\n");
@@ -176,6 +184,20 @@ int main(int argc, char** argv) {
   for (const auto& w : warnings) {
     std::fprintf(stderr, "WARNING: %s=%s: %s\n",
                  w.field.c_str(), w.value.c_str(), w.reason.c_str());
+  }
+
+  // ---- --strict (audit U-40 / fix-order P3-5) ----
+  // Documented policy: the CLI prints warnings and proceeds, while the GUI
+  // refuses. That asymmetry is deliberate for interactive use but wrong for
+  // scripted use, where a warning nobody reads is a silent behavior change.
+  // --strict closes the gap: any parse or validation warning becomes a
+  // refusal with its own exit code (3), BEFORE anything is printed or run,
+  // so a strict invocation is all-or-nothing.
+  if (strict && (!load_warnings.empty() || !warnings.empty())) {
+    std::fprintf(stderr,
+                 "ERROR: --strict: %zu parse + %zu validation warning(s) above — refusing to continue\n",
+                 load_warnings.size(), warnings.size());
+    return 3;
   }
 
   // Locate engine.

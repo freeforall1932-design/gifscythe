@@ -32,7 +32,7 @@ From `working_code/gifscythe/`:
 ```bash
 ./build.sh                    # engine + CLI + unit tests      -> ALL TESTS PASSED
 ./scripts/test_engine.sh      # engine pipeline                -> 5/5
-./scripts/smoke_cli.sh        # CLI integration                -> 7/7
+./scripts/smoke_cli.sh        # CLI integration                -> 9/9
 ./scripts/test_package.sh     # packaging negative suite       -> 0 failed
 ./scripts/check_docs.sh       # documentation status gate      -> 0 failed
 ./scripts/verify_audit.sh     # whole COMPILED_AUDIT §6 suite  -> 0 FAIL
@@ -44,15 +44,17 @@ QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen   # -> 0 failures
 node ../../web/test/command.test.mjs                         # -> ALL PASSED
 ```
 
-Expected counts as of S9 (2026-09-10): unit suite **211 checks, 0 failures**
-(the runtime counter, not the 196 `CHECK(` source sites), GUI harness **243
-runtime checks** *(last measured in the S7 sandbox — re-run it on a Qt machine
-before trusting the number; the file now holds 226 `CHECK(` source sites, which
-is a different quantity)*, `verify_audit.sh` **25 PASS / 0 FAIL / 5 SKIP,
-exit 0** (skips are cmake, Qt6, the declared-pending workflow change, and the
-CI-gated + clean-Windows items). If a count changed, update the docs in the
-same PR — stale counts are treated as a finding, and `check_docs.sh` gates
-**G6/G9** now fail the build over them instead of leaving it to review.
+Expected counts as of S10 (2026-09-11): unit suite **238 checks, 0 failures**
+(the runtime counter, not the 223 `CHECK(` source sites), GUI harness **306
+runtime checks** *(measured in the S10 sandbox, which had Qt 6.4.2 — re-run it
+on a Qt machine before trusting the number; the file now holds 240 `CHECK(`
+source sites, which is a different quantity)*, `verify_audit.sh` **27 PASS /
+0 FAIL / 3 SKIP, exit 0** (skips are the declared-pending workflow change and
+the CI-gated + clean-Windows items; a toolchain-less sandbox additionally skips
+C6/C7*/B and measures 25/0/5 — the S9 figure). If a count changed, update the
+docs in the same PR — stale counts are treated as a finding, and
+`check_docs.sh` gates **G6/G9** now fail the build over them instead of leaving
+it to review.
 
 Also verify before packaging:
 

@@ -24,6 +24,10 @@ class PreviewPanel : public QWidget {
   void clearAfter(const QString& reason);
   void setGenerating(bool generating);
   void setStatus(const QString& status);  // appended to the base caption
+  // Stop and delete both movies immediately, releasing their file handles
+  // (Windows delete-locks the file of a live QMovie; the owner's temp-dir
+  // sweep needs the handles gone first).
+  void releaseMovies();
 
  private:
   void stopMovie(QMovie** movie);

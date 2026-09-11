@@ -10,11 +10,22 @@
 
 #include "GifsicleSettings.h"
 #include <cctype>
+#include <cstdio>
+#include <filesystem>
 #include <fstream>
+#include <map>
 #include <optional>
 #include <sstream>
 #include <string>
+#include <system_error>
 #include <vector>
+
+#ifdef _WIN32
+#include <io.h>  // _commit / _fileno — durability step of the atomic save
+#else
+#include <fcntl.h>  // open
+#include <unistd.h>  // fsync / close
+#endif
 
 namespace gs {
 
@@ -100,7 +111,16 @@ inline bool parse_bool(const std::string& v) {
   return t == "1" || t == "true" || t == "yes" || t == "on";
 }
 
-inline void set_field(Settings& s, const std::string& key, const std::string& val,
+// Apply one "key = value" pair to `s`. Returns TRUE when the key is a known
+// core-Settings key, FALSE when it is not recognised.
+//
+// Audit U-36 / fix-order P3-7: the return value is what lets load_settings()
+// collect UNKNOWN keys (the GUI's own state — `batch_dir`, `name_template`,
+// and anything future versions add) into a caller-supplied map. Before this,
+// the GUI carried its own third parser for the same file format
+// (`guiStateKey` in MainWindow.cpp), which re-opened and re-parsed the file
+// once per GUI key. One parser, one pass, one format.
+inline bool set_field(Settings& s, const std::string& key, const std::string& val,
                       std::vector<LoadWarning>* warnings = nullptr) {
   const std::string k = lower(key);
   const std::string v = trim(val);
@@ -242,9 +262,12 @@ inline void set_field(Settings& s, const std::string& key, const std::string& va
   else if (k == "input") s.inputs.push_back(v);
   else if (k == "output") s.output = v;
   else if (k == "explode_by_name") need_bool(&s.explode_by_name);
+  else return false;
+  return true;
 }
 
-inline Settings load_settings(std::istream& in, std::vector<LoadWarning>* warnings = nullptr) {
+inline Settings load_settings(std::istream& in, std::vector<LoadWarning>* warnings = nullptr,
+                              std::map<std::string, std::string>* extra_keys = nullptr) {
   Settings s;
   std::string line;
   bool saw_position_x = false;
@@ -260,7 +283,12 @@ inline Settings load_settings(std::istream& in, std::vector<LoadWarning>* warnin
     const std::string lk = lower(key);
     if (lk == "position_x") saw_position_x = true;
     else if (lk == "position_y") saw_position_y = true;
-    set_field(s, key, val, warnings);
+    // Unknown keys stay ignored for the core Settings (forward compatible),
+    // but when a caller asks, they are collected here — lowercased key,
+    // trimmed value, last occurrence wins (same override semantics as the
+    // known keys). This is the GUI's `batch_dir` / `name_template` channel
+    // (audit U-36: it used to re-parse the file with its own third parser).
+    if (!set_field(s, key, val, warnings) && extra_keys) (*extra_keys)[lk] = val;
   }
   // -p takes BOTH halves. A conf that sets only position_x (or only _y) used
   // to set has_position anyway and emit a half-specified `-p X,0`, silently
@@ -280,10 +308,11 @@ inline Settings load_settings(std::istream& in, std::vector<LoadWarning>* warnin
 
 // Returns nullopt if the file cannot be opened (does NOT silently return defaults).
 inline std::optional<Settings> load_settings_file(const std::string& path,
-                                                   std::vector<LoadWarning>* warnings = nullptr) {
+                                                   std::vector<LoadWarning>* warnings = nullptr,
+                                                   std::map<std::string, std::string>* extra_keys = nullptr) {
   std::ifstream f(path);
   if (!f) return std::nullopt;
-  return load_settings(f, warnings);
+  return load_settings(f, warnings, extra_keys);
 }
 
 // Exact inverse of load_settings — same keys, enums → strings.
@@ -363,11 +392,57 @@ inline void save_settings(std::ostream& out, const Settings& s) {
   if (s.explode_by_name) out << "explode_by_name = true\n";
 }
 
+// Atomic save (audit U-16 / fix-order P1-18). The old form — `std::ofstream
+// f(path)` (Truncate) + write — destroys the previous file BEFORE the new
+// bytes exist: a crash, a full disk or a yanked USB stick mid-write left a
+// truncated or empty conf, and the next launch quietly loaded that as "the
+// settings". Now: write a sibling temp file, flush + fsync it, then rename
+// over the target. rename() is atomic on POSIX, and std::filesystem::rename
+// maps to MoveFileExW(MOVEFILE_REPLACE_EXISTING) on Windows, so a concurrent
+// or next-session reader sees either the OLD file or the COMPLETE new one —
+// never a mix, never nothing.
+//
+// The temp name is deterministic (`path + ".tmp"`) rather than random: one
+// process owns the conf (single GUI instance / single CLI invocation), and a
+// fixed name keeps any stray from a hard-killed writer findable. The fsync is
+// best-effort by design — if it fails (a filesystem that does not support it)
+// the save still succeeds, because the rename is the atomicity guarantee and
+// the fsync is only the power-loss refinement.
 inline bool save_settings_file(const std::string& path, const Settings& s) {
-  std::ofstream f(path);
-  if (!f) return false;
-  save_settings(f, s);
-  return static_cast<bool>(f);
+  if (path.empty()) return false;
+  const std::string tmp = path + ".tmp";
+  {
+    std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+    if (!f) return false;
+    save_settings(f, s);
+    f.flush();
+    if (!f) {  // write or flush failed — remove the stray, keep the original
+      f.close();
+      std::error_code rm;
+      std::filesystem::remove(tmp, rm);
+      return false;
+    }
+    f.close();
+  }
+  // Durability before visibility: push the temp file's bytes to stable
+  // storage, then make them the target in one atomic step.
+  if (std::FILE* fh = std::fopen(tmp.c_str(), "rb")) {
+#ifdef _WIN32
+    _commit(_fileno(fh));
+#else
+    int fd = fileno(fh);
+    if (fd >= 0) ::fsync(fd);
+#endif
+    std::fclose(fh);
+  }
+  std::error_code ec;
+  std::filesystem::rename(tmp, path, ec);
+  if (ec) {
+    std::error_code rm;
+    std::filesystem::remove(tmp, rm);
+    return false;
+  }
+  return true;
 }
 
 }  // namespace gs
