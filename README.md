@@ -52,8 +52,8 @@ settings parser is gone), **U-37** ("persistence unavailable" status note),
 screenshots were re-shot offscreen from the current UI and are now linked from
 this README. **R-01** closed by the local measurement. Suite counts this
 session: unit **238**, smoke **9/9**, web **15/15 + 19/19 + 18/18**, harness
-**306**. **Not pushed:** the S10 token was read-only — CI verification of the
-S10 changes is pending on the next push.
+**306**. **Pushed:** branch `arena/s10-gifscythe`, **PR #13** open against
+`main`; CI on the PR is the first compilation of the S10 changes.
 **Direction (2026-09-09): offline-only, language stays C++17/Qt6 through 1.0.0**
 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 
