@@ -210,8 +210,9 @@ wait if the web keeps emitting argv for the same settings.
 
 *Slot: newest first — date · who · what changed in this file.*
 
-- **2026-09-12 · S14 ·** file created as `web/WEB_PLAN_TEMPLATE.md` (moved from
-  `docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md`), filled with draft v0, and the §1 decision
-  record added after the owner made the web-is-a-product decision. Registered in `WORKLIST.md`;
-  the 18 intake ids it references are `UNTRIAGED` rows in `STATUS.md`.
+- **2026-09-12 · S14 ·** file created here as the web plan template (the same session's dated
+  draft lived under docs/planning and was deleted when this file absorbed its content), filled
+  with draft v0, and the §1 decision record added after the owner made the web-is-a-product
+  decision. Registered in `WORKLIST.md`; the 18 intake ids it references are `UNTRIAGED` rows in
+  `STATUS.md`.
 - `<next>` · `<who>` · `<what>`
