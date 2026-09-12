@@ -928,6 +928,30 @@ int main() {
     CHECK(back == tricky);
   }
 
+  // 35. N-05: multi-input explode warns — the engine exits 0 but explodes
+  //     every input except the LAST into the CWD (verified vs the bundled
+  //     1.96: `gifsicle -e a.gif b.gif -o p` wrote a.gif.000..011 to the CWD
+  //     and only b's frame under p). The GUI/CLI refuse warned runs; the
+  //     warning text is mirrored byte-exact in web/validate.mjs.
+  {
+    Settings s;
+    s.mode = Mode::Explode;
+    s.inputs = {"a.gif", "b.gif"};
+    bool found = false;
+    for (const auto& w : validate(s)) {
+      if (w.field == "mode" && w.value == "explode") {
+        found = true;
+        CHECK(w.reason.find("scatters frames") != std::string::npos);
+      }
+    }
+    CHECK(found);
+    s.inputs = {"a.gif"};  // single input: no warning
+    found = false;
+    for (const auto& w : validate(s))
+      if (w.field == "mode") found = true;
+    CHECK(!found);
+  }
+
   std::printf("==> %d checks, %d failures\n", checks, failures);
   if (failures == 0) {
     std::printf("ALL TESTS PASSED\n");

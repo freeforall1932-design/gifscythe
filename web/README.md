@@ -53,7 +53,7 @@ deployable service.
 
 ```bash
 node web/test/command.test.mjs     # command builder  — 17 PASS
-node web/test/validate.test.mjs    # validation rules — 21 PASS
+node web/test/validate.test.mjs    # validation rules — 23 PASS
 node web/test/transport.test.mjs   # live-server transport net — 30 PASS
 ```
 

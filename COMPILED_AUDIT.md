@@ -1791,11 +1791,12 @@ B and C findings are merged in where they add coverage or contradict A/D.
 - [ ] **A9** prvalue `GifsicleCommand(Settings{...})` (unit test 11)
 - [ ] **A10** `release/0.1.0/gifsicle --version` → `LCDF Gifsicle 1.96`
 - [ ] **A11** `./scripts/test_engine.sh` → 5/5
-- [ ] **A12** `./scripts/smoke_cli.sh` → 12/12
+- [ ] **A12** `./scripts/smoke_cli.sh` → 14/14
 - [ ] **A13** **NEW:** threads=0 emits bare `-j` (not nothing)
 - [ ] **A14** **NEW:** empty comment in conf does NOT emit `--comment` with no argument
 - [ ] **A15** **NEW:** unknown CLI arg (`--rnu`) returns exit 2, not 0
 - [ ] **A16** **NEW (S11):** explode `--run` verifies frames — real engine counts them on stderr; a lying engine (rc=0, zero frames) exits 1 naming the prefix; empty output uses the CWD basename prefix (smoke 9–11)
+- [ ] **A17** **NEW (S11):** multi-input explode is refused — `validate()` warns (C++ + byte-identical JS mirror), `--run` exits 2 before any process starts, print mode keeps the warn-and-print policy, no CWD scatter (N-05; smoke case 12, unit block 35, harness T7)
 
 ### 7.B GUI — via offscreen harness
 

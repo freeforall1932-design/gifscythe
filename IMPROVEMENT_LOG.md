@@ -98,6 +98,19 @@ starting; the two stale `414f5fc` mentions (G10) were re-synced first.
   claims are now evidence-backed. `reference_code/` trees untouched (git
   status proves it); the clone lives in the gitignored `gifsicle-upstream/`
   the manifest already described.
+* **N-05 (new finding, closed in-session).** While designing the U-41 web
+  explode rule I probed the desktop path: `gifsicle -e a.gif b.gif -o p`
+  exits **0**, explodes every input except the LAST as `<basename>.NNN` into
+  the process CWD, and writes only the last input's frames under the prefix —
+  and the GUI queued ALL inputs into one explode run (U-17's prefix check
+  would even report the single leftover frame as "complete"). Refused the
+  same session at every layer: `validate()` warning (C++ + byte-identical JS
+  mirror, parity fixture), CLI `--run` rc=2 before any process starts (print
+  mode keeps the documented warn-and-print policy), GUI warning dialog +
+  "REFUSED" output summary; tests: unit block 35, smoke case 12 (refusal +
+  print-policy lines), harness T7 subcase (engine never starts, no frames,
+  summary honest), Wine rc=2 + zero frames. The web `/run` already refused
+  multi-file explode by design.
 * **U-12 scoped, deliberately NOT implemented (P1-24).** All five waits named
   with re-measured line numbers (842/904 `waitForStarted(5000)`, 919
   `waitForFinished(3000)`, 171 `(2000)`, 1086 `(1000)`), the signal/timer fix
@@ -108,11 +121,13 @@ starting; the two stale `414f5fc` mentions (G10) were re-synced first.
   freeze is gone, is exactly the risky refactor the repo rules say to avoid.
   An honest scoped OPEN beats a green-but-unproven rewrite. A-12's stale §3
   line numbers refreshed in the same pass.
-* **Tests/fixtures added:** unit blocks 33 (ExplodeVerify) + 34 (splitter) →
-  runtime **293 checks** (source occurrences: unit 258, harness 245 `CHECK(`
-  sites); `tests/fake_engine_exit0.cpp` + CMake target (static under MINGW);
-  harness T7 extension → **317 runtime checks**; smoke **9→12**; verify_audit
-  C9 gate + gate B now builds the fixture target.
+* **Tests/fixtures added:** unit blocks 33 (ExplodeVerify) + 34 (splitter) +
+  35 (N-05 validate) → runtime **296 checks** (source occurrences: unit 261,
+  harness 250 `CHECK(` sites); `tests/fake_engine_exit0.cpp` + CMake target
+  (static under MINGW); harness T7 extension (lying engine + N-05 refusal) →
+  **324 runtime checks**; smoke **9→14**; web suites command **15→17**,
+  validate **19→23**, transport **18→30**; verify_audit C9 gate + gate B now
+  builds the fixture target.
 * **Docs/status:** §5 rows for U-07/U-10/U-12/U-15/U-17/U-41 (+Verif marks
   SRC→EXEC), §3/§4 detail statuses for A-06/A-09/A-12/A-15/A-17/B-08/B-09,
   §6 rows P1-24 + P2-11, §7 A12 12/12 + A16/C9, §8 risk rows (P1-24 pointer;
@@ -158,18 +173,18 @@ starting; the two stale `414f5fc` mentions (G10) were re-synced first.
 
 **Verified (run in this sandbox):**
 
-* `./build.sh` → **293 checks, 0 failures**; `test_engine.sh` 5/5;
-  `smoke_cli.sh` **12/12**; `test_package.sh` 9/9.
-* GUI offscreen harness (compiled AND run locally, Qt 6.4.2): **317 checks,
+* `./build.sh` → **296 checks, 0 failures**; `test_engine.sh` 5/5;
+  `smoke_cli.sh` **14/14**; `test_package.sh` 9/9.
+* GUI offscreen harness (compiled AND run locally, Qt 6.4.2): **324 checks,
   0 failures** (T1–T20, T7 extended) — the new last-measured figure (306 @ S10).
-* Web: `command.test.mjs` **17**, `validate.test.mjs` **21**,
+* Web: `command.test.mjs` **17**, `validate.test.mjs` **23**,
   `transport.test.mjs` **30** (live server + real engine).
 * `verify_audit.sh` → **28 PASS / 0 FAIL / 3 SKIP, exit 0** (skips: E9
   declared-pending workflow, CI-gated, clean-Windows); `check_docs.sh` →
   **21 passed, 0 failed, 1 skipped** (the skip is G7, same declared drift).
 * Wine matrix (all executed): old CLI rc=1 + mojibake repro; new CLI é-conf
   rc=0 + output written; é-conf-path argv rc=0; é-`GS_ENGINE` rc=0; CJK child
-  cmdline byte-exact (probe); unit exe green under Wine at **289 runtime checks (0 failures)** — the 4 POSIX-signal checks compile out on Windows; explode
+  cmdline byte-exact (probe); unit exe green under Wine at **292 runtime checks (0 failures)** — the 4 POSIX-signal checks compile out on Windows; multi-input explode refused rc=2 with zero frames; explode
   real-engine `12 frame(s)` rc=0; lying engine rc=1 naming the prefix. Engine
   exe rebuilt via `build_engine.sh --windows`: `LCDF Gifsicle 1.96 (Windows)`.
 * U-15 before/after repro executed both halves (read-only `src/` uid 65534;

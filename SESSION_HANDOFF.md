@@ -12,8 +12,8 @@ linux + windows) → based on `main` commit `2176573` (the PR #13 merge) ·
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S11: **77 DONE · 4 PARTIAL ·
-   17 OPEN · 0 UNTRIAGED · 98 total.**
+   `U-nn` row; neither replaces the other. As of S11: **78 DONE · 4 PARTIAL ·
+   17 OPEN · 0 UNTRIAGED · 99 total.**
 
 1. **What S11 did.** The S11 sandbox had working apt (uid 0) and installed,
    beyond the S10 stack (g++ 12.2 / cmake 3.25.1 / Qt 6.4.2 / ninja / node
@@ -62,6 +62,13 @@ linux + windows) → based on `main` commit `2176573` (the PR #13 merge) ·
      process start, which the offscreen harness cannot produce, and the
      cancel rewrite would rewire T2/T9/T10 semantics with no executable proof
      of improvement. Scoped-OPEN beats an untestable refactor.
+   - **N-05 (new, closed in-session)** — multi-input Explode silently
+     scattered frames: `gifsicle -e a.gif b.gif -o p` exits 0, explodes every
+     input but the LAST into the process CWD, and only the last input honors
+     the prefix — while the GUI queued all inputs into one explode run.
+     Refused at every layer the same session: `validate()` warning (C++ +
+     byte-identical JS mirror), CLI `--run` rc=2, GUI dialog + REFUSED
+     summary; unit 35, smoke case 12, harness T7 subcase, Wine rc=2.
    - **N-04 (new, closed in-session)** — MinGW libstdc++ narrow `fs::path`
      conversions decode bytewise but encode UTF-8 (verified by probe under
      Wine): every non-ASCII string↔path boundary was silently mangling. All
@@ -69,10 +76,10 @@ linux + windows) → based on `main` commit `2176573` (the PR #13 merge) ·
    - **Drift fixed on arrival:** the two stale `414f5fc` mentions (G10) were
      re-synced to the real tip before anything else.
 
-2. **Gates, all run locally this session:** `./build.sh` **293 checks,
-   0 failures** · `test_engine.sh` **5/5** · `smoke_cli.sh` **12/12** ·
-   `test_package.sh` **9/9** · web **17 + 21 + 30** · offscreen harness
-   **317 checks, 0 failures** · `check_docs.sh` **21 passed, 0 failed,
+2. **Gates, all run locally this session:** `./build.sh` **296 checks,
+   0 failures** · `test_engine.sh` **5/5** · `smoke_cli.sh` **14/14** ·
+   `test_package.sh` **9/9** · web **17 + 23 + 30** · offscreen harness
+   **324 checks, 0 failures** · `check_docs.sh` **21 passed, 0 failed,
    1 skipped** (G7 skip = declared-pending workflow) · `verify_audit.sh`
    **28 PASS / 0 FAIL / 3 SKIP, exit 0** (skips: E9 declared-pending workflow,
    CI-gated, clean-Windows). awk changes verified under **mawk AND gawk**.
@@ -165,6 +172,10 @@ only stick if they are in files a new session reads, not in a conversation.
   committed `src/core/version.h` fallback is written ONLY by `build.sh`; the
   template lives at `build_support/version.h.in`; include order stays
   generated-first. Do not "simplify" these back.
+- **NEW (S11):** Explode processes ONE file per run (N-05): `validate()`
+  warns on multi-input explode (the JS mirror must stay byte-identical —
+  parity-pinned), CLI `--run` refuses rc=2, the GUI refuses via the warning
+  dialog, web `/run` answers 400. Do not re-allow multi-input explode.
 - **NEW (S11):** Explode success means VERIFIED frames (`ExplodeVerify.h`
   snapshot-diff) — never rc=0 alone. The harness fixture `fake_engine_exit0`
   (CMake target) must keep being built next to `test_gui_offscreen`
@@ -196,26 +207,26 @@ Everything marked ✅ was **run in this sandbox**; ⏳ could not be. Quote the
 
 | Check | Result |
 |---|---|
-| `./build.sh` (engine + CLI + unit tests) | ✅ **293 checks, 0 failures** (runtime counter; blocks 33/34 added in S11) |
+| `./build.sh` (engine + CLI + unit tests) | ✅ **296 checks, 0 failures** (runtime counter; blocks 33/34/35 added in S11) |
 | `scripts/test_engine.sh` | ✅ 5/5 |
-| `scripts/smoke_cli.sh` | ✅ **12/12** (S11 added the three explode-verification cases) |
+| `scripts/smoke_cli.sh` | ✅ **14/14** (S11 added the explode-verification + N-05 refusal cases) |
 | `scripts/test_package.sh` (packaging negative suite) | ✅ 9/9 |
 | `node web/test/command.test.mjs` | ✅ **17** (S11 added the `-b`/`-e` fixtures) |
-| `node web/test/validate.test.mjs` | ✅ **21** (S11 added info+explode, explode geometry) |
+| `node web/test/validate.test.mjs` | ✅ **23** (S11 added info+explode, explode geometry, N-05 ×2) |
 | `node web/test/transport.test.mjs` (live server) | ✅ **30** (S11 added the 12 `/run` cases) |
-| GUI offscreen harness (`test_gui_offscreen`) | ✅ **317 checks, 0 failures** — COMPILED AND RUN HERE (T1–T20, T7 extended). New last-measured figure; 306 @ S10 |
+| GUI offscreen harness (`test_gui_offscreen`) | ✅ **324 checks, 0 failures** — COMPILED AND RUN HERE (T1–T20, T7 extended). New last-measured figure; 306 @ S10 |
 | `scripts/check_docs.sh` (documentation gate) | ✅ **21 passed, 0 failed, 1 skipped, exit 0** (the skip is G7, the declared-pending workflow change) |
 | `scripts/verify_audit.sh` | ✅ **28 PASS / 0 FAIL / 3 SKIP, exit 0** (skips = E9 declared-pending workflow, CI-gated, clean-Windows; S11 added gate C9) |
 | MinGW cross-build (CLI, unit exe, fixture, engine exe) | ✅ zero warnings `-Wall -Wextra -static`; engine reports `LCDF Gifsicle 1.96 (Windows)` under Wine |
-| Wine 8 E2E matrix (U-07/U-17) | ✅ old-build repro rc=1 mojibake; fixed build rc=0 on é paths (conf contents, conf path, `GS_ENGINE`); CJK byte-exact to the child UTF-16 line; unit exe 289 checks; explode 12 frames rc=0 / lying engine rc=1 |
+| Wine 8 E2E matrix (U-07/U-17) | ✅ old-build repro rc=1 mojibake; fixed build rc=0 on é paths (conf contents, conf path, `GS_ENGINE`); CJK byte-exact to the child UTF-16 line; unit exe 292 checks; explode 12 frames rc=0 / lying engine rc=1 / multi-input refused rc=2 |
 | U-15 read-only + deleted-fallback repro | ✅ both halves executed (old FAIL / new PASS, uid 65534) |
 | `diff .github/workflows/build.yml docs/ci/build.yml.proposed` | ⏳ **differ on purpose** — the doc-gate step cannot be pushed without `workflows` scope; declared in `docs/ci/PENDING_WORKFLOW_CHANGE.md`. E9/G7 SKIP for declared drift, FAIL for undeclared |
 | GitHub Actions, S11 changes | ✅ run `34672175363` on `88e15ea`: **linux success + windows success** (first run `34671814580` on `f655987` failed windows-only on the T7 path-separator assertion — fixed in the follow-up). Re-check the current tip before merging, not this row |
 
 **Counts are stated by kind on purpose.** `grep -c 'CHECK('` counts **lines**;
-`grep -o 'CHECK(' | wc -l` counts **occurrences** (S11: harness **245**, unit
-**258** occurrences); neither equals the **runtime** count (unit **293**,
-harness **317**), because loops expand checks. `check_docs.sh` gate **G9**
+`grep -o 'CHECK(' | wc -l` counts **occurrences** (S11: harness **250**, unit
+**261** occurrences); neither equals the **runtime** count (unit **296**,
+harness **324**), because loops expand checks. `check_docs.sh` gate **G9**
 prints which kind it means and compares like with like.
 
 ## Network/toolchain reality of this sandbox (re-check every session)

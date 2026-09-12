@@ -222,6 +222,23 @@ int main(int argc, char** argv) {
     return 3;
   }
 
+  // ---- N-05: multi-input explode is refused before anything runs ----
+  // Verified against the bundled 1.96: `gifsicle -e a.gif b.gif -o p` exits 0,
+  // explodes every input but the LAST as <basename>.NNN into this process's
+  // CWD, and writes only the last input's frames under the prefix. Print mode
+  // surfaces the validate() warning like any other; --run refuses the way an
+  // unsafe output target does (exit 2).
+  if (do_run && s.mode == gs::Mode::Explode && s.inputs.size() > 1) {
+    std::fprintf(stderr,
+                 "ERROR: refusing to run — explode with %zu inputs scatters frames:\n",
+                 s.inputs.size());
+    std::fprintf(stderr,
+                 "       only the LAST input honors the -o prefix; earlier inputs write\n"
+                 "       <basename>.NNN into the current directory (the engine exits 0).\n"
+                 "       Run one file at a time.\n");
+    return 2;
+  }
+
   // Locate engine.
   std::string engine_path;
   if (!engine_override.empty()) {

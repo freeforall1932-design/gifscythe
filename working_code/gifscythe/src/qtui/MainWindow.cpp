@@ -629,6 +629,14 @@ void MainWindow::refreshOutputSummary() {
                  : QStringLiteral("Merge (all inputs welded) → %1").arg(explicitOut);
       break;
     case gs::Mode::Explode:
+      if (inputs_.size() > 1) {
+        // N-05: the engine would explode every input but the last into the
+        // CWD and exit 0 — the run is refused; say so before the click.
+        text = QStringLiteral("Explode → REFUSED for %1 queued files: one file per run "
+                              "(the engine would scatter the others' frames into the CWD)")
+                   .arg(inputs_.size());
+        break;
+      }
       text = explicitOut.isEmpty()
                  ? (inputs_.isEmpty()
                         ? QStringLiteral("Explode → frames write as <stem>_frame.000, .001, … next to the input")

@@ -53,6 +53,9 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       sandbox HAD Qt6 (apt), so the shots were re-taken offscreen from the
       current UI and are now linked from the root README; see
       `docs/screenshots/README.md`.
+- [x] **N-05** — multi-input Explode scattered frames silently (engine rc=0,
+      all-but-last inputs → CWD). **Found, verified and refused in S11**
+      (validate warning + CLI rc=2 + GUI refusal; tests at every layer).
 - [x] **N-04** — MinGW libstdc++'s narrow `fs::path` conversions are not UTF-8
       (decode bytewise, encode UTF-8), silently mangling non-ASCII paths at
       every core boundary on Windows. **Found and resolved in S11** under Wine
@@ -207,7 +210,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       UI, and `POST /run` (JSON multi-file) on the server with desktop
       semantics — per-file Auto batch runs with planned targets + collision
       refusal, one `-m` merge run, `-e`/`-E` explode with the P1-19 frame
-      verification. Suites extended: command 15→**17**, validate 19→**21**,
+      verification. Suites extended: command 15→**17**, validate 19→**23**,
       transport 18→**30**.
 - [ ] **U-10 (P2-3)** — provenance half DONE in S11, row stays PARTIAL until
       the CI-pinning half lands (`workflows` scope) and `config.h` moves out of
@@ -225,6 +228,13 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       (the freeze needs a slow process start, which the offscreen harness
       cannot produce; cancel rewiring would risk T2/T9/T10 semantics with no
       executable proof of improvement).
+- [x] **N-05** — multi-input Explode silently scattered frames (engine rc=0;
+      every input but the LAST exploded into the CWD as `<basename>.NNN`, only
+      the last honored the `-o` prefix). Found while designing the U-41 web
+      explode rule; verified against the bundled 1.96; refused the same session
+      at every layer: `validate()` warning (C++ + byte-identical JS mirror),
+      CLI `--run` rc=2, GUI dialog + REFUSED summary; unit block 35, smoke
+      case 12 (2 lines), harness T7 subcase, Wine rc=2.
 - [x] **N-04** — found under Wine: this MinGW libstdc++'s narrow `fs::path`
       conversions decode bytewise but encode UTF-8 (asymmetric mangling of
       every non-ASCII path). Closed in-session: `u8path_compat`/`path_u8string`
@@ -233,7 +243,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       `COMPILED_AUDIT.md` named `414f5fc`; origin/main is `2176573` (the PR #13
       merge) — G10 green again.
 
-### GIF UI/UX → 1.0.0  (S4b retrofit 2026-09-07 + S7 polish 2026-09-10 + S10/S11 fixes — harness T1–T20 last *measured* at **317 runtime checks** in the S11 sandbox (Qt 6.4.2); before that 306 in S10 and 243 in S7; S8's T17/T8 additions were CI-green on PR #11)
+### GIF UI/UX → 1.0.0  (S4b retrofit 2026-09-07 + S7 polish 2026-09-10 + S10/S11 fixes — harness T1–T20 last *measured* at **324 runtime checks** in the S11 sandbox (Qt 6.4.2); before that 306 in S10 and 243 in S7; S8's T17/T8 additions were CI-green on PR #11)
 - [x] Input / Actions / Output tab flow (XNConvert feel) — QTabWidget + Preview
       pane in splitter; bottom live pane/progress/status bar kept
 - [x] Before/after preview (debounced 1200 ms, fully async, seq-guarded;

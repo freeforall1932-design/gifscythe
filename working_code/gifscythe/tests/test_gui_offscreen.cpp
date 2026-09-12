@@ -595,6 +595,37 @@ int main(int argc, char** argv) {
               "explode completion reports the verified frame count");
     delete w;
 
+    // ---- N-05: multi-input explode is REFUSED before the engine starts ----
+    // The engine would explode every queued input except the last into the
+    // process CWD (verified: `gifsicle -e a.gif b.gif -o p`, rc=0) and the
+    // U-17 prefix verification would then report the leftover single frame
+    // as "complete". The validate() warning makes runCommand refuse.
+    // (Own temp dir: the happy-path explode above legitimately left
+    // a_frame.* files in tmp.)
+    {
+      QTemporaryDir tmpN;
+      const QString an = tmpN.path() + QStringLiteral("/a.gif");
+      const QString bn = tmpN.path() + QStringLiteral("/b.gif");
+      CHECK(copyFile(logo, an));
+      CHECK(copyFile(logo1, bn));
+      MainWindow* wn = makeWindow();
+      auto xn = findWidgets(wn);
+      dropFiles(wn, {an, bn});
+      xn.mode->setCurrentIndex(2);  // Explode
+      xn.output->clear();
+      g_dialogs.clear();
+      xn.run->click();
+      spinEvents(150);
+      CHECK_MSG(dialogsContain(QStringLiteral("scatters frames")),
+                "multi-input explode refuses with the scattering explanation");
+      CHECK(xn.process->state() == QProcess::NotRunning);  // engine never started
+      CHECK(!QFileInfo::exists(tmpN.path() + QStringLiteral("/a_frame.000")));
+      CHECK(!QFileInfo::exists(tmpN.path() + QStringLiteral("/b_frame.000")));
+      CHECK_MSG(xn.outputSummary->text().contains(QStringLiteral("REFUSED")),
+                "the summary says REFUSED before the click");
+      delete wn;
+    }
+
     // ---- U-17 (P1-19): rc=0 + ZERO frames written must NOT claim success. ----
     // The lying engine (tests/fake_engine_exit0.cpp, built next to this
     // harness) exits 0 without writing anything — the audit's exact repro.

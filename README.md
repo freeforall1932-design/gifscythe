@@ -72,9 +72,12 @@ provenance half (fresh upstream clone diffed: `reference_code/gifsicle` is
 byte-identical to `kohler/gifsicle@07f5c4c3` except the handwritten
 `config.h`; digests recorded in the manifest) and **U-12** scoped as P1-24
 (deliberately not refactored — the freeze is untestable offscreen). New
-finding **N-04** (MinGW's non-UTF-8 `fs::path` narrow conversions) found and
-closed in-session. Suite counts this session: unit **293**, smoke **12/12**,
-web **17 + 21 + 30**, harness **317**, `verify_audit.sh` **28/0/3**.
+Two new findings were found AND closed in-session: **N-04** (MinGW's
+non-UTF-8 `fs::path` narrow conversions) and **N-05** (multi-input Explode
+silently scattered frames — every input but the last exploded into the CWD
+with rc=0; now refused by validate/CLI/GUI/web alike). Suite counts this
+session: unit **296**, smoke **14/14**, web **17 + 23 + 30**, harness
+**324**, `verify_audit.sh` **28/0/3**.
 **Direction (2026-09-09): offline-only, language stays C++17/Qt6 through 1.0.0**
 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 
