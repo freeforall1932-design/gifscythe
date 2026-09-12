@@ -1,8 +1,8 @@
 # Session Handoff
 
 **Date:** 2026-09-12 (session S11) · **Branch:** `arena/s11-gifscythe` (pushed;
-PR against `main` — see the S11 IMPROVEMENT_LOG entry for the number + CI
-verdict) → based on `main` commit `2176573` (the PR #13 merge) ·
+**PR #14** open against `main`, CI green on `88e15ea` — run `34672175363`,
+linux + windows) → based on `main` commit `2176573` (the PR #13 merge) ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending)
 
 ## TL;DR for the next session
@@ -77,12 +77,17 @@ verdict) → based on `main` commit `2176573` (the PR #13 merge) ·
    **28 PASS / 0 FAIL / 3 SKIP, exit 0** (skips: E9 declared-pending workflow,
    CI-gated, clean-Windows). awk changes verified under **mawk AND gawk**.
 
-3. **CI is the first NATIVE Windows compilation of the S11 code** (the Wine
-   proofs are executed but Wine ≠ Windows; CI's windows job compiles
-   CreateProcessW/_wopen/splitter natively and runs the harness there —
-   including T7's `fake_engine_exit0` fixture, which both CI cmake builds
-   produce next to the harness). Watch the linux job's check_docs step too
-   (G9b re-measures the unit runtime count = 293 against the docs).
+3. **CI verdict — GREEN.** Run `34672175363` on `88e15ea`: **linux success +
+   windows success**. The windows job was the first NATIVE compilation of the
+   S11 Windows code (CreateProcessW/`_wopen`/splitter; the Wine proofs are
+   executed but Wine ≠ Windows) and ran the extended harness green (317
+   checks, incl. T7's `fake_engine_exit0` fixture). The FIRST run
+   (`34671814580` on `f655987`) failed windows-only on a cosmetic T7
+   assertion: `locate_engine()` returns native separators while
+   `applicationDirPath()` uses forward slashes, so a full-path `contains()`
+   could only pass on POSIX — fixed in `88e15ea` by comparing the basename
+   (all U-17 behavioral checks had passed on Windows untouched). Re-check the
+   tip before merging (rule 3 re-applies).
 
 4. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against
@@ -205,7 +210,7 @@ Everything marked ✅ was **run in this sandbox**; ⏳ could not be. Quote the
 | Wine 8 E2E matrix (U-07/U-17) | ✅ old-build repro rc=1 mojibake; fixed build rc=0 on é paths (conf contents, conf path, `GS_ENGINE`); CJK byte-exact to the child UTF-16 line; unit exe 289 checks; explode 12 frames rc=0 / lying engine rc=1 |
 | U-15 read-only + deleted-fallback repro | ✅ both halves executed (old FAIL / new PASS, uid 65534) |
 | `diff .github/workflows/build.yml docs/ci/build.yml.proposed` | ⏳ **differ on purpose** — the doc-gate step cannot be pushed without `workflows` scope; declared in `docs/ci/PENDING_WORKFLOW_CHANGE.md`. E9/G7 SKIP for declared drift, FAIL for undeclared |
-| GitHub Actions, S11 changes | ⏳ push + PR happen at the end of this session — record the run id + verdict in IMPROVEMENT_LOG before declaring done |
+| GitHub Actions, S11 changes | ✅ run `34672175363` on `88e15ea`: **linux success + windows success** (first run `34671814580` on `f655987` failed windows-only on the T7 path-separator assertion — fixed in the follow-up). Re-check the current tip before merging, not this row |
 
 **Counts are stated by kind on purpose.** `grep -c 'CHECK('` counts **lines**;
 `grep -o 'CHECK(' | wc -l` counts **occurrences** (S11: harness **245**, unit
