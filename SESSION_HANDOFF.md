@@ -1,9 +1,11 @@
 # Session Handoff
 
-**Date:** 2026-09-12 (session S14 continuation) · **Branch:** `arena/01a09712-gifscythe` (this
-post-merge sync; **not yet pushed, no PR opened** — owner sign-off first)
+**Date:** 2026-09-12 (session S14 continuation) · **Session:** S14-continuation post-merge sync
+**Branch:** `arena/s14-gifscythe` by convention — this session was pushed under the Arena-generated
+id `arena/01a09712-gifscythe`, which is **PR #20 open against `main`**, tip `4c6311e`; branch runs
+`34717874740` (pull_request) and `34717833397` (push) both finished `success` on linux + windows
 **Base:** `main` `43e3f96` — **PR #19 merged as `43e3f96`**, the doc-sync of **PR #18 (merged as
-`e32ed28`)**; **PR #17** was the merge before that.
+`e32ed28`)**; **PR #17** was the merge before that ·
 **CI:** `main` run `34713398377` on `e32ed28` and `main` run `34713800552` on `43e3f96` both
 finished `success` on linux + windows; `main` run `34709536321` (`75b73a5`, PR #17's merge) likewise ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
@@ -14,6 +16,10 @@ owner's draft is refitted into that template's slots — move both lines in the 
 
 ## Next session — fast hand-off (S14 continuation)
 
+- **Branch naming:** push session work to **`arena/sNN-gifscythe`** (the S7/S10/S11 convention),
+  not to an opaque platform id — a session number stays meaningful after the session ends, an id
+  like `arena/01a09712-gifscythe` does not. When a platform assigns its own branch name anyway,
+  record the session number first and the assigned id second, as this header does.
 - **Copy-paste prompt:** `docs/planning/NEXT_SESSION_PROMPT.md` — recovery steps,
   the SkillOpt ask, the decision backlog, and the standing constraints in one block.
 - **Owner decisions:** `docs/planning/OWNER_DECISIONS.md` — answer `OD-01`…`OD-15`
