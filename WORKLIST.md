@@ -50,7 +50,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       18 findings (Max/GPT-class `GS-201…GS-210`, DeepSeek `DS-06…DS-13`) are compiled in
       `COMPILED_AUDIT.md` §13 + `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`, and recorded
       row-by-row in `STATUS.md` under the reviewers' ids. Proposed sequencing lives in
-      `docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md` (awaiting the owner's draft).
+      `web/WEB_PLAN_TEMPLATE.md` (template; the owner's draft is refitted into it).
       Triage = map accepted items into `COMPILED_AUDIT.md` §6 fix-order ids. One pending line per
       finding, as rule 2 requires:
       - [ ] **GS-201** (Critical) CLI Batch → engine `-b` can rewrite the source GIFs; cheap
@@ -102,8 +102,11 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
 ## Direction decisions (2026-09-09 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`)
 
-- **Offline-only.** No server, no auto-update, no telemetry. The `web/` build
-  is a demo / command-parity harness, not the product path.
+- **Offline-only.** No server, no auto-update, no telemetry. **Amended 2026-09-12 (S14,
+  owner):** the `web/` build is now a **supported product surface** — a **self-hosted**
+  alternative to the `.exe`/portable build (loopback by default, `GS_WEB_HOST` for LAN). No
+  cloud/hosted service; the offline-only promise stands. Plan + split rules:
+  `web/WEB_PLAN_TEMPLATE.md`.
 - **Language: stay C++17 + Qt6 Widgets through 1.0.0** (already offline,
   portable, CI-verified). Revisit only if a documented trigger fires — then
   spike **Rust + Tauri**. Comparison matrix in the offline review doc.
@@ -230,8 +233,11 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
 - [x] **Intake registered:** the 18 findings now have `STATUS.md` rows (`UNTRIAGED`, reviewers'
       ids) and the pending lines above, so nothing lives only in a chat message or a report.
-- [x] **Plan drafted:** `docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md` — proposal only,
-      awaiting the owner's draft before any sequencing is agreed.
+- [x] **Plan template in place:** `web/WEB_PLAN_TEMPLATE.md` (moved into `web/` so it is findable
+      next to the code) — the owner's draft is refitted into its slots under §0's rules.
+- [x] **Direction decision (owner, S14):** the web build is a **supported product surface**, a
+      self-hosted alternative to the `.exe`/portable build. `PROJECT_VISION.md`, the direction
+      decisions above, `STATUS.md` (D-07) and the template's §1 record it.
 - [x] **Release notes placed:** `docs/release/RELEASE_PROCEDURE.md` carries the open
       release-blocking pointers; `docs/ci/PENDING_WORKFLOW_CHANGE.md` carries the CI one.
 
@@ -372,9 +378,8 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
 ## Next actions (ordered)
 
-- [ ] **Owner decision (blocks scheduling):** web-first direction — option A, B or C in
-      `docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md`. Then triage the 18 intake rows into
-      `COMPILED_AUDIT.md` §6 fix-order ids.
+- [ ] **Owner draft:** refit the web plan into `web/WEB_PLAN_TEMPLATE.md` (slot-by-slot; §0
+      rules), then triage the 18 intake rows into `COMPILED_AUDIT.md` §6 fix-order ids.
 
 1. **U-09** — re-cut release artifacts from the tagged SHA (the banked zip
    predates S7; its notes pin `d3544b1`). Needs a tag + `gh release` (and a
@@ -413,8 +418,9 @@ and deliberately not started until GIF 1.0.0 ships.
 - GIF ⇄ APNG ⇄ WebP convert, explode, merge, reorder, loop controls.
 - Frame editor, text/watermark overlays, presets, richer previews.
 - Optional: logging framework, i18n, dark mode, system tray (see COMPILED_AUDIT S3 P2/P3).
-- **Web (not the product path):** client-side `gifsicle.wasm` + web UI
-  (`docs/web/WEB_FEASIBILITY.md` Option 4); `web/` server demo already exists.
+- **Web (product alternative; server-side chosen S14):** the self-hosted browser UI already
+  exists (`web/`); optional client-side `gifsicle.wasm` + web UI
+  (`docs/web/WEB_FEASIBILITY.md` Option 4) remains unbuilt.
 - **Language migration (only if a trigger fires):** Rust + Tauri spike —
   see `docs/planning/OFFLINE_BUILD_REVIEW.md` §4.
 
@@ -436,7 +442,7 @@ cd working_code/gifscythe
 # GUI harness (needs Qt6): cmake -S . -B build-cmake && cmake --build build-cmake
 #   && QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
 
-# Web demo (offline-unrelated; parity harness only)
+# Web app (self-hosted product alternative; the CLI parity suites below are its gate)
 node web/server.mjs 8000           # from the repo root; binds 127.0.0.1
 node web/test/command.test.mjs     # JS ⇄ C++ command parity (17 checks)
 node web/test/validate.test.mjs    # JS ⇄ C++ validation parity (21 checks)

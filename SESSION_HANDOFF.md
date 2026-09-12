@@ -32,9 +32,13 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
   The live `main` tip stays red until this branch lands.
 - **Tasks placed in their documents:** the 18 findings are now `UNTRIAGED` rows in `STATUS.md`
   (reviewers' ids), one pending line each in `WORKLIST.md`, release-blocking pointers in
-  `docs/release/RELEASE_PROCEDURE.md`, detail in `COMPILED_AUDIT.md` §13, and the proposed
-  sequencing in `docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md` (web-first split; needs the
-  owner's draft and one direction decision — the vision currently pins web as "demo only").
+  `docs/release/RELEASE_PROCEDURE.md`, detail in `COMPILED_AUDIT.md` §13, and the sequencing +
+  split rules in `web/WEB_PLAN_TEMPLATE.md` (parked in `web/` as a template so the owner's draft
+  can be refitted into it).
+- **Direction decision (owner, S14):** the `web/` build is now a **supported product surface** — a
+  self-hosted alternative to the `.exe`/portable build (offline-only / no-cloud promise unchanged).
+  Recorded in `PROJECT_VISION.md`, `WORKLIST.md` direction decisions, `STATUS.md` (D-07 re-scoped)
+  and `web/WEB_PLAN_TEMPLATE.md` §1.
 - **Not done, deliberately:** **no triage** — nothing was mapped into §6 fix-order `U-nn` ids, so
   nothing is scheduled; and the workflow copy is not synced (needs a `workflows`-scoped token).
 
@@ -359,7 +363,7 @@ section of this file.**
 | `docs/ci/README.md` · `docs/ci/PENDING_WORKFLOW_CHANGE.md` · `docs/ci/CLEAN_WINDOWS_SMOKE.md` | CI workflow status, the blocked workflow change, and the C4/D3/D4 clean-Windows checklist |
 | `docs/screenshots/README.md` | S10 re-shoot recipe + what each shot shows (S11 changed no desktop-visible UI, so they remain current); linked from the root README |
 | `docs/archive/` | The two dated review snapshots (historical line refs kept) |
-| `web/` | Server-side web POC: `/optimize` (legacy single-file) + `/run` (all four modes, S11) + 3 parity/transport suites (demo only, not the product path) |
+| `web/` | Web app (**product alternative since S14**): `/optimize` (legacy single-file) + `/run` (all four modes, S11) + 3 parity/transport suites. Plan template + split rules: `web/WEB_PLAN_TEMPLATE.md` |
 | `working_code/gifscythe/VERSION.md` | Version source of truth → committed `src/core/version.h` fallback (build.sh) + build-tree copy (CMake, from `build_support/version.h.in`) |
 
 ## Prior-session history (S4/S4b/S5/S6/S7/S8/S9/S10)
