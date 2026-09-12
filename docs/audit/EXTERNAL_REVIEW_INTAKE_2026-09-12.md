@@ -4,8 +4,8 @@
 > register, or acted on.** It exists so a later session can review the newly
 > reported problems, risks and proposed solutions in one place, with the
 > reviewer's own words next to an independent re-check against the shipped
-> source. No repository code, script, workflow or status document was changed
-> to produce it. Proposed reproductions are the reviewers'; destructive ones
+> source. No application code, script, workflow, test or packaging change was made
+> to produce it (the status-truth corrections applied afterwards this session are listed in §8). Proposed reproductions are the reviewers'; destructive ones
 > were deliberately **not** executed.
 
 **Compiled by:** Arena session, 2026-09-12 (S14 intake; not a remediation session)
@@ -13,8 +13,9 @@
 **Reviewed revision:** `main` at `2d51347817f5cdb39334415a03bb5f2b543119dd` (local checkout, read-only reads)
 **Method:** fetch the three review URLs, verify each cited symbol against the shipped tree,
 confirm the live CI state through the GitHub API, reproduce the documentation gate locally
-**Register impact:** none yet — `COMPILED_AUDIT.md` §5 / `STATUS.md` are untouched
-(see §7 "How to fold this in later")
+**Register impact:** no intake finding was registered — `COMPILED_AUDIT.md` §5 still holds the same
+52 `U-nn` rows and none was added. The only §5 edits this session are the two over-claimed rows
+corrected DONE → PARTIAL (see §8), which `--emit` carried into `STATUS.md`.
 
 ---
 
@@ -23,7 +24,7 @@ confirm the live CI state through the GitHub API, reproduce the documentation ga
 | Column / mark | Meaning |
 |---|---|
 | **GS-2nn** | Finding ID from the highest-ranked source (Max via OpenAI; the GS- series continues the compiled audit's own `A:GS-` namespacing). |
-| **N-06…N-13** | Finding ID from the DeepSeek review. Kept distinct on purpose: no two reviewers are merged into one ID until triage. |
+| **DS-06…DS-13** | Finding ID from the DeepSeek review. Kept distinct on purpose: no two reviewers are merged into one ID until triage. |
 | **[V-SRC]** | Re-verified here by reading the shipped source at this revision; the code says what the reviewer says it says. |
 | **[V-LIVE]** | Re-verified against live GitHub state (API), not prose. |
 | **[V-GATE]** | Re-verified by running the repository's own checker locally. |
@@ -35,7 +36,7 @@ confirm the live CI state through the GitHub API, reproduce the documentation ga
 finding is real — every finding below that says **[V-SRC]** is real at this revision):
 
 1. **Max via OpenAI (the `GS-2nn` set)** — treated as the highest tier.
-2. **DeepSeek (`N-06…N-13`)** — treated as below the GPT-class review.
+2. **DeepSeek (`DS-06…DS-13`)** — treated as below the GPT-class review.
 3. **Gemini 3.8 flash high** — treated as below DeepSeek (bloated page size), and in practice
    it delivered **no content at all** (see §1).
 
@@ -46,7 +47,7 @@ finding is real — every finding below that says **[V-SRC]** is real at this re
 | # | Source | Reviewer (as labelled) | URL | What actually came back | Findings |
 |---|---|---|---|---|---|
 | 1 | Gemini 3.8 flash high | Gemini | `https://01a09675-9bfc-7781-b0f6-89fd5ca02f43.arena.site/` | **Empty application scaffold.** Both fetches returned the stock "Ready to build / Start prompting to build your app" page. No audit, no findings, nothing to extract. | **0** |
-| 2 | DeepSeek v4 pro | DeepSeek | `https://01a09675-9bfc-7bd3-965c-9c135d6f02d0.arena.site/` | Full page, 3 chunks: an 8-finding review plus an audit-reconciliation table over `U-01…U-52`. | **8** |
+| 2 | DeepSeek v4 pro | DeepSeek | `https://01a09675-9bfc-7bd3-965c-9c135d6f02d0.arena.site/` | Full page, 3 chunks: an 8-finding review plus an audit-reconciliation table over `U-01…U-52`. DeepSeek's own ids are `N-06…N-13`; **renamed `DS-06…DS-13` here** to avoid colliding with this repo's existing `N-01…N-06`. | **8** |
 | 3 | Max via OpenAI ("presumably GPT 6 Astra") | Max / GPT-class | `https://01a09675-2e39-7377-a362-5eddec16075f.arena.site/` | Landing page ("Codelens"); the full report was supplied by the owner as text rather than fetchable per-finding routes (`/findings` → "Not found"). The landed page matches the supplied text: same 10 findings, same severities, same file references. | **10** |
 
 **Action needed from the owner on source 1:** the Gemini page served an empty scaffold, so no
@@ -73,7 +74,7 @@ ones for this revision (differences are called out per finding).
 * **"Exit 0 + non-empty" is still treated as success outside Explode**: the CLI verifies only
   Explode frames, and the desktop and web paths check existence/size only — so a stale or
   non-GIF file can be reported as a successful run (**GS-203** [V-SRC]; the same class at the
-  web `/optimize` endpoint is **N-13** [V-SRC]).
+  web `/optimize` endpoint is **DS-13** [V-SRC]).
 * **Current main is release-red [V-LIVE]:**
   Actions run `34705247115` (the merge of PR #15) failed: the **Linux documentation gate**
   failed, and every Linux step after it — web parity, GUI offscreen tests, packaging, artifact
@@ -87,12 +88,12 @@ ones for this revision (differences are called out per finding).
   log download from this sandbox fails at the transport level (§6).
 * **The compiled audit contradicts itself [V-SRC]:** `COMPILED_AUDIT.md` §3 still marks
   A-03/GS-003 and A-10/GS-010 as `⬜ OPEN` while §5 marks U-04 and U-23 `✅ FIXED (S8)` — the
-  DeepSeek **N-11** observation, confirmed.
+  DeepSeek **DS-11** observation, confirmed.
 * **Threads sentinel [V-SRC]:** the product can no longer express "do not touch threading".
   `threads` defaults to `-1`, and the builder emits a bare `-j` for every value `<= 0`; upstream
   defaults to `thread_count = 0` (single-threaded) and a bare `-j` selects
   `GIFSICLE_DEFAULT_THREAD_COUNT = 8`. A conf with no `threads` key therefore silently runs
-  8-way parallel (**N-06**; the unit test pins the conflation).
+  8-way parallel (**DS-06**; the unit test pins the conflation).
 
 ---
 
@@ -212,7 +213,7 @@ before launch, and after exit 0 require a newly created or changed, non-empty fi
 sibling plus a validated atomic replacement would additionally preserve an older output if the
 engine dies mid-write.
 
-**Intake note.** Overlaps **N-13** (web `/optimize` has no magic check at all). One helper with
+**Intake note.** Overlaps **DS-13** (web `/optimize` has no magic check at all). One helper with
 three call sites closes both; do not fix them as two independent patches.
 
 ---
@@ -307,7 +308,7 @@ different operation.
 * `src/core/Validate.h` covers `colors`, `disposal`, `optimize`, `lossy`, `delay`, `info`,
   multi-input explode, crop and resize geometry — and nothing for `loopcount`, `threads`, `gamma`,
   `dither`/color/resize method names.
-* `src/core/GifsicleCommand.h:226` — `threads <= 0` emits a bare `-j` (see N-06), so a negative
+* `src/core/GifsicleCommand.h:226` — `threads <= 0` emits a bare `-j` (see DS-06), so a negative
   threads value that validation ignores becomes "auto" instead of a refusal.
 
 **Risk.** A settings file that looks valid produces a different operation than written; scripted
@@ -453,12 +454,12 @@ from `VERSION.md`, or remove the unmaintained secondary path.
 
 ---
 
-## 4. New findings — DeepSeek review (`N-06…N-13`)
+## 4. New findings — DeepSeek review (`DS-06…DS-13`)
 
 DeepSeek delivered eight findings plus a reconciliation of the existing register. All eight were
 re-checked against `2d51347`; every one holds. Paraphrase of its own framing, then the detail.
 
-### 4.1 N-06 — High — Threads sentinel collision: `-1` "unset" now means the same as `0` "Auto"
+### 4.1 DS-06 (DeepSeek `N-06`) — High — Threads sentinel collision: `-1` "unset" now means the same as `0` "Auto"
 
 * **Where:** `working_code/gifscythe/src/core/GifsicleCommand.h`, `working_code/gifscythe/src/core/GifsicleSettings.h`, `working_code/gifscythe/tests/test_gifsicle_command.cpp`
 * **Verification:** **[V-SRC]**
@@ -482,20 +483,20 @@ more memory, different merge determinism). The settings comment contradicts the 
 `-jN`. Update the unit test to assert `-1` emits no flag, keep `0 → -j`, and re-align the
 `GifsicleSettings.h` comment to "<0 = no flag; 0 = auto; >0 = -jN".
 
-**Intake note.** Interacts with **N-09** (`threads < -1` is unvalidated) and **GS-206**
+**Intake note.** Interacts with **DS-09** (`threads < -1` is unvalidated) and **GS-206**
 (numeric domains). Decide the tri-state once, in one place, then make validation, GUI and tests
 agree.
 
 ---
 
-### 4.2 N-07 — Medium — GUI Threads spinner cannot express the "no flag" state
+### 4.2 DS-07 (DeepSeek `N-07`) — Medium — GUI Threads spinner cannot express the "no flag" state
 
 * **Where:** `working_code/gifscythe/src/qtui/SettingsPanel.cpp`
 * **Verification:** **[V-SRC]**
 
 **Problem.** The spinner has range `0..64` with "Auto" at 0 (reviewer cites ~`:345-350`; actual
 `:346-352`), and the panel unconditionally writes the value, so the GUI can only ever emit `-j`
-or `-jN`. Combined with N-06, every GUI run forces threading on.
+or `-jN`. Combined with DS-06, every GUI run forces threading on.
 
 **Evidence (re-verified).** `src/qtui/SettingsPanel.cpp:349-352` — `setRange(0, 64)`,
 `setValue(0)`, `setSpecialValueText("Auto")`; `:594` — `s.threads = threadsSpin_->value();`.
@@ -509,7 +510,7 @@ threading. The requirement is that `-1` and `0` keep distinct meanings end to en
 
 ---
 
-### 4.3 N-08 — Low — CLI print mode returns 0 even when validation warns (without `--strict`)
+### 4.3 DS-08 (DeepSeek `N-08`) — Low — CLI print mode returns 0 even when validation warns (without `--strict`)
 
 * **Where:** `working_code/gifscythe/src/cli/main.cpp`
 * **Verification:** **[V-SRC]**
@@ -530,7 +531,7 @@ required.
 
 ---
 
-### 4.4 N-09 — Info — `threads < -1` is accepted and re-interpreted as "auto"
+### 4.4 DS-09 (DeepSeek `N-09`) — Info — `threads < -1` is accepted and re-interpreted as "auto"
 
 * **Where:** `working_code/gifscythe/src/core/SettingsIO.h`, `working_code/gifscythe/src/core/Validate.h`, `working_code/gifscythe/tests/test_gifsicle_command.cpp`
 * **Verification:** **[V-SRC]**
@@ -543,14 +544,14 @@ refused/warned. The same silent-degradation class the audit otherwise worked to 
 `static_cast<int>(tmp)`; `src/core/Validate.h` has no `threads` rule at all;
 `tests/test_gifsicle_command.cpp:362-368` asserts only the `>0` cases.
 
-**Risk.** Same as N-06, reachable from a hand-written conf.
+**Risk.** Same as DS-06, reachable from a hand-written conf.
 
 **Proposed solution (reviewer).** In `Validate.h` (and `web/validate.mjs`), warn when
 `threads < -1`; keep `-1` = unchanged, `0` = auto, `>=1` = N; add a unit assertion for `-7`.
 
 ---
 
-### 4.5 N-10 — Info — Disposal `4..7` and the `-1` sentinel are unreachable from the desktop UI
+### 4.5 DS-10 (DeepSeek `N-10`) — Info — Disposal `4..7` and the `-1` sentinel are unreachable from the desktop UI
 
 * **Where:** `working_code/gifscythe/src/qtui/SettingsPanel.cpp`, `web/validate.mjs`
 * **Verification:** **[V-SRC]**
@@ -567,7 +568,7 @@ gap, no data risk.
 
 ---
 
-### 4.6 N-11 — Medium — The compiled audit's inline `§3`/`§4` statuses lag its own `§5` register
+### 4.6 DS-11 (DeepSeek `N-11`) — Medium — The compiled audit's inline `§3`/`§4` statuses lag its own `§5` register
 
 * **Where:** `COMPILED_AUDIT.md`
 * **Verification:** **[V-SRC]**
@@ -594,7 +595,7 @@ fixed in one pass, not two.
 
 ---
 
-### 4.7 N-12 — Low — The line-based settings format silently loses leading/trailing whitespace
+### 4.7 DS-12 (DeepSeek `N-12`) — Low — The line-based settings format silently loses leading/trailing whitespace
 
 * **Where:** `working_code/gifscythe/src/core/SettingsIO.h`
 * **Verification:** **[V-SRC]**
@@ -614,7 +615,7 @@ whitespace, with a format-version bump and a JS mirror update.
 
 ---
 
-### 4.8 N-13 — Medium — Web `/optimize` trusts rc=0 + non-empty and never checks GIF magic
+### 4.8 DS-13 (DeepSeek `N-13`) — Medium — Web `/optimize` trusts rc=0 + non-empty and never checks GIF magic
 
 * **Where:** `web/server.mjs`
 * **Verification:** **[V-SRC]**
@@ -646,7 +647,7 @@ disagreement in favour of the shipped code. Its conclusions, with my re-check wh
 | Confirmed fixed in code | U-01, U-02, U-03*, U-04, U-05, U-07, U-11, U-13, U-15, U-16, U-17, U-18, U-23, U-32, U-48, U-49, U-50, U-51, U-52 (and U-06 bind only) | present and correct | **Agrees.** Spot-checked U-01 (`OutputPlan` used by CLI + GUI), U-04 (stderr routing), U-05 (real PATH search), U-17 (explode verification), U-23 (strict parser, exit 2), U-32 (128+signum). |
 | Genuinely still open | U-08 (licence set), U-09 (release re-cut), U-12 (synchronous GUI waits) | owner/build-action dependent | **Agrees**; the highest-tier review proposes the same sequencing (§6). |
 | Partially addressed | U-10 (provenance/config), U-14 (CI gaps), U-06 (web concurrency cap) | remaining halves named | **Agrees**; GS-209 sharpens U-10's residual into "target detection, not just CI hash-pinning". |
-| Corrected by this review | U-03* | the fix overshot into N-06 | **Confirmed** — see §4.1. |
+| Corrected by this review | U-03* | the fix overshot into DS-06 | **Confirmed** — see §4.1. |
 
 **Where the two reviews disagree, and which view this intake records:**
 
@@ -662,7 +663,7 @@ disagreement in favour of the shipped code. Its conclusions, with my re-check wh
 3. **U-06.** DeepSeek's register row says fixed (loopback bind) and its "still open" list keeps the
    concurrency/rate-limit remainder. No conflict — just make sure a later triage does not read the
    "fixed" cell as covering the remainder.
-4. **Audit self-consistency.** DeepSeek's N-11 (narrative vs register) and the highest-tier
+4. **Audit self-consistency.** DeepSeek's DS-11 (narrative vs register) and the highest-tier
    review's GS-208 (handoff says green, main is red) are the same failure mode at two different
    files. Neither reviewer's fix alone closes it.
 
@@ -706,7 +707,25 @@ These are not new findings — they are the reviewer's proposed remedies for row
    `COMPILED_AUDIT.md` §5, this file becomes evidence for those rows, not a second source of
    truth.
 
-## 8. Verification limits (what this compilation does **not** claim)
+## 8. Corrections applied after this intake (documentation only)
+
+The verification below was done *before* these corrections. What changed in the same session, all
+of it status/documentation truth — **no application code, script, test or workflow**:
+
+| What | Why | Where |
+|---|---|---|
+| DeepSeek ids renamed `N-06…N-13` → **`DS-06…DS-13`** | `N-01…N-06` are already this repo's own session findings in `STATUS.md`; the collision would have made "N-06" ambiguous | this file, `COMPILED_AUDIT.md` §13 |
+| `COMPILED_AUDIT.md` base `2176573` → `main` `2d51347`; verification sessions extended to S14 | the stale base **was** the failing **G10** check | `COMPILED_AUDIT.md` header |
+| 35 narrative `**Status:**` lines in §2/§3/§4 reconciled with §5 | they read OPEN for items the register marks fixed (the DeepSeek review's DS-11 observation, confirmed) | `COMPILED_AUDIT.md` §2/§3/§4 |
+| **U-06** and **U-08** corrected **DONE → PARTIAL**, each with the missing half named | their DONE cells overstated: U-06 still lacks the concurrency cap/rate limit/engine bound; U-08's licence set is still incomplete (no full GPLv3 text, no Qt notices) | `COMPILED_AUDIT.md` §5 (+ U-08 removed from §6 P0-3), `STATUS.md` re-emitted |
+| `docs/ci/PENDING_WORKFLOW_CHANGE.md` rewritten | it described a step that is already live; the real residual drift is one line | `docs/ci/PENDING_WORKFLOW_CHANGE.md` |
+| `SESSION_HANDOFF.md` header, `WORKLIST.md` U-06 tick and S14 sections | they claimed a green open PR #15 and DONE-level U-06 work | those files |
+
+**Still open by design:** the 18 findings in §3/§4 remain untriaged (no `U-nn` rows, no
+`UNTRIAGED` rows); the live CI run is unchanged; and syncing `.github/workflows/build.yml` with
+`docs/ci/build.yml.proposed` needs a `workflows`-scoped token.
+
+## 9. Verification limits (what this compilation does **not** claim)
 
 * **No destructive reproduction was run.** GS-201's in-place overwrite, GS-202's traversal and the
   packaging reproductions are as unexecuted here as they were in the source review.

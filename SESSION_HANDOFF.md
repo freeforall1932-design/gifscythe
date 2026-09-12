@@ -1,10 +1,34 @@
 # Session Handoff
 
-**Date:** 2026-09-12 (session S13) · **Branch:** `arena/01a0950f-gifscythe`
-(pushed; **PR #15** open against `main`, CI green on commit `c105f3c` — run
-`34704221643`, Linux + Windows) → based on merged `main` `53a6eda` (the PR
-#14 merge) ·
+**Date:** 2026-09-12 (session S14) · **Branch:** `arena/01a0968e-gifscythe`
+**Base:** `main` `2d51347` · **PR #15 is MERGED** (its head run `34704221643` was green on
+Linux + Windows; the **post-merge `main` run `34705247115` is RED** — Linux documentation status
+gate failed, Windows passed, every later Linux step skipped) ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending)
+
+## S14 — External reviews compiled for review; stale status claims corrected (docs only)
+
+**No code was changed and no intake finding was remediated.** 18 findings from three external
+reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
+`docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`, by owner instruction (compile, do not fix yet).
+
+- **Intake:** Max/GPT-class `GS-201…GS-210` (1 Critical / 4 High / 4 Medium / 1 Low: CLI batch
+  in-place overwrite, web `/run` path-from-upload-name, missing output verification, packaging,
+  input admission, numeric domains, `GS_ENGINE` fallback, red main, native config, build options);
+  DeepSeek's `DS-06…DS-13` (renamed from its own `N-06…N-13`, which collided with this repo's
+  existing N-series); the Gemini deployment served an empty page, so it contributed nothing.
+- **Corrections made because verification proved the docs false:**
+  `COMPILED_AUDIT.md` header named a stale base (`2176573`) — the gate **G10** failure; 35
+  narrative §2/§3/§4 status lines still read OPEN for items §5 marks fixed — they now cite their
+  §5 row, with the original wording kept after *"Original report:"*; **U-06** and **U-08**
+  corrected **DONE → PARTIAL** (U-06: loopback bind landed, but the concurrency cap / rate limit /
+  engine-run bound named in the finding are still missing; U-08: silent-skip closed, but the
+  licence set itself is still incomplete — no full GPLv3 text, no Qt LGPL notices staged);
+  `docs/ci/PENDING_WORKFLOW_CHANGE.md` rewritten to describe the drift that actually remains; the
+  WORKLIST U-06 tick unticked.
+- **Not done, deliberately:** the 18 intake findings are **not** triaged into §5/`STATUS.md`; the
+  red CI run is not re-run (that needs a push); the workflow copy is not synced (needs a
+  `workflows`-scoped token).
 
 ## S13 follow-up
 

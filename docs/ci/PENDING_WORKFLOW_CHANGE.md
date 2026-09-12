@@ -1,6 +1,6 @@
 # Pending workflow change — needs a token with the `workflows` scope
 
-**Status:** ⏳ waiting on a maintainer (rewritten 2026-09-10, session S9).
+**Status:** ⏳ waiting on a maintainer with the `workflows` scope (rewritten 2026-09-12, session S14).
 
 `.github/workflows/build.yml` and `docs/ci/build.yml.proposed` currently
 **differ on purpose**. The CI bot token used for these branches has no
@@ -52,9 +52,25 @@ session boundary.
 
 ---
 
-## What is pending NOW (session S9)
+## What is pending NOW (rewritten in session S14)
 
-One step, added to the **linux job only**, immediately after `CLI smoke tests`:
+**The S9 change itself is already applied.** The documentation status gate step exists in the
+live `.github/workflows/build.yml` (linux job, immediately after `CLI smoke tests`; the file the
+runs execute). S14 verified that directly, so this marker no longer describes a *missing step*.
+
+What the two copies actually differ by now is **one line** — the Windows E2E smoke's temp-path
+fallback (`.github/workflows/build.yml` line 178):
+
+| Copy | Line reads | Effect |
+|---|---|---|
+| live | `win_temp=$(cygpath -m "$RUNNER_TEMP" 2>/dev/null || echo "${RUNNER_TEMP//\//}")` | strips `/` — a no-op on a Windows `%RUNNER_TEMP%`, so the fallback keeps backslashes |
+| proposed | `win_temp=$(cygpath -m "$RUNNER_TEMP" 2>/dev/null || echo "${RUNNER_TEMP//\\\\//}")` | converts `\` to `/`, which is the documented intent |
+
+`cygpath` exists on the runner, so the fallback branch never fires there; this is a latent
+defect, not a live one. The intended fix is to adopt the **proposed** line, then delete this
+marker in the same commit (its own rule), which returns E9/G7 to enforcing byte-equality.
+
+### The applied step, for the record (S9)
 
 ```yaml
       # The docs are the context the next session starts from, so a stale

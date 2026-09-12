@@ -46,6 +46,14 @@ reads them in a file, not in a conversation.
 
 Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
+- [ ] **External review intake (S14) — parked, not triaged (owner instruction).** 18 findings
+      from three external reviews (Max/GPT-class `GS-201…GS-210`, DeepSeek `DS-06…DS-13`) are
+      compiled in `COMPILED_AUDIT.md` §13 and
+      `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`. **Deliberately not** created as
+      `UNTRIAGED` rows: the owner asked for a compiled intake to review first, so §13 is the
+      queue and the next session triages from it. Highest-risk item: **GS-201** (CLI Batch maps
+      to engine `-b`, which edits the source GIFs in place when no `output` key is set).
+
 - [x] **N-03** — `docs/screenshots/*.png` (3 shots) claim to show the S7 UI; S8
       changed `src/qtui/` afterwards, nothing links to them, and this sandbox has
       no Qt6 to regenerate them. Decide: re-shoot on a Qt machine and link them
@@ -135,9 +143,11 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] Settings serializer: **U-51** `encode_line_value()` (9 sites + JS mirror)
 - [x] Process layer: **U-32** `128+WTERMSIG` · **U-31** `-lstdc++fs` probe
 - [x] Output names: **U-21** `src/core/OutputName.h` (`NameRules` Host/Win/Posix)
-- [x] Web demo: **U-06** loopback default · **U-24** honest rc=0 · **U-25/U-29**
+- [x] Web demo: **U-24** honest rc=0 · **U-25/U-29**
       Scale default + Touch · **U-26** version sort · **U-30** validation layer ·
       **U-49/U-50** transport · **U-46/U-52** request ownership + URL revoke
+- [ ] Web demo bounds: **U-06** loopback default **landed** (S8); still open — concurrency cap,
+      per-client rate limit, engine-run bound. U-06 was corrected DONE → PARTIAL in S14.
 - [x] Process hygiene: **U-38** SKIP not FAIL · **U-39** workflow-drift guard
       **E9** · **U-44** `docs/archive/` · **U-43** · **U-48** empty comment
 - [x] Three web suites now gate the JS copies — **W1** command (14) ·
@@ -164,12 +174,35 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       (W-18/W-19 territory).
 - [ ] **U-09** re-cut the release from *this* SHA.
 
+### Session S14 (2026-09-12) — external reviews compiled; stale status claims corrected (docs only)
+
+- [x] **Intake compiled (no remediation).** `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`
+      plus `COMPILED_AUDIT.md` §13: 10 findings from the Max/GPT-class review, 8 from DeepSeek
+      (renamed `DS-06…DS-13`; its own `N-06…N-13` collided with this repo's N-series), and an
+      empty Gemini deployment. Each item carries evidence, impact, the reviewer's proposed fix
+      and a re-check against `2d51347`.
+- [x] **`COMPILED_AUDIT.md` header:** stale base `2176573` → `main` `2d51347` (**G10** was
+      failing on it); verification sessions extended through S14; a current-state banner added
+      (main is release-red) and §0 rule 6 for narrative-vs-register reading.
+- [x] **Narrative reconciliation:** 35 `**Status:**` lines in §2/§3/§4 read OPEN for items §5
+      marks fixed. Each now names its §5 row; the audit as filed follows after *"Original
+      report:"*.
+- [x] **Two register states corrected DONE → PARTIAL** — see the `STATUS.md` rows for the
+      web-bounds item (loopback bind landed; concurrency cap, rate limit and engine-run bound
+      still missing) and the licence-set item (silent-skip closed; full GPLv3 text and Qt LGPL
+      notices still not staged).
+      U-08 removed from §6 P0-3's Closes list; `STATUS.md` re-emitted.
+- [x] **`docs/ci/PENDING_WORKFLOW_CHANGE.md`** now describes the drift that really remains (the
+      Windows temp-path fallback line) instead of a step that is already live.
+- [ ] **Still red:** the live `main` documentation gate. The local G10 cause is fixed; the next
+      push re-runs CI.
+
 ### Session S9 (2026-09-10) — status-tracking system
 - [x] **N-01** — the pending-workflow marker was left behind after the maintainer
       applied that change in `190d030`; every doc still quoted **23/0/5** while
       the real gate run was **24/0/4**. Marker rewritten to describe the *new*
       pending change; gate **G6** now measures the real number and compares.
-- [x] **N-02** — `web/README.md` documented the pre-U-06 bind address
+- [x] **N-02** — `web/README.md` documented the pre-bind-fix (S8) bind address
       (`0.0.0.0`); now states `127.0.0.1` + `GS_WEB_HOST`.
 
 ### Session S10 (2026-09-11) — the sandbox finally had Qt6; closed 9 findings + N-03
