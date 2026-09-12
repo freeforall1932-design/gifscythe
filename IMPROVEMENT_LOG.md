@@ -142,7 +142,19 @@ starting; the two stale `414f5fc` mentions (G10) were re-synced first.
   `wmain` (reference_code read-only). Gifscythe's own chain is lossless
   (proven byte-exact to the child's UTF-16 line); the residual is documented
   in `WinUnicode.h`, §8 and the U-07 row.
-* PR open, not merged — merge is the owner's call (rule 3 re-applies).
+* **PUSHED, PR #14 OPEN, CI GREEN.** Branch `arena/s11-gifscythe` pushed
+  after the push-time gate run; **PR #14** opened against `main`. The FIRST
+  CI run (`34671814580` on `f655987`) failed windows-only, and the failure
+  was a real (cosmetic) portability finding in the new T7 assertion:
+  `locate_engine()` returns NATIVE separators (backslashes) while
+  `applicationDirPath()` uses forward slashes, so the full-path `contains()`
+  check for the lying-engine status could only pass on POSIX — every U-17
+  behavioral assertion passed on Windows CI untouched. Fixed in `88e15ea`
+  by comparing the basename. **Verdict: run `34672175363` on `88e15ea` —
+  linux success (1m31s) + windows success (2m40s).** The windows job was the
+  first NATIVE compilation of the S11 Windows code (CreateProcessW, `_wopen`,
+  the splitter) and ran the extended harness green (317 checks). Merge
+  remains the owner's call (rule 3 re-applies before merge).
 
 **Verified (run in this sandbox):**
 
