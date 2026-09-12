@@ -1,9 +1,13 @@
 # Session Handoff
 
-**Date:** 2026-09-12 (session S14 continuation) · **Branch:** `arena/01a096ec-gifscythe` (its work merged)
-**Base:** `main` `75b73a5` → **PR #18 merged as `e32ed28`** · **PR #17** was the previous merge
-(**`main` run `34709536321` green on linux + windows); **`main` run `34713398377` on `e32ed28` is
-GREEN on linux + windows** ·
+**Session:** S14 continuation · **Date:** 2026-09-12
+**Branch:** `arena/s14-gifscythe` by convention — this session was pushed by the platform under its
+own generated id `arena/01a09712-gifscythe`
+**This session's PR:** #20 — **open**. Its merge sha and post-merge `main` run are *not* written
+here: a session cannot know them at write time, and guessing them is how stale claims get born.
+Whoever merges fills that row in the ledger below.
+**Last merged:** PR #19 as `43e3f96`; `main` run `34713800552` green on linux + windows
+Based on `main` commit `43e3f96` ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
@@ -12,13 +16,63 @@ owner's draft is refitted into that template's slots — move both lines in the 
 
 ## Next session — fast hand-off (S14 continuation)
 
+- **Branch naming:** push session work to **`arena/sNN-gifscythe`** (the S7/S10/S11 convention),
+  not to an opaque platform id — a session number stays meaningful after the session ends, an id
+  like `arena/01a09712-gifscythe` does not. When a platform assigns its own branch name anyway,
+  record the session number first and the assigned id second, as this header does.
 - **Copy-paste prompt:** `docs/planning/NEXT_SESSION_PROMPT.md` — recovery steps,
   the SkillOpt ask, the decision backlog, and the standing constraints in one block.
 - **Owner decisions:** `docs/planning/OWNER_DECISIONS.md` — answer `OD-01`…`OD-15`
-  in the form `OD-nn = a|b`. `OD-01`/`OD-02` (release blockers) come first.
+  in the form `OD-nn = <letter>` (one letter per row, from that row's own option
+  list — `OD-15` runs `a`–`d`, and `OD-14` has two sub-questions so it needs two
+  letters). Nothing gets scheduled until `OD-01` (triage the 18 intake findings
+  into `COMPILED_AUDIT.md` §6 fix-order ids) and `OD-02` (the `GS-201`
+  stop-loss — CLI `--run` refusing Batch with no `output`) are answered; they
+  are the release blockers, and the rest are direction choices the plan can
+  proceed without.
 - **SkillOpt ask:** `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` — verified facts,
   the three non-negotiable conditions, the four shapes, and open questions Q1–Q4.
-  Await `OD-15`.
+  Await `OD-15`. **Do not vendor, submodule or pip-install anything before that
+  answer** — the query exists to decide *whether*, not *how fast*.
+
+## PR ledger (append-only — this is how you see a skipped or closed PR)
+
+One row per PR, appended at `gh pr create` time and never rewritten. Because it is
+history rather than current state it cannot go stale — it can only be missing a row,
+which is visible. A gap in the numbering is not an error: **#3 and #9 were closed
+without merging.** The "handoff said" column is read from `SESSION_HANDOFF.md` at
+each merge commit, so where it lags (PRs #8/#10/#11 all say S7) that is the header
+trailing reality by one merge — the failure this ledger exists to make obvious.
+
+| PR | Handoff said "session …" at that merge | Branch | Merged as | What it did |
+|---|---|---|---|---|
+| #1 | — | `arena/01a07410-gifsicle-1-96` | `9c75b13` | P0/P1: gifsicle engine + Gifscythe control layer + Qt GUI scaffold |
+| #2 | — | `arena/01a0746d-gifscythe` | `b8bb58c` | Advance GIF GUI, packaging, tests, and CI preparation |
+| #3 | — | `codebase-review-and-optimization-3bbfe` | never merged (closed) | Update from task 8a2e942f-89bc-4108-b4ab-b76076e3bbfe |
+| #4 | — | `arena/01a07959-gifscythe` | `f065a85` | P0/P1 silent-failure fixes + compiled audit (stay 0.1.0) |
+| #5 | S4 — verification + Windows fixes | `verify/windows-ci-fixes` | `0ad1ff5` | Windows CI fix + verification evidence + XNConvert-style UI retrofit (S4/S4b) |
+| #6 | — | `arena/01a086c5-gifscythe` | `9643654` | S5+S6: GUI honesty fixes, Gifscythe naming, web POC, offline-only review |
+| #7 | S7 | `arena/s7-settings-persistence` | `8190c08` | S7: GUI settings persistence + queue reorder + naming templates + release doc (review, fixes, tests, docs) |
+| #8 | S7 | `arena/01a088f8-gifscythe` | `a73b881` | Audit: independent post-merge review of PR #7 (S7) — 13 findings, 1 High |
+| #9 | — | `codebase-review-and-fix-implementation-b8d7e` | never merged (closed) | Update from task 3bcdee05-7b8c-4b00-96bc-3b2b035b8d7e |
+| #10 | S7 | `arena/01a089ca-gifscythe` | `a55a68d` | Compile GPT 6 Astra Medium audit (8 findings) into COMPILED_AUDIT.md |
+| #11 | S7 | `arena/01a08a10-gifscythe` | `7187cbb` | S8: close 31 of 52 audit findings, each with executed proof |
+| #12 | S9 | `arena/01a08bb3-gifscythe` | `801960c` | Status-tracking system: one register (STATUS.md), a doc gate that emits it, and a pre-push hook |
+| #13 | S10 | `arena/s10-gifscythe` | `2176573` | S10: close 9 audit findings + N-03 with executed proof |
+| #14 | S11 | `arena/s11-gifscythe` | `53a6eda` | S11: close U-15/U-17/U-07/U-41 with executed proof (Wine E2E incl.); U-10 provenance recorded; U-12 scoped as P1-24 |
+| #15 | S13 | `arena/01a0950f-gifscythe` | `2d51347` | Fix documentation gate after merge commits |
+| #16 | S14 | `arena/01a0968e-gifscythe` | `629135a` | docs: external review intake, status-truth corrections, web-as-product decision, web plan template (no code fixes) |
+| #17 | S14 | `arena/01a0968e-gifscythe` | `75b73a5` | docs: post-merge sync — record PR #16 and the green main (run 34709202307) |
+| #18 | S14 | `arena/01a096ec-gifscythe` | `e32ed28` | S14 continuation: stale-claim sweep + PR preflight + owner-decision register |
+| #19 | S14 continuation | `arena/01a096ec-gifscythe` | `43e3f96` | docs: re-sync handoff to PR #18 merge + main run 34713398377 |
+| #20 | — | `arena/01a09712-gifscythe` | **open** | docs: post-merge sync for PR #19 + owner patch adjudicated + OD answer-format fix |
+
+**Maintenance rule (one line per PR, two touches):**
+1. At `gh pr create`, append this session's row with the number GitHub returned and
+   `**open**` in the *Merged as* cell. Never guess the number beforehand — it does
+   not exist until the call returns.
+2. Whoever merges edits that one cell to the merge sha. Nothing else in the file
+   needs to change, and no separate post-merge doc-sync PR is required.
 
 ## S14 — External reviews compiled for review; stale status claims corrected (docs only)
 
@@ -111,13 +165,22 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
 
 ## TL;DR for the next session
 
+> **Read the block at the top of this file first** (*"Next session — fast
+> hand-off (S14 continuation)"*). It is the current entry point: the copy-paste
+> prompt, `OD-01`…`OD-15`, and the SkillOpt ask. The list below is the older,
+> longer orientation and is kept for background, not as the current state.
+
 0. **START HERE — `STATUS.md`.** The single status register: one row per
    tracked item, four states (**DONE / PARTIAL / OPEN / UNTRIAGED**), generated
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S13: **80 DONE · 3 PARTIAL ·
-   17 OPEN · 0 UNTRIAGED · 100 total.**
+   `U-nn` row; neither replaces the other. As of S14: **80 DONE · 5 PARTIAL · 17 OPEN · 18 UNTRIAGED · 120 total.**
+   *(That tally is on one line on purpose: sweep rule **S2** only compares
+   single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
+   or re-dated tally is invisible to it. The S13 wording it replaces —
+   `80/3/17/0, 100 total` — read "nothing is untriaged" for two sessions after
+   18 intake findings had been registered.)*
 
 1. **What S11 did.** The S11 sandbox had working apt (uid 0) and installed,
    beyond the S10 stack (g++ 12.2 / cmake 3.25.1 / Qt 6.4.2 / ninja / node

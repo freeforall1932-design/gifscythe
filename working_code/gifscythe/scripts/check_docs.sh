@@ -878,6 +878,10 @@ stale_base=""
 for f in "${CURRENT_DOCS[@]}"; do
   [[ "$f" == "IMPROVEMENT_LOG.md" ]] && content="$(newest_log_entry)" || content="$(cat "$f")"
   # "based on `main` commit `xxxxxxx`" / "base commit `xxxxxxx`" / "of `main` (`xxxxxxx`)"
+  # / "**Base:** `main` `xxxxxxx`". The header form was missing until S14: PR #16
+  # rewrote the handoff from "based on `main` commit ..." to "**Base:** `main` ..."
+  # and this gate silently matched nothing from then on - it passed vacuously
+  # through PRs #16-#20. Verified: the old regex hits 0 tracked .md files.
   while IFS= read -r sha; do
     [[ -n "$sha" ]] || continue
     base_match=0
@@ -894,7 +898,7 @@ for f in "${CURRENT_DOCS[@]}"; do
     else
       stale_base+="$f names base $sha, unknown to this clone (expected $expected_base_label); "
     fi
-  done < <(grep -oE '(based on|base commit|base of|branched from|merge of PR #[0-9]+[,:]?) `?main`?[^`]*`[0-9a-f]{7,40}`' <<<"$content" \
+  done < <(grep -oiE '(based on|base commit|base of|branched from|\*\*base:\*\*|\*\*based on[^*]*:\*\*|merge of PR #[0-9]+[,:]?) `?main`?[^`]*`[0-9a-f]{7,40}`' <<<"$content" \
              | grep -oE '[0-9a-f]{7,40}' | sort -u)
 done
 if [[ -z "$stale_base" ]]; then

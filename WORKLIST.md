@@ -400,9 +400,16 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       rules). On that commit do the **one-time flip** — `Template state:` here and the mirror line
       in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it) — then triage the 18 intake rows
       into `COMPILED_AUDIT.md` §6 fix-order ids.
-- [ ] **Owner answers** — `docs/planning/OWNER_DECISIONS.md` `OD-01`…`OD-15` (reply `OD-nn = a|b`).
-      **`OD-01`/`OD-02` first** (the release blockers); the rest are direction choices the plan can
-      proceed without.
+- [ ] **Owner answers** — `docs/planning/OWNER_DECISIONS.md` `OD-01`…`OD-15` (reply `OD-nn = <letter>`,
+      from that row's own options; `OD-15` runs `a`–`d`).
+      **`OD-01 = a` and `OD-02 = a` are answered** (2026-09-12); the other 13 are direction
+      choices the plan can proceed without.
+- [ ] **Execute `OD-01 = a`:** triage all 18 intake findings into `COMPILED_AUDIT.md` §6 fix-order
+      ids. This is what unblocks gate **G12** — until every `UNTRIAGED` row is scoped, no new
+      `## S<n>` entry can be added to `IMPROVEMENT_LOG.md`.
+- [ ] **Execute `OD-02 = a`:** the ~10-line `GS-201` stop-loss (CLI `--run` refuses Batch with no
+      `output`, exit 2) plus a regression test. The only code change the current decisions
+      authorize.
 - [ ] **SkillOpt** — after `OD-15`, add microsoft/SkillOpt per
       `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` (shape A pinned submodule, quarantined; the
       three non-negotiable conditions apply), then register the doc-sweep skill experiment as its
