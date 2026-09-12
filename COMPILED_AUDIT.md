@@ -2000,6 +2000,18 @@ the failures are **G10** (this file's header names base `2176573`, while the acc
 `2d51347` / `53a6eda`) and **G15** (fresh clone: `core.hooksPath` is not `.githooks`). The live
 run `34705247115` failed its Linux documentation gate on main. **Do not treat main as green.**
 
+**Automation around these findings (S14 continuation).** `working_code/gifscythe/scripts/sweep_stale.sh`
+plus gate **G17** now fail a session that leaves a stale claim behind: a pending-workflow marker
+that outlived its change (**S1**), a quoted register tally that no longer matches `STATUS.md`
+(**S2**), volatile live-state wording with no run id or session to re-check it (**S3**), a retired
+claim a decision reversed (**S4**), and a narrative status block that disagrees with its §5 row
+(**S5** — the rule that caught **U-06**/**U-08**). `working_code/gifscythe/scripts/pr_preflight.sh`
+is the PR/merge companion. The 15 owner questions this intake raises — triage first — are collected
+in `docs/planning/OWNER_DECISIONS.md`; the SkillOpt request is
+`docs/planning/SKILLOPT_INTEGRATION_QUERY.md`. Until `OD-01` maps the 18 rows above into §6
+fix-order ids they stay `UNTRIAGED`, and gate **G12** therefore also blocks a newer `## S<n>` entry
+in `IMPROVEMENT_LOG.md`, because an UNTRIAGED row may not outlive the session that found it.
+
 **Task registration (S14 follow-up).** These 18 findings are now recorded row-by-row in
 `STATUS.md` (state `UNTRIAGED`, under the reviewers' own ids) with one pending line each in
 `WORKLIST.md`, and their release-blocking subset is listed in

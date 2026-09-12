@@ -1,9 +1,11 @@
 # Session Handoff
 
-**Date:** 2026-09-12 (session S14 continuation) · **Branch:** `arena/01a096ec-gifscythe` (its work merged)
-**Base:** `main` `75b73a5` → **PR #18 merged as `e32ed28`** · **PR #17** was the previous merge
-(**`main` run `34709536321` green on linux + windows); **`main` run `34713398377` on `e32ed28` is
-GREEN on linux + windows** ·
+**Date:** 2026-09-12 (session S14 continuation) · **Branch:** `arena/01a09712-gifscythe` (this
+post-merge sync; **not yet pushed, no PR opened** — owner sign-off first)
+**Base:** `main` `43e3f96` — **PR #19 merged as `43e3f96`**, the doc-sync of **PR #18 (merged as
+`e32ed28`)**; **PR #17** was the merge before that.
+**CI:** `main` run `34713398377` on `e32ed28` and `main` run `34713800552` on `43e3f96` both
+finished `success` on linux + windows; `main` run `34709536321` (`75b73a5`, PR #17's merge) likewise ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
@@ -15,10 +17,17 @@ owner's draft is refitted into that template's slots — move both lines in the 
 - **Copy-paste prompt:** `docs/planning/NEXT_SESSION_PROMPT.md` — recovery steps,
   the SkillOpt ask, the decision backlog, and the standing constraints in one block.
 - **Owner decisions:** `docs/planning/OWNER_DECISIONS.md` — answer `OD-01`…`OD-15`
-  in the form `OD-nn = a|b`. `OD-01`/`OD-02` (release blockers) come first.
+  in the form `OD-nn = <letter>` (one letter per row, from that row's own option
+  list — `OD-15` runs `a`–`d`, and `OD-14` has two sub-questions so it needs two
+  letters). Nothing gets scheduled until `OD-01` (triage the 18 intake findings
+  into `COMPILED_AUDIT.md` §6 fix-order ids) and `OD-02` (the `GS-201`
+  stop-loss — CLI `--run` refusing Batch with no `output`) are answered; they
+  are the release blockers, and the rest are direction choices the plan can
+  proceed without.
 - **SkillOpt ask:** `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` — verified facts,
   the three non-negotiable conditions, the four shapes, and open questions Q1–Q4.
-  Await `OD-15`.
+  Await `OD-15`. **Do not vendor, submodule or pip-install anything before that
+  answer** — the query exists to decide *whether*, not *how fast*.
 
 ## S14 — External reviews compiled for review; stale status claims corrected (docs only)
 
@@ -111,13 +120,22 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
 
 ## TL;DR for the next session
 
+> **Read the block at the top of this file first** (*"Next session — fast
+> hand-off (S14 continuation)"*). It is the current entry point: the copy-paste
+> prompt, `OD-01`…`OD-15`, and the SkillOpt ask. The list below is the older,
+> longer orientation and is kept for background, not as the current state.
+
 0. **START HERE — `STATUS.md`.** The single status register: one row per
    tracked item, four states (**DONE / PARTIAL / OPEN / UNTRIAGED**), generated
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S13: **80 DONE · 3 PARTIAL ·
-   17 OPEN · 0 UNTRIAGED · 100 total.**
+   `U-nn` row; neither replaces the other. As of S14: **80 DONE · 5 PARTIAL · 17 OPEN · 18 UNTRIAGED · 120 total.**
+   *(That tally is on one line on purpose: sweep rule **S2** only compares
+   single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
+   or re-dated tally is invisible to it. The S13 wording it replaces —
+   `80/3/17/0, 100 total` — read "nothing is untriaged" for two sessions after
+   18 intake findings had been registered.)*
 
 1. **What S11 did.** The S11 sandbox had working apt (uid 0) and installed,
    beyond the S10 stack (g++ 12.2 / cmake 3.25.1 / Qt 6.4.2 / ninja / node
