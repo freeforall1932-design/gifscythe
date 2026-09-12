@@ -37,6 +37,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include "WinUnicode.h"
 #include <filesystem>
 #include <map>
 #include <string>
@@ -54,11 +55,11 @@ namespace fs = std::filesystem;
 inline std::string path_key(const std::string& p) {
   if (p.empty()) return std::string();
   std::error_code ec;
-  fs::path abs = fs::absolute(p, ec);
-  if (ec) abs = fs::path(p);
+  fs::path abs = fs::absolute(u8path_compat(p), ec);
+  if (ec) abs = u8path_compat(p);
   fs::path norm = fs::weakly_canonical(abs, ec);
   if (ec) norm = abs;
-  std::string s = norm.lexically_normal().string();
+  std::string s = path_u8string(norm.lexically_normal());
   while (s.size() > 1 && (s.back() == '/' || s.back() == '\\')) s.pop_back();
 #ifdef _WIN32
   for (auto& c : s) {
@@ -206,7 +207,7 @@ inline OutputPlan plan_outputs(const std::vector<std::string>& inputs,
     seen[k] = i;
 
     std::error_code ec;
-    if (fs::exists(fs::path(outputs[i]), ec) && !ec) plan.preexisting.push_back(outputs[i]);
+    if (fs::exists(u8path_compat(outputs[i]), ec) && !ec) plan.preexisting.push_back(outputs[i]);
   }
 
   plan.outputs = outputs;

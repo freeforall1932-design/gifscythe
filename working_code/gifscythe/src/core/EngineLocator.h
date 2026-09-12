@@ -11,7 +11,10 @@
 #ifndef GIFSCYTHE_CORE_ENGINE_LOCATOR_H
 #define GIFSCYTHE_CORE_ENGINE_LOCATOR_H
 
-#include "version.h"
+#include "core/version.h"  // path form, not "version.h": must resolve through the
+                            // include path so CMake builds get the generated
+                            // copy (audit U-15); src/core fallback for -Isrc builds
+#include "WinUnicode.h"        // U-07: wide env shim on Windows; pure logic elsewhere
 #include <cstdlib>
 #include <filesystem>
 #include <string>
@@ -19,6 +22,18 @@
 
 namespace gs {
 namespace fs = std::filesystem;
+
+// Environment reads go through this so a non-ASCII GS_ENGINE or PATH entry
+// survives on Windows (std::getenv hands back ANSI-code-page bytes there —
+// audit U-07). POSIX: plain getenv.
+inline std::string env_utf8(const char* name) {
+#ifdef _WIN32
+  return win_getenv_utf8(name);
+#else
+  const char* v = std::getenv(name);
+  return v ? std::string(v) : std::string();
+#endif
+}
 
 inline bool path_is_executable(const fs::path& p) {
   std::error_code ec;
@@ -52,7 +67,8 @@ inline std::string engine_basename() {
 // (`command -v gifsicle` -> a real file) printed
 // "ERROR: engine not found at gifsicle" and exited 1.
 inline std::string find_on_path(const std::string& name) {
-  const char* env = std::getenv("PATH");
+  const std::string path_env = env_utf8("PATH");
+  const char* env = path_env.c_str();
   if (!env || !*env) return std::string();
 #ifdef _WIN32
   const char sep = ';';
@@ -68,10 +84,10 @@ inline std::string find_on_path(const std::string& name) {
     start = end + 1;
     if (dir.empty()) dir = ".";  // an empty PATH entry means the CWD
     std::error_code ec;
-    fs::path cand = fs::path(dir) / name;
+    fs::path cand = u8path_compat(dir) / u8path_compat(name);
     fs::path abs = fs::weakly_canonical(cand, ec);
     if (ec) abs = fs::absolute(cand, ec);
-    if (!ec && path_is_executable(abs)) return abs.string();
+    if (!ec && path_is_executable(abs)) return path_u8string(abs);
   }
   return std::string();
 }
@@ -84,14 +100,13 @@ inline std::string find_on_path(const std::string& name) {
 inline std::string locate_engine(const std::string& exe_path = {}) {
   std::vector<fs::path> candidates;
 
-  if (const char* env = std::getenv("GS_ENGINE")) {
-    if (env[0] != '\0') candidates.emplace_back(env);
-  }
+  const std::string gs_engine = env_utf8("GS_ENGINE");
+  if (!gs_engine.empty()) candidates.emplace_back(u8path_compat(gs_engine));
 
   fs::path exe_dir;
   if (!exe_path.empty()) {
     std::error_code ec;
-    fs::path ep = fs::absolute(exe_path, ec);
+    fs::path ep = fs::absolute(u8path_compat(exe_path), ec);
     if (!ec) exe_dir = ep.parent_path();
   }
   if (exe_dir.empty()) {
@@ -116,7 +131,7 @@ inline std::string locate_engine(const std::string& exe_path = {}) {
     fs::path abs = fs::weakly_canonical(c, ec);
     if (ec) abs = fs::absolute(c, ec);
     if (ec) continue;
-    if (path_is_executable(abs)) return abs.string();
+    if (path_is_executable(abs)) return path_u8string(abs);
   }
 
   // Step 5: PATH. Now an actual PATH search (see find_on_path above).

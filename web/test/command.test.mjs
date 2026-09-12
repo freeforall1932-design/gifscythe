@@ -120,6 +120,26 @@ const fixtures = [
       mode: "auto", loopcount: 0, optimize_level: 1, inputs: ["/tmp/parity/in.gif"],
     },
   },
+  {
+    // Audit U-41 (P2-11): the web UI now offers every mode. The builders were
+    // always mode-generic; these two fixtures pin the parity of the argv
+    // shapes the old single-mode UI never emitted end-to-end. (Note: the
+    // desktop BATCH runner executes one Auto command per file — this fixture
+    // pins the -b BUILDER line itself, which the conf/print path shares.)
+    name: "batch mode emits -b (audit U-41)",
+    s: {
+      mode: "batch", optimize_level: 2,
+      inputs: ["/tmp/parity/a.gif", "/tmp/parity/b.gif"],
+      output: "/tmp/parity/outprefix",
+    },
+  },
+  {
+    name: "explode numeric frames with prefix (audit U-41)",
+    s: {
+      mode: "explode", optimize_level: 2,
+      inputs: ["/tmp/parity/in.gif"], output: "/tmp/parity/frames/p",
+    },
+  },
 ];
 
 let failures = 0;

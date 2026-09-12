@@ -1,10 +1,12 @@
 // transport.test.mjs — end-to-end regression net for the web HTTP transport
-// (audit U-49 / U-50 / U-30, and register items P2-8 / P2-9 / P2-10).
+// (audit U-49 / U-50 / U-30 / U-41, and register items P2-8 / P2-9 / P2-10 /
+// P2-11).
 //
 // The command-builder and validation parity tests exercise pure functions. This
 // one starts the REAL server and pushes tricky values through the actual
-// `POST /optimize?settings=<urlencoded JSON>` path, because that is where
-// percent-decoding and latin1 header limits bit us:
+// `POST /optimize?settings=<urlencoded JSON>` and `POST /run` (JSON) paths,
+// because that is where percent-decoding, latin1 header limits and multi-file
+// mode semantics bit us:
 //
 //   U-49  searchParams.get() had already decoded, and the server decoded again,
 //         so a comment containing "%" answered HTTP 400 "bad settings JSON".
@@ -12,6 +14,9 @@
 //         text made Node throw while writing the header, so a SUCCESSFUL engine
 //         run became an HTTP 500 and the GIF was never delivered.
 //   U-30  out-of-range settings reached the engine instead of being refused.
+//   U-41  /run carries all four desktop modes with the desktop's honesty rules:
+//         planned batch targets with collision refusal, one -m merge run,
+//         explode frame verification (rc=0 with zero frames is a 422).
 //
 // Every case asserts the status code AND, for successes, that the command the
 // server actually ran still contains the exact value that was sent.
@@ -84,6 +89,24 @@ async function post(port, settings, body = GIF) {
     json,
   };
 }
+
+/** POST /run — the multi-file JSON endpoint (audit U-41 / P2-11). */
+async function postRun(port, settings, files) {
+  const r = await fetch(`http://127.0.0.1:${port}/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      settings,
+      files: files.map((f) => ({ name: f.name, data: f.buf.toString("base64") })),
+    }),
+  });
+  let json = null;
+  try { json = await r.json(); } catch { json = null; }
+  return { status: r.status, json };
+}
+
+const gifFile = (name) => ({ name, buf: GIF });
+const GIF_MAGIC = Buffer.from("GIF8");
 
 const cases = [
   // --- U-49: percent-encoded transport must survive exactly one decode ---
@@ -193,6 +216,100 @@ try {
     } else {
       console.log(`PASS ${c.name}`);
     }
+  }
+
+  // ---- U-41 (P2-11): the multi-file /run endpoint, all four modes ----
+  // Same honesty rules as the desktop: per-file Auto runs for batch with
+  // collision refusal up front, one -m run for merge, frame verification for
+  // explode, validation shared with /optimize, and distinct 400/422 codes.
+  {
+    const t = (name, problems) => {
+      if (problems.length) {
+        failures++;
+        console.log(`FAIL ${name}\n       ${problems.join("\n       ")}`);
+      } else console.log(`PASS ${name}`);
+    };
+    const decode = (b64) => Buffer.from(b64, "base64");
+
+    // auto: exactly one file -> one <stem>_opt.gif output
+    let r = await postRun(port, { mode: "auto", optimize_level: 2 }, [gifFile("in.gif")]);
+    let p = [];
+    if (r.status !== 200) p.push(`status ${r.status}`);
+    if (r.json?.outputs?.length !== 1) p.push(`outputs ${JSON.stringify(r.json?.outputs?.map((o) => o.name))}`);
+    if (r.json?.outputs?.[0]?.name !== "in_opt.gif") p.push(`name ${r.json?.outputs?.[0]?.name}`);
+    if (!decode(r.json?.outputs?.[0]?.data || "").subarray(0, 4).equals(GIF_MAGIC)) p.push("output is not a GIF");
+    if (r.json?.commands?.length !== 1 || !r.json.commands[0].includes("-O2")) p.push(`commands ${JSON.stringify(r.json?.commands)}`);
+    t("U-41 auto single file -> in_opt.gif", p);
+
+    // merge: N files -> one merged.gif, one -m command
+    r = await postRun(port, { mode: "merge" }, [gifFile("a.gif"), gifFile("b.gif")]);
+    p = [];
+    if (r.status !== 200) p.push(`status ${r.status}`);
+    if (r.json?.outputs?.length !== 1 || r.json.outputs[0].name !== "merged.gif") p.push(`outputs ${JSON.stringify(r.json?.outputs?.map((o) => o.name))}`);
+    if (!decode(r.json?.outputs?.[0]?.data || "").subarray(0, 4).equals(GIF_MAGIC)) p.push("merged output is not a GIF");
+    if (r.json?.commands?.length !== 1 || !r.json.commands[0].includes("-m ")) p.push(`commands ${JSON.stringify(r.json?.commands)}`);
+    t("U-41 merge two files -> merged.gif via one -m run", p);
+
+    // batch: one Auto run PER FILE (never a single -b), derived targets
+    r = await postRun(port, { mode: "batch", optimize_level: 1 }, [gifFile("a.gif"), gifFile("bee.gif")]);
+    p = [];
+    if (r.status !== 200) p.push(`status ${r.status}`);
+    const names = (r.json?.outputs || []).map((o) => o.name);
+    if (names.join(",") !== "a_opt.gif,bee_opt.gif") p.push(`outputs ${JSON.stringify(names)}`);
+    if (r.json?.commands?.length !== 2) p.push(`expected 2 per-file commands, got ${r.json?.commands?.length}`);
+    if ((r.json?.commands || []).some((c) => c.includes(" -b "))) p.push("batch used a single -b run (desktop runs per-file Auto)");
+    t("U-41 batch -> per-file Auto runs with <stem>_opt.gif targets", p);
+
+    // batch collision: two uploads, one target -> refused BEFORE any run
+    r = await postRun(port, { mode: "batch" }, [gifFile("x.gif"), gifFile("x.gif")]);
+    p = [];
+    if (r.status !== 422) p.push(`status ${r.status}`);
+    if (!String(r.json?.error || "").includes("would both write")) p.push(`error ${JSON.stringify(r.json?.error)}`);
+    t("U-41 batch target collision is refused (desktop planner parity)", p);
+
+    // batch target == an uploaded source name -> refused
+    r = await postRun(port, { mode: "batch" }, [gifFile("y_opt.gif"), gifFile("y.gif")]);
+    p = [];
+    if (r.status !== 422) p.push(`status ${r.status}`);
+    if (!String(r.json?.error || "").includes("overwrite the uploaded file")) p.push(`error ${JSON.stringify(r.json?.error)}`);
+    t("U-41 batch target-equals-source is refused", p);
+
+    // explode: frames verified; the 1x1 GIF yields exactly clip_frame.000
+    r = await postRun(port, { mode: "explode" }, [gifFile("clip.gif")]);
+    p = [];
+    if (r.status !== 200) p.push(`status ${r.status}`);
+    if (r.json?.outputs?.length !== 1 || r.json.outputs[0].name !== "clip_frame.000") p.push(`outputs ${JSON.stringify(r.json?.outputs?.map((o) => o.name))}`);
+    if (!decode(r.json?.outputs?.[0]?.data || "").subarray(0, 4).equals(GIF_MAGIC)) p.push("frame is not a GIF");
+    if (r.json?.commands?.length !== 1 || !r.json.commands[0].includes("-e ")) p.push(`commands ${JSON.stringify(r.json?.commands)}`);
+    t("U-41 explode -> verified <stem>_frame.NNN frames", p);
+
+    // explode by name passes -E through the shared builder
+    r = await postRun(port, { mode: "explode", explode_by_name: true }, [gifFile("clip.gif")]);
+    p = [];
+    if (r.status !== 200) p.push(`status ${r.status}`);
+    if (!String(r.json?.commands?.[0] || "").includes("-E ")) p.push(`commands ${JSON.stringify(r.json?.commands)}`);
+    t("U-41 explode by name emits -E", p);
+
+    // usage rules: wrong file counts and unknown modes are 400s with honest text
+    r = await postRun(port, { mode: "explode" }, [gifFile("a.gif"), gifFile("b.gif")]);
+    t("U-41 explode with two files -> 400", r.status === 400 ? [] : [`status ${r.status}`]);
+
+    r = await postRun(port, { mode: "auto" }, [gifFile("a.gif"), gifFile("b.gif")]);
+    p = r.status === 400 && String(r.json?.error || "").includes("Batch") ? [] : [`status ${r.status} error ${JSON.stringify(r.json?.error)}`];
+    t("U-41 auto with two files -> 400 pointing at Batch/Merge", p);
+
+    r = await postRun(port, { mode: "shred" }, [gifFile("a.gif")]);
+    t("U-41 unknown mode -> 400", r.status === 400 ? [] : [`status ${r.status}`]);
+
+    r = await postRun(port, { mode: "batch" }, []);
+    t("U-41 /run with no files -> 400", r.status === 400 ? [] : [`status ${r.status}`]);
+
+    // the shared validation layer (U-30) guards /run exactly like /optimize
+    r = await postRun(port, { mode: "merge", color_count: 900 }, [gifFile("a.gif"), gifFile("b.gif")]);
+    p = [];
+    if (r.status !== 422) p.push(`status ${r.status}`);
+    if (!(r.json?.issues || []).some((i) => i.field === "colors")) p.push(`issues ${JSON.stringify(r.json?.issues)}`);
+    t("U-41 /run refuses out-of-range settings before any run", p);
   }
 
   // Malformed JSON must stay a 400 and must NOT be swallowed into a 500.

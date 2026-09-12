@@ -8,7 +8,9 @@
 #include "../src/core/Validate.h"
 #include "../src/core/OutputName.h"
 #include "../src/core/OutputPlan.h"
-#include "../src/core/version.h"
+#include "../src/core/ExplodeVerify.h"
+#include "../src/core/WinUnicode.h"
+#include "core/version.h"  // path form: generated-first under CMake (U-15)
 #include <cassert>
 #include <fcntl.h>
 #include <unistd.h>
@@ -784,6 +786,146 @@ int main() {
     CHECK(save_settings_file("", s) == false);
 
     fs::remove_all(dir);
+  }
+
+  // 33. Explode frame verification (audit U-17 / P1-19). The rule: snapshot
+  //     the prefix candidates BEFORE the run, then require at least one NEW
+  //     or CHANGED file that is a real GIF. rc=0 alone must never mean
+  //     "frames written", and stale leftovers must never fake a success.
+  {
+    namespace fs = std::filesystem;
+
+    // Prefix derivation: explicit output IS the prefix; empty output falls
+    // back to the first input's basename (gifsicle explodes into the CWD),
+    // cutting on either separator so the rule tests on any platform.
+    Settings s;
+    s.mode = Mode::Explode;
+    s.output = "/tmp/frames/p";
+    s.inputs = {"/tmp/in/anim.gif"};
+    CHECK(explode_prefix_for(s) == "/tmp/frames/p");
+    s.output = "";
+    CHECK(explode_prefix_for(s) == "anim.gif");
+    s.inputs = {"C:\\Users\\me\\anim.gif"};
+    CHECK(explode_prefix_for(s) == "anim.gif");
+    s.inputs = {};
+    CHECK(explode_prefix_for(s).empty());
+    // Empty prefix verifies as a failure and says why.
+    ExplodeResult empty_r = verify_explode_frames("", {});
+    CHECK(!empty_r.ok);
+    CHECK(!empty_r.describe().empty());
+
+    const fs::path dir = fs::temp_directory_path() / "gs_explode_verify_test";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    const std::string prefix = (dir / "p").string();
+
+    // Nothing on disk -> not ok, and the failure text names the prefix.
+    auto before = snapshot_explode_candidates(prefix);
+    CHECK(before.empty());
+    ExplodeResult r = verify_explode_frames(prefix, before);
+    CHECK(!r.ok);
+    CHECK(r.frames.empty());
+    CHECK(r.describe().find(prefix) != std::string::npos);
+
+    // A pre-existing (stale) frame the run did NOT touch is not a success —
+    // this is the lie the snapshot exists to prevent.
+    { std::ofstream f(prefix + ".000", std::ios::binary); f << "GIF89a-stale"; }
+    before = snapshot_explode_candidates(prefix);
+    CHECK(before.size() == 1);
+    r = verify_explode_frames(prefix, before);
+    CHECK(!r.ok);
+    CHECK(r.frames.empty() && r.suspicious.empty());
+
+    // NEW valid frames count: numeric (-e) and by-name (-E) forms alike.
+    { std::ofstream f(prefix + ".001", std::ios::binary); f << "GIF89a\x01\x00"; }
+    { std::ofstream f(prefix + ".myframe.gif", std::ios::binary); f << "GIF87a-old"; }
+    r = verify_explode_frames(prefix, before);
+    CHECK(r.ok);
+    CHECK(r.frames.size() == 2);
+
+    // NEW but empty or non-GIF files are "suspicious" and do NOT make it ok.
+    fs::remove(prefix + ".001");
+    fs::remove(prefix + ".myframe.gif");
+    { std::ofstream f(prefix + ".002", std::ios::binary); f << ""; }
+    { std::ofstream f(prefix + ".003", std::ios::binary); f << "PNG-not-a-gif"; }
+    r = verify_explode_frames(prefix, before);
+    CHECK(!r.ok);
+    CHECK(r.suspicious.size() == 2);
+    CHECK(r.describe().find("none is a valid GIF") != std::string::npos);
+
+    // A CHANGED pre-existing file counts as written by this run.
+    { std::ofstream f(prefix + ".000", std::ios::binary); f << "GIF89a-fresh-longer"; }
+    r = verify_explode_frames(prefix, before);
+    CHECK(r.ok);
+    CHECK(r.frames.size() == 1);
+
+    // A non-candidate next door never interferes.
+    { std::ofstream f((dir / "unrelated.txt").string(), std::ios::binary); f << "x"; }
+    r = verify_explode_frames(prefix, before);
+    CHECK(r.ok && r.frames.size() == 1);
+
+    fs::remove_all(dir);
+  }
+
+  // 34. Windows command-line splitter (audit U-07 / P1-4): split_win_cmdline
+  //     must be the exact inverse of win_quote_arg (test 19) and follow the
+  //     MSVCRT argv rules. Pure logic — runs on Linux CI; the Wine E2E proves
+  //     the win32 shims around it.
+  {
+    auto widen = [](const std::string& s) { return std::wstring(s.begin(), s.end()); };
+    auto narrow = [](const std::wstring& w) { return std::string(w.begin(), w.end()); };
+    auto split1 = [&](const std::string& line) {
+      std::vector<std::string> out;
+      for (const auto& t : gs::split_win_cmdline(widen(line))) out.push_back(narrow(t));
+      return out;
+    };
+
+    // Canonical vectors.
+    auto v = split1(R"("C:\Program Files\gifsicle.exe" -e "in file.gif")");
+    CHECK(v.size() == 3);
+    if (v.size() == 3) {
+      CHECK(v[0] == R"(C:\Program Files\gifsicle.exe)");
+      CHECK(v[1] == "-e");
+      CHECK(v[2] == "in file.gif");
+    }
+    v = split1("one two\tthree   ");          // tabs + trailing space
+    CHECK(v.size() == 3 && v[2] == "three");
+    v = split1(R"(a\\b)");                    // backslashes NOT before a quote
+    CHECK(v.size() == 1 && v[0] == R"(a\\b)");
+    v = split1(R"(a\\\"b)");                  // 2n+1 backslashes + " -> n \ + literal "
+    CHECK(v.size() == 1 && v[0] == "a\\\"b");
+    v = split1(R"(a\\"b")");                  // 2n backslashes + " -> n \ + toggle
+    CHECK(v.size() == 1 && v[0] == R"(a\b)");
+    v = split1(R"("trail\\")");               // trailing backslash run in quotes
+    CHECK(v.size() == 1 && v[0] == "trail\\");
+    v = split1(R"(x "" y)");                  // explicit empty argument
+    CHECK(v.size() == 3 && v[1].empty());
+    v = split1(R"("a""b")");                  // doubled quote inside quotes
+    CHECK(v.size() == 1 && v[0] == "a\"b");
+
+    // Round-trip: quoting any argument and splitting the line must return it
+    // byte-for-byte — including UTF-8 bytes (the splitter is byte-transparent;
+    // the win32 shims do the real UTF-16 conversion).
+    const std::vector<std::string> tricky = {
+      "plain", "with space", "quote\"inside", "trailing\\", "back\\\\slash",
+      "", "  padded  ", "semi;colon", "\ttab\t", "anim\xc3\xa9.gif",
+      "\xe5\x8b\x95\xe7\x94\xbb.gif",  // 動画.gif in UTF-8
+    };
+    for (const auto& a : tricky) {
+      const std::string line = gs::win_quote_arg(a);
+      auto back = split1(line);
+      CHECK(back.size() == 1);
+      if (back.size() == 1) CHECK(back[0] == a);
+    }
+    // A full argv survives join-then-split (this is exactly what
+    // ProcessRunner builds and what the child CRT re-splits).
+    std::string line;
+    for (size_t i = 0; i < tricky.size(); ++i) {
+      if (i) line += ' ';
+      line += gs::win_quote_arg(tricky[i]);
+    }
+    auto back = split1(line);
+    CHECK(back == tricky);
   }
 
   std::printf("==> %d checks, %d failures\n", checks, failures);

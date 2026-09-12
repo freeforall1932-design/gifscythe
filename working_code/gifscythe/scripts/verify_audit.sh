@@ -103,6 +103,34 @@ elif cmake -S . -B "$work/c6" -DCMAKE_BUILD_TYPE=Release >/dev/null 2>&1 \
    && cmake --build "$work/c6" >/dev/null 2>&1; then
   ok "C6" "cmake configure+build (INTERFACE core)"
 else bad "C6" "cmake configure/build"; fi
+
+# C9 (audit U-15 / P2-2): the CMake build must not need — or write — anything
+# inside src/. Proven on a throwaway COPY of the source tree with the committed
+# src/core/version.h fallback DELETED: configure+build must still succeed (so
+# every target consumed the build-tree generated header) and the copy's src/
+# must still lack version.h afterwards (so configure wrote nothing back). The
+# old CMakeLists failed both halves: it wrote src/core/version.h at configure
+# time and the sources resolved the in-tree copy first.
+if ! command -v cmake >/dev/null 2>&1; then
+  skip "C9" "cmake not installed — out-of-tree purity not re-checked"
+else
+  c9src="$work/c9src"
+  mkdir -p "$c9src"
+  for item in CMakeLists.txt VERSION.md build_support src tests; do
+    cp -r "$self/$item" "$c9src/" 2>/dev/null || true
+  done
+  rm -f "$c9src/src/core/version.h"
+  if cmake -S "$c9src" -B "$work/c9" -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=OFF >/dev/null 2>&1 \
+     && cmake --build "$work/c9" >/dev/null 2>&1 \
+     && [[ ! -e "$c9src/src/core/version.h" ]] \
+     && [[ -s "$work/c9/generated/core/version.h" ]] \
+     && grep -q "GS_VERSION \"$version\"" "$work/c9/generated/core/version.h" \
+     && "$work/c9/test_gifsicle_command" >/dev/null 2>&1; then
+    ok "C9" "cmake is source-tree pure: builds with NO committed version.h and writes nothing into src/ (U-15)"
+  else
+    bad "C9" "cmake still needs or mutates src/core/version.h (U-15 regression)"
+  fi
+fi
 out_plain="$(./build.sh 2>&1)"
 if grep -q "GUI not requested" <<<"$out_plain"; then ok "C8" "default build.sh does not claim GUI"; else bad "C8" "default build.sh GUI claim"; fi
 if command -v qmake6 >/dev/null 2>&1 || command -v qmake >/dev/null 2>&1; then
@@ -114,7 +142,9 @@ fi
 # ---------- B: GUI offscreen harness ----------
 if command -v cmake >/dev/null 2>&1 && (command -v qmake6 >/dev/null 2>&1 || [[ -d /usr/lib/x86_64-linux-gnu/cmake/Qt6 ]]); then
   cmake -S . -B "$work/gui" -DCMAKE_BUILD_TYPE=Release >/dev/null 2>&1
-  if cmake --build "$work/gui" --target test_gui_offscreen -j2 >/dev/null 2>&1; then
+  # fake_engine_exit0 is T7's lying-engine fixture (audit U-17) — the harness
+  # requires it next to the test binary, so build both targets here.
+  if cmake --build "$work/gui" --target test_gui_offscreen fake_engine_exit0 -j2 >/dev/null 2>&1; then
     if GS_ENGINE="$ENGINE" GS_TEST_REF_DIR="$self/../../reference_code/gifsicle" \
        QT_QPA_PLATFORM=offscreen "$work/gui/test_gui_offscreen" 2>/dev/null | tail -1 | grep -q "ALL GUI TESTS PASSED"; then
       ok "B1-B15" "offscreen GUI harness green (batch/merge/explode/cancel/close/dedupe/live pane)"
