@@ -11,6 +11,26 @@ anything done without evidence).
 
 ---
 
+
+## Open release-blocking items (as of 2026-09-12, session S14)
+
+**Current `main` is release-red** — run `34705247115` failed the Linux documentation status gate
+(docs corrected on `arena/01a0968e-gifscythe`, branch run `34707532582` green; merge outstanding).
+Do not cut a release until the items below are closed or explicitly waived by the owner.
+
+| Item | Why it blocks | Where the task lives |
+|---|---|---|
+| `GS-201` CLI Batch in-place overwrite | a documented path can destroy user source GIFs | `STATUS.md` (UNTRIAGED) · `COMPILED_AUDIT.md` §13 |
+| `GS-204` packaging fail-open | a "successful" package can be incomplete or mixed-platform | `STATUS.md` · §13 · `working_code/gifscythe/scripts/test_package.sh` scope |
+| `GS-208` red main / stale status docs | release evidence must come from a green exact SHA | `docs/ci/PENDING_WORKFLOW_CHANGE.md` + this file's gate below |
+| `U-08` licence set incomplete | GPLv3 text and Qt notices are not staged | `STATUS.md` row (PARTIAL) · `LICENSE` |
+| `U-09` release re-cut | banked artifact SHA does not match the claimed source | `STATUS.md` row (OPEN) · `docs/ci/CLEAN_WINDOWS_SMOKE.md` |
+| `DS-06` threads sentinel | default conf silently runs 8-way parallel against the documented contract | `STATUS.md` · §13 |
+
+The per-finding evidence, proposed fix and verification limits for every `GS-`/`DS-` row are in
+`docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`.
+
+
 ## 0. Decide what you are cutting
 
 | Type | When | Version |

@@ -1998,6 +1998,14 @@ the failures are **G10** (this file's header names base `2176573`, while the acc
 `2d51347` / `53a6eda`) and **G15** (fresh clone: `core.hooksPath` is not `.githooks`). The live
 run `34705247115` failed its Linux documentation gate on main. **Do not treat main as green.**
 
+**Task registration (S14 follow-up).** These 18 findings are now recorded row-by-row in
+`STATUS.md` (state `UNTRIAGED`, under the reviewers' own ids) with one pending line each in
+`WORKLIST.md`, and their release-blocking subset is listed in
+`docs/release/RELEASE_PROCEDURE.md`. Proposed sequencing — including the web-first split and the
+decision it needs from the owner — is `docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md`.
+**They are still not in the §6 fix order**: triage (which maps accepted items into `U-nn`) has not
+happened, so nothing here is scheduled for implementation yet.
+
 **Cross-references inside this file.** GS-201 extends U-01's coverage gap (the planner is correct
 but unreachable without an `output` key). GS-203 and DS-13 are one workstream (postcondition
 verification: size + magic + changed-since-snapshot). DS-06/DS-07/DS-09/GS-206 are one workstream

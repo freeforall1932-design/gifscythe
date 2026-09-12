@@ -46,13 +46,40 @@ reads them in a file, not in a conversation.
 
 Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
-- [ ] **External review intake (S14) — parked, not triaged (owner instruction).** 18 findings
-      from three external reviews (Max/GPT-class `GS-201…GS-210`, DeepSeek `DS-06…DS-13`) are
-      compiled in `COMPILED_AUDIT.md` §13 and
-      `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`. **Deliberately not** created as
-      `UNTRIAGED` rows: the owner asked for a compiled intake to review first, so §13 is the
-      queue and the next session triages from it. Highest-risk item: **GS-201** (CLI Batch maps
-      to engine `-b`, which edits the source GIFs in place when no `output` key is set).
+- [ ] **External review intake (S14) — registered `UNTRIAGED`, triage waits on the owner.**
+      18 findings (Max/GPT-class `GS-201…GS-210`, DeepSeek `DS-06…DS-13`) are compiled in
+      `COMPILED_AUDIT.md` §13 + `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`, and recorded
+      row-by-row in `STATUS.md` under the reviewers' ids. Proposed sequencing lives in
+      `docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md` (awaiting the owner's draft).
+      Triage = map accepted items into `COMPILED_AUDIT.md` §6 fix-order ids. One pending line per
+      finding, as rule 2 requires:
+      - [ ] **GS-201** (Critical) CLI Batch → engine `-b` can rewrite the source GIFs; cheap
+            stop-loss = refuse `--run` with Batch and no `output` key.
+      - [ ] **GS-202** (High) web `/run` builds output paths from upload names; `../` escapes the
+            request temp dir.
+      - [ ] **GS-203** (High) ordinary runs claim success on exit 0 with no output verification
+            (CLI Explode-only, GUI/web existence+size).
+      - [ ] **GS-204** (High) packaging fail-open outside the portable happy path; negative tests
+            cover portable only.
+      - [ ] **GS-205** (Med) non-GIF inputs still admitted via the picker and drop.
+      - [ ] **GS-206** (Med) `long`→`int` narrowing; no validation for loopcount/threads/gamma/enums.
+      - [ ] **GS-207** (Med) unusable `GS_ENGINE` silently falls back to another engine.
+      - [ ] **GS-208** (High, PARTIAL-fixed) main release-red; docs corrected in S14, workflow-copy
+            sync + marker deletion still open (needs a `workflows`-scoped token).
+      - [ ] **GS-209** (Med) native linux/mac build uses a fixed glibc config.
+      - [ ] **GS-210** (Low) build entry points ignore mistyped options; qmake tried before CMake.
+      - [ ] **DS-06** (High) `threads <= 0` → bare `-j`; the `-1` sentinel now means 8 threads.
+      - [ ] **DS-07** (Med) GUI threads spinner cannot express "no flag".
+      - [ ] **DS-08** (Low) non-strict print mode exits 0 after warnings.
+      - [ ] **DS-09** (Info) `threads < -1` accepted silently.
+      - [ ] **DS-10** (Info) disposal 4..7 unreachable from the desktop picker.
+      - [ ] **DS-11** (Med, PARTIAL-fixed) audit narrative reconciled in S14; the mechanical gate
+            check that keeps it reconciled is still missing.
+      - [ ] **DS-12** (Low) settings values lose leading/trailing whitespace on round trip.
+      - [ ] **DS-13** (Med) web `/optimize` serves non-GIF output as `200 image/gif`.
+- [ ] **CI/infra (S14):** apply `docs/ci/build.yml.proposed` and delete
+      `docs/ci/PENDING_WORKFLOW_CHANGE.md` in one commit — both copies then enforce
+      byte-equality again (E9/G7). Needs a token with the `workflows` scope.
 
 - [x] **N-03** — `docs/screenshots/*.png` (3 shots) claim to show the S7 UI; S8
       changed `src/qtui/` afterwards, nothing links to them, and this sandbox has
@@ -199,6 +226,15 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [ ] **`main` is still red** until this branch lands (the failing check is the one this branch
       fixes).
 
+### Session S14 follow-up — tasks placed in their documents
+
+- [x] **Intake registered:** the 18 findings now have `STATUS.md` rows (`UNTRIAGED`, reviewers'
+      ids) and the pending lines above, so nothing lives only in a chat message or a report.
+- [x] **Plan drafted:** `docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md` — proposal only,
+      awaiting the owner's draft before any sequencing is agreed.
+- [x] **Release notes placed:** `docs/release/RELEASE_PROCEDURE.md` carries the open
+      release-blocking pointers; `docs/ci/PENDING_WORKFLOW_CHANGE.md` carries the CI one.
+
 ### Session S9 (2026-09-10) — status-tracking system
 - [x] **N-01** — the pending-workflow marker was left behind after the maintainer
       applied that change in `190d030`; every doc still quoted **23/0/5** while
@@ -335,6 +371,10 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       first per the minor-bump rule)
 
 ## Next actions (ordered)
+
+- [ ] **Owner decision (blocks scheduling):** web-first direction — option A, B or C in
+      `docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md`. Then triage the 18 intake rows into
+      `COMPILED_AUDIT.md` §6 fix-order ids.
 
 1. **U-09** — re-cut release artifacts from the tagged SHA (the banked zip
    predates S7; its notes pin `d3544b1`). Needs a tag + `gh release` (and a
