@@ -37,10 +37,11 @@ fix executable here: **U-07, U-15, U-17, U-41 closed with executed proof**
 (Wine E2E included), **U-10**'s provenance half recorded (the vendored engine
 tree is diff-verified against upstream `kohler/gifsicle@07f5c4c3` — only local
 addition: the handwritten `config.h`), **U-12** scoped as P1-24 and
-deliberately left OPEN, and new finding **N-04** (MinGW `fs::path`
-non-UTF-8 narrow conversions) closed in-session. Harness re-measured at
-**317 runtime checks**; unit **293**; smoke **12/12**; web **17 + 21 + 30**;
-`verify_audit.sh` **28/0/3**. Remaining: the
+deliberately left OPEN, and new finding new findings **N-04** (MinGW `fs::path`
+non-UTF-8 narrow conversions) and **N-05** (multi-input Explode silently
+scattered frames; now refused at every layer) found and closed in-session.
+Harness re-measured at **324 runtime checks**; unit **296**; smoke **14/14**;
+web **17 + 23 + 30**; `verify_audit.sh` **28/0/3**. Remaining: the
 clean-VM / desktop smoke (C4/D3/D4,
 B5/B6/B14 — `docs/ci/CLEAN_WINDOWS_SMOKE.md`), the release re-cut (U-09),
 U-12, U-10's CI-pinning half, plus the owner decisions

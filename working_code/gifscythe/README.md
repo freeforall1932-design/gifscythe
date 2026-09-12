@@ -17,7 +17,7 @@ root `reference_code/` (read-only).
 - **0.1.0** — engine + control layer + CLI + full GUI (S4b retrofit + S7 polish).
 - `COMPILED_AUDIT.md` §6 was **executed with evidence** (S4) and **rerun green
   on 2026-09-10 (S7)**: §6.A all green, §6.B green via the offscreen GUI
-  harness (**317 checks, T1–T20**, measured in the S11 sandbox; 306 in S10),
+  harness (**324 checks, T1–T20**, measured in the S11 sandbox; 306 in S10),
   §6.E all green; `verify_audit.sh` → **28 PASS / 0 FAIL / 3 SKIP, exit 0**
   (E9 SKIPs while the CI workflow change awaits a `workflows`-scoped token;
   F1/F2 are the S9 documentation gate; C9 is the S11 source-tree-purity gate).
@@ -130,8 +130,8 @@ explicit choice (concatenates animations).
   location (`%APPDATA%\Gifscythe\` on Windows); override the path with
   `GS_SETTINGS_PATH`. The queue and Save-as field are deliberately *not*
   restored. Corrupt files apply their valid keys and warn in the status bar.
-- Regression net: `tests/test_gui_offscreen.cpp` — T1–T20, 245 `CHECK(` sites in
-  source; last measured at **317 runtime checks** in the S11 sandbox (Qt 6.4.2);
+- Regression net: `tests/test_gui_offscreen.cpp` — T1–T20, 250 `CHECK(` sites in
+  source; last measured at **324 runtime checks** in the S11 sandbox (Qt 6.4.2);
   306 in the S10 sandbox before that. Runs in CI and in any Qt6-equipped
   sandbox (S10/S11 both compiled and ran it locally).
 - Cross-platform engine-probe fixture: `tests/fake_engine_exit0.cpp` (CMake

@@ -225,5 +225,34 @@ else
   bad "explode empty-output prefix rule (rc=$rc, logo.gif.000=$([[ -s $WORK/cwd/logo.gif.000 ]] && echo y || echo n))"
 fi
 
+# 12. Multi-input explode is REFUSED by --run (N-05): the engine exits 0 but
+#     scatters every input except the last into the CWD. Print mode keeps its
+#     documented policy: warn, then print.
+cat > "$WORK/explode_multi.conf" <<EOF
+mode = explode
+input = $SRC_GIF
+input = $SRC_GIF1
+output = $WORK/ex/m
+EOF
+set +e
+(cd "$WORK" && "$CLI" "$WORK/explode_multi.conf" --run --engine "$ENGINE" >"$WORK/out12.txt" 2>"$WORK/err12.txt")
+rc_run=$?
+"$CLI" "$WORK/explode_multi.conf" --engine "$ENGINE" >"$WORK/out12p.txt" 2>"$WORK/err12p.txt"
+rc_print=$?
+set -e
+if [[ "$rc_run" -eq 2 ]] && grep -q "scatters frames" "$WORK/err12.txt" \
+   && ! ls "$WORK"/m.* >/dev/null 2>&1 && ! ls "$WORK"/logo.gif.[0-9]* >/dev/null 2>&1 \
+   && ! ls "$WORK"/logo1.gif.[0-9]* >/dev/null 2>&1; then
+  ok "multi-input explode refused by --run (rc=2), no frames written anywhere"
+else
+  bad "multi-input explode not refused honestly (rc=$rc_run)"
+fi
+if [[ "$rc_print" -eq 0 ]] && grep -q "WARNING: mode=explode" "$WORK/err12p.txt" \
+   && grep -q -- "-e" "$WORK/out12p.txt"; then
+  ok "multi-input explode print mode warns (documented policy) and still prints"
+else
+  bad "multi-input explode print-mode policy wrong (rc=$rc_print)"
+fi
+
 echo "==> Done. $PASS passed, $FAIL failed."
 [[ "$FAIL" -eq 0 ]]

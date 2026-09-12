@@ -55,7 +55,7 @@ web/
 - **Parity guarantee (validation, added for audit U-30):**
   `test/validate.test.mjs` asserts `validate.mjs` returns exactly the same
   `(field, value, reason)` triples as `src/core/Validate.h` — same set, same
-  order, same wording. **21 green.** Out-of-range settings now answer
+  order, same wording. **23 green.** Out-of-range settings now answer
   **HTTP 422** with an `issues[]` list instead of reaching the engine; e.g.
   `--scale 0x1` exits 0 and silently resizes nothing, so it is caught before
   the run rather than returned as a "successful" unchanged GIF.

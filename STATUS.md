@@ -29,7 +29,7 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 77 DONE · 4 PARTIAL · 17 OPEN · 0 UNTRIAGED · 98 total
+**Counts (generated - do not edit by hand):** 78 DONE · 4 PARTIAL · 17 OPEN · 0 UNTRIAGED · 99 total
 **Last regenerated:** S11 · 2026-09-12 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
@@ -101,15 +101,15 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 |----|-------|-------|---------|-----------------|-------------|
 | W-01 | Project setup: `reference_code/` vs `working_code/` separation | DONE | S1 | split in place; README "What is reference vs. working" states the rule | - |
 | W-02 | GIF engine build + upstream identity verification | DONE | S8 | `verify_audit.sh` A10: `release/0.1.0/gifsicle --version` prints `LCDF Gifsicle 1.96` | - |
-| W-03 | Qt-independent command/settings control layer | DONE | S11 | `src/core/*.h` compile with plain g++ (no Qt); unit suite 293 checks (S11 count) | - |
-| W-04 | CLI driver + unit tests + integration smoke | DONE | S11 | `./build.sh` 293 checks, 0 failures; `scripts/smoke_cli.sh` 12/12 | - |
+| W-03 | Qt-independent command/settings control layer | DONE | S11 | `src/core/*.h` compile with plain g++ (no Qt); unit suite 296 checks (S11 count) | - |
+| W-04 | CLI driver + unit tests + integration smoke | DONE | S11 | `./build.sh` 296 checks, 0 failures; `scripts/smoke_cli.sh` 14/14 | - |
 | W-05 | Qt6 GUI MVP (Batch default, mode combo, async run, queue, DnD) | DONE | S8 | CI run `34471563229` green on linux + windows; NOT compiled in the S8/S9 sandboxes (no Qt6) | - |
 | W-06 | Portable + system-dependent packaging scripts | DONE | S8 | `scripts/test_package.sh` 9/9 negative cases; `verify_audit.sh` D1/D2/D5 | - |
 | W-07 | Linux GitHub Actions path with Qt6 + artifacts | DONE | S8 | `.github/workflows/build.yml`; main runs #23/#24 green both jobs | - |
 | W-08 | Root LICENSE / COPYING.gifsicle / .gitignore / .gitattributes | DONE | S8 | CI "Assert package manifest" step requires LICENSE + COPYING.gifsicle in the package | - |
 | W-09 | P0 silent-failure fixes (2026-09-07) | DONE | S4 | `COMPILED_AUDIT.md` §6.A re-run green | - |
 | W-10 | P1 honesty work (2026-09-07) | DONE | S4 | `COMPILED_AUDIT.md` §6.E 8/8 | - |
-| W-11 | Smoke suite + engine test scripts | DONE | S11 | `scripts/test_engine.sh` 5/5; `scripts/smoke_cli.sh` 12/12 (S11 added the three explode-verification cases) | - |
+| W-11 | Smoke suite + engine test scripts | DONE | S11 | `scripts/test_engine.sh` 5/5; `scripts/smoke_cli.sh` 14/14 (S11 added the explode-verification + N-05 refusal cases) | - |
 | W-12 | Apply `docs/ci/build.yml.proposed` to the live workflow | DONE | S4 | maintainer `821a310` + S4 hardening; copies kept byte-identical (gate E9) | - |
 | W-13 | Merge the compiled audit into one register | DONE | S3 | `COMPILED_AUDIT.md` §5 holds all 52 findings | - |
 | W-14 | One-command verification of `COMPILED_AUDIT.md` §6 | DONE | S11 | `scripts/verify_audit.sh` 28 PASS / 0 FAIL / 3 SKIP, exit 0 (re-measured in the S11 Qt6+cmake sandbox, which added gate C9; the S9 sandbox measured 25/0/5 because C6/C7*/B skipped there) | - |
@@ -137,7 +137,7 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 | D-06 | Optional: logging framework, i18n, dark mode, system tray | OPEN | - | optional polish with no owner commitment yet | propose to the owner after 1.0.0 |
 | D-07 | Web client-side `gifsicle.wasm` + web UI (Option 4) | OPEN | - | not the product path under the offline-only decision (S6); see `docs/web/WEB_FEASIBILITY.md` | only on an explicit owner decision |
 | D-08 | Language migration spike: Rust + Tauri | OPEN | - | trigger-based only; comparison matrix in `docs/planning/OFFLINE_BUILD_REVIEW.md` §4 | watch for a documented trigger, then spike |
-| R-01 | No cmake and no Qt6 in this sandbox, so `src/qtui/` and the GUI harness are CI-compiled only | DONE | S11 | S11 sandbox re-installed cmake 3.25.1 + Qt 6.4.2 via apt (root) and re-measured the harness: **317 checks, 0 failures** (T1–T20; T7 extended for U-17), replacing the S10 figure of 306 as the last measured one | - |
+| R-01 | No cmake and no Qt6 in this sandbox, so `src/qtui/` and the GUI harness are CI-compiled only | DONE | S11 | S11 sandbox re-installed cmake 3.25.1 + Qt 6.4.2 via apt (root) and re-measured the harness: **324 checks, 0 failures** (T1–T20; T7 extended for U-17 + N-05), replacing the S10 figure of 306 as the last measured one | - |
 | R-02 | The clone is shallow, so history-based checks cannot see past the branch point | OPEN | S11 | clone-dependent, not repo state: the S11 clone is FULL (as was S10's), so G10/G11 ran against complete history; the S9 clone was the shallow one | clone without `--depth` (or `git fetch --unshallow`) where depth matters, then re-run `check_docs.sh` |
 | R-03 | The CI token has no `workflows` scope, so `.github/workflows/` cannot be pushed | OPEN | S9 | push rejected: "refusing to allow a GitHub App to create or update workflow ... without `workflows` permission"; drift is tolerated only via `docs/ci/PENDING_WORKFLOW_CHANGE.md` | a maintainer applies the pending change with a `workflows`-scoped token |
 | R-04 | Git does not copy `.githooks/` on clone, so the pre-push doc gate is inert in a fresh clone | PARTIAL | S9 | bootstrap is wired — `build.sh` calls `scripts/bootstrap_hooks.sh` and `git config core.hooksPath` is `.githooks` here. **Still missing:** a fresh clone is unprotected until it runs `build.sh` once, and nothing forces that | the one manual command is documented in `SESSION_HANDOFF.md` + `WORKLIST.md`; gate G15 fails a clone that never bootstrapped |
@@ -145,6 +145,7 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 | N-02 | `web/README.md` documented the pre-U-06 bind address | DONE | S9 | README said "binds 0.0.0.0" while `web/server.mjs` defaults to `127.0.0.1`; corrected, plus a `GS_WEB_HOST` note | - |
 | N-03 | `docs/screenshots/*.png` may no longer match the UI, are linked from nowhere, and cannot be regenerated here | DONE | S10 | re-shot offscreen in the S10 sandbox (Qt 6.4.2, same documented scenario) from the CURRENT MainWindow; `docs/screenshots/README.md` rewritten for S10; the three shots are now linked from the root README | - |
 | N-04 | MinGW libstdc++ narrow `fs::path` conversions are NOT UTF-8 (decode bytewise, encode UTF-8) — every string-to-path boundary in core silently mangled non-ASCII paths on Windows | DONE | S11 | found while executing U-07 under Wine (probe: `path("r\xc3\xa9sum\xc3\xa9").string()` came back double-encoded); every core boundary now routes through `u8path_compat`/`path_u8string` (`src/core/WinUnicode.h`); Wine cases B/C/D run é-path confs rc=0 | - |
+| N-05 | Multi-input Explode silently scatters frames: with `-o prefix` the engine (rc=0) explodes every input except the LAST as `<basename>.NNN` into the process CWD — and the desktop GUI queued all inputs into one explode run | DONE | S11 | found while designing the U-41 web explode rule; verified against the bundled 1.96 (`gifsicle -e a.gif b.gif -o p`: a's 12 frames went to the CWD, only b's frame landed under p); refused same-session at every layer: `validate()` warning (C++ + byte-identical JS mirror, parity-pinned), CLI `--run` rc=2, GUI warning dialog + REFUSED summary; unit block 35, smoke case 12, harness T7 subcase, Wine rc=2 | - |
 <!-- END HAND-MAINTAINED -->
 
 ## How to add a row
