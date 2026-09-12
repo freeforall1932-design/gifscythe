@@ -86,10 +86,16 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# S2. QUOTED REGISTER COUNTS - a "<n> DONE ... <n> UNTRIAGED" four-cell tally
-#     quoted in a current-state doc must equal STATUS.md's counts line. Only
-#     the single-line four-cell form is matched, so dated/wrapped tallies
-#     ("As of S13: ...") are left alone by design.
+# S2. QUOTED REGISTER COUNTS - a "<n> DONE ... <n> UNTRIAGED" tally quoted in a
+#     current-state doc must equal STATUS.md's counts line. Prose wraps, so each
+#     doc is FLATTENED before matching and the gap between cells is BOUNDED
+#     (<=40 non-digit chars): a tally split across two lines is still a claim,
+#     but a match cannot reach across paragraphs and pair unrelated numbers.
+#     A trailing "<n> total" cell is checked too when present.
+#     This rule used to match only the single-line form and exempted
+#     wrapped/dated tallies "by design" - that exemption is exactly how
+#     SESSION_HANDOFF.md kept quoting "As of S13: 80/3/17/0, 100 total" through
+#     PRs #16-#19 while STATUS.md said 80/5/17/18, 120 total.
 # ---------------------------------------------------------------------------
 if [[ ! -f "$STATUS_MD" ]]; then
   skip "S2" "STATUS.md absent - no reference counts to compare against"
@@ -99,19 +105,26 @@ else
   ref_part=$(grep -oE '[0-9]+ PARTIAL' <<<"$counts_line" | grep -oE '^[0-9]+')
   ref_open=$(grep -oE '[0-9]+ OPEN' <<<"$counts_line" | grep -oE '^[0-9]+')
   ref_untri=$(grep -oE '[0-9]+ UNTRIAGED' <<<"$counts_line" | grep -oE '^[0-9]+')
+  ref_total=$(grep -oE '[0-9]+ total' <<<"$counts_line" | grep -oE '^[0-9]+')
   s2_bad=""
+  s2_re='[0-9]+[[:space:]]*DONE[^0-9]{0,40}[0-9]+[[:space:]]*PARTIAL[^0-9]{0,40}[0-9]+[[:space:]]*OPEN[^0-9]{0,40}[0-9]+[[:space:]]*UNTRIAGED([^0-9]{0,20}[0-9]+[[:space:]]*total)?'
   for f in "${CURRENT_DOCS[@]}"; do
     [[ -f "$f" ]] || continue
-    while IFS= read -r ln; do
-      nums=($(grep -oE '[0-9]+[[:space:]]*DONE[^0-9]*[0-9]+[[:space:]]*PARTIAL[^0-9]*[0-9]+[[:space:]]*OPEN[^0-9]*[0-9]+[[:space:]]*UNTRIAGED' <<<"$ln" | grep -oE '[0-9]+'))
-      [[ "${#nums[@]}" -eq 4 ]] || continue
-      if [[ "${nums[0]}" != "$ref_done" || "${nums[1]}" != "$ref_part" || "${nums[2]}" != "$ref_open" || "${nums[3]}" != "$ref_untri" ]]; then
+    flat="$(tr '\n' ' ' < "$f" | tr -s ' ')"
+    while IFS= read -r m; do
+      [[ -n "$m" ]] || continue
+      nums=($(grep -oE '[0-9]+' <<<"$m"))
+      [[ "${#nums[@]}" -ge 4 ]] || continue
+      if [[ "${nums[0]}" != "$ref_done" || "${nums[1]}" != "$ref_part" \
+         || "${nums[2]}" != "$ref_open" || "${nums[3]}" != "$ref_untri" ]]; then
         s2_bad+="$f quotes ${nums[0]}/${nums[1]}/${nums[2]}/${nums[3]} (register says ${ref_done}/${ref_part}/${ref_open}/${ref_untri}); "
+      elif [[ "${#nums[@]}" -ge 5 && -n "$ref_total" && "${nums[4]}" != "$ref_total" ]]; then
+        s2_bad+="$f quotes a total of ${nums[4]} (register says ${ref_total}); "
       fi
-    done < "$f"
+    done < <(grep -oE "$s2_re" <<<"$flat")
   done
   if [[ -z "$s2_bad" ]]; then
-    ok "S2" "every quoted four-cell register tally matches STATUS.md's counts line"
+    ok "S2" "every quoted register tally matches STATUS.md's counts line (wrapped tallies and the total cell included)"
   else
     bad "S2" "$s2_bad action: update the stale quote or re-run check_docs.sh --emit"
   fi
