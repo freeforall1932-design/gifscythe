@@ -29,7 +29,7 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 78 DONE · 5 PARTIAL · 17 OPEN · 18 UNTRIAGED · 118 total
+**Counts (generated - do not edit by hand):** 80 DONE · 5 PARTIAL · 17 OPEN · 18 UNTRIAGED · 120 total
 **Last regenerated:** S14 · 2026-09-12 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
@@ -147,6 +147,8 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 | N-04 | MinGW libstdc++ narrow `fs::path` conversions are NOT UTF-8 (decode bytewise, encode UTF-8) — every string-to-path boundary in core silently mangled non-ASCII paths on Windows | DONE | S11 | found while executing U-07 under Wine (probe: `path("r\xc3\xa9sum\xc3\xa9").string()` came back double-encoded); every core boundary now routes through `u8path_compat`/`path_u8string` (`src/core/WinUnicode.h`); Wine cases B/C/D run é-path confs rc=0 | - |
 | N-06 | `check_docs.sh` emitter truncation was awk-locale-dependent: gawk counts CHARACTERS in length()/substr() under a UTF-8 locale, mawk counts BYTES — a §5 proof note with an en-dash near the 150-char cut emitted different bytes per awk, so the committed STATUS.md passed G0 under gawk (S11 sandbox + CI) but FAILED under mawk (every prior sandbox) | DONE | S11 | surfaced when the sandbox restarted mid-session and lost apt-installed gawk; fixed same-session: `export LC_ALL=C` in the gate (byte semantics under every awk) + the S11 §5 notes reworded ASCII-only under the 150 limit so truncation cannot bite; `--emit` verified byte-identical under mawk AND gawk | - |
 | N-05 | Multi-input Explode silently scatters frames: with `-o prefix` the engine (rc=0) explodes every input except the LAST as `<basename>.NNN` into the process CWD — and the desktop GUI queued all inputs into one explode run | DONE | S11 | found while designing the U-41 web explode rule; verified against the bundled 1.96 (`gifsicle -e a.gif b.gif -o p`: a's 12 frames went to the CWD, only b's frame landed under p); refused same-session at every layer: `validate()` warning (C++ + byte-identical JS mirror, parity-pinned), CLI `--run` rc=2, GUI warning dialog + REFUSED summary; unit block 35, smoke case 12, harness T7 subcase, Wine rc=2 | - |
+| SW-01 | Stale-claim sweep automation: detector + gate + PR/merge companion | DONE | S14 | `scripts/sweep_stale.sh` (rules S1–S5, each mutation-tested) + `check_docs.sh` gate **G17** + `scripts/pr_preflight.sh` (P1/P2 run it at PR create/merge) | - |
+| SW-02 | Owner-decision register + SkillOpt integration query | DONE | S14 | `docs/planning/OWNER_DECISIONS.md` (OD-01…OD-15) + `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` + `docs/planning/NEXT_SESSION_PROMPT.md` | - |
 
 
 ### External review intake 2026-09-12 (S14) - registered UNTRIAGED, not yet triaged

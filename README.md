@@ -169,6 +169,11 @@ gifscythe/                        (repo root)
    into. Background: `docs/web/WEB_FEASIBILITY.md`.
 6. **`docs/release/RELEASE_PROCEDURE.md`** — how to cut a snapshot or version
    release (gates, packaging, publishing, post-publish verification).
+7. **`docs/planning/OWNER_DECISIONS.md`** — the open owner questions
+   (`OD-01`…`OD-15`), each with options + a recommendation and what it unblocks.
+8. **`docs/planning/SKILLOPT_INTEGRATION_QUERY.md`** — the ask to incorporate
+   microsoft/SkillOpt into this repo: verified facts, the three non-negotiable
+   conditions, and the four integration shapes.
 
 ## Versions
 The *product* version lives in `working_code/gifscythe/VERSION.md`; `build.sh`

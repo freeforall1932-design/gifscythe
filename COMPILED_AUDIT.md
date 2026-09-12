@@ -627,7 +627,7 @@ before spawning. Add a small concurrency semaphore, queue limit, output/stderr c
 per-client rate limit. Sandbox the engine and document that the POC is not a deployable
 service.
 
-**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-06`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-06). `server.mjs:208`:
+**Status:** ◐ **PARTIAL (S8)** — loopback default + `GS_WEB_HOST` opt-in landed; the concurrency cap, per-client rate limit, request-size and engine-run bounds named in this finding are still missing — see §13; register §5 `U-06`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-06). `server.mjs:208`:
 `server.listen(PORT, "0.0.0.0", ...)`. No auth, no concurrency cap.
 
 ---
@@ -708,7 +708,7 @@ statement. Ship complete GPLv3, GPLv2-only, LGPLv3, and relevant Qt notices in a
 directory. Make both packagers require the same audited legal manifest. Have release counsel
 confirm the final Qt and bundled-engine obligations before 1.0.0.
 
-**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-08`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-08). Root has `LICENSE` (1133 B) and
+**Status:** ◐ **PARTIAL (S8)** — the silent half is closed (both packagers hard-require LICENSE + COPYING.gifsicle, with negative tests), but the licence set itself is still incomplete: no full GPLv3 text, no Qt LGPL notices staged, first-party grant unstated — owner decision pending; register §5 `U-08`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-08). Root has `LICENSE` (1133 B) and
 `COPYING.gifsicle` but **no `COPYING`**, so the `package_system` copy branch never fires.
 
 ---
