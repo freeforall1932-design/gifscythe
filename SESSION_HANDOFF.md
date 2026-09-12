@@ -1,8 +1,8 @@
 # Session Handoff
 
 **Date:** 2026-09-12 (session S11) · **Branch:** `arena/s11-gifscythe` (pushed;
-**PR #14** open against `main`, CI green on the head `74091b7` — run
-`34677506828`, linux + windows) → based on `main` commit `2176573` (the
+**PR #14** open against `main`, CI green on the head `635c986` — run
+`34685470992`, linux + windows) → based on `main` commit `2176573` (the
 PR #13 merge) ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending)
 
@@ -94,9 +94,10 @@ PR #13 merge) ·
    **28 PASS / 0 FAIL / 3 SKIP, exit 0** (skips: E9 declared-pending workflow,
    CI-gated, clean-Windows). awk changes verified under **mawk AND gawk**.
 
-3. **CI verdict — GREEN.** Final run `34677506828` on the head `74091b7`:
-   **linux success + windows success** (the intermediate head `88e15ea` was
-   green too, run `34672175363`). The windows job was the first NATIVE compilation of the
+3. **CI verdict — GREEN.** Final run `34685470992` on the head `635c986`:
+   **linux success + windows success** (every intermediate head green too;
+   only the first run failed, windows-only, on the T7 separator assertion —
+   see the S11 log entry). The windows job was the first NATIVE compilation of the
    S11 Windows code (CreateProcessW/`_wopen`/splitter; the Wine proofs are
    executed but Wine ≠ Windows) and ran the extended harness green (317
    checks, incl. T7's `fake_engine_exit0` fixture). The FIRST run
@@ -232,7 +233,7 @@ Everything marked ✅ was **run in this sandbox**; ⏳ could not be. Quote the
 | Wine 8 E2E matrix (U-07/U-17) | ✅ old-build repro rc=1 mojibake; fixed build rc=0 on é paths (conf contents, conf path, `GS_ENGINE`); CJK byte-exact to the child UTF-16 line; unit exe 292 checks; explode 12 frames rc=0 / lying engine rc=1 / multi-input refused rc=2 |
 | U-15 read-only + deleted-fallback repro | ✅ both halves executed (old FAIL / new PASS, uid 65534) |
 | `diff .github/workflows/build.yml docs/ci/build.yml.proposed` | ⏳ **differ on purpose** — the doc-gate step cannot be pushed without `workflows` scope; declared in `docs/ci/PENDING_WORKFLOW_CHANGE.md`. E9/G7 SKIP for declared drift, FAIL for undeclared |
-| GitHub Actions, S11 changes | ✅ final run `34677506828` on head `74091b7`: **linux success + windows success** (first run `34671814580` on `f655987` failed windows-only on the T7 path-separator assertion — fixed in `88e15ea`, itself green as run `34672175363`). Re-check the current tip before merging, not this row |
+| GitHub Actions, S11 changes | ✅ final run `34685470992` on head `635c986`: **linux success + windows success** (first run `34671814580` on `f655987` failed windows-only on the T7 path-separator assertion — fixed in `88e15ea`; heads `88e15ea`/`74091b7`/`635c986` all green). Re-check the current tip before merging, not this row |
 
 **Counts are stated by kind on purpose.** `grep -c 'CHECK('` counts **lines**;
 `grep -o 'CHECK(' | wc -l` counts **occurrences** (S11: harness **250**, unit
