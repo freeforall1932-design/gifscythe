@@ -692,7 +692,16 @@ These are not new findings — they are the reviewer's proposed remedies for row
 
 ---
 
-## 7. How to fold this in later (triaged, not done here)
+## 7. How to fold this in later (registration done, triage still not)
+
+**Registered in S14-follow-up, without triaging:** every finding below now has a `STATUS.md` row
+(state `UNTRIAGED`, under its `GS-`/`DS-` id) and a pending line in `WORKLIST.md`; the
+release-blocking subset is listed in `docs/release/RELEASE_PROCEDURE.md`; and the proposed
+sequencing (web-first split, with the product-direction decision it needs) is
+`docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md`. **No item is scheduled**: triage maps accepted
+findings into `COMPILED_AUDIT.md` §6 fix-order ids, and that has not happened.
+
+The steps below remain the route from here:
 
 1. **Decide first: are `GS-201`, `GS-202`, `GS-203`, `GS-208` release-blockers?** The reviewers
    rank GS-201 Critical and the others High; the register currently contains nothing for them.

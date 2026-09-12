@@ -30,8 +30,13 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
   branch — **linux + windows both green**, including the "Documentation status gate (STATUS.md
   register)" step that failed in run `34705247115`, and every Linux step that failure had skipped.
   The live `main` tip stays red until this branch lands.
-- **Not done, deliberately:** the 18 intake findings are **not** triaged into §5/`STATUS.md`; and
-  the workflow copy is not synced (needs a `workflows`-scoped token).
+- **Tasks placed in their documents:** the 18 findings are now `UNTRIAGED` rows in `STATUS.md`
+  (reviewers' ids), one pending line each in `WORKLIST.md`, release-blocking pointers in
+  `docs/release/RELEASE_PROCEDURE.md`, detail in `COMPILED_AUDIT.md` §13, and the proposed
+  sequencing in `docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md` (web-first split; needs the
+  owner's draft and one direction decision — the vision currently pins web as "demo only").
+- **Not done, deliberately:** **no triage** — nothing was mapped into §6 fix-order `U-nn` ids, so
+  nothing is scheduled; and the workflow copy is not synced (needs a `workflows`-scoped token).
 
 ## S13 follow-up
 
