@@ -22,8 +22,8 @@ two batches, each with executed proof** — including both release blockers:
 source file*, rc=0) and **U-02** (`package_portable.sh` exited 0 with no GUI in
 the folder). New `src/core/OutputPlan.h` + `OutputName.h`,
 `scripts/test_package.sh` (9 negative cases), and three web suites; unit suite
-at **238 checks, 0 failures** (S10); `verify_audit.sh` now **27 PASS / 0 FAIL /
-3 SKIP, exit 0** as measured in the S10 Qt6+cmake sandbox (E9 SKIPs while the
+at **293 checks, 0 failures** (S11); `verify_audit.sh` now **28 PASS / 0 FAIL /
+3 SKIP, exit 0** as measured in the S11 Qt6+cmake sandbox (E9 SKIPs while the
 CI workflow change awaits a `workflows`-scoped token —
 `docs/ci/PENDING_WORKFLOW_CHANGE.md`). See `docs/audit/REMEDIATION_2026-09-10.md`.
 **S9 (2026-09-10) added the status-tracking system:** `STATUS.md` is now the
@@ -35,10 +35,9 @@ process had missed (**N-01**: the pending-workflow marker outlived the change it
 described, leaving eight doc locations quoting the wrong gate count; **N-02**:
 `web/README.md` documented the pre-U-06 bind address). Remaining: clean-Windows
 desktop probes (C4/D3/D4, B5/B6/B14 — checklist in
-`docs/ci/CLEAN_WINDOWS_SMOKE.md`), the Windows-only findings (U-07/U-21 rule
-sets are implemented and unit-tested; U-07 is not), the release re-cut (U-09),
-the two-way-CLI decision, and the version decision (0.2.0 vs 1.0.0, owner's
-call). WebP/APNG deferred.
+`docs/ci/CLEAN_WINDOWS_SMOKE.md`), the release re-cut (U-09), the UI-thread
+waits (U-12, scoped as P1-24), the two-way-CLI decision, and the version
+decision (0.2.0 vs 1.0.0, owner's call). WebP/APNG deferred.
 **S10 (2026-09-11) closed 9 audit findings plus the untriaged N-03, with
 executed proof.** The S10 sandbox installed the full toolchain (cmake 3.25.1 +
 Qt 6.4.2 via apt), so for the first time since S7 the offscreen GUI harness was
@@ -53,7 +52,29 @@ screenshots were re-shot offscreen from the current UI and are now linked from
 this README. **R-01** closed by the local measurement. Suite counts this
 session: unit **238**, smoke **9/9**, web **15/15 + 19/19 + 18/18**, harness
 **306**. **Pushed:** branch `arena/s10-gifscythe`, **PR #13** open against
-`main`; CI on the PR is the first compilation of the S10 changes.
+`main`; CI on the PR is the first compilation of the S10 changes. PR #13
+merged as `2176573` (CI green on `9435d71`: linux + windows).
+**S11 (2026-09-12) closed 4 more findings plus provenance work, each with
+executed proof** — the sandbox again had the full toolchain (cmake + Qt 6.4.2
+via apt) **plus mingw-w64 and Wine 8**, which flipped U-07 from "needs a real
+Windows run" to executable here: **U-15** (CMake no longer writes into `src/`;
+template moved to `build_support/`, new gate C9 proves a build with the
+committed `version.h` deleted), **U-17** (explode runs verify their frames —
+`src/core/ExplodeVerify.h` snapshot-diff shared by CLI and GUI; a lying engine
+that exits 0 without writing is refused at every layer, under Wine too),
+**U-07** (`CreateProcessW` + `GetCommandLineW` argv re-fetch + UTF-8 env reads
++ `u8path_compat` at every string↔path boundary; Wine E2E: an `é`-path conf
+runs rc=0 where the old build fails rc=1, and CJK reaches the child's UTF-16
+command line byte-exact), **U-41** (web demo grew all four modes: mode
+selector + multi-file queue UI, `POST /run` JSON endpoint with desktop batch
+planning/collision refusal and explode frame verification), **U-10**'s
+provenance half (fresh upstream clone diffed: `reference_code/gifsicle` is
+byte-identical to `kohler/gifsicle@07f5c4c3` except the handwritten
+`config.h`; digests recorded in the manifest) and **U-12** scoped as P1-24
+(deliberately not refactored — the freeze is untestable offscreen). New
+finding **N-04** (MinGW's non-UTF-8 `fs::path` narrow conversions) found and
+closed in-session. Suite counts this session: unit **293**, smoke **12/12**,
+web **17 + 21 + 30**, harness **317**, `verify_audit.sh` **28/0/3**.
 **Direction (2026-09-09): offline-only, language stays C++17/Qt6 through 1.0.0**
 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 
@@ -139,8 +160,9 @@ gifscythe/                        (repo root)
    release (gates, packaging, publishing, post-publish verification).
 
 ## Versions
-The *product* version lives in `working_code/gifscythe/VERSION.md` and is synced
-into `src/core/version.h` by `build.sh` / CMake.  
+The *product* version lives in `working_code/gifscythe/VERSION.md`; `build.sh`
+syncs it into the committed `src/core/version.h` fallback, while CMake
+generates its own copy inside the build tree only (S11, audit U-15).  
 0.1.0 (now) → 1.0.0–1.9.9 (finished GIF product) → 2.0.0–3.0.0 (WebP + APNG).  
 **Never call it 1.0.0 until the UI/UX task is done.**
 
