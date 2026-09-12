@@ -731,9 +731,10 @@ of it status/documentation truth — **no application code, script, test or work
 | `docs/ci/PENDING_WORKFLOW_CHANGE.md` rewritten | it described a step that is already live; the real residual drift is one line | `docs/ci/PENDING_WORKFLOW_CHANGE.md` |
 | `SESSION_HANDOFF.md` header, `WORKLIST.md` U-06 tick and S14 sections | they claimed a green open PR #15 and DONE-level U-06 work | those files |
 
-**CI evidence for these corrections:** run `34707532582` at commit `ddc4194`
-(`arena/01a0968e-gifscythe`) — linux + windows green, including the documentation status gate that
-failed in run `34705247115`. The live `main` tip stays red until that branch lands.
+**CI evidence for these corrections:** branch run `34707532582` at commit `ddc4194`
+(`arena/01a0968e-gifscythe`) was linux + windows green, including the documentation status gate that
+failed in run `34705247115`. That branch is now **merged as PR #16 (`629135a`)**, and **`main` run
+`34709202307` is green on both jobs**.
 
 **Still open by design:** the 18 findings in §3/§4 remain untriaged (no `U-nn` rows, no
 `UNTRIAGED` rows); the live CI run is unchanged; and syncing `.github/workflows/build.yml` with

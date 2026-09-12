@@ -226,8 +226,9 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       Windows temp-path fallback line) instead of a step that is already live.
 - [x] **CI re-verified:** run `34707532582` at commit `ddc4194` on this branch — linux +
       windows green, including the documentation status gate that failed in run `34705247115`.
-- [ ] **`main` is still red** until this branch lands (the failing check is the one this branch
-      fixes).
+- [x] **Merged and green on main:** PR #16 merged as `629135a`; `main` run `34709202307` green on
+      linux + windows. The documentation gate that failed in run `34705247115` now passes on the
+      merged tip.
 
 ### Session S14 follow-up — tasks placed in their documents
 
