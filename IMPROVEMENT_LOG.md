@@ -45,6 +45,9 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 **Verified:**
 
+* **CI:** run `34707532582` at commit `ddc4194` on `arena/01a0968e-gifscythe` — **linux + windows
+  green**, including the "Documentation status gate (STATUS.md register)" step that failed on the
+  main tip in run `34705247115`.
 * `working_code/gifscythe/scripts/check_docs.sh` in this clone after
   `working_code/gifscythe/scripts/bootstrap_hooks.sh`: **20 passed, 0 failed, 3 skipped** (G6
   SKIPs — no cmake/Qt6 in this sandbox, so the full-toolchain total is not measurable here); the
