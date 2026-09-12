@@ -165,11 +165,14 @@ starting; the two stale `414f5fc` mentions (G10) were re-synced first.
   `applicationDirPath()` uses forward slashes, so the full-path `contains()`
   check for the lying-engine status could only pass on POSIX — every U-17
   behavioral assertion passed on Windows CI untouched. Fixed in `88e15ea`
-  by comparing the basename. **Verdict: run `34672175363` on `88e15ea` —
-  linux success (1m31s) + windows success (2m40s).** The windows job was the
-  first NATIVE compilation of the S11 Windows code (CreateProcessW, `_wopen`,
-  the splitter) and ran the extended harness green (317 checks). Merge
-  remains the owner's call (rule 3 re-applies before merge).
+  by comparing the basename. The N-05 fix + a wrapped README count claim
+  followed as `2f2eee6` / `74091b7`. **Final verdict: run `34677506828` on
+  `74091b7` — linux success (1m39s) + windows success (3m06s)**; the
+  intermediate head `88e15ea` was green too (run `34672175363`). The windows
+  job was the first NATIVE compilation of the S11 Windows code
+  (CreateProcessW, `_wopen`, the splitter) and ran the extended harness
+  green. PR #14 is fully green at its head; merge remains the owner's call
+  (rule 3 re-applies before merge).
 
 **Verified (run in this sandbox):**
 
