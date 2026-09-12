@@ -244,6 +244,21 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] **Release notes placed:** `docs/release/RELEASE_PROCEDURE.md` carries the open
       release-blocking pointers; `docs/ci/PENDING_WORKFLOW_CHANGE.md` carries the CI one.
 
+### Session S14 continuation (2026-09-12) — stale-claim sweep, PR preflight, owner-decision register (docs only)
+
+- [x] **Stale-claim sweep:** `scripts/sweep_stale.sh` (rules **S1–S5**, each mutation-tested) +
+      `check_docs.sh` gate **G17** — the sweep scans current-state docs for claims checkable only
+      against reality and names `file:line` + the fix. Its first real catches: two undated
+      "CI green" cells in `docs/planning/OFFLINE_BUILD_REVIEW.md` (now dated S6) and the U-06/U-08
+      narrative "FIXED (S8)" lines (now ◐ PARTIAL, matching §5).
+- [x] **PR/merge companion:** `scripts/pr_preflight.sh` (`--online`/`--body`) — P1 `check_docs.sh`,
+      P2 `sweep_stale.sh`, P3 clean-tree, P4 repo/run/PR state, P5 PR body skeleton.
+- [x] **Owner-decision register:** `docs/planning/OWNER_DECISIONS.md` — `OD-01`…`OD-15`, options +
+      recommendation + what each unblocks.
+- [x] **SkillOpt integration query:** `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` — verified
+      facts, the three non-negotiable conditions, four shapes, first-experiment candidate, open
+      questions; plus `docs/planning/NEXT_SESSION_PROMPT.md` for the copy-paste hand-off.
+
 ### Session S9 (2026-09-10) — status-tracking system
 - [x] **N-01** — the pending-workflow marker was left behind after the maintainer
       applied that change in `190d030`; every doc still quoted **23/0/5** while
@@ -385,6 +400,15 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       rules). On that commit do the **one-time flip** — `Template state:` here and the mirror line
       in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it) — then triage the 18 intake rows
       into `COMPILED_AUDIT.md` §6 fix-order ids.
+- [ ] **Owner answers** — `docs/planning/OWNER_DECISIONS.md` `OD-01`…`OD-15` (reply `OD-nn = a|b`).
+      **`OD-01`/`OD-02` first** (the release blockers); the rest are direction choices the plan can
+      proceed without.
+- [ ] **SkillOpt** — after `OD-15`, add microsoft/SkillOpt per
+      `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` (shape A pinned submodule, quarantined; the
+      three non-negotiable conditions apply), then register the doc-sweep skill experiment as its
+      own item.
+- [ ] **Push + PR** — push this branch and open the PR for the S14-continuation work (sweep,
+      preflight, register, query) via `scripts/pr_preflight.sh --online --body /tmp/pr_body.md`.
 
 1. **U-09** — re-cut release artifacts from the tagged SHA (the banked zip
    predates S7; its notes pin `d3544b1`). Needs a tag + `gh release` (and a

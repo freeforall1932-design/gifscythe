@@ -21,7 +21,7 @@ See `web/WEB_PLAN_TEMPLATE.md` §1.)*
 | Question | Answer |
 |---|---|
 | Offline-only feasible? | **Yes — already true today.** The desktop app shells out to a local `gifsicle` binary, stores nothing in the cloud, and packages to a single portable folder. Offline-only *removes* constraints (no server, no auto-update) rather than adding them. |
-| Best language to build on | **Stay with C++17 + Qt6 Widgets for 1.0.0.** It is already built, verified (143-check offscreen harness, Windows CI green), and natively plays animated GIF previews. If a future rewrite is wanted for a smaller/more-modern stack, **Rust + Tauri** is the best alternative — at the cost of bundling a WebView2 runtime for truly portable offline Windows. |
+| Best language to build on | **Stay with C++17 + Qt6 Widgets for 1.0.0.** It is already built, verified (143-check offscreen harness, green in S6), and natively plays animated GIF previews. If a future rewrite is wanted for a smaller/more-modern stack, **Rust + Tauri** is the best alternative — at the cost of bundling a WebView2 runtime for truly portable offline Windows. |
 | Plan | Finish 1.0.0 on the current stack; treat any language migration as a *separate, later* decision with an explicit rewrite-cost budget. |
 
 ---
@@ -52,7 +52,7 @@ Criteria, weighted for a portable offline GIF tool that shells out to a C engine
 
 | Criterion (weight) | C++17 + Qt6 Widgets | Rust + Tauri | Go + Wails | Electron | Flutter | Python + PySide6 |
 |---|---|---|---|---|---|---|
-| Already implemented (×3) | **10** (done, CI green) | 2 (rewrite) | 2 (rewrite) | 3 (reuses web POC JS) | 1 (rewrite) | 4 (rewrite, slower) |
+| Already implemented (×3) | **10** (as of S6) | 2 (rewrite) | 2 (rewrite) | 3 (reuses web POC JS) | 1 (rewrite) | 4 (rewrite, slower) |
 | Portable/no-installer Windows (×3) | **9** (windeployqt folder) | 7 (needs WebView2 runtime) | 7 (needs WebView2 runtime) | **10** (bundles Chromium) | 8 | 5 (PyInstaller fragile) |
 | Animated-GIF before/after preview (×2) | **9** (QMovie, native) | 6 (browser `<img>`, fine) | 6 (WebView2) | **9** (browser) | 5 (plugin needed) | 6 (QMovie via Qt) |
 | Subprocess engine + GPL boundary (×3) | **10** (QProcess argv) | 9 (`std::process`) | 9 (`os/exec`) | 8 (`child_process`) | 7 | 8 |
