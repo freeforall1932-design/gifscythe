@@ -6,7 +6,9 @@ recommended answer, and what the answer unblocks. **No work items live here**
 — once an answer lands, the corresponding `STATUS.md` / `WORKLIST.md` / plan
 entry is updated, not this file.
 
-**How to answer.** Reply in the form `OD-nn = a` (or `OD-nn = b`). Multiple
+**How to answer.** Reply in the form `OD-nn = <letter>`, using one of the letters
+in that row's own **Options** cell — most rows offer `a`/`b`, but `OD-15` runs
+`a`–`d`, so a fixed `a|b` form cannot express a real answer to it. Multiple
 answers are fine; `OD-14` has two sub-questions and needs both.
 
 | ID | Question | Options | Recommended | Unblocks |

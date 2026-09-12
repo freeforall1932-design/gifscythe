@@ -400,7 +400,8 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       rules). On that commit do the **one-time flip** — `Template state:` here and the mirror line
       in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it) — then triage the 18 intake rows
       into `COMPILED_AUDIT.md` §6 fix-order ids.
-- [ ] **Owner answers** — `docs/planning/OWNER_DECISIONS.md` `OD-01`…`OD-15` (reply `OD-nn = a|b`).
+- [ ] **Owner answers** — `docs/planning/OWNER_DECISIONS.md` `OD-01`…`OD-15` (reply `OD-nn = <letter>`,
+      from that row's own options; `OD-15` runs `a`–`d`).
       **`OD-01`/`OD-02` first** (the release blockers); the rest are direction choices the plan can
       proceed without.
 - [ ] **SkillOpt** — after `OD-15`, add microsoft/SkillOpt per

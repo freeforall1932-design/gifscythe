@@ -59,6 +59,54 @@ Chronological log of decisions and changes. **Newest at the top.**
 `34713398377` is green on linux + windows** (the branch's PR run `34713246313` was green on both
 jobs first).
 
+**Post-merge sync (branch `arena/01a09712-gifscythe`, staged on disk, not pushed).** PR #19
+recorded PR #18's merge but could not record its own, so the handoff header was one merge stale;
+it now names **PR #19 merged as `43e3f96`** and **`main` run `34713800552` on `43e3f96`, `success`
+on linux + windows** (both re-read from the GitHub API, not from memory). Two stale claims found
+while re-running the previous session's verification script are corrected here: the
+`SESSION_HANDOFF.md` TL;DR still quoted the S13 tally (`80/3/17/0`, `100 total`) while
+`STATUS.md`'s generated counts line reads `80/5/17/18`, `120 total` — it is corrected and put on
+one line so sweep rule **S2** (which only matches single-line four-cell tallies) now covers it; and
+`COMPILED_AUDIT.md` §13 gained the automation note it was missing. This entry is filed inside the
+S14-continuation entry rather than as `## S15` because gate **G12** fails on any new session
+heading while the 18 intake rows are still `UNTRIAGED` since S14 — measured, not assumed: a
+temporary `## S15` heading produced `20 passed, 2 failed` before being reverted.
+
+**Owner's pre-rebuild patch, adjudicated hunk by hunk (not applied wholesale).** The owner supplied
+the patch S14-continuation was *supposed* to produce, from the session that closed before pushing.
+It is **not self-contained**: its prose documents creating five artefacts — `sweep_stale.sh`,
+`pr_preflight.sh`, `OWNER_DECISIONS.md`, `SKILLOPT_INTEGRATION_QUERY.md`, `NEXT_SESSION_PROMPT.md`
+(10/9/8/8/2 mentions) — and it contains **no `diff --git` header for any of them**. Its
+`check_docs.sh` hunk adds a gate whose first act is `bad "G17" "scripts/sweep_stale.sh missing or
+not executable"`, so applying the patch alone installs a gate that fails at once on a script the
+patch never ships. It was therefore never the byte-exact fallback its covering note claimed.
+Separately, `git apply --check` rejects it on 5 of its 9 files (`COMPILED_AUDIT.md`, `README.md`,
+`SESSION_HANDOFF.md`, `STATUS.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`) — though that is a
+strict-apply result: GNU `patch` accepts three more hunks *with fuzz*, including the
+`README.md` duplicate-numbering bug and the obsolete ⚠️ block, so the per-hunk reasoning below is
+what carries the decision, not the file-level reject. All 4 files where it *does* apply were also
+left unapplied — 3 because applying them would reintroduce falsehoods or duplicates, and
+`docs/ci/README.md` because the merged text already covers G16/G17 more precisely (it names the
+three run sites and the one-line workflow drift). Its `IMPROVEMENT_LOG.md` and
+`WORKLIST.md` hunks both describe the work as *"local commits, not pushed"* / *"a fresh session
+must push them"* (it was pushed as PR #18 and merged); and its `check_docs.sh` hunk inserts a
+**second gate G17** immediately after the existing one — verified by applying it to a scratch copy:
+`G17` occurrences 3 → 6, with two `ok "G17"` lines at 1029 and 1051, so the sweep would run twice
+per gate and the pass total would stop meaning anything. Adopted instead:
+the patch's *placement* for the §13 automation note (before **Task registration**, where it belongs
+in the reading order) merged with the corrected wording; its OD/SkillOpt pointer sentence; its
+"Do not vendor anything before that answer" guardrail on `OD-15`; and its naming of what
+`OD-01`/`OD-02` actually are, which the merged handoff only called "release blockers".
+Rejected as buggy: its `README.md`
+hunk numbers two list items `6.`; its `WORKLIST.md` hunk points at SkillOpt query "§6" for the
+ordered task list when §6 is the constraints list and §7 is the task list; and its handoff line
+claims "all 35 narrative status lines match the 52 register rows" — this file has **44** narrative
+`**Status:**` lines and 52 register rows, so the count was already wrong when written. One real
+defect the patch exposed and this sync fixes: the answer format was recorded as `OD-nn = a|b` in
+three places while `OD-15` has four options `a`–`d`, so no literal `a|b` reply could answer it —
+now `OD-nn = <letter>` in `SESSION_HANDOFF.md`, `WORKLIST.md` and
+`docs/planning/OWNER_DECISIONS.md`.
+
 **Not verifiable here:**
 
 * Windows/macOS desktop behaviour (unchanged this session) and the intake's destructive
