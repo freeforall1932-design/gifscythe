@@ -107,6 +107,40 @@ three places while `OD-15` has four options `a`–`d`, so no literal `a|b` reply
 now `OD-nn = <letter>` in `SESSION_HANDOFF.md`, `WORKLIST.md` and
 `docs/planning/OWNER_DECISIONS.md`.
 
+**Two dead gate checks repaired (owner-authorized).** Neither was working:
+
+* **G10 was matching nothing.** Its regex recognised `based on|base commit|base of|branched from|
+  merge of PR #n` but not the handoff's `**Base:**` header form. Run over every tracked `.md`, the
+  old regex hit **0 files** — the gate had passed vacuously since PR #16 rewrote the header from
+  "based on `main` commit …" to `**Base:** \`main\` …`, i.e. through PRs #16–#20. The alternation
+  now also matches `**Base:**` / `**Based on …:**` and is case-insensitive. Mutation-tested:
+  injecting base `2176573` now gives `FAIL [G10] stale base commit - SESSION_HANDOFF.md names base
+  2176573`; before the fix the same injection passed.
+* **S2 exempted wrapped tallies "by design".** The exemption is how `SESSION_HANDOFF.md` kept
+  quoting `80/3/17/0, 100 total` through PRs #16–#19. Each doc is now flattened before matching
+  with a **bounded** gap (`<=40` non-digit chars) between cells, so a tally split over two lines is
+  caught but a match cannot pair unrelated numbers across paragraphs; the trailing `<n> total` cell
+  is checked too. Mutation-tested three ways: wrapped stale tally → FAIL; correct cells with a wrong
+  total → FAIL; four correct-looking cells placed >40 chars apart → still PASS (no false positive).
+
+**Owner decisions `OD-01 = a` and `OD-02 = a` recorded** in
+`docs/planning/OWNER_DECISIONS.md`, with the count error corrected on the way: the option text said
+"the 5 release-blockers" and the old recommendation named `GS-201`…`GS-204`, but
+`docs/release/RELEASE_PROCEDURE.md` lists **6** open blockers of which only **4** are untriaged
+intake (`GS-201`, `GS-204`, `GS-208`, `DS-06`). `OD-01`'s recommended **(b) was also mechanically
+impossible** — G12 fails if *any* UNTRIAGED row outlives its session, so triaging only the blockers
+would still block a new session entry. Both answers are recorded, **not executed**; the 18-row
+triage and the `GS-201` code fix are the next session's first two tasks.
+
+**Handoff header re-based on what a session can actually know.** It no longer asserts its own
+merge sha, its own run ids, or "not yet pushed" — all of which are unknowable at write time and
+went stale within one commit (the previous version cited runs `34717833397`/`34717874740` for
+`4c6311e` while the tip was already `7f8ce8d`). It now carries the session, the branch, the PR
+number once `gh pr create` returns it, the last merge, and one base sha that G10 checks. A new
+**append-only PR ledger** replaces the prose "PR #17 was the previous merge" sentences: one row per
+PR with its branch, merge sha and one-line summary, so a skipped or closed PR is visible (**#3** and
+**#9** were closed without merging) and "what did PR #12 do" has an answer without `gh`.
+
 **Not verifiable here:**
 
 * Windows/macOS desktop behaviour (unchanged this session) and the intake's destructive
