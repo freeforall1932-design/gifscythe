@@ -53,13 +53,17 @@ Chronological log of decisions and changes. **Newest at the top.**
   corrections above; each of S1–S5 re-checked by injecting the staleness and confirming the rule
   fails.
 * `working_code/gifscythe/scripts/pr_preflight.sh` — offline run: P1/P2/P3 PASS, P4/P5 SKIP
-  (no `--online`/`--body`), exit 0.
+  (no `--online`/`--body`), exit 0; `--online --body /tmp/pr_body.md` at PR time: P1–P5 all PASS.
+
+**Merged:** PR #18 (`arena/01a096ec-gifscythe` → `main`) merged as `e32ed28`; **`main` run
+`34713398377` is green on linux + windows** (the branch's PR run `34713246313` was green on both
+jobs first).
 
 **Not verifiable here:**
 
-* GitHub Actions job runs for this branch (no CI is triggered from this sandbox until the PR is
-  opened) and any `--online` `gh` output — the repo/run/PR values must be read from
-  `scripts/pr_preflight.sh --online` at PR time, never from memory.
+* Windows/macOS desktop behaviour (unchanged this session) and the intake's destructive
+  reproductions (deliberately not executed). Everything else above is measured in this sandbox or
+  read from the GitHub Actions runs named in **Merged**.
 
 **Docs touched:** `STATUS.md` (SW-01/SW-02 + re-emitted counts), `COMPILED_AUDIT.md` (U-06/U-08
 narrative), `SESSION_HANDOFF.md`, `WORKLIST.md`, `README.md`, `docs/ci/README.md`,

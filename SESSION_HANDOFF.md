@@ -1,10 +1,9 @@
 # Session Handoff
 
-**Date:** 2026-09-12 (session S14) · **Branch:** `arena/01a0968e-gifscythe` (its work merged)
-**Base:** `main` `2d51347` → **PR #16 merged as `629135a`** · **PR #15** was the previous merge
-(its head run `34704221643` green; the post-merge `main` run `34705247115` was **RED** at the Linux
-documentation status gate — fixed by PR #16; **`main` run `34709202307` on `629135a` is GREEN on
-linux + windows**) ·
+**Date:** 2026-09-12 (session S14 continuation) · **Branch:** `arena/01a096ec-gifscythe` (its work merged)
+**Base:** `main` `75b73a5` → **PR #18 merged as `e32ed28`** · **PR #17** was the previous merge
+(**`main` run `34709536321` green on linux + windows); **`main` run `34713398377` on `e32ed28` is
+GREEN on linux + windows** ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
