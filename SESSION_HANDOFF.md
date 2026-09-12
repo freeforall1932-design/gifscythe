@@ -1,10 +1,53 @@
 # Session Handoff
 
-**Date:** 2026-09-12 (session S13) · **Branch:** `arena/01a0950f-gifscythe`
-(pushed; **PR #15** open against `main`, CI green on commit `c105f3c` — run
-`34704221643`, Linux + Windows) → based on merged `main` `53a6eda` (the PR
-#14 merge) ·
-**Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending)
+**Date:** 2026-09-12 (session S14) · **Branch:** `arena/01a0968e-gifscythe`
+**Base:** `main` `2d51347` · **PR #15 is MERGED** (its head run `34704221643` was green on
+Linux + Windows; the **post-merge `main` run `34705247115` is RED** — Linux documentation status
+gate failed, Windows passed, every later Linux step skipped) ·
+**Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
+**Web plan template:** SKELETON
+*(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
+owner's draft is refitted into that template's slots — move both lines in the same commit, gate
+**G16** compares them)*
+
+## S14 — External reviews compiled for review; stale status claims corrected (docs only)
+
+**No code was changed and no intake finding was remediated.** 18 findings from three external
+reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
+`docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`, by owner instruction (compile, do not fix yet).
+
+- **Intake:** Max/GPT-class `GS-201…GS-210` (1 Critical / 4 High / 4 Medium / 1 Low: CLI batch
+  in-place overwrite, web `/run` path-from-upload-name, missing output verification, packaging,
+  input admission, numeric domains, `GS_ENGINE` fallback, red main, native config, build options);
+  DeepSeek's `DS-06…DS-13` (renamed from its own `N-06…N-13`, which collided with this repo's
+  existing N-series); the Gemini deployment served an empty page, so it contributed nothing.
+- **Corrections made because verification proved the docs false:**
+  `COMPILED_AUDIT.md` header named a stale base (`2176573`) — the gate **G10** failure; 35
+  narrative §2/§3/§4 status lines still read OPEN for items §5 marks fixed — they now cite their
+  §5 row, with the original wording kept after *"Original report:"*; **U-06** and **U-08**
+  corrected **DONE → PARTIAL** (U-06: loopback bind landed, but the concurrency cap / rate limit /
+  engine-run bound named in the finding are still missing; U-08: silent-skip closed, but the
+  licence set itself is still incomplete — no full GPLv3 text, no Qt LGPL notices staged);
+  `docs/ci/PENDING_WORKFLOW_CHANGE.md` rewritten to describe the drift that actually remains; the
+  WORKLIST U-06 tick unticked.
+- **CI re-verified after these corrections:** run `34707532582` at commit `ddc4194` on this
+  branch — **linux + windows both green**, including the "Documentation status gate (STATUS.md
+  register)" step that failed in run `34705247115`, and every Linux step that failure had skipped.
+  The live `main` tip stays red until this branch lands.
+- **Tasks placed in their documents:** the 18 findings are now `UNTRIAGED` rows in `STATUS.md`
+  (reviewers' ids), one pending line each in `WORKLIST.md`, release-blocking pointers in
+  `docs/release/RELEASE_PROCEDURE.md`, detail in `COMPILED_AUDIT.md` §13, and the sequencing +
+  split rules in `web/WEB_PLAN_TEMPLATE.md` (parked in `web/` as a template so the owner's draft
+  can be refitted into it).
+- **Direction decision (owner, S14):** the `web/` build is now a **supported product surface** — a
+  self-hosted alternative to the `.exe`/portable build (offline-only / no-cloud promise unchanged).
+  Recorded in `PROJECT_VISION.md`, `WORKLIST.md` direction decisions, `STATUS.md` (D-07 re-scoped)
+  and `web/WEB_PLAN_TEMPLATE.md` §1.
+- **Template state is tracked, once:** the template's `**Template state:** SKELETON` line is
+  mirrored right above in this header, and **gate G16** fails if they disagree — so flipping to
+  `WORKING PLAN` on the refit commit cannot be half-applied or silently reversed.
+- **Not done, deliberately:** **no triage** — nothing was mapped into §6 fix-order `U-nn` ids, so
+  nothing is scheduled; and the workflow copy is not synced (needs a `workflows`-scoped token).
 
 ## S13 follow-up
 
@@ -144,9 +187,10 @@
    — `workflows` scope). U-18/P2-4 regression coverage is DONE in S12.
    W-30 waits on the same `workflows`-scoped maintainer action.
 
-5. **Direction unchanged:** offline-only; C++17 + Qt6 Widgets through 1.0.0;
-   `web/` is a demo/parity harness only (see
-   `docs/planning/OFFLINE_BUILD_REVIEW.md`).
+5. **Direction (amended S14):** offline-only; C++17 + Qt6 Widgets through 1.0.0; the `web/`
+   build is a **supported, self-hosted product alternative** to the `.exe`/portable build (owner
+   decision 2026-09-12) — see `web/WEB_PLAN_TEMPLATE.md` §1 and
+   `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 
 6. **Naming policy in force:** *Gifscythe* = product; *gifsicle* = upstream
    engine only. Engine script: `scripts/build_engine.sh` (the
@@ -220,9 +264,10 @@ only stick if they are in files a new session reads, not in a conversation.
   (verify_audit gate B builds both targets).
 - Extend `tests/test_gui_offscreen.cpp` with every GUI feature (regression
   net). S10 added T18/T19/T20, S11 extended T7 — keep that habit.
-- Offline-only — no server, no auto-update, no telemetry; `web/` is a demo.
-  Its `/run` endpoint keeps the desktop honesty rules (planned targets,
-  collision refusal, output verification) — do not fork the semantics.
+- Offline-only — no cloud service, no auto-update, no telemetry. The `web/` app is
+  **self-hosted** (loopback by default) and is a supported product alternative since S14. Its
+  `/run` endpoint keeps the desktop honesty rules (planned targets, collision refusal, output
+  verification) — do not fork the semantics.
 - Language stays C++17/Qt6 through 1.0.0 (see offline review triggers).
 - **REMOVED (S7):** the `scripts/build_gifsicle.sh` shim is gone. Do not
   reintroduce it.
@@ -323,11 +368,11 @@ section of this file.**
 | `docs/audit/CONSOLIDATED_AUDIT_2026-09-10.md` · `FIX_PICK_2026-09-10.md` · `POST_S7_AUDIT.md` | Dated audit snapshots — excluded from `check_docs.sh` by policy |
 | `docs/release/RELEASE_PROCEDURE.md` | How to cut snapshots/releases, incl. the doc gate |
 | `docs/planning/OFFLINE_BUILD_REVIEW.md` | Offline feasibility + language choice + phased plan |
-| `docs/web/WEB_FEASIBILITY.md` | Web-run review (Option 3 demo exists; Option 4 = future) |
+| `docs/web/WEB_FEASIBILITY.md` | Web-run review (Option 3 = the chosen web app; Option 4 = optional) — conclusion superseded by S14 |
 | `docs/ci/README.md` · `docs/ci/PENDING_WORKFLOW_CHANGE.md` · `docs/ci/CLEAN_WINDOWS_SMOKE.md` | CI workflow status, the blocked workflow change, and the C4/D3/D4 clean-Windows checklist |
 | `docs/screenshots/README.md` | S10 re-shoot recipe + what each shot shows (S11 changed no desktop-visible UI, so they remain current); linked from the root README |
 | `docs/archive/` | The two dated review snapshots (historical line refs kept) |
-| `web/` | Server-side web POC: `/optimize` (legacy single-file) + `/run` (all four modes, S11) + 3 parity/transport suites (demo only, not the product path) |
+| `web/` | Web app (**product alternative since S14**): `/optimize` (legacy single-file) + `/run` (all four modes, S11) + 3 parity/transport suites. Plan template + split rules: `web/WEB_PLAN_TEMPLATE.md` |
 | `working_code/gifscythe/VERSION.md` | Version source of truth → committed `src/core/version.h` fallback (build.sh) + build-tree copy (CMake, from `build_support/version.h.in`) |
 
 ## Prior-session history (S4/S4b/S5/S6/S7/S8/S9/S10)

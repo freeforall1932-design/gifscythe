@@ -10,6 +10,9 @@ This review answers three questions:
 
 It supersedes the "web" thread from `docs/web/WEB_FEASIBILITY.md` for the
 **product** direction: the web server build is a demo, not the offline path.
+*(Superseded 2026-09-12, S14: the owner made the web server build a supported, self-hosted
+product alternative to the desktop/portable build — the desktop/offline path above is unchanged.
+See `web/WEB_PLAN_TEMPLATE.md` §1.)*
 
 ---
 
@@ -36,7 +39,7 @@ Implications of "offline-only":
 
 | Implication | Effect |
 |---|---|
-| No server, no cloud | The `web/` server-side POC (`docs/web/WEB_FEASIBILITY.md` Option 3) is **not** the product path. It remains a demo/parity harness only. |
+| No server, no cloud | The `web/` server-side build (`docs/web/WEB_FEASIBILITY.md` Option 3) was **not** the product path; the S14 owner decision makes it a supported, **self-hosted** product alternative (still no cloud service — the offline-only promise stands). See `web/WEB_PLAN_TEMPLATE.md` §1. |
 | No auto-update | The Phase-3 "auto-update flow" bucket item drops out; releases are downloaded manually (already the model — portable folder + GitHub artifacts/Release). |
 | Everything local | Engine, settings, previews, temp files are all local (already true). One gap: **the GUI does not yet persist settings between sessions** (see §6). |
 | Preview must not phone home | `QMovie` plays the local file — no network. ✅ |
@@ -146,8 +149,9 @@ the migration. Do **not** fold this into 1.0.0.
   `Settings` between sessions. For an offline desktop app this is the most
   visible missing "remember me" feature. → add to Phase 1 (item 4).
 - **No icon/logo** yet (`assets/` is empty) — cosmetic, pre-1.0.0.
-- **The `web/` server POC is now explicitly a demo**, not the product path;
-  keep it only as a command-layer parity harness (or drop it once superseded).
+- **The `web/` server POC was scoped as a demo**, not the product path *(superseded 2026-09-12,
+  S14: the owner made the web build a supported, self-hosted product surface — see
+  `web/WEB_PLAN_TEMPLATE.md` §1)*; it stays as the browser UI and command-layer parity harness.
 - The two dated review snapshots (now `docs/archive/gifscythe-comprehensive-review.md`
   and `docs/archive/gifscythe-final-code-review.md`) still reference
   `scripts/build_gifsicle.sh`;
