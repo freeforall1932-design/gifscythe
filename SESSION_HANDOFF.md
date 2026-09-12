@@ -1,9 +1,10 @@
 # Session Handoff
 
-**Date:** 2026-09-12 (session S14) · **Branch:** `arena/01a0968e-gifscythe`
-**Base:** `main` `2d51347` · **PR #15 is MERGED** (its head run `34704221643` was green on
-Linux + Windows; the **post-merge `main` run `34705247115` is RED** — Linux documentation status
-gate failed, Windows passed, every later Linux step skipped) ·
+**Date:** 2026-09-12 (session S14) · **Branch:** `arena/01a0968e-gifscythe` (its work merged)
+**Base:** `main` `2d51347` → **PR #16 merged as `629135a`** · **PR #15** was the previous merge
+(its head run `34704221643` green; the post-merge `main` run `34705247115` was **RED** at the Linux
+documentation status gate — fixed by PR #16; **`main` run `34709202307` on `629135a` is GREEN on
+linux + windows**) ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
@@ -30,10 +31,11 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
   licence set itself is still incomplete — no full GPLv3 text, no Qt LGPL notices staged);
   `docs/ci/PENDING_WORKFLOW_CHANGE.md` rewritten to describe the drift that actually remains; the
   WORKLIST U-06 tick unticked.
-- **CI re-verified after these corrections:** run `34707532582` at commit `ddc4194` on this
-  branch — **linux + windows both green**, including the "Documentation status gate (STATUS.md
-  register)" step that failed in run `34705247115`, and every Linux step that failure had skipped.
-  The live `main` tip stays red until this branch lands.
+- **CI re-verified and merged:** branch runs `34707532582` (`ddc4194`) and later were green on
+  both jobs, including the "Documentation status gate (STATUS.md register)" step that failed in
+  run `34705247115` and every Linux step that failure had skipped. **PR #16 merged as `629135a`;
+  `main` run `34709202307` is GREEN on linux + windows** — the documentation gate now passes on
+  the merged tip.
 - **Tasks placed in their documents:** the 18 findings are now `UNTRIAGED` rows in `STATUS.md`
   (reviewers' ids), one pending line each in `WORKLIST.md`, release-blocking pointers in
   `docs/release/RELEASE_PROCEDURE.md`, detail in `COMPILED_AUDIT.md` §13, and the sequencing +

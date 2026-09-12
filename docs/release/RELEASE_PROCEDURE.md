@@ -14,9 +14,10 @@ anything done without evidence).
 
 ## Open release-blocking items (as of 2026-09-12, session S14)
 
-**Current `main` is release-red** — run `34705247115` failed the Linux documentation status gate
-(docs corrected on `arena/01a0968e-gifscythe`, branch run `34707532582` green; merge outstanding).
-Do not cut a release until the items below are closed or explicitly waived by the owner.
+**`main` is green again** — run `34709202307` on merge commit `629135a` passes both jobs (the
+Linux documentation gate that failed in run `34705247115` is fixed). Release is still **blocked by
+the items below**, not by CI. Do not cut a release until they are closed or explicitly waived by
+the owner.
 
 | Item | Why it blocks | Where the task lives |
 |---|---|---|

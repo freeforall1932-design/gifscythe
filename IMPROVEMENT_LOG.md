@@ -19,7 +19,8 @@ Chronological log of decisions and changes. **Newest at the top.**
   `COMPILED_AUDIT.md` header named base `2176573` (the failing **G10** check) — it now names
   `main` `2d51347`; 35 narrative `**Status:**` lines in §2/§3/§4 still read OPEN for items the §5
   register marks fixed — each now cites its §5 row and the audit as filed follows after
-  *"Original report:"*; the header carries a current-state banner (main is release-red).
+  *"Original report:"*; the header carries a current-state banner (main was release-red at
+  `2d51347`; fixed by this session's PR #16).
 * **Two register states corrected DONE → PARTIAL** (with the missing half named):
   **U-06** — loopback bind landed, but the concurrency cap, per-client rate limit and engine-run
   bound named in the finding are still missing; **U-08** — the silent-skip is closed (both
@@ -56,8 +57,12 @@ Chronological log of decisions and changes. **Newest at the top.**
 **Left:**
 
 * The 18 intake findings are untriaged (review requested first): `COMPILED_AUDIT.md` §13.
-* Live `main` is still red until the next push re-runs CI; the workflow copy still differs from
+* The workflow copy still differs from
   `.github/workflows/build.yml` (applying it needs a `workflows`-scoped token).
+
+**Merged:** PR #16 (`arena/01a0968e-gifscythe` → `main`) merged as `629135a`; **`main` run
+`34709202307` is green on linux + windows**, clearing the documentation-gate failure recorded in
+`GS-208` (the stale base-commit line this session corrected).
 
 **Verified:**
 
