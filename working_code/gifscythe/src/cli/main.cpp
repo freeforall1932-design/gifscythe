@@ -16,7 +16,9 @@
 #include "../core/ProcessRunner.h"
 #include "../core/Validate.h"
 #include "../core/OutputPlan.h"
-#include "../core/version.h"
+#include "../core/ExplodeVerify.h"
+#include "../core/WinUnicode.h"
+#include "core/version.h"  // path form: resolves generated-first under CMake (U-15), src/ fallback under build.sh
 
 #include <cstdarg>
 #include <cstdio>
@@ -47,8 +49,9 @@ void print_usage(const char* argv0, std::FILE* to) {
   std::fprintf(to, "                proceeds anyway (the GUI refuses instead); pass\n");
   std::fprintf(to, "                --strict to make the CLI refuse like the GUI does.\n");
   std::fprintf(to, "                An UNSAFE output target is always refused with exit\n");
-  std::fprintf(to, "                code 2. Exit codes: 0 ok, 1 engine/path failure,\n");
-  std::fprintf(to, "                2 usage or unsafe target, 3 --strict refusal.\n");
+  std::fprintf(to, "                code 2. Exit codes: 0 ok, 1 engine/path/output\n");
+  std::fprintf(to, "                verification failure, 2 usage or unsafe target,\n");
+  std::fprintf(to, "                3 --strict refusal.\n");
   std::fprintf(to, "  GS_ENGINE env: override default engine path.\n");
   std::fprintf(to, "  Gifscythe %s\n", GS_VERSION);
 }
@@ -66,11 +69,15 @@ bool read_file(const fs::path& path, std::string* out) {
 std::string expand_home(const std::string& p) {
   if (p.empty() || p[0] != '~') return p;
   if (p.size() > 1 && p[1] != '/' && p[1] != '\\') return p;  // ~user not expanded
-  const char* home = std::getenv("HOME");
+  // U-07: env values are UTF-8 by contract; std::getenv would hand back ACP
+  // bytes for a non-ASCII profile path on Windows.
+  const std::string home_s = gs::env_utf8("HOME");
+  const char* home = home_s.c_str();
 #ifdef _WIN32
-  if (!home) home = std::getenv("USERPROFILE");
+  const std::string profile = home_s.empty() ? gs::env_utf8("USERPROFILE") : std::string();
+  if (!*home) home = profile.c_str();
 #endif
-  if (!home) return p;
+  if (!home || !*home) return p;
   if (p.size() == 1) return home;
   return std::string(home) + p.substr(1);
 }
@@ -79,20 +86,20 @@ std::string expand_home(const std::string& p) {
 std::string resolve_path(const std::string& p, const fs::path& base_dir) {
   if (p.empty()) return p;
   std::string expanded = expand_home(p);
-  fs::path path(expanded);
-  if (path.is_absolute()) return path.string();
+  fs::path path = gs::u8path_compat(expanded);
+  if (path.is_absolute()) return gs::path_u8string(path);
 
   fs::path candidate = base_dir / path;
   std::error_code ec;
-  if (fs::exists(candidate, ec)) return fs::weakly_canonical(candidate, ec).string();
-  if (fs::exists(path, ec)) return fs::weakly_canonical(path, ec).string();
+  if (fs::exists(candidate, ec)) return gs::path_u8string(fs::weakly_canonical(candidate, ec));
+  if (fs::exists(path, ec)) return gs::path_u8string(fs::weakly_canonical(path, ec));
   // Prefer the base-anchored form even if it doesn't exist yet (for outputs).
-  return candidate.string();
+  return gs::path_u8string(candidate);
 }
 
 fs::path exe_path_of(const char* argv0) {
   std::error_code ec;
-  fs::path p(argv0);
+  fs::path p = gs::u8path_compat(argv0);
   if (p.is_absolute()) return p;
   // Try PATH lookup roughly: if relative and exists from CWD, use that.
   if (fs::exists(p, ec)) return fs::absolute(p, ec);
@@ -102,6 +109,21 @@ fs::path exe_path_of(const char* argv0) {
 }  // namespace
 
 int main(int argc, char** argv) {
+#ifdef _WIN32
+  // Audit U-07 (P1-4): MinGW's CRT encodes main()'s argv in the ANSI code
+  // page, so any non-ASCII path was mangled before this program saw it.
+  // Re-fetch the exact UTF-16 command line and split it per MSVCRT rules into
+  // UTF-8 — the internal encoding contract of this codebase (WinUnicode.h).
+  const std::vector<std::string> win_argv = gs::win_argv_utf8();
+  std::vector<char*> win_ptrs;
+  win_ptrs.reserve(win_argv.size() + 1);
+  for (const auto& a : win_argv) win_ptrs.push_back(const_cast<char*>(a.c_str()));
+  win_ptrs.push_back(nullptr);
+  if (!win_argv.empty()) {
+    argc = static_cast<int>(win_argv.size());
+    argv = win_ptrs.data();
+  }
+#endif
   if (argc < 2) {
     print_usage(argv[0], stdout);
     return 2;
@@ -154,7 +176,7 @@ int main(int argc, char** argv) {
 
   // Absolutize the settings path so everything is CWD-independent.
   std::error_code ec;
-  fs::path settings_path = fs::absolute(expand_home(settings_arg), ec);
+  fs::path settings_path = fs::absolute(gs::u8path_compat(expand_home(settings_arg)), ec);
   if (ec) {
     std::fprintf(stderr, "ERROR: cannot resolve settings path '%s'\n", settings_arg.c_str());
     return 1;
@@ -205,7 +227,7 @@ int main(int argc, char** argv) {
   if (!engine_override.empty()) {
     engine_path = resolve_path(engine_override, fs::current_path(ec));
   } else {
-    engine_path = gs::locate_engine(exe_path_of(argv[0]).string());
+    engine_path = gs::locate_engine(gs::path_u8string(exe_path_of(argv[0])));
   }
 
   // ---- stdout purity (audit U-04) ----
@@ -255,7 +277,7 @@ int main(int argc, char** argv) {
   }
 
   // Pre-flight: engine must exist.
-  if (!gs::path_is_executable(engine_path)) {
+  if (!gs::path_is_executable(gs::u8path_compat(engine_path))) {
     std::fprintf(stderr, "ERROR: engine not found%s%s\n",
                  engine_path.empty() ? "" : " at ", engine_path.c_str());
     std::fprintf(stderr, "       Searched GS_ENGINE, the folders next to this executable,\n");
@@ -271,8 +293,35 @@ int main(int argc, char** argv) {
   const auto& args = cmd.args();
   full_argv.insert(full_argv.end(), args.begin(), args.end());
 
+  // ---- Explode frame verification (audit U-17 / P1-19) ----
+  // rc=0 alone used to mean success even when NOT A SINGLE frame was written.
+  // Snapshot the prefix candidates BEFORE the run so leftovers from an earlier
+  // run cannot fake it, then require at least one new/changed real GIF after.
+  std::vector<gs::ExplodeFileState> explode_before;
+  std::string explode_prefix;
+  if (s.mode == gs::Mode::Explode) {
+    explode_prefix = gs::explode_prefix_for(s);
+    explode_before = gs::snapshot_explode_candidates(explode_prefix);
+  }
+
   note("# -> running (argv exec, no shell)\n");
   int rc = gs::run_argv(full_argv);
+  if (rc == 0 && s.mode == gs::Mode::Explode) {
+    const gs::ExplodeResult vr =
+        gs::verify_explode_frames(explode_prefix, explode_before);
+    if (vr.ok) {
+      note("# -> explode wrote %zu frame(s) under %s\n", vr.frames.size(),
+           vr.prefix.c_str());
+      if (!vr.suspicious.empty()) {
+        note("# -> NOTE: %zu new/changed file(s) under the prefix are not GIFs\n",
+             vr.suspicious.size());
+      }
+    } else {
+      std::fprintf(stderr, "ERROR: engine exited 0 but wrote no frames — %s\n",
+                   vr.describe().c_str());
+      rc = 1;  // honest: the run did NOT produce what explode promises
+    }
+  }
   note("# -> exit code %d\n", rc);
   return rc;  // honest 0..255
 }

@@ -17,17 +17,18 @@
     <section class="panel" id="inputPanel">
       <h2>1 · Input</h2>
       <div id="drop" class="drop">
-        <input type="file" id="file" accept=".gif,image/gif" hidden />
-        <button id="pick" class="btn">Choose a GIF…</button>
-        <span id="dropHint">or drop a GIF here</span>
+        <input type="file" id="file" accept=".gif,image/gif" multiple hidden />
+        <button id="pick" class="btn">Choose GIFs…</button>
+        <span id="dropHint">or drop GIFs here — several files feed Batch / Merge</span>
       </div>
+      <ul id="fileList" class="filelist" hidden></ul>
       <div class="preview-row">
         <figure>
-          <figcaption>Before (original)</figcaption>
+          <figcaption>Before (first queued file)</figcaption>
           <img id="before" alt="no file selected" />
         </figure>
         <figure>
-          <figcaption>After (optimized)</figcaption>
+          <figcaption>After (first result)</figcaption>
           <img id="after" alt="—" />
         </figure>
       </div>
@@ -37,6 +38,18 @@
     <section class="panel" id="actionsPanel">
       <h2>2 · Actions</h2>
       <div class="form">
+        <label>Mode
+          <select id="mode">
+            <option value="auto" selected>Auto — optimize the single file</option>
+            <option value="batch">Batch — each file → &lt;stem&gt;_opt.gif</option>
+            <option value="merge">Merge — all files → merged.gif</option>
+            <option value="explode">Explode — frames → &lt;stem&gt;_frame.NNN</option>
+          </select>
+        </label>
+        <label class="inline" id="explodeByNameRow" hidden>
+          <input type="checkbox" id="explodeByName" />
+          Explode by frame name (-E) instead of .NNN numbers
+        </label>
         <label>Optimization level
           <select id="optimize">
             <option value="0">0 — off</option>
@@ -96,10 +109,13 @@
     </section>
 
     <section class="panel" id="runPanel">
-      <h2>3 · Optimize</h2>
-      <button id="run" class="btn primary" disabled>Optimize GIF</button>
+      <h2>3 · Run</h2>
+      <button id="run" class="btn primary" disabled>Run</button>
       <span id="status" class="status"></span>
-      <a id="download" class="btn" hidden download="gifscythe-opt.gif">Download result</a>
+      <div id="outputs" hidden>
+        <h3>Results</h3>
+        <ul id="outputList" class="filelist"></ul>
+      </div>
       <details id="cmdDetails">
         <summary>Generated engine command (one-way: controls → command)</summary>
         <pre id="command">add a GIF to generate a command…</pre>

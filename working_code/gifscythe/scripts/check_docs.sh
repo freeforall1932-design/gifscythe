@@ -706,10 +706,9 @@ if [[ ${#CURRENT_DOCS[@]} -gt 0 ]]; then
       scripts/build_gifsicle.sh) continue ;;
       # hypothetical release dirs used to demonstrate the version-sort fix (U-26)
       release/[0-9]*) continue ;;
-      # proposed by U-15's fix ("move product config under build_support").
-      # U-15 is OPEN, so the directory legitimately does not exist yet. Remove
-      # this line the session that closes U-15.
-      working_code/gifscythe/build_support) continue ;;
+      # (S11: the working_code/gifscythe/build_support allowance that lived here
+      # was deleted when U-15 closed - the directory now exists for real and
+      # holds version.h.in, the CMake template moved out of src/.)
       # upstream tarball directory name, cited in the reference manifest
       reference_code/gifsicle-1.96) continue ;;
     esac

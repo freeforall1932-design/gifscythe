@@ -44,8 +44,11 @@ fail() { echo "ERROR: $*" >&2; exit 1; }
 "$self/scripts/bootstrap_hooks.sh" || echo "   (hook bootstrap skipped)"
 
 # Keep src/core/version.h in sync with VERSION.md for direct g++ builds.
+# This is the ONLY writer of the in-tree copy since U-15 (CMake generates into
+# its build tree from build_support/version.h.in and never touches src/).
 # Header text must stay byte-identical to what CMake generates from
-# version.h.in, otherwise the two generators dirty each other's output.
+# build_support/version.h.in, otherwise the two generators dirty each other's
+# output.
 cat > "$self/src/core/version.h" <<EOF
 // Generated from VERSION.md — do not edit by hand.
 #ifndef GIFSCYTHE_CORE_VERSION_H

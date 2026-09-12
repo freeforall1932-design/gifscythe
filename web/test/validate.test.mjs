@@ -51,6 +51,13 @@ const fixtures = [
     s: { mode: "batch", info: true, inputs: [IN] } },
   { name: "info conflicts with merge mode",
     s: { mode: "merge", info: true, inputs: [IN] } },
+  // U-41: the web UI can now select Explode, so the third arm of the
+  // info-vs-mode rule (Validate.h:37 / validate.mjs) needs its own parity pin.
+  { name: "info conflicts with explode mode (audit U-41)",
+    s: { mode: "explode", info: true, inputs: [IN] } },
+  { name: "explode by name still validates resize geometry",
+    s: { mode: "explode", explode_by_name: true, resize_kind: "fit",
+         resize_w: 0, resize_h: 0, inputs: [IN] } },
   { name: "crop with zero height",
     s: { mode: "auto", crop: true, crop_x: 0, crop_y: 0, crop_w: 30, crop_h: 0,
          inputs: [IN] } },
