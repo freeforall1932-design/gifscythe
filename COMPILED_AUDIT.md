@@ -1651,7 +1651,7 @@ Deduplicated across A/B/C/D. "Src" = which audit(s) raised it.
 | **U-15** | A:GS-015 | **CMake writes into the source tree.** `configure_file` targets `${CMAKE_SOURCE_DIR}/src/core/version.h`. | ✅ **EXEC** | ✅ FIXED (S11) — build-tree-only configure_file (`build_support/version.h.in`); generated-first includes; gate C9 + read-only-src repro flipped FAIL->PASS |
 | **U-16** | A:GS-016 · C:F-06 | **Settings persistence is non-atomic** (Truncate + write). A crash mid-write leaves a truncated conf. | ✅ **SRC** | ✅ FIXED (S10) — `save_settings_file` is tmp+fsync+rename; GUI save is QSaveFile; unit test 32 + T19 no-stray check |
 | **U-17** | A:GS-017 · B:BUG-08 | **Explode mode never verifies any frame was written.** Output verification is explicitly skipped for Explode. | ✅ **EXEC** | ✅ FIXED (S11) — `src/core/ExplodeVerify.h` snapshot-diff (CLI+GUI); lying engine (rc=0, 0 frames) refused: unit 33, smoke 9-11, harness T7, wine rc=1 |
-| **U-18** | A:GS-018 | **The regression suite does not cover any of the failure classes above.** No test for target collisions, package completeness, stdout purity, PATH fallback, or thread flags. | ✅ **EXEC** | ◐ PARTIAL (S8) — planning/threads/validate/bool/comment unit tests, T17, package suite |
+| **U-18** | A:GS-018 | **The regression suite does not cover any of the failure classes above.** No test for target collisions, package completeness, stdout purity, PATH fallback, or thread flags. | ✅ **EXEC** | ✅ FIXED (S12) — unit planning/thread coverage, packaging negatives, strict CLI parsing, byte-pure stdout, PATH-only engine discovery, and unsafe-output refusal; smoke suite 19/19 |
 | **U-19** | C:F-02 | **`readFrom()` is not the "exact inverse" of `writeInto()`.** Crop geometry, position and scale are serialized only when their parent toggle is on. | ✅ **EXEC** | ☑ CORRECTED (S8) — not reproducible with toggles on; wording fixed, pinned by unit test 26 |
 | **U-20** | C:F-03 | **"The CLI reads GUI-saved files without warnings" is false.** A real GUI-saved file has no `input` key, so `validate()` warns. | ✅ **EXEC** | ☑ CORRECTED (S8) — doc claim reworded; the `input` warning is expected |
 | **U-21** | C:F-04 · D:GS-101 | **Name-template sanitisation is POSIX-only** — no Windows invalid chars, no trailing dot/space trim, no reserved-name guard. | ✅ **EXEC** | ✅ FIXED (S8) — new `src/core/OutputName.h` (`NameRules` parameterised, so the Windows rule set is unit-tested on Linux); test 29, 30 assertions |
@@ -1791,7 +1791,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 - [ ] **A9** prvalue `GifsicleCommand(Settings{...})` (unit test 11)
 - [ ] **A10** `release/0.1.0/gifsicle --version` → `LCDF Gifsicle 1.96`
 - [ ] **A11** `./scripts/test_engine.sh` → 5/5
-- [ ] **A12** `./scripts/smoke_cli.sh` → 14/14
+- [ ] **A12** `./scripts/smoke_cli.sh` → 19/19
 - [ ] **A13** **NEW:** threads=0 emits bare `-j` (not nothing)
 - [ ] **A14** **NEW:** empty comment in conf does NOT emit `--comment` with no argument
 - [ ] **A15** **NEW:** unknown CLI arg (`--rnu`) returns exit 2, not 0

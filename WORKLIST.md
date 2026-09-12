@@ -191,6 +191,18 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] **U-42** — web Scale X/Y inputs; asymmetric parity fixture + transport case.
 - [x] **R-01** — harness measured locally at last: **306 checks, 0 failures**.
 
+### Session S12 (2026-09-12) — regression coverage expanded; post-merge doc gate repaired
+- [x] **U-18 (P2-4)** — expanded the CLI smoke net from 14/14 to **19/19**:
+      unknown/incomplete CLI options, byte-pure binary stdout, PATH-only engine
+      discovery from an isolated executable directory, and output-equals-input
+      refusal. Existing unit/package coverage pins thread flags, output planning,
+      and incomplete-package failures. `COMPILED_AUDIT.md` U-18 is now DONE.
+- [x] **G10 post-merge fix** — `check_docs.sh` accepts a merge tip or its first
+      parent, including depth-1 checkouts where the parent object is absent;
+      G6 skips honestly when gcc/g++/Node/CMake/Qt6 are unavailable rather than
+      comparing a reduced local audit total with the full-toolchain headline.
+      PR #15 (`91afbdd`) is green on Linux and Windows.
+
 ### Session S11 (2026-09-12) — mingw + Wine in the sandbox flipped U-07; 4 findings closed, provenance recorded
 - [x] **U-15 (P2-2)** — CMake no longer writes into `src/`: single
       `configure_file` into the build tree, template moved to
@@ -303,8 +315,8 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
    scoped as P1-24 in `COMPILED_AUDIT.md` §6 — needs a testable async-start
    strategy before implementation) — plus the PARTIAL remainders: U-10 (CI
    hash-pinning, `workflows` scope; `config.h` move to `build_support`), U-14
-   (verify_audit in CI, `workflows` scope), U-18 (regression-suite expansion).
-   See `STATUS.md`.
+   (verify_audit in CI, `workflows` scope). U-18/P2-4 regression coverage is
+   closed in S12; see `STATUS.md` for the remaining partial/open items.
 7. WebP/APNG stay blocked until all of the above ships.
 
 ## Deferred bucket list — after GIF `1.0.0`

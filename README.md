@@ -78,6 +78,10 @@ silently scattered frames — every input but the last exploded into the CWD
 with rc=0; now refused by validate/CLI/GUI/web alike). Suite counts this
 session: unit **296**, smoke **14/14**, web **17 + 23 + 30**, harness
 **324**, `verify_audit.sh` **28/0/3**.
+**S12 (2026-09-12) expanded the regression net to smoke 19/19, closing the
+P2-4/U-18 scope with PATH-only engine, strict parser, binary-stdout, and
+unsafe-output tests. It also repaired the post-merge documentation gate; PR
+#15 is green on Linux and Windows.**
 **Direction (2026-09-09): offline-only, language stays C++17/Qt6 through 1.0.0**
 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 
