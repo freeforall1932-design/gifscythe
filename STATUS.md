@@ -29,8 +29,8 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 72 DONE · 4 PARTIAL · 21 OPEN · 0 UNTRIAGED · 97 total
-**Last regenerated:** S10 · 2026-09-11 · by scripts/check_docs.sh --emit
+**Counts (generated - do not edit by hand):** 77 DONE · 4 PARTIAL · 17 OPEN · 0 UNTRIAGED · 98 total
+**Last regenerated:** S11 · 2026-09-12 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
 
@@ -43,17 +43,17 @@ hand-fudged roll-up fails the gate.
 | U-04 | CLI `--run` without `output` corrupts its own stdout. | DONE | S8 | `--run` commentary moved to stderr | - |
 | U-05 | Documented PATH engine fallback is dead code. | DONE | S8 | real `find_on_path()`; `""` when not found | - |
 | U-06 | Web demo binds `0.0.0.0` with no auth, no concurrency cap, 64 MB bodies, 120 s engine runs. | DONE | S8 | binds 127.0.0.1; `GS_WEB_HOST` to opt in | - |
-| U-07 | Windows CLI execution is ANSI-only. | OPEN | - | not started; scoped as P1-4 in COMPILED_AUDIT.md §6 | P1-4: Windows Unicode process APIs. |
+| U-07 | Windows CLI execution is ANSI-only. | DONE | S11 | `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly | - |
 | U-08 | License set can ship incomplete, silently. | DONE | S8 | license set asserted, negative-tested | - |
 | U-09 | Banked Windows snapshot is 5 commits behind the SHA its own notes claim. | OPEN | - | not started; scoped as P0-4 in COMPILED_AUDIT.md §6 | P0-4: Re-cut release evidence. |
-| U-10 | The "read-only, identical-to-upstream" vendored engine is neither. | PARTIAL | S8 | manifest wording corrected; provenance still needs a clone | P2-3: Immutable + correctly-labelled upstream tree. |
+| U-10 | The "read-only, identical-to-upstream" vendored engine is neither. | PARTIAL | S11 | provenance RECORDED: `gifsicle/` diff-verified byte-identical to upstream `kohler/gifsicle@07f5c4c3` except the handwritten `config.h` (the "functi... | P2-3: Immutable + correctly-labelled upstream tree. |
 | U-11 | Malformed booleans degrade silently. | DONE | S8 | `parse_bool_strict` warns, leaves field unchanged | - |
-| U-12 | "Fully async" GUI still blocks the UI thread in 5 places — up to 5 s per run start. | OPEN | - | not started; NOT scoped in COMPILED_AUDIT.md §6 | scope it in COMPILED_AUDIT.md §6, then work it |
+| U-12 | "Fully async" GUI still blocks the UI thread in 5 places — up to 5 s per run start. | OPEN | S11 | not started; scoped as P1-24 in COMPILED_AUDIT.md §6 | P1-24: Async run/cancel state machine (scoped S11; deliberately NOT yet implemented). |
 | U-13 | Drag-and-drop accepts any existing file. | DONE | S8 | drop filter `&&`; empty comments skipped (C++ + JS) | - |
 | U-14 | Green CI does not enforce the claims used as release gates. | PARTIAL | S8 | negative packaging tests + manifest assertion in CI | P2-1: Run `verify_audit.sh` in CI. |
-| U-15 | CMake writes into the source tree. | OPEN | - | not started; scoped as P2-2 in COMPILED_AUDIT.md §6 | P2-2: Stop CMake writing into `src/`. |
+| U-15 | CMake writes into the source tree. | DONE | S11 | configure_file writes only to the build tree (template moved to `build_support/`); generated-first includes; new gate C9: builds with the committed... | - |
 | U-16 | Settings persistence is non-atomic (Truncate + write). | DONE | S10 | `save_settings_file` is tmp+fsync+rename; GUI save is QSaveFile; unit test 32 + T19 no-stray check | - |
-| U-17 | Explode mode never verifies any frame was written. | OPEN | - | not started; scoped as P1-19 in COMPILED_AUDIT.md §6 | P1-19: Explode frame verification. |
+| U-17 | Explode mode never verifies any frame was written. | DONE | S11 | `src/core/ExplodeVerify.h` snapshot-diff in CLI + GUI; lying engine (rc=0, 0 frames) refused at every layer: unit 33, smoke 9–11, harness T7, wine ... | - |
 | U-18 | The regression suite does not cover any of the failure classes above. | PARTIAL | S8 | planning/threads/validate/bool/comment unit tests, T17, package suite | P2-4: Regression suite expansion. |
 | U-19 | `readFrom()` is not the "exact inverse" of `writeInto()`. | DONE | S8 | not reproducible with toggles on; wording fixed, pinned by unit test 26 | - |
 | U-20 | "The CLI reads GUI-saved files without warnings" is false. | DONE | S8 | doc claim reworded; the `input` warning is expected | - |
@@ -77,7 +77,7 @@ hand-fudged roll-up fails the gate.
 | U-38 | `verify_audit.sh` FAILs instead of SKIPping C6 when `cmake` is absent (`[B]` guards properly 13 lines later). | DONE | S8 | C6 SKIPs without cmake | - |
 | U-39 | `docs/ci/build.yml.proposed` is a hand-maintained byte copy of the live workflow (already drifted once). | DONE | S8 | `verify_audit.sh` E9 drift guard | - |
 | U-40 | CLI prints `validate()` warnings and runs anyway; the GUI refuses. | DONE | S10 | `--strict` refuses any warned conf with rc=3 (print+run); usage documents the policy and exit codes; smoke 7→9 cases | - |
-| U-41 | Web POC is single-file Auto mode only — no batch/merge/explode. | OPEN | - | not started; NOT scoped in COMPILED_AUDIT.md §6 | scope it in COMPILED_AUDIT.md §6, then work it |
+| U-41 | Web POC is single-file Auto mode only — no batch/merge/explode. | DONE | S11 | mode selector + multi-file queue UI; `POST /run` JSON endpoint with desktop semantics (per-file batch runs + collision refusal, `-m` merge, verifie... | - |
 | U-42 | Web has one `scalePct` for both axes; desktop has independent X/Y. | DONE | S10 | web UI now has Scale X % / Scale Y % inputs; asymmetric parity fixture + live transport case pin per-axis factors | - |
 | U-43 | Summary reads `Batch (1 files) → X … X` (plural + duplicated path) for one input with no Save-as. | DONE | S8 | "Batch (1 file)" (CI-compiled) | - |
 | U-44 | The two dated review snapshots sit at repo root while newer material lives in `docs/`. | DONE | S8 | `git mv` to `docs/archive/`; the 3 prose references updated; README layout lists it | - |
@@ -101,18 +101,18 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 |----|-------|-------|---------|-----------------|-------------|
 | W-01 | Project setup: `reference_code/` vs `working_code/` separation | DONE | S1 | split in place; README "What is reference vs. working" states the rule | - |
 | W-02 | GIF engine build + upstream identity verification | DONE | S8 | `verify_audit.sh` A10: `release/0.1.0/gifsicle --version` prints `LCDF Gifsicle 1.96` | - |
-| W-03 | Qt-independent command/settings control layer | DONE | S4 | `src/core/*.h` compile with plain g++ (no Qt); unit suite 238 checks (S10 count) | - |
-| W-04 | CLI driver + unit tests + integration smoke | DONE | S10 | `./build.sh` 238 checks, 0 failures; `scripts/smoke_cli.sh` 9/9 | - |
+| W-03 | Qt-independent command/settings control layer | DONE | S11 | `src/core/*.h` compile with plain g++ (no Qt); unit suite 293 checks (S11 count) | - |
+| W-04 | CLI driver + unit tests + integration smoke | DONE | S11 | `./build.sh` 293 checks, 0 failures; `scripts/smoke_cli.sh` 12/12 | - |
 | W-05 | Qt6 GUI MVP (Batch default, mode combo, async run, queue, DnD) | DONE | S8 | CI run `34471563229` green on linux + windows; NOT compiled in the S8/S9 sandboxes (no Qt6) | - |
 | W-06 | Portable + system-dependent packaging scripts | DONE | S8 | `scripts/test_package.sh` 9/9 negative cases; `verify_audit.sh` D1/D2/D5 | - |
 | W-07 | Linux GitHub Actions path with Qt6 + artifacts | DONE | S8 | `.github/workflows/build.yml`; main runs #23/#24 green both jobs | - |
 | W-08 | Root LICENSE / COPYING.gifsicle / .gitignore / .gitattributes | DONE | S8 | CI "Assert package manifest" step requires LICENSE + COPYING.gifsicle in the package | - |
 | W-09 | P0 silent-failure fixes (2026-09-07) | DONE | S4 | `COMPILED_AUDIT.md` §6.A re-run green | - |
 | W-10 | P1 honesty work (2026-09-07) | DONE | S4 | `COMPILED_AUDIT.md` §6.E 8/8 | - |
-| W-11 | Smoke suite + engine test scripts | DONE | S10 | `scripts/test_engine.sh` 5/5; `scripts/smoke_cli.sh` 9/9 | - |
+| W-11 | Smoke suite + engine test scripts | DONE | S11 | `scripts/test_engine.sh` 5/5; `scripts/smoke_cli.sh` 12/12 (S11 added the three explode-verification cases) | - |
 | W-12 | Apply `docs/ci/build.yml.proposed` to the live workflow | DONE | S4 | maintainer `821a310` + S4 hardening; copies kept byte-identical (gate E9) | - |
 | W-13 | Merge the compiled audit into one register | DONE | S3 | `COMPILED_AUDIT.md` §5 holds all 52 findings | - |
-| W-14 | One-command verification of `COMPILED_AUDIT.md` §6 | DONE | S10 | `scripts/verify_audit.sh` 27 PASS / 0 FAIL / 3 SKIP, exit 0 (re-measured in the S10 Qt6+cmake sandbox; the S9 sandbox measured 25/0/5 because C6/C7*/B skipped there) | - |
+| W-14 | One-command verification of `COMPILED_AUDIT.md` §6 | DONE | S11 | `scripts/verify_audit.sh` 28 PASS / 0 FAIL / 3 SKIP, exit 0 (re-measured in the S11 Qt6+cmake sandbox, which added gate C9; the S9 sandbox measured 25/0/5 because C6/C7*/B skipped there) | - |
 | W-15 | Windows engine + CLI proven under Wine | DONE | S4 | `gifsicle.exe` reports `1.96 (Windows)`; CLI E2E with `C:\` paths, spaces, honest exit 1 | - |
 | W-16 | Valid push token | DONE | S4 | PR #5 merged into `main` as `0ad1ff5` | - |
 | W-17 | Windows CI job green with downloadable artifact | DONE | S8 | PR #11 run `34471563229`: windows pass 2m56s, linux pass 1m14s | - |
@@ -137,13 +137,14 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 | D-06 | Optional: logging framework, i18n, dark mode, system tray | OPEN | - | optional polish with no owner commitment yet | propose to the owner after 1.0.0 |
 | D-07 | Web client-side `gifsicle.wasm` + web UI (Option 4) | OPEN | - | not the product path under the offline-only decision (S6); see `docs/web/WEB_FEASIBILITY.md` | only on an explicit owner decision |
 | D-08 | Language migration spike: Rust + Tauri | OPEN | - | trigger-based only; comparison matrix in `docs/planning/OFFLINE_BUILD_REVIEW.md` §4 | watch for a documented trigger, then spike |
-| R-01 | No cmake and no Qt6 in this sandbox, so `src/qtui/` and the GUI harness are CI-compiled only | DONE | S10 | S10 sandbox installed cmake 3.25.1 + Qt 6.4.2 via apt (root); the offscreen harness was compiled AND run here: **306 checks, 0 failures** (T1–T20), replacing the S7-era 243 as the last measured figure | - |
-| R-02 | The clone is shallow, so history-based checks cannot see past the branch point | OPEN | S10 | clone-dependent, not repo state: the S9 clone was shallow (truncated at `190d030`); the S10 clone is FULL, so G10/G11 ran against complete history and G10 caught the S9→main drift | clone without `--depth` (or `git fetch --unshallow`) where depth matters, then re-run `check_docs.sh` |
+| R-01 | No cmake and no Qt6 in this sandbox, so `src/qtui/` and the GUI harness are CI-compiled only | DONE | S11 | S11 sandbox re-installed cmake 3.25.1 + Qt 6.4.2 via apt (root) and re-measured the harness: **317 checks, 0 failures** (T1–T20; T7 extended for U-17), replacing the S10 figure of 306 as the last measured one | - |
+| R-02 | The clone is shallow, so history-based checks cannot see past the branch point | OPEN | S11 | clone-dependent, not repo state: the S11 clone is FULL (as was S10's), so G10/G11 ran against complete history; the S9 clone was the shallow one | clone without `--depth` (or `git fetch --unshallow`) where depth matters, then re-run `check_docs.sh` |
 | R-03 | The CI token has no `workflows` scope, so `.github/workflows/` cannot be pushed | OPEN | S9 | push rejected: "refusing to allow a GitHub App to create or update workflow ... without `workflows` permission"; drift is tolerated only via `docs/ci/PENDING_WORKFLOW_CHANGE.md` | a maintainer applies the pending change with a `workflows`-scoped token |
 | R-04 | Git does not copy `.githooks/` on clone, so the pre-push doc gate is inert in a fresh clone | PARTIAL | S9 | bootstrap is wired — `build.sh` calls `scripts/bootstrap_hooks.sh` and `git config core.hooksPath` is `.githooks` here. **Still missing:** a fresh clone is unprotected until it runs `build.sh` once, and nothing forces that | the one manual command is documented in `SESSION_HANDOFF.md` + `WORKLIST.md`; gate G15 fails a clone that never bootstrapped |
 | N-01 | The pending-workflow marker outlived the change it described, so every doc quoted a gate count that was already wrong | DONE | S9 | marker still present while the two workflow copies were byte-identical, so E9 PASSED and the real run measured 24 passed / 0 failed / 4 skipped against 23/0/5 quoted in 8 doc locations; marker rewritten, numbers corrected, new gate G6 measures the real count | - |
 | N-02 | `web/README.md` documented the pre-U-06 bind address | DONE | S9 | README said "binds 0.0.0.0" while `web/server.mjs` defaults to `127.0.0.1`; corrected, plus a `GS_WEB_HOST` note | - |
 | N-03 | `docs/screenshots/*.png` may no longer match the UI, are linked from nowhere, and cannot be regenerated here | DONE | S10 | re-shot offscreen in the S10 sandbox (Qt 6.4.2, same documented scenario) from the CURRENT MainWindow; `docs/screenshots/README.md` rewritten for S10; the three shots are now linked from the root README | - |
+| N-04 | MinGW libstdc++ narrow `fs::path` conversions are NOT UTF-8 (decode bytewise, encode UTF-8) — every string-to-path boundary in core silently mangled non-ASCII paths on Windows | DONE | S11 | found while executing U-07 under Wine (probe: `path("r\xc3\xa9sum\xc3\xa9").string()` came back double-encoded); every core boundary now routes through `u8path_compat`/`path_u8string` (`src/core/WinUnicode.h`); Wine cases B/C/D run é-path confs rc=0 | - |
 <!-- END HAND-MAINTAINED -->
 
 ## How to add a row

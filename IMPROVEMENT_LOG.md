@@ -4,6 +4,207 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S11 — Four findings closed with executed proof, Wine included; upstream provenance recorded  (2026-09-12)
+
+Same branch family (`main` → PR), same version (0.1.0). The S11 sandbox had
+working apt (uid 0): g++ 12.2, cmake 3.25.1, Qt 6.4.2, ninja, node v20 — the
+S10-equivalent stack — **plus mingw-w64 12-win32 and Wine 8.0**, which no
+sandbox had since S4. That flipped **U-07** ("leave OPEN unless mingw AND
+wine") from blocked to executable here, and gawk was installed alongside mawk
+so every awk change was verified under BOTH (the PR #13 CI scar). Clone was
+full-depth; origin/main tip confirmed `2176573` (the PR #13 merge) before
+starting; the two stale `414f5fc` mentions (G10) were re-synced first.
+
+**Changed:**
+
+* **U-15 (P2-2).** CMake no longer writes into `src/`: the second
+  `configure_file` is gone, the template moved to
+  `build_support/version.h.in`, and every include path now lists the generated
+  dir FIRST (`core/version.h` includes converted from relative to path form in
+  `cli/main.cpp`, `EngineLocator.h`, the unit tests). `build.sh` remains the
+  only writer of the committed `src/core/version.h` fallback (A5 stays green).
+  Executed before/after repro: with `src/` read-only under uid 65534 the OLD
+  CMakeLists dies `Could not open file for write in copy operation
+  .../src/core/version.h.tmp`; the NEW one configures AND builds. Deleting the
+  committed fallback outright, the new tree still configures+builds+passes its
+  unit tests from the generated header alone; the old one silently recreates
+  the deleted file. New regression gate **C9** in `verify_audit.sh` (throwaway
+  copy, fallback deleted, `BUILD_GUI=OFF`) and new §7 lines A16/C9. The G8
+  `build_support` allowance in `check_docs.sh` was deleted as its own comment
+  instructed — the directory now exists for real.
+* **U-17 (P1-19).** Explode runs verify their frames. New
+  `src/core/ExplodeVerify.h` (Qt-free, shared): snapshot `<prefix>.*`
+  candidates BEFORE the run; after exit 0 require ≥1 NEW-or-CHANGED file with
+  GIF87a/GIF89a magic; failures name the exact prefix + directory and list
+  suspicious (empty/non-GIF) newcomers; stale leftovers can never fake a
+  success. Prefix rule covers `-e` (`.NNN`), `-E` (by name) and the no-`-o`
+  fallback (input basename in the CWD) — read off upstream `gifsicle.c:778` /
+  `support.c:explode_filename`, never editing `reference_code/`. Wired into
+  the CLI (`rc=1` + stderr, success prints the verified count) and the GUI
+  (`No frames produced…` status + dialog; success reports `Explode complete —
+  N frame(s)`). Tests: unit block 33, smoke cases 9–11 (real frames counted;
+  lying `#!/bin/sh exit 0` engine refused; empty-output CWD-prefix rule),
+  harness T7 extended with the `fake_engine_exit0` CMake fixture (cross-platform
+  lying engine; refuses the false success, dialog names the prefix), and the
+  whole matrix re-run under Wine (real engine: `explode wrote 12 frame(s)`;
+  lying engine: rc=1).
+* **U-07 (P1-4).** Windows execution is no longer ANSI-only:
+  `ProcessRunner.h` builds the quoted UTF-8 line and hands `CreateProcessW` a
+  strict (`MB_ERR_INVALID_CHARS`) UTF-16 conversion — invalid UTF-8 is refused
+  with an honest error, never mangled. New `src/core/WinUnicode.h`: the MSVCRT
+  command-line splitter (pure logic — unit-tested on Linux, block 34, exact
+  inverse of `win_quote_arg` incl. the MSDN backslash/quote vectors),
+  `GetCommandLineW` argv re-fetch (the MinGW CRT's argv is ACP-encoded),
+  `GetEnvironmentVariableW` reads, and `u8path_compat`/`path_u8string`.
+  **N-04 (new finding, closed in-session):** the Wine probe exposed that this
+  MinGW libstdc++'s narrow `fs::path` conversions decode BYTEWISE but encode
+  UTF-8 — an asymmetric mangling of every non-ASCII path at every core
+  boundary (found via a `path("ré…").string()` round-trip probe). Every
+  string↔path boundary in `EngineLocator.h`, `SettingsIO.h` (incl. a `_wopen`
+  fsync path), `OutputPlan.h`, `ExplodeVerify.h`, `cli/main.cpp` and
+  `MainWindow.cpp` now routes through the helpers. Executed proof (mingw
+  cross-build, zero warnings, `-static`; Wine 8): the PRE-fix binary built
+  from HEAD fails an `é`-path conf rc=1 with `rÃ©sumÃ©…: No such file or
+  directory`; the fixed binary runs the same conf **rc=0** and writes
+  `animé_opt.gif`; a non-ASCII conf PATH via argv works (re-fetch); a
+  non-ASCII `GS_ENGINE` in a `résumé/` dir works (wide env); the CJK conf
+  reaches the child's UTF-16 command line **byte-exact** (probe:
+  `...\résumé\動画.gif -o ...\動画_opt.gif`); unit exe green under Wine
+  (**289 checks** — the 4 POSIX-signal checks compile out).
+* **U-41 (P2-11, scope line added FIRST).** The web demo grew all four
+  desktop modes: `POST /run` (JSON `{settings, files[]}`) on the server with
+  desktop semantics — batch = a per-file Auto run each with planned
+  `<stem>_opt.gif` targets and collision/target-equals-source REFUSAL before
+  any run (U-01 parity), merge = one `-m` run over the queue, explode =
+  `-e`/`-E` against `<stem>_frame` with the P1-19 frame verification (rc=0 +
+  zero new GIF frames → 422 naming the prefix), every output existence+size
+  checked (U-24 parity), the U-30 validation layer shared. UI: mode selector,
+  by-name explode option, multi-file queue with per-file removal and dedupe,
+  results list with per-output downloads, U-46 generation counter and U-52
+  URL-revoke discipline kept. Suites extended: command **15→17** (the `-b` and
+  numeric `-e` builder shapes), validate **19→21** (info+explode, explode
+  resize geometry), transport **18→30** (12 live `/run` cases against the real
+  engine). `web/README.md` rewritten for both endpoints.
+* **U-10 (P2-3, provenance half).** Fresh FULL clone of `kohler/gifsicle`;
+  `diff -rq` against both vendored trees; per-file sha256 + tree list-digests
+  recorded in `reference_code/REFERENCE_MANIFEST.md` with the reproduce
+  recipe. Verdict: `gifsicle/` is byte-identical to upstream master
+  `07f5c4c3` in every shared file — the "functional patch"
+  (`FRAME_SELECTION_MODE_MASK 0x1F`) and the "extra test"
+  (`012-framechange.testie`) are upstream commits `9efcc14`/`ed5b018` (5
+  commits past the `v1.96` tag `a08e0f66`); `gifsicle-nested-1.96/` is
+  pristine `v1.96`; the ONLY local addition is the handwritten `config.h`
+  (digest pinned). The manifest's open question is answered and its identity
+  claims are now evidence-backed. `reference_code/` trees untouched (git
+  status proves it); the clone lives in the gitignored `gifsicle-upstream/`
+  the manifest already described.
+* **U-12 scoped, deliberately NOT implemented (P1-24).** All five waits named
+  with re-measured line numbers (842/904 `waitForStarted(5000)`, 919
+  `waitForFinished(3000)`, 171 `(2000)`, 1086 `(1000)`), the signal/timer fix
+  sketched, and the testability analysis recorded: a slow process start — the
+  actual harm — cannot be produced offscreen (`waitForStarted` returns when
+  the OS exec succeeds; a sleeping fake engine proves nothing), and rewiring
+  cancel semantics that T2/T9/T10 pin, with no executable way to show the
+  freeze is gone, is exactly the risky refactor the repo rules say to avoid.
+  An honest scoped OPEN beats a green-but-unproven rewrite. A-12's stale §3
+  line numbers refreshed in the same pass.
+* **Tests/fixtures added:** unit blocks 33 (ExplodeVerify) + 34 (splitter) →
+  runtime **293 checks** (source occurrences: unit 258, harness 245 `CHECK(`
+  sites); `tests/fake_engine_exit0.cpp` + CMake target (static under MINGW);
+  harness T7 extension → **317 runtime checks**; smoke **9→12**; verify_audit
+  C9 gate + gate B now builds the fixture target.
+* **Docs/status:** §5 rows for U-07/U-10/U-12/U-15/U-17/U-41 (+Verif marks
+  SRC→EXEC), §3/§4 detail statuses for A-06/A-09/A-12/A-15/A-17/B-08/B-09,
+  §6 rows P1-24 + P2-11, §7 A12 12/12 + A16/C9, §8 risk rows (P1-24 pointer;
+  engine-argv-ACP residual), STATUS hand rows + N-04, WORKLIST S11 section +
+  next actions (6 OPEN findings → 2), README/RELEASE_PROCEDURE/PROJECT_VISION/
+  docs/ci/docs/web count resync, `web/README.md` API rewrite.
+
+**Partial:**
+
+* **U-10** — provenance half closed with executed proof; the row stays
+  PARTIAL naming what is missing: CI hash-pinning (proposal-only, needs the
+  `workflows` scope) and moving the product-owned `config.h` out of the
+  read-only tree into `build_support/` (A-09's other half).
+
+**Left:**
+
+* **U-09** (release re-cut — needs tag/release infra), **U-12** (scoped
+  P1-24, OPEN), **U-14**/**U-18** PARTIAL (CI enforcement / suite expansion),
+  W-18/W-19 (physical machines), W-26/W-29/W-30 (owner decisions /
+  `workflows` scope), D-01…D-08 (post-1.0.0 policy) — all untouched by rule.
+* The Windows CI job is the first NATIVE compilation of the S11 Windows code
+  (CreateProcessW/_wopen/splitter under a real ACP); everything Windows here
+  ran under Wine 8 with ACP 1252. Re-check the PR CI, don't trust this row.
+* CJK **through the engine** still needs a UTF-8 ACP system: Wine 8 ignores
+  the registry/locale ACP overrides (probed: `iDefaultANSICP`, `Nls\CodePage`,
+  `LANG=ja_JP.UTF-8` all leave GetACP()=1252), and upstream gifsicle has no
+  `wmain` (reference_code read-only). Gifscythe's own chain is lossless
+  (proven byte-exact to the child's UTF-16 line); the residual is documented
+  in `WinUnicode.h`, §8 and the U-07 row.
+* PR open, not merged — merge is the owner's call (rule 3 re-applies).
+
+**Verified (run in this sandbox):**
+
+* `./build.sh` → **293 checks, 0 failures**; `test_engine.sh` 5/5;
+  `smoke_cli.sh` **12/12**; `test_package.sh` 9/9.
+* GUI offscreen harness (compiled AND run locally, Qt 6.4.2): **317 checks,
+  0 failures** (T1–T20, T7 extended) — the new last-measured figure (306 @ S10).
+* Web: `command.test.mjs` **17**, `validate.test.mjs` **21**,
+  `transport.test.mjs` **30** (live server + real engine).
+* `verify_audit.sh` → **28 PASS / 0 FAIL / 3 SKIP, exit 0** (skips: E9
+  declared-pending workflow, CI-gated, clean-Windows); `check_docs.sh` →
+  **21 passed, 0 failed, 1 skipped** (the skip is G7, same declared drift).
+* Wine matrix (all executed): old CLI rc=1 + mojibake repro; new CLI é-conf
+  rc=0 + output written; é-conf-path argv rc=0; é-`GS_ENGINE` rc=0; CJK child
+  cmdline byte-exact (probe); unit exe green under Wine at **289 runtime checks (0 failures)** — the 4 POSIX-signal checks compile out on Windows; explode
+  real-engine `12 frame(s)` rc=0; lying engine rc=1 naming the prefix. Engine
+  exe rebuilt via `build_engine.sh --windows`: `LCDF Gifsicle 1.96 (Windows)`.
+* U-15 before/after repro executed both halves (read-only `src/` uid 65534;
+  deleted-fallback copy build). U-10: clone + `diff -rq` + digests executed;
+  `git status` proves the vendored trees were never modified.
+* awk parity: `check_docs.sh`/`verify_audit.sh` behavior verified under mawk
+  AND gawk (gawk apt-installed this session — the PR #13 CI-awk scar).
+
+**Not verifiable here:**
+
+* **Native Windows execution.** Every Windows proof above ran under Wine 8
+  (ACP 1252), not on Windows; CI's windows job is the first native compile +
+  run of the S11 code. Wine ≠ Windows: the `Z:` drive mapping could not even
+  see `"$ARENA_WORKSPACE"` in this sandbox (staged under `/tmp` instead), and Wine's
+  ACP is immovable (registry + locale probed), so the UTF-8-ACP scenario
+  (Windows 10 1903+ option) that would carry CJK **into upstream gifsicle's**
+  file APIs stays review-verified only.
+* **The U-41 browser UI itself** (index.html/app.js DOM behavior) has no
+  browser or jsdom here: the server endpoint, builder and validation parity
+  are executed-proof via the three node suites, but the UI wiring
+  (queue rendering, object-URL lifecycle, mode switching) is review-verified
+  and syntax-checked only.
+* **U-12's benefit** is untestable offscreen by construction — that analysis
+  is the reason it stays a scoped OPEN (P1-24).
+* Clean-Windows smoke (C4/D3/D4), desktop probes B5/B6/B14, and the U-09
+  release re-cut still need machines/credentials this sandbox does not have.
+* CI hash-pinning for `reference_code/` (U-10's other half) cannot be pushed
+  without a `workflows`-scoped token — proposal text only.
+
+**Docs touched:**
+
+* `COMPILED_AUDIT.md` (header base commit + S11 verification session, §3 A-06/
+  A-09/A-12/A-15/A-17, §4 B-08/B-09, §5 six rows, §6 P1-24/P2-11, §7 A12/A16/
+  C9, §8 two risk rows), `STATUS.md` (rows via --emit + hand rows W-03/W-04/
+  W-11/W-14/R-01/R-02/N-04), `WORKLIST.md` (S11 section, ticks, gates count,
+  next actions, web suite counts), `SESSION_HANDOFF.md` (rewritten for S12),
+  `README.md` (S11 paragraph + version-sync wording),
+  `working_code/gifscythe/README.md` (counts, layout, harness + fixture
+  notes), `docs/release/RELEASE_PROCEDURE.md` (counts + version wording),
+  `PROJECT_VISION.md` (S11 snapshot + gate count), `docs/ci/README.md`
+  (harness figure), `docs/web/WEB_FEASIBILITY.md` (suite counts),
+  `web/README.md` (both endpoints, modes, counts),
+  `reference_code/REFERENCE_MANIFEST.md` (provenance verdict + digests — the
+  only file touched under `reference_code/`, by explicit instruction).
+
+---
+
 ## S10 — Nine findings + N-03 closed with executed proof; the harness ran locally again  (2026-09-11)
 
 Same branch family (`main`), same version (0.1.0). The S10 sandbox turned out to
