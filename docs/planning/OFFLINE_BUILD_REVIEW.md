@@ -146,8 +146,9 @@ the migration. Do **not** fold this into 1.0.0.
   `Settings` between sessions. For an offline desktop app this is the most
   visible missing "remember me" feature. → add to Phase 1 (item 4).
 - **No icon/logo** yet (`assets/` is empty) — cosmetic, pre-1.0.0.
-- **The `web/` server POC is now explicitly a demo**, not the product path;
-  keep it only as a command-layer parity harness (or drop it once superseded).
+- **The `web/` server POC was scoped as a demo**, not the product path *(superseded 2026-09-12,
+  S14: the owner made the web build a supported, self-hosted product surface — see
+  `web/WEB_PLAN_TEMPLATE.md` §1)*; it stays as the browser UI and command-layer parity harness.
 - The two dated review snapshots (now `docs/archive/gifscythe-comprehensive-review.md`
   and `docs/archive/gifscythe-final-code-review.md`) still reference
   `scripts/build_gifsicle.sh`;

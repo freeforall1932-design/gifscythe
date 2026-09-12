@@ -1895,7 +1895,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | **P0 honesty** | §7.A all green on Linux; A2 never exits 0 on missing engine; **threads=0 emits `-j`**; **empty comments don't corrupt argv** |
 | **Windows path** | §7.C C2–C5 green with artifacts |
 | **GUI MVP trustworthy** | §7.B B10–B14 green (batch vs merge, no silent loss); **B15–B17 new tests green** |
-| **Web POC honest** | Server binds loopback by default; validates GIF magic; verifies output; no double-decode; browser URLs cleaned |
+| **Web surface honest** (product alternative since S14) | Server binds loopback by default; validates GIF magic; verifies output; no double-decode; browser URLs cleaned. **Open before it is product-grade:** `GS-202`, `GS-203`, `DS-13`, `U-06` remainder — see §13 |
 | **1.0.0** | Tabs + major controls + preview + clean Windows portable (§7.D) + no open U-01…U-10 | then bump VERSION.md |
 | **2.x** | Only after 1.0.0: frame model → WebP/APNG |
 
@@ -2001,8 +2001,9 @@ run `34705247115` failed its Linux documentation gate on main. **Do not treat ma
 **Task registration (S14 follow-up).** These 18 findings are now recorded row-by-row in
 `STATUS.md` (state `UNTRIAGED`, under the reviewers' own ids) with one pending line each in
 `WORKLIST.md`, and their release-blocking subset is listed in
-`docs/release/RELEASE_PROCEDURE.md`. Proposed sequencing — including the web-first split and the
-decision it needs from the owner — is `docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md`.
+`docs/release/RELEASE_PROCEDURE.md`. Proposed sequencing lives in `web/WEB_PLAN_TEMPLATE.md` (the web-surface
+plan template the owner drafts are refitted into; its §1 records the owner's S14 decision that the
+web build is a supported product surface).
 **They are still not in the §6 fix order**: triage (which maps accepted items into `U-nn`) has not
 happened, so nothing here is scheduled for implementation yet.
 

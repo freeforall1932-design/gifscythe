@@ -129,11 +129,12 @@ gifscythe/                        (repo root)
     archive/                           the two dated review snapshots (historical)
     planning/OFFLINE_BUILD_REVIEW.md   offline-only feasibility + language + plan
     release/RELEASE_PROCEDURE.md       how to cut snapshots/releases (S7)
-    web/WEB_FEASIBILITY.md             web-run review (web/ = demo only)
+    web/WEB_FEASIBILITY.md             web-run review (option analysis)
     ci/                            workflow docs + clean-Windows smoke checklist
     screenshots/                   UI screenshots (see docs/screenshots/README.md)
   .githooks/pre-push               blocks a push with a red documentation gate
-  web/                             server-side web POC + JS⇄C++ command parity test
+  web/                             web app (product alternative) + JS⇄C++ parity suites
+    WEB_PLAN_TEMPLATE.md           web-surface plan template (split rules, phases, slots)
 
   reference_code/                 SOURCE MATERIAL — do not edit, do not ship
     gifsicle/                     canonical gifsicle 1.96 source
@@ -163,8 +164,9 @@ gifscythe/                        (repo root)
 3. **`WORKLIST.md`** — short checkbox board toward 1.0.0.
 4. **`docs/planning/OFFLINE_BUILD_REVIEW.md`** — offline-only feasibility,
    language choice (stay C++/Qt through 1.0.0), and the phased plan.
-5. **`docs/web/WEB_FEASIBILITY.md`** — web-run review (the `web/` build is a
-   demo/parity harness, not the product path).
+5. **`web/WEB_PLAN_TEMPLATE.md`** — the web surface is a **product alternative**
+   (self-hosted, S14): split rules, phases and the slots owner drafts are refitted
+   into. Background: `docs/web/WEB_FEASIBILITY.md`.
 6. **`docs/release/RELEASE_PROCEDURE.md`** — how to cut a snapshot or version
    release (gates, packaging, publishing, post-publish verification).
 

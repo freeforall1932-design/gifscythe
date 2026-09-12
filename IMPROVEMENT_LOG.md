@@ -39,11 +39,15 @@ Chronological log of decisions and changes. **Newest at the top.**
   and `DS-06…DS-13`), one pending line each in `WORKLIST.md`, plus release-blocking pointers in
   `docs/release/RELEASE_PROCEDURE.md`. Nothing was mapped into the §6 fix order, so nothing is
   scheduled — triage waits on the owner's review and the direction decision below.
-* **New plan (proposal, not agreed):** `docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md` — how to
-  split the work so the web app can move fast while the desktop/portable lanes are frozen to
-  correctness-only, with the guardrails that stop the split from re-creating divergence bugs
-  (`U-03`'s class). It opens with the conflict it must resolve: `PROJECT_VISION.md` currently pins
-  web as "demo only, not the product path" and C++17/Qt6 through 1.0.0.
+* **Web plan template + direction decision:** `web/WEB_PLAN_TEMPLATE.md` (moved out of
+  `docs/planning/` so it sits next to the code and is easy to find) holds the split plan — how the
+  web app moves fast while the desktop/portable lanes are frozen to correctness-only, with the
+  guardrails that stop the split from re-creating divergence bugs (`U-03`'s class) — and is built
+  as a **template** so the owner's own draft can be refitted into it slot by slot without changing
+  meaning (§0 rules). **Direction changed by the owner in S14:** `PROJECT_VISION.md` no longer
+  scopes `web/` as "demo only / not the product path" — the web build is now a **supported product
+  surface**, a self-hosted alternative to the `.exe`/portable build, with the offline-only
+  (no cloud) promise unchanged. Desktop remains the 1.0.0 release artifact.
 
 **Partial:**
 

@@ -1,9 +1,12 @@
-# Gifscythe — web build (proof-of-concept)
+# Gifscythe — web app
 
 A browser UI over the same gifsicle engine command layer as the desktop app.
-This is **Option 3** of `docs/web/WEB_FEASIBILITY.md`: a web UI + a small
-server that runs the bundled engine as a subprocess. The long-term portable
-target (client-side `gifsicle.wasm`) is documented there but not built yet.
+**Since S14 (2026-09-12) this is a supported product surface**: a self-hosted
+alternative to the `.exe`/portable build — same engine, same command semantics,
+loopback by default (`GS_WEB_HOST` for LAN). Plan template, split rules and the
+phases that make it product-grade: `WEB_PLAN_TEMPLATE.md`.
+This is **Option 3** of `docs/web/WEB_FEASIBILITY.md`; the optional client-side
+target (`gifsicle.wasm`) is described there and is not built.
 
 ## Architecture
 

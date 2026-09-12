@@ -697,8 +697,9 @@ These are not new findings — they are the reviewer's proposed remedies for row
 **Registered in S14-follow-up, without triaging:** every finding below now has a `STATUS.md` row
 (state `UNTRIAGED`, under its `GS-`/`DS-` id) and a pending line in `WORKLIST.md`; the
 release-blocking subset is listed in `docs/release/RELEASE_PROCEDURE.md`; and the proposed
-sequencing (web-first split, with the product-direction decision it needs) is
-`docs/planning/WEB_FIRST_SPLIT_PLAN_2026-09-12.md`. **No item is scheduled**: triage maps accepted
+sequencing (web-first split; the direction decision it was waiting on was taken by the owner on
+2026-09-12 — the web build is a supported, self-hosted product surface) is
+`web/WEB_PLAN_TEMPLATE.md` (now a template, parked in `web/`). **No item is scheduled**: triage maps accepted
 findings into `COMPILED_AUDIT.md` §6 fix-order ids, and that has not happened.
 
 The steps below remain the route from here:
