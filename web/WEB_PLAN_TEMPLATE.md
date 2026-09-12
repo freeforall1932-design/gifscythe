@@ -1,5 +1,10 @@
 # Web surface — plan TEMPLATE (v0, currently filled with the S14 draft)
 
+**Template state:** SKELETON
+*(One-way flip, once: when the owner's draft is refitted into the slots below, change this line
+to `WORKING PLAN` **and** the mirror in `SESSION_HANDOFF.md` in the same commit. Gate **G16** fails
+if the two lines disagree or name anything else; never flip back.)*
+
 **What this file is.** The reusable skeleton for a Gifscythe web-surface plan, parked in `web/`
 so it is easy to find next to the code it describes. The slots below are filled with the
 **current draft (v0, 2026-09-12, S14)** so you can see the expected shape and weight of each
@@ -27,6 +32,10 @@ document that drifts from `STATUS.md`, `COMPILED_AUDIT.md` and the vision.
 7. **§5 is fixed boilerplate.** Its meaning is the anti-divergence contract; a refit may extend
    the examples but must not weaken the rules.
 8. **After editing, run `working_code/gifscythe/scripts/check_docs.sh`** and keep it green.
+9. **The flip is one-way and once.** A refit that fills §2–§9 changes `**Template state:** SKELETON`
+   to `WORKING PLAN` and moves the mirror line in `SESSION_HANDOFF.md` in the same commit. Gate
+   **G16** compares the two, so the handoff can never tell a session "skeleton" while the plan is
+   live (or the reverse).
 
 ---
 
@@ -215,4 +224,6 @@ wait if the web keeps emitting argv for the same settings.
   with draft v0, and the §1 decision record added after the owner made the web-is-a-product
   decision. Registered in `WORKLIST.md`; the 18 intake ids it references are `UNTRIAGED` rows in
   `STATUS.md`.
-- `<next>` · `<who>` · `<what>`
+- `<next>` · `<who>` · `<what>` — and on the refit commit, record here: the flip
+  `SKELETON → WORKING PLAN`, the mirror line in `SESSION_HANDOFF.md`, and which parts of the plan
+  changed. (The state line itself is the machine-readable half; this entry is the human half.)

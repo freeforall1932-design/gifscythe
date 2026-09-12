@@ -234,7 +234,9 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] **Intake registered:** the 18 findings now have `STATUS.md` rows (`UNTRIAGED`, reviewers'
       ids) and the pending lines above, so nothing lives only in a chat message or a report.
 - [x] **Plan template in place:** `web/WEB_PLAN_TEMPLATE.md` (moved into `web/` so it is findable
-      next to the code) — the owner's draft is refitted into its slots under §0's rules.
+      next to the code) — the owner's draft is refitted into its slots under §0's rules. Its state
+      line reads `SKELETON` and is mirrored in `SESSION_HANDOFF.md`; **gate G16** fails if the two
+      disagree. The flip to `WORKING PLAN` happens **once**, in the refit commit (both lines).
 - [x] **Direction decision (owner, S14):** the web build is a **supported product surface**, a
       self-hosted alternative to the `.exe`/portable build. `PROJECT_VISION.md`, the direction
       decisions above, `STATUS.md` (D-07) and the template's §1 record it.
@@ -379,7 +381,9 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 ## Next actions (ordered)
 
 - [ ] **Owner draft:** refit the web plan into `web/WEB_PLAN_TEMPLATE.md` (slot-by-slot; §0
-      rules), then triage the 18 intake rows into `COMPILED_AUDIT.md` §6 fix-order ids.
+      rules). On that commit do the **one-time flip** — `Template state:` here and the mirror line
+      in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it) — then triage the 18 intake rows
+      into `COMPILED_AUDIT.md` §6 fix-order ids.
 
 1. **U-09** — re-cut release artifacts from the tagged SHA (the banked zip
    predates S7; its notes pin `d3544b1`). Needs a tag + `gh release` (and a
