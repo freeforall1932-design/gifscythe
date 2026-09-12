@@ -1,9 +1,9 @@
 # Session Handoff
 
-**Date:** 2026-09-12 (session S12 follow-up) · **Branch:** `arena/01a0950f-gifscythe`
-(pushed; **PR #15** open against `main`, CI green on commit `91afbdd` — runs
-`34688399245`/`34688533670`, Linux + Windows) → based on merged `main`
-`53a6eda` (the PR #14 merge) ·
+**Date:** 2026-09-12 (session S13) · **Branch:** `arena/01a0950f-gifscythe`
+(pushed; **PR #15** open against `main`, CI green on commit `c105f3c` — run
+`34704221643`, Linux + Windows) → based on merged `main` `53a6eda` (the PR
+#14 merge) ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending)
 
 ## S13 follow-up
@@ -38,7 +38,7 @@
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S12: **80 DONE · 3 PARTIAL ·
+   `U-nn` row; neither replaces the other. As of S13: **80 DONE · 3 PARTIAL ·
    17 OPEN · 0 UNTRIAGED · 100 total.**
 
 1. **What S11 did.** The S11 sandbox had working apt (uid 0) and installed,
@@ -140,8 +140,8 @@
    `windeployqt` smoke (C4/D3/D4, `docs/ci/CLEAN_WINDOWS_SMOKE.md`) → desktop
    probes B5/B6/B14 → owner decisions (two-way CLI pane, version 0.2.0 vs
    1.0.0). Audit findings still open: **U-12** (scoped P1-24) and **U-09**.
-   PARTIALs: **U-10** (CI pinning + config.h move) and **U-14** (verify_audit
-   in CI — `workflows` scope). U-18/P2-4 regression coverage is DONE in S12.
+   PARTIALs: **U-10** (CI hash-pinning only) and **U-14** (verify_audit in CI
+   — `workflows` scope). U-18/P2-4 regression coverage is DONE in S12.
    W-30 waits on the same `workflows`-scoped maintainer action.
 
 5. **Direction unchanged:** offline-only; C++17 + Qt6 Widgets through 1.0.0;

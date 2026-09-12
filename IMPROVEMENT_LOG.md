@@ -8,8 +8,8 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 **Changed:**
 
-* Moved the product-owned native engine configuration from the read-only
-  the former reference_code/gifsicle/config.h into
+* Moved the product-owned native engine configuration from the former
+  reference_code/gifsicle/config.h into
   `working_code/gifscythe/build_support/gifsicle/config.native.h`.
 * `scripts/build_engine.sh` now stages that explicitly named config as
   `config.h` in a temporary include directory, uses it for native builds, and
@@ -46,7 +46,8 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 **Docs touched:**
 
-* `COMPILED_AUDIT.md`, `STATUS.md`, `WORKLIST.md`, `IMPROVEMENT_LOG.md`,
+* `COMPILED_AUDIT.md`, `STATUS.md`, `README.md`, `PROJECT_VISION.md`,
+  `SESSION_HANDOFF.md`, `WORKLIST.md`, `IMPROVEMENT_LOG.md`,
   `reference_code/REFERENCE_MANIFEST.md`, and `build_engine.sh`.
 
 ## S12 — Regression coverage expanded; post-merge documentation gate repaired  (2026-09-12)
@@ -1321,6 +1322,3 @@ missing engine exits 1; engine version string 1.96; demo GIF written end-to-end.
 - **Created + merged PR** for the P0/P1 work (engine + control layer + Qt GUI
   scaffold + one-command build). Committed the authored work and repo
   reorganization to `main`.
-rk and repo
-  reorganization to `main`.
-`main`.

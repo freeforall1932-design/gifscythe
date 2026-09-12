@@ -191,6 +191,14 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] **U-42** — web Scale X/Y inputs; asymmetric parity fixture + transport case.
 - [x] **R-01** — harness measured locally at last: **306 checks, 0 failures**.
 
+### Session S13 (2026-09-12) — product engine config moved out of the vendored tree
+- [x] **S13 config relocation** — moved the product-owned native config to
+      `working_code/gifscythe/build_support/gifsicle/config.native.h` and stages
+      it as `config.h` in a temporary include directory. Native build, unit
+      suite, engine tests, smoke 19/19, audit, and Linux/Windows CI passed.
+      The related audit row remains PARTIAL only for CI hash-pinning
+      (`workflows` scope).
+
 ### Session S12 (2026-09-12) — regression coverage expanded; post-merge doc gate repaired
 - [x] **U-18 (P2-4)** — expanded the CLI smoke net from 14/14 to **19/19**:
       unknown/incomplete CLI options, byte-pure binary stdout, PATH-only engine

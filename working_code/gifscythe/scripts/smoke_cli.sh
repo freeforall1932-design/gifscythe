@@ -74,7 +74,7 @@ else
   bad "print mode from product dir (rc=$rc)"
 fi
 
-# 3. --run from a different CWD with absolute settings path
+# 4. --run from a different CWD with absolute settings path
 cat > "$WORK/one.conf" <<EOF
 mode = auto
 optimize = 3
@@ -92,7 +92,7 @@ else
   cat "$WORK/err3.txt" >&2 || true
 fi
 
-# 4. Paths with spaces
+# 5. Paths with spaces
 mkdir -p "$WORK/my vacation"
 cp "$SRC_GIF" "$WORK/my vacation/in.gif"
 cat > "$WORK/space.conf" <<EOF
@@ -112,7 +112,7 @@ else
   cat "$WORK/err4.txt" >&2 || true
 fi
 
-# 5. In --run mode stdout must remain a byte-pure GIF stream (audit U-04).
+# 6. In --run mode stdout must remain a byte-pure GIF stream (audit U-04).
 # The CLI's progress commentary belongs on stderr; compare its stdout with a
 # direct engine invocation so even a valid-looking GIF with trailing text fails.
 cat > "$WORK/stdout.conf" <<EOF
@@ -131,7 +131,7 @@ else
   bad "--run stdout was contaminated or engine output changed (rc=$rc)"
 fi
 
-# 6. PATH-only engine discovery must execute the first matching PATH entry
+# 7. PATH-only engine discovery must execute the first matching PATH entry
 # (audit U-05 / P2-4), even when the packaged/release candidates are absent.
 mkdir -p "$WORK/path-only" "$WORK/path-app"
 cat > "$WORK/path-only/gifsicle" <<EOF
@@ -158,7 +158,7 @@ else
   bad "PATH-only engine discovery failed (rc=$rc)"
 fi
 
-# 7. The CLI must refuse an output that aliases its input before starting the
+# 8. The CLI must refuse an output that aliases its input before starting the
 # engine (audit U-01 / P2-4), and must leave the source bytes untouched.
 cp "$SRC_GIF" "$WORK/self.gif"
 cp "$WORK/self.gif" "$WORK/self.before.gif"
@@ -178,7 +178,7 @@ else
   bad "unsafe output target was not refused honestly (rc=$rc)"
 fi
 
-# 8. Malformed conf does not crash; bad values warned
+# 9. Malformed conf does not crash; bad values warned
 cat > "$WORK/bad.conf" <<EOF
 lossy = abc
 optimize = notanumber
@@ -203,7 +203,7 @@ else
   if grep -qi "WARNING" "$WORK/out5.txt"; then ok "malformed conf emits warnings"; else bad "malformed conf silent on bad values"; fi
 fi
 
-# 6. Shell quoting visible in print for spaces
+# 10. Shell quoting visible in print for spaces
 set +e
 "$CLI" "$WORK/space.conf" --engine "$ENGINE" >"$WORK/out6.txt" 2>/dev/null
 set -e
@@ -218,7 +218,7 @@ else
   fi
 fi
 
-# 7. --strict refuses any conf that produced a settings warning (audit U-40):
+# 11. --strict refuses any conf that produced a settings warning (audit U-40):
 #    exit 3, nothing printed, nothing run. Without --strict the same conf
 #    warns on stderr and proceeds (the documented policy).
 cat > "$WORK/strict.conf" <<EOF
@@ -245,7 +245,7 @@ else
   bad "--strict behavior wrong (strict rc=$rc_strict, strict-run rc=$rc_strict_run, plain rc=$rc_plain)"
 fi
 
-# 8. --strict on a CLEAN conf is a pass-through (rc=0, command printed).
+# 12. --strict on a CLEAN conf is a pass-through (rc=0, command printed).
 set +e
 "$CLI" "$WORK/one.conf" --strict --engine "$ENGINE" >"$WORK/out8.txt" 2>"$WORK/err8.txt"
 rc=$?
@@ -256,7 +256,7 @@ else
   bad "--strict mishandled a clean conf (rc=$rc)"
 fi
 
-# 9. Explode E2E (audit U-17): real engine writes prefix.NNN frames and the
+# 13. Explode E2E (audit U-17): real engine writes prefix.NNN frames and the
 #    CLI reports the verified count on stderr. logo.gif has 12 frames.
 mkdir -p "$WORK/ex"
 cat > "$WORK/explode.conf" <<EOF
@@ -275,7 +275,7 @@ else
   bad "explode E2E (rc=$rc, f.000=$([[ -s $WORK/ex/f.000 ]] && echo y || echo n), stderr=$(tail -1 "$WORK/err9.txt"))"
 fi
 
-# 10. Explode with a LYING engine (exits 0, writes nothing) must NOT exit 0
+# 14. Explode with a LYING engine (exits 0, writes nothing) must NOT exit 0
 #     (audit U-17: rc=0 + zero frames used to mean success).
 printf '#!/bin/sh\nexit 0\n' > "$WORK/lie.sh"
 chmod +x "$WORK/lie.sh"
@@ -291,7 +291,7 @@ else
   bad "lying-engine explode not refused honestly (rc=$rc, stderr=$(tail -2 "$WORK/err10.txt" | head -1))"
 fi
 
-# 11. Explode with EMPTY output verifies gifsicle's own fallback prefix: the
+# 15. Explode with EMPTY output verifies gifsicle's own fallback prefix: the
 #     input's basename in the CWD (reference gifsicle.c "explode into current
 #     directory"), i.e. <cwd>/logo.gif.NNN — verification must follow the same rule.
 mkdir -p "$WORK/cwd"
@@ -310,7 +310,7 @@ else
   bad "explode empty-output prefix rule (rc=$rc, logo.gif.000=$([[ -s $WORK/cwd/logo.gif.000 ]] && echo y || echo n))"
 fi
 
-# 12. Multi-input explode is REFUSED by --run (N-05): the engine exits 0 but
+# 16. Multi-input explode is REFUSED by --run (N-05): the engine exits 0 but
 #     scatters every input except the last into the CWD. Print mode keeps its
 #     documented policy: warn, then print.
 cat > "$WORK/explode_multi.conf" <<EOF
