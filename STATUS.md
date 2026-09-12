@@ -29,8 +29,8 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 79 DONE · 4 PARTIAL · 17 OPEN · 0 UNTRIAGED · 100 total
-**Last regenerated:** S11 · 2026-09-12 · by scripts/check_docs.sh --emit
+**Counts (generated - do not edit by hand):** 80 DONE · 3 PARTIAL · 17 OPEN · 0 UNTRIAGED · 100 total
+**Last regenerated:** S13 · 2026-09-12 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
 
@@ -46,7 +46,7 @@ hand-fudged roll-up fails the gate.
 | U-07 | Windows CLI execution is ANSI-only. | DONE | S11 | `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly | - |
 | U-08 | License set can ship incomplete, silently. | DONE | S8 | license set asserted, negative-tested | - |
 | U-09 | Banked Windows snapshot is 5 commits behind the SHA its own notes claim. | OPEN | - | not started; scoped as P0-4 in COMPILED_AUDIT.md §6 | P0-4: Re-cut release evidence. |
-| U-10 | The "read-only, identical-to-upstream" vendored engine is neither. | PARTIAL | S11 | provenance recorded: diff+digests vs upstream `07f5c4c3` in REFERENCE_MANIFEST.md. MISSING: CI hash-pinning (workflows scope) + config.h move | P2-3: Immutable + correctly-labelled upstream tree. |
+| U-10 | The "read-only, identical-to-upstream" vendored engine is neither. | PARTIAL | S13 | provenance and product-config relocation verified; `reference_code/gifsicle/` is now upstream-only and native build stages `build_support/gifsicle/... | P2-3: Immutable + correctly-labelled upstream tree. |
 | U-11 | Malformed booleans degrade silently. | DONE | S8 | `parse_bool_strict` warns, leaves field unchanged | - |
 | U-12 | "Fully async" GUI still blocks the UI thread in 5 places — up to 5 s per run start. | OPEN | S11 | not started; scoped as P1-24 in COMPILED_AUDIT.md §6 | P1-24: Async run/cancel state machine (scoped S11; deliberately NOT yet implemented). |
 | U-13 | Drag-and-drop accepts any existing file. | DONE | S8 | drop filter `&&`; empty comments skipped (C++ + JS) | - |
@@ -54,7 +54,7 @@ hand-fudged roll-up fails the gate.
 | U-15 | CMake writes into the source tree. | DONE | S11 | build-tree-only configure_file (`build_support/version.h.in`); generated-first includes; gate C9 + read-only-src repro flipped FAIL->PASS | - |
 | U-16 | Settings persistence is non-atomic (Truncate + write). | DONE | S10 | `save_settings_file` is tmp+fsync+rename; GUI save is QSaveFile; unit test 32 + T19 no-stray check | - |
 | U-17 | Explode mode never verifies any frame was written. | DONE | S11 | `src/core/ExplodeVerify.h` snapshot-diff (CLI+GUI); lying engine (rc=0, 0 frames) refused: unit 33, smoke 9-11, harness T7, wine rc=1 | - |
-| U-18 | The regression suite does not cover any of the failure classes above. | PARTIAL | S8 | planning/threads/validate/bool/comment unit tests, T17, package suite | P2-4: Regression suite expansion. |
+| U-18 | The regression suite does not cover any of the failure classes above. | DONE | S12 | unit planning/thread coverage, packaging negatives, strict CLI parsing, byte-pure stdout, PATH-only engine discovery, and unsafe-output refusal; sm... | - |
 | U-19 | `readFrom()` is not the "exact inverse" of `writeInto()`. | DONE | S8 | not reproducible with toggles on; wording fixed, pinned by unit test 26 | - |
 | U-20 | "The CLI reads GUI-saved files without warnings" is false. | DONE | S8 | doc claim reworded; the `input` warning is expected | - |
 | U-21 | Name-template sanitisation is POSIX-only — no Windows invalid chars, no trailing dot/space trim, no reserved-name guard. | DONE | S8 | new `src/core/OutputName.h` (`NameRules` parameterised, so the Windows rule set is unit-tested on Linux); test 29, 30 assertions | - |
@@ -102,14 +102,14 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 | W-01 | Project setup: `reference_code/` vs `working_code/` separation | DONE | S1 | split in place; README "What is reference vs. working" states the rule | - |
 | W-02 | GIF engine build + upstream identity verification | DONE | S8 | `verify_audit.sh` A10: `release/0.1.0/gifsicle --version` prints `LCDF Gifsicle 1.96` | - |
 | W-03 | Qt-independent command/settings control layer | DONE | S11 | `src/core/*.h` compile with plain g++ (no Qt); unit suite 296 checks (S11 count) | - |
-| W-04 | CLI driver + unit tests + integration smoke | DONE | S11 | `./build.sh` 296 checks, 0 failures; `scripts/smoke_cli.sh` 14/14 | - |
+| W-04 | CLI driver + unit tests + integration smoke | DONE | S12 | `./build.sh` 296 checks, 0 failures; `scripts/smoke_cli.sh` 19/19 | - |
 | W-05 | Qt6 GUI MVP (Batch default, mode combo, async run, queue, DnD) | DONE | S8 | CI run `34471563229` green on linux + windows; NOT compiled in the S8/S9 sandboxes (no Qt6) | - |
 | W-06 | Portable + system-dependent packaging scripts | DONE | S8 | `scripts/test_package.sh` 9/9 negative cases; `verify_audit.sh` D1/D2/D5 | - |
 | W-07 | Linux GitHub Actions path with Qt6 + artifacts | DONE | S8 | `.github/workflows/build.yml`; main runs #23/#24 green both jobs | - |
 | W-08 | Root LICENSE / COPYING.gifsicle / .gitignore / .gitattributes | DONE | S8 | CI "Assert package manifest" step requires LICENSE + COPYING.gifsicle in the package | - |
 | W-09 | P0 silent-failure fixes (2026-09-07) | DONE | S4 | `COMPILED_AUDIT.md` §6.A re-run green | - |
 | W-10 | P1 honesty work (2026-09-07) | DONE | S4 | `COMPILED_AUDIT.md` §6.E 8/8 | - |
-| W-11 | Smoke suite + engine test scripts | DONE | S11 | `scripts/test_engine.sh` 5/5; `scripts/smoke_cli.sh` 14/14 (S11 added the explode-verification + N-05 refusal cases) | - |
+| W-11 | Smoke suite + engine test scripts | DONE | S12 | `scripts/test_engine.sh` 5/5; `scripts/smoke_cli.sh` 19/19 (S12 added strict parsing, PATH-only discovery, stdout purity, and unsafe-output cases) | - |
 | W-12 | Apply `docs/ci/build.yml.proposed` to the live workflow | DONE | S4 | maintainer `821a310` + S4 hardening; copies kept byte-identical (gate E9) | - |
 | W-13 | Merge the compiled audit into one register | DONE | S3 | `COMPILED_AUDIT.md` §5 holds all 52 findings | - |
 | W-14 | One-command verification of `COMPILED_AUDIT.md` §6 | DONE | S11 | `scripts/verify_audit.sh` 28 PASS / 0 FAIL / 3 SKIP, exit 0 (re-measured in the S11 Qt6+cmake sandbox, which added gate C9; the S9 sandbox measured 25/0/5 because C6/C7*/B skipped there) | - |

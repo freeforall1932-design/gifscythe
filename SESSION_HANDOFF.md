@@ -1,10 +1,35 @@
 # Session Handoff
 
-**Date:** 2026-09-12 (session S11) · **Branch:** `arena/s11-gifscythe` (pushed;
-**PR #14** open against `main`, CI green on the head `635c986` — run
-`34685470992`, linux + windows) → based on `main` commit `2176573` (the
-PR #13 merge) ·
+**Date:** 2026-09-12 (session S13) · **Branch:** `arena/01a0950f-gifscythe`
+(pushed; **PR #15** open against `main`, CI green on commit `c105f3c` — run
+`34704221643`, Linux + Windows) → based on merged `main` `53a6eda` (the PR
+#14 merge) ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending)
+
+## S13 follow-up
+
+- **U-10 config half completed:** the product-owned native engine configuration
+  is now `working_code/gifscythe/build_support/gifsicle/config.native.h`.
+  `scripts/build_engine.sh` stages it as `config.h` in a temporary include
+  directory, so `reference_code/gifsicle/` is upstream-only and never written.
+  Native build, unit suite, engine tests, and smoke suite pass after the move.
+- U-10 remains PARTIAL only for CI hash-pinning, which still needs a token with
+  `workflows` scope. U-12 remains OPEN; no untestable GUI refactor was claimed.
+
+## S12 follow-up
+
+- **U-18/P2-4 coverage expanded:** `smoke_cli.sh` is now **19/19**, covering
+  unknown/incomplete options, byte-pure binary stdout, PATH-only engine
+  discovery from an isolated executable directory, and output-equals-input
+  refusal. Existing unit and package suites cover thread flags, output planning,
+  and incomplete packages.
+- **Post-merge documentation gate repaired:** G10 accepts the current main
+  merge tip or its first parent and works in shallow checkouts; G6 skips
+  honestly when a full local toolchain is unavailable. This fixed the Linux
+  post-merge failure without changing the workflow file.
+- The remaining partial/open items are unchanged: U-09, U-10's config/workflow
+  remainder, U-12, U-14, clean Windows/desktop probes, workflow-scope work,
+  and owner decisions. See `STATUS.md`.
 
 ## TL;DR for the next session
 
@@ -13,7 +38,7 @@ PR #13 merge) ·
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S11: **79 DONE · 4 PARTIAL ·
+   `U-nn` row; neither replaces the other. As of S13: **80 DONE · 3 PARTIAL ·
    17 OPEN · 0 UNTRIAGED · 100 total.**
 
 1. **What S11 did.** The S11 sandbox had working apt (uid 0) and installed,
@@ -86,8 +111,9 @@ PR #13 merge) ·
    - **Drift fixed on arrival:** the two stale `414f5fc` mentions (G10) were
      re-synced to the real tip before anything else.
 
-2. **Gates, all run locally this session:** `./build.sh` **296 checks,
-   0 failures** · `test_engine.sh` **5/5** · `smoke_cli.sh` **14/14** ·
+2. **S11 full-toolchain gate baseline (retained; S12 CLI/docs rerun is in
+   the follow-up above):** `./build.sh` **296 checks, 0 failures** ·
+   `test_engine.sh` **5/5** · `smoke_cli.sh` **14/14** ·
    `test_package.sh` **9/9** · web **17 + 23 + 30** · offscreen harness
    **324 checks, 0 failures** · `check_docs.sh` **21 passed, 0 failed,
    1 skipped** (G7 skip = declared-pending workflow) · `verify_audit.sh`
@@ -114,9 +140,9 @@ PR #13 merge) ·
    `windeployqt` smoke (C4/D3/D4, `docs/ci/CLEAN_WINDOWS_SMOKE.md`) → desktop
    probes B5/B6/B14 → owner decisions (two-way CLI pane, version 0.2.0 vs
    1.0.0). Audit findings still open: **U-12** (scoped P1-24) and **U-09**.
-   PARTIALs: **U-10** (CI pinning + config.h move), **U-14** (verify_audit in
-   CI — `workflows` scope), **U-18** (regression-suite expansion). W-30 waits
-   on the same `workflows`-scoped maintainer action.
+   PARTIALs: **U-10** (CI hash-pinning only) and **U-14** (verify_audit in CI
+   — `workflows` scope). U-18/P2-4 regression coverage is DONE in S12.
+   W-30 waits on the same `workflows`-scoped maintainer action.
 
 5. **Direction unchanged:** offline-only; C++17 + Qt6 Widgets through 1.0.0;
    `web/` is a demo/parity harness only (see

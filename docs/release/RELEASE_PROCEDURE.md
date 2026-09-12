@@ -35,7 +35,7 @@ From `working_code/gifscythe/`:
 ```bash
 ./build.sh                    # engine + CLI + unit tests      -> ALL TESTS PASSED
 ./scripts/test_engine.sh      # engine pipeline                -> 5/5
-./scripts/smoke_cli.sh        # CLI integration                -> 14/14
+./scripts/smoke_cli.sh        # CLI integration                -> 19/19
 ./scripts/test_package.sh     # packaging negative suite       -> 0 failed
 ./scripts/check_docs.sh       # documentation status gate      -> 0 failed
 ./scripts/verify_audit.sh     # whole COMPILED_AUDIT §6 suite  -> 0 FAIL
@@ -47,11 +47,11 @@ QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen   # -> 0 failures
 node ../../web/test/command.test.mjs                         # -> ALL PASSED
 ```
 
-Expected counts as of S11 (2026-09-12): unit suite **296 checks, 0 failures**
+Expected counts as of S12 (2026-09-12): unit suite **296 checks, 0 failures**
 (the runtime counter, not the 261 `CHECK(` source sites), GUI harness **324
 runtime checks** *(measured in the S11 sandbox, which had Qt 6.4.2 — re-run it
 on a Qt machine before trusting the number; the file now holds 250 `CHECK(`
-source sites, which is a different quantity)*, smoke **14/14**, web **17 + 23 +
+source sites, which is a different quantity)*, smoke **19/19**, web **17 + 23 +
 30**, `verify_audit.sh` **28 PASS / 0 FAIL / 3 SKIP, exit 0** (skips are the
 declared-pending workflow change and the CI-gated + clean-Windows items; a
 toolchain-less sandbox additionally skips C6/C7*/C9/B). If a count changed,
