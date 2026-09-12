@@ -39,6 +39,11 @@ export function validate(s) {
   if (s.info && (mode === "batch" || mode === "merge" || mode === "explode")) {
     add("info", "true", "--info cannot be combined with mode options (-m/-b/-e)");
   }
+  // N-05 (S11) — mirror of Validate.h: one shared prefix cannot carry several
+  // inputs; the engine explodes all but the LAST into the CWD and exits 0.
+  if (mode === "explode" && s.inputs && s.inputs.length > 1) {
+    add("mode", "explode", "explode with multiple inputs scatters frames: only the LAST input honors the -o prefix, earlier inputs write <basename>.NNN into the CWD (engine exits 0) - run one file at a time");
+  }
   if (s.crop && (!num(s.crop_w, 0) || !num(s.crop_h, 0))) {
     add("crop", "0x0", "crop width/height must be > 0");
   }

@@ -339,14 +339,14 @@ void MainWindow::closeEvent(QCloseEvent* event) {
 }
 
 bool MainWindow::ensureEngine() {
-  if (gs::path_is_executable(enginePath_.toStdString())) {
+  if (gs::path_is_executable(gs::u8path_compat(enginePath_.toStdString()))) {
     updateStatus(QStringLiteral("Ready — engine: %1").arg(enginePath_));
     return true;
   }
   // Re-probe in case the user built the engine after launch.
   enginePath_ = QString::fromStdString(
       gs::locate_engine(QCoreApplication::applicationFilePath().toStdString()));
-  if (gs::path_is_executable(enginePath_.toStdString())) {
+  if (gs::path_is_executable(gs::u8path_compat(enginePath_.toStdString()))) {
     updateStatus(QStringLiteral("Ready — engine: %1").arg(enginePath_));
     return true;
   }
@@ -629,6 +629,14 @@ void MainWindow::refreshOutputSummary() {
                  : QStringLiteral("Merge (all inputs welded) → %1").arg(explicitOut);
       break;
     case gs::Mode::Explode:
+      if (inputs_.size() > 1) {
+        // N-05: the engine would explode every input but the last into the
+        // CWD and exit 0 — the run is refused; say so before the click.
+        text = QStringLiteral("Explode → REFUSED for %1 queued files: one file per run "
+                              "(the engine would scatter the others' frames into the CWD)")
+                   .arg(inputs_.size());
+        break;
+      }
       text = explicitOut.isEmpty()
                  ? (inputs_.isEmpty()
                         ? QStringLiteral("Explode → frames write as <stem>_frame.000, .001, … next to the input")
@@ -824,6 +832,7 @@ void MainWindow::runCommand() {
     // Process one file at a time, using the PLANNED target for each file.
     batchQueue_ = inputs_;
     batchIndex_ = 0;
+    explodeSnapshot_.clear();  // batch never explodes; keep the snapshot honest
     setBusy(true);
     updateStatus(QStringLiteral("Optimizing 1/%1…").arg(batchQueue_.size()));
     QString in = batchQueue_.at(0);
@@ -881,6 +890,15 @@ void MainWindow::runCommand() {
   pendingOutput_ = QString::fromStdString(settings.output);
   batchIndex_ = -1;
   batchQueue_.clear();
+  // Explode frame verification (audit U-17 / P1-19): snapshot the files under
+  // the frame prefix NOW, before the engine runs, so completion can require at
+  // least one NEW or CHANGED real GIF frame instead of trusting rc=0 (and so
+  // stale frames from an earlier run cannot fake a success).
+  if (settings.mode == gs::Mode::Explode) {
+    explodeSnapshot_ = gs::snapshot_explode_candidates(pendingOutput_.toStdString());
+  } else {
+    explodeSnapshot_.clear();
+  }
 
   gs::GifsicleCommand cmd(settings);
   QStringList qargs;
@@ -938,8 +956,32 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     return;
   }
 
+  // Explode frame verification (audit U-17 / P1-19): exit 0 alone used to
+  // report "Optimization complete." even with zero frames on disk — the
+  // output check below explicitly skipped Explode. Require at least one NEW
+  // or CHANGED real GIF under the prefix, and name the prefix on failure.
+  if (batchMode_ == gs::Mode::Explode) {
+    const gs::ExplodeResult vr =
+        gs::verify_explode_frames(pendingOutput_.toStdString(), explodeSnapshot_);
+    explodeSnapshot_.clear();
+    if (!vr.ok) {
+      setBusy(false);
+      batchQueue_.clear();
+      batchIndex_ = -1;
+      updateStatus(QStringLiteral("No frames produced — engine exited 0 but wrote none."));
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QString::fromStdString(vr.describe()));
+      return;
+    }
+    setBusy(false);
+    updateStatus(QStringLiteral("Explode complete — %1 frame(s) written.")
+                     .arg(vr.frames.size()));
+    schedulePreview();
+    return;
+  }
+
   // Verify output for non-explode modes.
-  if (batchMode_ != gs::Mode::Explode && !pendingOutput_.isEmpty()) {
+  if (!pendingOutput_.isEmpty()) {
     QFileInfo fi(pendingOutput_);
     if (!fi.exists() || fi.size() == 0) {
       setBusy(false);

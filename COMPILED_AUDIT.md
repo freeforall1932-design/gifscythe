@@ -9,8 +9,8 @@
 > column. CI on **PR #11** (run `34471563229`) is **green on linux and
 > windows**, which is the first compilation of the S8 Qt edits.**
 
-**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7 (2026-09-10), S8 (2026-09-10), S9 (2026-09-10), S10 (2026-09-11)
-**Branch:** local `main` work of session S10 → based on `main` commit `414f5fc` (re-confirm with
+**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7 (2026-09-10), S8 (2026-09-10), S9 (2026-09-10), S10 (2026-09-11), S11 (2026-09-12)
+**Branch:** local `main` work of session S11 → based on `main` commit `2176573` (re-confirm with
 `gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`;
 `check_docs.sh` gate **G10** fails if this line names anything else)
 **Product version:** 0.1.0 (do **not** bump to 1.0.0 yet)
@@ -647,8 +647,18 @@ are not reliably representable.
 `std::filesystem::path/wstring` at Windows filesystem boundaries. Define UTF-8 as the
 settings-file encoding and convert once at the boundary.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. `ProcessRunner.h:79`:
-`CreateProcessA`. Cannot execute on Windows in this sandbox.
+**Status:** ✅ **FIXED (S11)** — `CreateProcessW` + UTF-16 command line (strict
+UTF-8 conversion, invalid input refused), `GetCommandLineW` argv re-fetch,
+wide env reads, and `u8path_compat`/`path_u8string` at every string↔path
+boundary (the MinGW libstdc++ narrow conversions are NOT UTF-8 — verified
+under Wine). Executed proof (mingw cross-build + Wine 8): the pre-fix binary
+fails an `é`-path conf with mojibake (`rÃ©sumÃ©…: No such file`, rc=1); the
+fixed binary runs it rc=0 and writes the output; a CJK path reaches the child
+process's UTF-16 command line byte-exact (probe). Unit suite green under Wine
+(289 checks). Residual, documented: upstream gifsicle's own CRT re-encodes its
+argv through the ACP (no wmain; `reference_code/` read-only), so characters
+the system ACP cannot represent still need Windows' UTF-8-ACP option to reach
+the ENGINE's file APIs — Gifscythe's own chain is lossless regardless.
 
 ---
 
@@ -755,8 +765,16 @@ reference snapshot.
 configs. Pin and verify upstream tree hashes in CI; document the one intentional patch series if
 patches are needed. Correct the manifest's identity claim.
 
-**Status:** ⬜ **OPEN** — confirmed by execution (C:U-10). The vendored tree carries a
-handwritten `config.h` that upstream does not ship.
+**Status:** ◐ **PARTIAL (S11)** — provenance half CLOSED with executed proof: a
+fresh full clone of `kohler/gifsicle` was diffed against both vendored trees
+(2026-09-12). `gifsicle/` is byte-identical to upstream `07f5c4c3` in every
+shared file (the "functional patch" `FRAME_SELECTION_MODE_MASK 0x1F` and the
+"extra test" `012-framechange.testie` are upstream commits `9efcc14`/`ed5b018`,
+5 commits after the `v1.96` tag); `gifsicle-nested-1.96/` is pristine `v1.96`.
+Only local addition: the handwritten `config.h`. Digests + the reproduce
+recipe are in `reference_code/REFERENCE_MANIFEST.md`. Still open: CI
+hash-pinning (proposal-only — needs `workflows` scope) and moving the
+product-owned `config.h` under `working_code/gifscythe/build_support`.
 
 ---
 
@@ -860,9 +878,10 @@ three-second wait.
 a `QTimer` for start/cancel deadlines; escalate terminate to kill asynchronously. Increment the
 preview generation when killing so old completions cannot update the panel.
 
-**Status:** ⬜ **OPEN** — confirmed by source read (C:U-12). Five synchronous waits remain:
-`waitForStarted(5000)` at `:768` and `:804`, `waitForFinished(2000)` at `:188`,
-`waitForFinished(3000)` at `:818`, `waitForFinished(1000)` at `:936`.
+**Status:** ⬜ **OPEN** — confirmed by source read (C:U-12); **scoped as P1-24 in §6 (S11)**.
+Five synchronous waits remain (line numbers re-measured in S11):
+`waitForStarted(5000)` at `:842` and `:904`, `waitForFinished(2000)` at `:171`,
+`waitForFinished(3000)` at `:919`, `waitForFinished(1000)` at `:1086`.
 
 ---
 
@@ -961,8 +980,18 @@ generated-first include paths. Stop committing the generated fallback or generat
 explicit build script. Remove qmake if it is not maintained, or derive its version from
 `VERSION.md` and test it in CI.
 
-**Status:** ⬜ **OPEN** — confirmed by source read (C:U-15). `CMakeLists.txt:17-24`:
-`configure_file` targets `${CMAKE_SOURCE_DIR}/src/core/version.h`.
+**Status:** ✅ **FIXED (S11)** — the second `configure_file` is gone; the
+template moved to `build_support/version.h.in` and the generated dir now comes
+FIRST on every include path (`core/version.h` includes converted to path
+form). Executed repro of the audit's own scenario, before vs after: with
+`src/` read-only (uid 65534) the OLD CMakeLists dies with "Could not open file
+for write in copy operation …/src/core/version.h.tmp", the NEW one configures
+AND builds; deleting the committed `src/core/version.h` outright, the new tree
+still configures+builds+passes its unit tests from the generated header alone.
+Regression gate: `verify_audit.sh` **C9** (disposable copy, fallback deleted).
+`build.sh` remains the only writer of the committed fallback (A5 stays
+green); the qmake `VERSION =` line stays informational (secondary path,
+documented in the .pro header).
 
 ---
 
@@ -1024,11 +1053,15 @@ reported.
 **Fix:** Snapshot matching files before start and enumerate new `prefix.NNN` files after finish.
 Require a non-zero count and validate GIF headers; surface the exact prefix searched on failure.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. `MainWindow.cpp:850`:
-```cpp
-if (batchMode_ != gs::Mode::Explode && !pendingOutput_.isEmpty())
-```
-Explode is explicitly skipped. **Identical to B:BUG-08 / U-17.**
+**Status:** ✅ **FIXED (S11)** — new `src/core/ExplodeVerify.h` (Qt-free,
+shared): snapshot `<prefix>.*` before the run, require ≥1 NEW-or-CHANGED file
+with GIF87a/GIF89a magic after exit 0; failures name the exact prefix and
+directory. Wired into `onProcessFinished` (dialog + honest status, success
+reports the verified frame count) and the CLI `--run` path (rc=1 + stderr).
+Executed: lying engine (exits 0, writes nothing) refused by unit test 33,
+smoke cases 9–11 (incl. the empty-output CWD-basename prefix rule read off
+upstream `gifsicle.c:778`), harness T7 (`fake_engine_exit0` fixture), and
+under Wine (rc=1, prefix named). **Identical to B:BUG-08 / U-17.**
 
 ---
 
@@ -1370,7 +1403,9 @@ frames exist (empty file set) is not verified.
 **Fix:** After an Explode run completes with exit 0, `QDir` the parent and look for files starting
 with the prefix+'.' — fail with the same 'No output produced' dialog if none exist.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Identical to A:GS-017 / U-17.**
+**Status:** ✅ **FIXED (S11)** — see A:GS-017: `ExplodeVerify.h` snapshot-diff
+verification in CLI + GUI, proven with a lying engine at every test layer.
+**Identical to A:GS-017 / U-17.**
 
 ---
 
@@ -1393,7 +1428,11 @@ is called out as a POC but is a major feature gap for a web port.
 **Fix:** Add a `<select id="mode">` to the HTML and read it in `settings()`. Batch mode requires
 multiple file uploads; Merge needs an output filename. Document as roadmap.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Identical to C:U-41.**
+**Status:** ✅ **FIXED (S11)** — the web UI grew a mode selector (Auto/Batch/
+Merge/Explode + by-name), a multi-file queue with per-file removal, and a
+results list with per-output downloads; the server grew `POST /run` (JSON
+multi-file, per-mode semantics, output verification). Scoped first as P2-11.
+**Identical to C:U-41.**
 
 ---
 
@@ -1596,22 +1635,22 @@ Deduplicated across A/B/C/D. "Src" = which audit(s) raised it.
 | **U-04** | A:GS-003 | **CLI `--run` without `output` corrupts its own stdout.** Status text and binary data share stdout. | ✅ **EXEC** | ✅ FIXED (S8) — `--run` commentary moved to stderr |
 | **U-05** | A:GS-004 | **Documented PATH engine fallback is dead code.** `locate_engine()` returns bare `"gifsicle"`; `path_is_executable()` checks CWD, not PATH. | ✅ **EXEC** | ✅ FIXED (S8) — real `find_on_path()`; `""` when not found |
 | **U-06** | A:GS-005 · D:GS-102 | **Web demo binds `0.0.0.0` with no auth, no concurrency cap, 64 MB bodies, 120 s engine runs.** Concurrent requests can race on temp dirs. | ✅ **EXEC** | ✅ FIXED (S8) — binds 127.0.0.1; `GS_WEB_HOST` to opt in |
-| **U-07** | A:GS-006 | **Windows CLI execution is ANSI-only.** `CreateProcessA` + `std::string` cmdline ⇒ non-ASCII paths cannot be passed to the engine. | ✅ **SRC** | ⬜ OPEN |
+| **U-07** | A:GS-006 | **Windows CLI execution is ANSI-only.** `CreateProcessA` + `std::string` cmdline ⇒ non-ASCII paths cannot be passed to the engine. | ✅ **EXEC** (wine 8, mingw 12) | ✅ FIXED (S11) — `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly |
 | **U-08** | A:GS-007 | **License set can ship incomplete, silently.** Root has `LICENSE` + `COPYING.gifsicle` but **no `COPYING`**; every license copy is `if [[ -f ]]`-guarded. | ✅ **EXEC**+SRC | ✅ FIXED (S8) — license set asserted, negative-tested |
 | **U-09** | A:GS-008 | **Banked Windows snapshot is 5 commits behind the SHA its own notes claim.** Release body pins `d3544b1`; main is `8190c08`. | ✅ **EXEC** | ⬜ OPEN |
-| **U-10** | A:GS-009 | **The "read-only, identical-to-upstream" vendored engine is neither.** Carries a handwritten `config.h` (Linux values), a functional patch, and an extra test. | ✅ **EXEC** | ◐ PARTIAL (S8) — manifest wording corrected; provenance still needs a clone |
+| **U-10** | A:GS-009 | **The "read-only, identical-to-upstream" vendored engine is neither.** Carries a handwritten `config.h` (Linux values), a functional patch, and an extra test. | ✅ **EXEC** (S11 re-clone) | ◐ PARTIAL (S11) — provenance recorded: diff+digests vs upstream `07f5c4c3` in REFERENCE_MANIFEST.md. MISSING: CI hash-pinning (workflows scope) + config.h move |
 
 ### Medium
 
 | ID | Src | Finding | Verif | Status |
 |----|-----|---------|-------|--------|
 | **U-11** | A:GS-011 | **Malformed booleans degrade silently.** `parse_bool` maps anything outside `1/true/yes/on` to `false` with no warning. | ✅ **EXEC** | ✅ FIXED (S8) — `parse_bool_strict` warns, leaves field unchanged |
-| **U-12** | A:GS-012 | **"Fully async" GUI still blocks the UI thread in 5 places** — up to 5 s per run start. | ✅ **SRC** | ⬜ OPEN |
+| **U-12** | A:GS-012 | **"Fully async" GUI still blocks the UI thread in 5 places** — up to 5 s per run start. | ✅ **SRC** | ⬜ OPEN — scoped as P1-24 (S11); implementation deferred: the freeze is not reproducible offscreen, and the cancel rewrite would rewire T2/T9/T10 semantics with no executable proof of improvement |
 | **U-13** | A:GS-013 · B:BUG-02 · D:GS-104 | **Drag-and-drop accepts any existing file.** Filter is `endsWith(".gif") \|\| exists(f)` — should be `&&`. Also: **empty comments emit `--comment` with no argument**, corrupting argv. | ✅ **SRC** | ✅ FIXED (S8) — drop filter `&&`; empty comments skipped (C++ + JS) |
 | **U-14** | A:GS-014 | **Green CI does not enforce the claims used as release gates.** `verify_audit.sh` is never run in CI; package contents are never asserted. | ✅ **EXEC** | ◐ PARTIAL (S8) — negative packaging tests + manifest assertion in CI |
-| **U-15** | A:GS-015 | **CMake writes into the source tree.** `configure_file` targets `${CMAKE_SOURCE_DIR}/src/core/version.h`. | ✅ **SRC** | ⬜ OPEN |
+| **U-15** | A:GS-015 | **CMake writes into the source tree.** `configure_file` targets `${CMAKE_SOURCE_DIR}/src/core/version.h`. | ✅ **EXEC** | ✅ FIXED (S11) — build-tree-only configure_file (`build_support/version.h.in`); generated-first includes; gate C9 + read-only-src repro flipped FAIL->PASS |
 | **U-16** | A:GS-016 · C:F-06 | **Settings persistence is non-atomic** (Truncate + write). A crash mid-write leaves a truncated conf. | ✅ **SRC** | ✅ FIXED (S10) — `save_settings_file` is tmp+fsync+rename; GUI save is QSaveFile; unit test 32 + T19 no-stray check |
-| **U-17** | A:GS-017 · B:BUG-08 | **Explode mode never verifies any frame was written.** Output verification is explicitly skipped for Explode. | ✅ **SRC** | ⬜ OPEN |
+| **U-17** | A:GS-017 · B:BUG-08 | **Explode mode never verifies any frame was written.** Output verification is explicitly skipped for Explode. | ✅ **EXEC** | ✅ FIXED (S11) — `src/core/ExplodeVerify.h` snapshot-diff (CLI+GUI); lying engine (rc=0, 0 frames) refused: unit 33, smoke 9-11, harness T7, wine rc=1 |
 | **U-18** | A:GS-018 | **The regression suite does not cover any of the failure classes above.** No test for target collisions, package completeness, stdout purity, PATH fallback, or thread flags. | ✅ **EXEC** | ◐ PARTIAL (S8) — planning/threads/validate/bool/comment unit tests, T17, package suite |
 | **U-19** | C:F-02 | **`readFrom()` is not the "exact inverse" of `writeInto()`.** Crop geometry, position and scale are serialized only when their parent toggle is on. | ✅ **EXEC** | ☑ CORRECTED (S8) — not reproducible with toggles on; wording fixed, pinned by unit test 26 |
 | **U-20** | C:F-03 | **"The CLI reads GUI-saved files without warnings" is false.** A real GUI-saved file has no `input` key, so `validate()` warns. | ✅ **EXEC** | ☑ CORRECTED (S8) — doc claim reworded; the `input` warning is expected |
@@ -1640,7 +1679,7 @@ Deduplicated across A/B/C/D. "Src" = which audit(s) raised it.
 | **U-38** | C:F-09 | `verify_audit.sh` **FAILs** instead of SKIPping C6 when `cmake` is absent (`[B]` guards properly 13 lines later). | ✅ **EXEC** | ✅ FIXED (S8) — C6 SKIPs without cmake |
 | **U-39** | C:F-10 | `docs/ci/build.yml.proposed` is a hand-maintained byte copy of the live workflow (already drifted once). | ✅ **EXEC** | ✅ FIXED (S8) — `verify_audit.sh` E9 drift guard |
 | **U-40** | B:BUG-15 | CLI prints `validate()` warnings and runs anyway; the GUI refuses. Intentional, but undocumented at the point of use. | ✅ **EXEC** | ✅ FIXED (S10) — `--strict` refuses any warned conf with rc=3 (print+run); usage documents the policy and exit codes; smoke 7→9 cases |
-| **U-41** | B:BUG-09 | Web POC is single-file Auto mode only — no batch/merge/explode. Documented as a POC. | ✅ **SRC** | ⬜ OPEN |
+| **U-41** | B:BUG-09 | Web POC is single-file Auto mode only — no batch/merge/explode. Documented as a POC. | ✅ **EXEC** | ✅ FIXED (S11) — mode selector + multi-file UI; `POST /run` with desktop semantics (batch planning + collision refusal, verified explode); web suites 17/23/30 |
 | **U-42** | B:BUG-10 | Web has one `scalePct` for both axes; desktop has independent X/Y. | ✅ **SRC** | ✅ FIXED (S10) — web UI now has Scale X % / Scale Y % inputs; asymmetric parity fixture + live transport case pin per-axis factors |
 | **U-43** | C:F-11 | Summary reads `Batch (1 files) → X … X` (plural + duplicated path) for one input with no Save-as. | ✅ **SRC** | ✅ FIXED (S8) — "Batch (1 file)" (CI-compiled) |
 | **U-44** | C:F-13 | The two dated review snapshots sit at repo root while newer material lives in `docs/`. | ✅ **SRC** | ✅ FIXED (S8) — `git mv` to `docs/archive/`; the 3 prose references updated; README layout lists it |
@@ -1701,6 +1740,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P1-21 | **GUI `return` after engine-start failure.** Add `return;` after `QMessageBox::critical` on non-batch path. | **U-28** | **B** |
 | P1-22 | **`setBusy(false)` engine re-check.** Use `ensureEngine()` pattern when re-enabling Run. | **U-35** | **B** |
 | P1-23 | **Batch output group locking.** Disable entire output group (including Browse buttons) while busy; guard chooser slots. Snapshot complete validated job plan before starting. | **U-45** | **D** |
+| P1-24 | **Async run/cancel state machine (scoped S11; deliberately NOT yet implemented).** Five UI-thread waits remain: `waitForStarted(5000)` ×2 in `runCommand` (batch start `MainWindow.cpp:842`, single start `:904`), `waitForFinished(3000)` in `cancelRun` (`:919`), `waitForFinished(2000)` in `~MainWindow` (`:171`), `waitForFinished(1000)` in `killPreview` (`:1086`). Fix: drive run start from `started`/`errorOccurred` + a `QTimer` start deadline, and cancel from `kill()` + the `finished` signal (terminate→kill escalation via timer, never a wait); the two teardown waits (`~MainWindow`, `killPreview`) are destructor-inherent — keep them bounded and documented, and invalidate the preview seq when killing so stale completions cannot repaint. S11 scoping decision: the harm (a frozen UI) needs a SLOW process start, which the offscreen harness cannot reproduce — `waitForStarted` returns as soon as the OS exec succeeds, so a sleeping fake engine proves nothing; refactoring the cancel path would rewire semantics that T2/T9/T10 pin, with no executable way to show the freeze is gone. Scoped-OPEN beats an untestable refactor. | **U-12** | **A** |
 
 ### P2 — Turn fixes into gates (CI hardening)
 
@@ -1717,6 +1757,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P2-8 | **Web transport round-trip tests.** Test `%`, `%20`, `%22`, plus signs, Unicode, malformed JSON through `searchParams.get()` path. | **U-49** | **D** |
 | P2-9 | **Settings string round-trip tests.** Test newline, CR, whitespace, equals signs, Unicode in `save_settings`/`load_settings`. | **U-51** | **D** |
 | P2-10 | **HTTP header safety tests.** Test CJK comments, newlines, Unicode engine path in `X-Gifscythe-Command` path. | **U-50** | **D** |
+| P2-11 | **Web batch/merge/explode parity (scoped S11).** Mode selector + per-mode settings in the web UI, and a JSON multi-file endpoint (`POST /run`) that mirrors desktop semantics: batch runs a per-file Auto command with derived `<stem>_opt.gif` targets and REFUSES target collisions like the desktop planner; merge runs one `-m` command over all inputs in upload order; explode runs `-e`/`-E` against a `<stem>_frame` prefix and refuses rc=0-with-zero-frames exactly like the P1-19 desktop verification; every mode's output is existence+GIF-magic verified before success is claimed. Pin with fixtures in all three web suites. | **U-41** | **B** |
 
 ### P3 — Docs and polish
 
@@ -1750,10 +1791,12 @@ B and C findings are merged in where they add coverage or contradict A/D.
 - [ ] **A9** prvalue `GifsicleCommand(Settings{...})` (unit test 11)
 - [ ] **A10** `release/0.1.0/gifsicle --version` → `LCDF Gifsicle 1.96`
 - [ ] **A11** `./scripts/test_engine.sh` → 5/5
-- [ ] **A12** `./scripts/smoke_cli.sh` → 9/9
+- [ ] **A12** `./scripts/smoke_cli.sh` → 14/14
 - [ ] **A13** **NEW:** threads=0 emits bare `-j` (not nothing)
 - [ ] **A14** **NEW:** empty comment in conf does NOT emit `--comment` with no argument
 - [ ] **A15** **NEW:** unknown CLI arg (`--rnu`) returns exit 2, not 0
+- [ ] **A16** **NEW (S11):** explode `--run` verifies frames — real engine counts them on stderr; a lying engine (rc=0, zero frames) exits 1 naming the prefix; empty output uses the CWD basename prefix (smoke 9–11)
+- [ ] **A17** **NEW (S11):** multi-input explode is refused — `validate()` warns (C++ + byte-identical JS mirror), `--run` exits 2 before any process starts, print mode keeps the warn-and-print policy, no CWD scatter (N-05; smoke case 12, unit block 35, harness T7)
 
 ### 7.B GUI — via offscreen harness
 
@@ -1784,6 +1827,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 - [ ] **C5** Windows engine built with win32cfg semantics
 - [ ] **C6** `cmake -S . -B build && cmake --build build` configures+builds
 - [ ] **C7** `./build.sh --all` with Qt hidden → exit 1 + honest error
+- [ ] **C9** **NEW (S11):** cmake leaves the source tree pure — configures+builds a copy whose `src/core/version.h` was DELETED and writes nothing back (U-15)
 
 ### 7.D Packaging / license / hygiene
 
@@ -1819,7 +1863,8 @@ B and C findings are merged in where they add coverage or contradict A/D.
 |------|-----|------------|
 | Batch auto-output overwrites existing `*_opt.gif` | No prompt yet | **P0-1**: plan + validate before start |
 | Indeterminate progress only | gifsicle lacks rich progress | Acceptable; don't block UI "parsing" fake % |
-| `waitForStarted(5000)` still sync on start | Short block only | OK; full async start optional (P1-12) |
+| `waitForStarted(5000)` still sync on start | Short block only | Scoped as **P1-24** (S11): bounded waits documented; async refactor deferred because a slow start is not reproducible offscreen |
+| Windows engine argv is ACP-encoded | upstream gifsicle has no `wmain` and `reference_code/` is read-only | Gifscythe's own chain is lossless (`CreateProcessW`, proven under Wine); characters outside the system ACP need Windows 10 1903+ "UTF-8 for worldwide language support" — documented in `WinUnicode.h` + U-07 row |
 | GUI untested in this sandbox | No Qt6 here | Keep harness in CI; one desktop pass for B5/B6/B14 |
 | Windows CI complexity (aqt + mingw shim) | Step-4 root cause FIXED + Wine-proven | C2 gate passed; remaining = C4/D3/D4 clean-Windows smoke |
 | One-way CLI pane vs old "two-way" marketing | Doc updated; labels must stay honest | U-MISS-14 |

@@ -17,10 +17,10 @@ root `reference_code/` (read-only).
 - **0.1.0** — engine + control layer + CLI + full GUI (S4b retrofit + S7 polish).
 - `COMPILED_AUDIT.md` §6 was **executed with evidence** (S4) and **rerun green
   on 2026-09-10 (S7)**: §6.A all green, §6.B green via the offscreen GUI
-  harness (**306 checks, T1–T20**, measured in the S10 sandbox; 243 in S7), §6.E all green;
-  `verify_audit.sh` → **27 PASS / 0 FAIL / 3 SKIP, exit 0** (E9 SKIPs while the
-  CI workflow change awaits a `workflows`-scoped token; F1/F2 are the S9
-  documentation gate).
+  harness (**324 checks, T1–T20**, measured in the S11 sandbox; 306 in S10),
+  §6.E all green; `verify_audit.sh` → **28 PASS / 0 FAIL / 3 SKIP, exit 0**
+  (E9 SKIPs while the CI workflow change awaits a `workflows`-scoped token;
+  F1/F2 are the S9 documentation gate; C9 is the S11 source-tree-purity gate).
 - **Windows path proven under Wine + CI**: engine exe (`1.96 (Windows)`), CLI
   E2E with `C:\` paths + spaces, static-linked exes, honest exit codes; main
   green on both jobs (runs #23/#24), binaries banked on Release
@@ -79,9 +79,14 @@ working_code/gifscythe/
               GifsicleCommand.h   argv builder + shell-quoted toString()
               SettingsIO.h        load/save key=value + warnings
               EngineLocator.h     find gifsicle regardless of CWD
-              ProcessRunner.h     argv exec, no shell
+              ProcessRunner.h     argv exec, no shell (CreateProcessW on Windows)
               Validate.h          out-of-range / conflict warnings
-              version.h           from VERSION.md (GS_VERSION)
+              ExplodeVerify.h     explode frame verification (U-17)
+              WinUnicode.h        Windows UTF-8 argv/env/path shims (U-07)
+              version.h           from VERSION.md (GS_VERSION); committed
+                                  fallback synced by build.sh — CMake
+                                  generates its own copy in the build tree
+                                  from build_support/version.h.in (U-15)
     cli/    main.cpp → gifscythe-cli
     qtui/   MainWindow (tabs + bottom bar) + SettingsPanel (Actions)
             + PreviewPanel (before/after) + DropListWidget (Qt6 GUI)
@@ -125,10 +130,13 @@ explicit choice (concatenates animations).
   location (`%APPDATA%\Gifscythe\` on Windows); override the path with
   `GS_SETTINGS_PATH`. The queue and Save-as field are deliberately *not*
   restored. Corrupt files apply their valid keys and warn in the status bar.
-- Regression net: `tests/test_gui_offscreen.cpp` — T1–T20, 240 `CHECK(` sites in
-  source; last measured at **306 runtime checks** in the S10 sandbox (Qt 6.4.2);
-  243 in the S7 sandbox before that. Runs
-  in CI; this sandbox has no Qt6/cmake.
+- Regression net: `tests/test_gui_offscreen.cpp` — T1–T20, 250 `CHECK(` sites in
+  source; last measured at **324 runtime checks** in the S11 sandbox (Qt 6.4.2);
+  306 in the S10 sandbox before that. Runs in CI and in any Qt6-equipped
+  sandbox (S10/S11 both compiled and ran it locally).
+- Cross-platform engine-probe fixture: `tests/fake_engine_exit0.cpp` (CMake
+  target `fake_engine_exit0`) — a lying engine that exits 0 without writing;
+  T7 uses it to prove explode verification refuses the false success.
 
 ## Versioning
 0.1.0 → 1.0.0–1.9.9 (finished GIF product) → 2.0.0–3.0.0 (WebP + APNG).  

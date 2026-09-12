@@ -56,6 +56,7 @@ class SettingsPanel;
 #include "core/GifsicleSettings.h"
 #include "core/GifsicleCommand.h"
 #include "core/OutputPlan.h"
+#include "core/ExplodeVerify.h"
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -171,6 +172,10 @@ class MainWindow : public QMainWindow {
   int batchIndex_ = -1;
   QStringList batchQueue_;
   gs::Mode batchMode_ = gs::Mode::Batch;
+  // Explode frame verification (audit U-17 / P1-19): pre-run snapshot of the
+  // files under the frame prefix, so onProcessFinished can tell frames THIS
+  // run wrote from stale leftovers. Empty for every non-Explode run.
+  std::vector<gs::ExplodeFileState> explodeSnapshot_;
 
   // Preview state
   QProcess* previewProcess_ = nullptr;  // objectName "previewProcess"

@@ -40,6 +40,15 @@ inline std::vector<Warning> validate(const Settings& s) {
   if (s.info && (s.mode == Mode::Batch || s.mode == Mode::Merge || s.mode == Mode::Explode)) {
     add("info", "true", "--info cannot be combined with mode options (-m/-b/-e)");
   }
+  // N-05 (S11): one shared prefix cannot carry several inputs. Verified
+  // against the bundled 1.96: `gifsicle -e a.gif b.gif -o p` exits 0,
+  // explodes every input BUT THE LAST as `<basename>.NNN` into the process
+  // CWD, and only the last input's frames land under the prefix. Same
+  // silent-data class as U-01/U-17 — surface it before any run.
+  if (s.mode == Mode::Explode && s.inputs.size() > 1) {
+    add("mode", "explode",
+        "explode with multiple inputs scatters frames: only the LAST input honors the -o prefix, earlier inputs write <basename>.NNN into the CWD (engine exits 0) - run one file at a time");
+  }
   if (s.crop && (s.crop_w == 0 || s.crop_h == 0)) {
     add("crop", "0x0", "crop width/height must be > 0");
   }
