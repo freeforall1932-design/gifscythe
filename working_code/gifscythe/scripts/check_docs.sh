@@ -1010,5 +1010,28 @@ else
   fi
 fi
 
+# ---------------------------------------------------------------------------
+# 17. STALE-CLAIM SWEEP - the complement to this gate. check_docs.sh keeps
+#     STATUS.md self-consistent with the repo, but a doc can still say "CI
+#     green" (true when a session wrote it) and be read later when main is red.
+#     sweep_stale.sh scans the same current-state .md set for claims checkable
+#     only against reality (workflow copies, quoted register tallies, volatile
+#     green/red/merged wording, retired demo scoping, and narrative-vs-register
+#     state) and names file:line + the fix. It runs every session, at PR create
+#     and at merge (see scripts/pr_preflight.sh).
+# ---------------------------------------------------------------------------
+SWEEP="$self/scripts/sweep_stale.sh"
+if [[ ! -x "$SWEEP" ]]; then
+  bad "G17" "scripts/sweep_stale.sh is missing or not executable"
+else
+  if sweep_out="$( "$SWEEP" 2>&1 )"; then
+    s_pass="$(grep -cE '^  PASS \[S' <<<"$sweep_out")"
+    ok "G17" "stale-claim sweep green ($s_pass rule groups green; narrative-vs-register cross-check included)"
+  else
+    bad "G17" "stale-claim sweep found staleness - fix each named file:line as its 'action:' says, then re-run"
+    grep -E '^  FAIL \[S' <<<"$sweep_out" | head -12 | sed 's/^/         /'
+  fi
+fi
+
 echo "==> Done. $PASS passed, $FAIL failed, $SKIP skipped."
 [[ "$FAIL" -eq 0 ]]

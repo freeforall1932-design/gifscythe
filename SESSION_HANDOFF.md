@@ -11,6 +11,16 @@ linux + windows**) ·
 owner's draft is refitted into that template's slots — move both lines in the same commit, gate
 **G16** compares them)*
 
+## Next session — fast hand-off (S14 continuation)
+
+- **Copy-paste prompt:** `docs/planning/NEXT_SESSION_PROMPT.md` — recovery steps,
+  the SkillOpt ask, the decision backlog, and the standing constraints in one block.
+- **Owner decisions:** `docs/planning/OWNER_DECISIONS.md` — answer `OD-01`…`OD-15`
+  in the form `OD-nn = a|b`. `OD-01`/`OD-02` (release blockers) come first.
+- **SkillOpt ask:** `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` — verified facts,
+  the three non-negotiable conditions, the four shapes, and open questions Q1–Q4.
+  Await `OD-15`.
+
 ## S14 — External reviews compiled for review; stale status claims corrected (docs only)
 
 **No code was changed and no intake finding was remediated.** 18 findings from three external
@@ -50,6 +60,30 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
   `WORKING PLAN` on the refit commit cannot be half-applied or silently reversed.
 - **Not done, deliberately:** **no triage** — nothing was mapped into §6 fix-order `U-nn` ids, so
   nothing is scheduled; and the workflow copy is not synced (needs a `workflows`-scoped token).
+
+## S14 continuation — stale-claim sweep + PR preflight + owner-decision register (docs only)
+
+- **Stale-claim sweep:** new `scripts/sweep_stale.sh` (rules **S1–S5**, each
+  mutation-tested) scans the same current-state `.md` set for claims checkable
+  only against reality — workflow-copy vs marker (**S1**), quoted register
+  tallies (**S2**), volatile "green/red/merged" wording (**S3**), retired
+  demo-scoping (**S4**), and narrative-vs-register state (**S5**). `check_docs.sh`
+  gained gate **G17** (runs the sweep; expects 5 rule groups green), so the
+  total is now **22 passed / 0 failed / 3 skipped**.
+- **PR/merge companion:** new `scripts/pr_preflight.sh` (`--online`/`--body`)
+  runs `check_docs.sh` (P1) + `sweep_stale.sh` (P2), fails on a dirty tree (P3),
+  prints repo/run/PR state (P4), and writes a PR body skeleton (P5). Rule 3
+  above now points at it.
+- **Narrative-vs-register cross-check closed:** the U-06/U-08 narrative
+  `**Status:**` lines no longer claim "FIXED (S8)" while §5 marks them
+  ◐ PARTIAL — and sweep rule **S5** now enforces it mechanically, so it cannot
+  regress. Two undated "CI green" cells in
+  `docs/planning/OFFLINE_BUILD_REVIEW.md` were dated to S6 (the sweep's first
+  real catches).
+- **Owner decisions + SkillOpt:** `docs/planning/OWNER_DECISIONS.md`
+  (`OD-01`…`OD-15`), `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` (the
+  incorporate-into-this-repo ask), and `docs/planning/NEXT_SESSION_PROMPT.md`
+  (copy-paste hand-off) were added; `STATUS.md` gained `SW-01`/`SW-02`.
 
 ## S13 follow-up
 
@@ -215,8 +249,10 @@ only stick if they are in files a new session reads, not in a conversation.
    wait for a later audit pass. Gate **G12** fails if an `UNTRIAGED` row
    outlives the session that found it.
 3. **Before `gh pr create`, and again before `gh pr merge`:** run
-   `check_docs.sh`, fix every failure, re-run until green. Do not create or
-   merge with a failing doc check, and **do not ask whether to run it**.
+   `working_code/gifscythe/scripts/pr_preflight.sh --online` (it runs
+   `check_docs.sh` and `sweep_stale.sh`, and prints the repo/run/PR state),
+   fix every failure, re-run until green. Do not create or merge with a
+   failing check, and **do not ask whether to run it**.
 4. **Enforced mechanically** by `.githooks/pre-push`. Hooks are not shared by
    git clones, so run `working_code/gifscythe/scripts/bootstrap_hooks.sh` once
    per clone (`build.sh` does it for you). Confirm it is live with
