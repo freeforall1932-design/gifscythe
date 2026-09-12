@@ -1940,4 +1940,52 @@ B and C findings are merged in where they add coverage or contradict A/D.
 > source of truth. Run `verify_audit.sh` + `test_gui_offscreen` before trusting anything new.
 > Never "fix" verified-correct behaviors (VP-1/2/3/5); never start WebP/APNG before GIF 1.0.0.
 
+---
+
+## 13. External review intake — 2026-09-12 (S14) — **NOT YET TRIAGED**
+
+> **Read this as an inbox, not a register.** Three external reviews were compiled on
+> 2026-09-12 into `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`. The items below are
+> **not** `U-nn` rows: they have not been triaged, scoped, or fixed, and **no §5 row above was
+> changed** by compiling them. Nothing in this repository was remediated in that intake.
+
+**Sources.** Max via OpenAI (highest tier; 10 findings, `GS-201…GS-210`) · DeepSeek (8 findings,
+`N-06…N-13`) · Gemini 3.8 flash high (**empty deployment — no content to compile**).
+Every item below was re-checked against the shipped source at
+`2d51347817f5cdb39334415a03bb5f2b543119dd`; the intake file records the evidence, the reviewer's
+proposed solution and the verification limits.
+
+| ID | Severity | Finding (short) | Evidence location | Re-check |
+|---|---|---|---|---|
+| **GS-201** | Critical | CLI Batch maps to engine `-b` (in-place edit); the output planner is skipped when `output` is empty, so `--run` can rewrite the source GIFs | `working_code/gifscythe/src/cli/main.cpp`, `working_code/gifscythe/src/core/GifsicleCommand.h` | code-confirmed |
+| **GS-202** | High | Web `/run` builds output paths and the explode prefix from client-supplied upload names; `../` escapes the request temp dir, collisions compared case-sensitively | `web/server.mjs` | code-confirmed |
+| **GS-203** | High | Ordinary runs (Auto/Merge/Batch) claim success on exit 0 with no output verification; GUI and web accept stale/non-GIF files | `src/cli/main.cpp`, `src/qtui/MainWindow.cpp`, `web/server.mjs` | code-confirmed |
+| **GS-204** | High | System packager never clears its destination, copies conditionally, always prints success; portable packager skips Qt deployment when the deployer is absent; negative tests cover portable only | `working_code/gifscythe/scripts/package_system.sh`, `working_code/gifscythe/scripts/package_portable.sh` | code-confirmed |
+| **GS-205** | Medium | Non-GIF inputs still admitted: picker offers `All files`, `appendInputs` validates nothing, drop accepts a directory because it checks existence, not `isFile()` | `src/qtui/MainWindow.cpp` | code-confirmed |
+| **GS-206** | Medium | `long` → `int` narrowing without range checks; validation has no rules for `loopcount`, `threads`, `gamma`, or method-name enums | `src/core/SettingsIO.h`, `src/core/Validate.h` | partly confirmed |
+| **GS-207** | Medium | An unusable `GS_ENGINE` override is silently skipped and another engine runs (CLI and web) | `src/core/EngineLocator.h`, `web/server.mjs` | code-confirmed |
+| **GS-208** | High | Main is release-red: run `34705247115` failed the Linux documentation gate while `SESSION_HANDOFF.md` claims a green open PR #15 and the pending-workflow marker describes an already-applied change | `.github/workflows/build.yml`, `SESSION_HANDOFF.md`, `docs/ci/PENDING_WORKFLOW_CHANGE.md` | live CI + local gate re-run |
+| **GS-209** | Medium | Native "linux/mac" engine build still uses a fixed Linux/glibc `config.native.h` (headers, `random()`, type sizes, SIMD, `gettimeofday`) | `working_code/gifscythe/build_support/gifsicle/config.native.h`, `working_code/gifscythe/scripts/build_engine.sh` | code-confirmed |
+| **GS-210** | Low | `build.sh` ignores unknown options, `build_engine.sh` treats any non-`--windows` argument as native, GUI dispatch tries qmake before CMake, `.pro` hardcodes the version | `build.sh`, `scripts/build_engine.sh`, `gifscythe.pro` | code-confirmed |
+| **N-06** | High | `threads <= 0` emits a bare `-j`, so the `-1` "unset" sentinel now means 8 threads instead of the engine's single-threaded default; no way to emit no flag | `src/core/GifsicleCommand.h`, `src/core/GifsicleSettings.h` | code-confirmed |
+| **N-07** | Medium | GUI Threads spinner spans `0..64` and always writes a value — "no flag / unchanged" is unrepresentable | `src/qtui/SettingsPanel.cpp` | code-confirmed |
+| **N-08** | Low | Non-strict print mode returns 0 even when validation warned; scripts cannot tell valid from warned without parsing stderr | `src/cli/main.cpp` | code-confirmed |
+| **N-09** | Info | `threads < -1` is accepted without warning and re-interpreted as "auto" | `src/core/SettingsIO.h`, `src/core/Validate.h` | code-confirmed |
+| **N-10** | Info | Disposal methods `4..7` (and the `-1` sentinel semantics) are unreachable from the desktop picker, though the engine and web validator allow them | `src/qtui/SettingsPanel.cpp`, `web/validate.mjs` | code-confirmed |
+| **N-11** | Medium | This file's own §3/§4 narrative still marks U-04/U-23/U-03/U-32-era items OPEN while §5 marks them FIXED — following §3 sends a reviewer after closed work | `COMPILED_AUDIT.md` | code-confirmed |
+| **N-12** | Low | The line-based settings format silently loses leading/trailing whitespace in values (documented, no rejection path) | `src/core/SettingsIO.h` | code-confirmed |
+| **N-13** | Medium | Web `/optimize` checks only non-empty output; no GIF magic check, so non-GIF bytes are served as `200 image/gif` | `web/server.mjs` | code-confirmed |
+
+**Local gate state at the time of intake (recorded, not fixed).**
+`working_code/gifscythe/scripts/check_docs.sh --no-gate-run` → **18 passed, 2 failed, 3 skipped**;
+the failures are **G10** (this file's header names base `2176573`, while the accepted bases are
+`2d51347` / `53a6eda`) and **G15** (fresh clone: `core.hooksPath` is not `.githooks`). The live
+run `34705247115` failed its Linux documentation gate on main. **Do not treat main as green.**
+
+**Cross-references inside this file.** GS-201 extends U-01's coverage gap (the planner is correct
+but unreachable without an `output` key). GS-203 and N-13 are one workstream (postcondition
+verification: size + magic + changed-since-snapshot). N-06/N-07/N-09/GS-206 are one workstream
+(numeric sentinels and domains: decide the tri-state once). GS-208 and N-11 are the same
+stale-status failure mode in two files.
+
 *End of compiled audit v2.*
