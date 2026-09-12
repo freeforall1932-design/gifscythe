@@ -4,6 +4,88 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S14 — External reviews compiled; stale status claims corrected (docs only, no code fixes)  (2026-09-12)
+
+**Changed:**
+
+* **Added the external-review intake.** `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md` compiles
+  the three reviews fetched this session — Max/GPT-class `GS-201…GS-210` (1 Critical / 4 High /
+  4 Medium / 1 Low), DeepSeek `DS-06…DS-13` (renamed: its own `N-06…N-13` collided with this
+  repo's existing N-series), and a Gemini deployment that returned an empty page. Each finding
+  carries its evidence, impact, the reviewer's proposed solution and a re-check against
+  `2d51347`. `COMPILED_AUDIT.md` §13 is the inbox. **Nothing was triaged and no finding was
+  remediated** — the owner asked for a compiled intake to review first.
+* **Corrected status claims that this session's verification proved false.** The
+  `COMPILED_AUDIT.md` header named base `2176573` (the failing **G10** check) — it now names
+  `main` `2d51347`; 35 narrative `**Status:**` lines in §2/§3/§4 still read OPEN for items the §5
+  register marks fixed — each now cites its §5 row and the audit as filed follows after
+  *"Original report:"*; the header carries a current-state banner (main is release-red).
+* **Two register states corrected DONE → PARTIAL** (with the missing half named):
+  **U-06** — loopback bind landed, but the concurrency cap, per-client rate limit and engine-run
+  bound named in the finding are still missing; **U-08** — the silent-skip is closed (both
+  packagers hard-require the licence files), but the licence set itself is still incomplete (no
+  full GPLv3 text, no Qt LGPL notices staged; owner decision pending). U-08 was removed from §6
+  P0-3's Closes list, and `STATUS.md` was re-emitted.
+* **`docs/ci/PENDING_WORKFLOW_CHANGE.md` rewritten** to describe the drift that actually remains:
+  the S9 documentation-gate step is already live in `.github/workflows/build.yml`, and the only
+  difference left is the Windows E2E temp-path fallback line.
+* **`SESSION_HANDOFF.md`** header now states the real state: PR #15 **merged**, and the
+  post-merge `main` run **RED** at the Linux documentation gate. **`WORKLIST.md`**: S14 section,
+  the intake parked as a pending line, and the U-06 tick unticked (it is PARTIAL now).
+
+**Registered (not triaged):**
+
+* The 18 intake findings are now rows in `STATUS.md` (`UNTRIAGED`, reviewers' ids `GS-201…GS-210`
+  and `DS-06…DS-13`), one pending line each in `WORKLIST.md`, plus release-blocking pointers in
+  `docs/release/RELEASE_PROCEDURE.md`. Nothing was mapped into the §6 fix order, so nothing is
+  scheduled — triage waits on the owner's review and the direction decision below.
+* **Web plan template + direction decision:** `web/WEB_PLAN_TEMPLATE.md` (moved out of
+  `docs/planning/` so it sits next to the code and is easy to find) holds the split plan — how the
+  web app moves fast while the desktop/portable lanes are frozen to correctness-only, with the
+  guardrails that stop the split from re-creating divergence bugs (`U-03`'s class) — and is built
+  as a **template** so the owner's own draft can be refitted into it slot by slot without changing
+  meaning (§0 rules). **Direction changed by the owner in S14:** `PROJECT_VISION.md` no longer
+  scopes `web/` as "demo only / not the product path" — the web build is now a **supported product
+  surface**, a self-hosted alternative to the `.exe`/portable build, with the offline-only
+  (no cloud) promise unchanged. Desktop remains the 1.0.0 release artifact.
+
+**Partial:**
+
+* U-06 and U-08, as described above.
+
+**Left:**
+
+* The 18 intake findings are untriaged (review requested first): `COMPILED_AUDIT.md` §13.
+* Live `main` is still red until the next push re-runs CI; the workflow copy still differs from
+  `.github/workflows/build.yml` (applying it needs a `workflows`-scoped token).
+
+**Verified:**
+
+* **CI:** run `34707532582` at commit `ddc4194` on `arena/01a0968e-gifscythe` — **linux + windows
+  green**, including the "Documentation status gate (STATUS.md register)" step that failed on the
+  main tip in run `34705247115`.
+* `working_code/gifscythe/scripts/check_docs.sh` in this clone after
+  `working_code/gifscythe/scripts/bootstrap_hooks.sh`: **21 passed, 0 failed, 3 skipped** (G6
+  SKIPs — no cmake/Qt6 in this sandbox, so the full-toolchain total is not measurable here); the
+  G10 stale-base failure is gone and the re-emitted register reads 78 DONE / 5 PARTIAL / 17 OPEN /
+  18 UNTRIAGED.
+* **New gate G16 (web plan template state):** `web/WEB_PLAN_TEMPLATE.md` carries
+  `**Template state:** SKELETON|WORKING PLAN` and `SESSION_HANDOFF.md` mirrors it; the gate fails if
+  they disagree or name anything else, so the one-way flip at refit time cannot be half-applied.
+  Mutation-tested both ways (disagreeing mirror FAILs, bad token FAILs) before shipping it.
+
+**Not verifiable here:**
+
+* The CI step log text (the Actions log download fails from this sandbox), so the exact failing
+  sub-gate on run `34705247115` is inferred, not read; Windows/macOS behaviour; and the intake's
+  destructive reproductions were deliberately not executed.
+
+**Docs touched:** `COMPILED_AUDIT.md`, `STATUS.md`, `SESSION_HANDOFF.md`, `WORKLIST.md`,
+`IMPROVEMENT_LOG.md`, `docs/ci/PENDING_WORKFLOW_CHANGE.md`,
+`docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`.
+
+---
+
 ## S13 — Product config leaves the vendored tree; U-10 reduced to workflow pinning  (2026-09-12)
 
 **Changed:**

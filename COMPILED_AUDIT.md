@@ -9,8 +9,16 @@
 > column. CI on **PR #11** (run `34471563229`) is **green on linux and
 > windows**, which is the first compilation of the S8 Qt edits.**
 
-**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7 (2026-09-10), S8 (2026-09-10), S9 (2026-09-10), S10 (2026-09-11), S11 (2026-09-12)
-**Branch:** local `main` work of session S11 → based on `main` commit `2176573` (re-confirm with
+> **Current state (2026-09-12, S14) — main is RELEASE-RED.** Live check: `main` is `2d51347`, and
+> run `34705247115` (the PR #15 merge) **failed the Linux documentation status gate**; every later
+> Linux step was skipped and Windows passed. The S8 banner above is a dated snapshot of that
+> session, **not** the current state. §13 is the external-review **intake inbox — not triaged**.
+> Narrative `**Status:**` lines in §2/§3/§4 now name their §5 register row; where the original
+> audit text disagreed with the register, the original wording is kept after *"Original report:"*
+> and is superseded by the register.
+
+**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), **S14 (2026-09-12 — external-review intake and status-truth corrections)**
+**Branch:** `main` at `2d51347817f5cdb39334415a03bb5f2b543119dd` (the PR #15 merge; re-confirm with
 `gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`;
 `check_docs.sh` gate **G10** fails if this line names anything else)
 **Product version:** 0.1.0 (do **not** bump to 1.0.0 yet)
@@ -60,6 +68,9 @@ trust A/D + primary source. Where A and D disagree, treat D as the fresher obser
 3. After any fix, run §7 and tick the boxes with evidence (command + exit code / screenshot).
 4. Watch for **new pits** (§8): closing one hole by opening another is a failed fix.
 5. WebP / APNG / frame editor stay **blocked** until GIF UI is stable (`PROJECT_VISION.md`).
+6. **Narrative vs register:** §2/§3/§4 are the audits as filed. S14 reconciled their
+   `**Status:**` lines with §5 — each one now names its row, and the original wording follows
+   after *"Original report:"*. **§5 is the only source of state**; `STATUS.md` is generated from it.
 
 ---
 
@@ -141,7 +152,7 @@ use immutable planned destinations.
 **Prior-audit distinction:** U-01 / A:GS-001 concerns collisions in the initial plan. This is a
 separate time-of-use mutation after preflight; U-35 only concerns Run re-enablement.
 
-**Status:** ⬜ **OPEN** — `setBusy()` only disables the text field, not the Browse button.
+**Status:** ✅ **FIXED (S10)** — resolved; register §5 `U-45`. Original report: ⬜ **OPEN** — `setBusy()` only disables the text field, not the Browse button.
 
 ---
 
@@ -182,7 +193,7 @@ change Run state.
 **Prior-audit distinction:** Not the desktop temp-file leak in B:BUG-14 / U-34. This is web
 response ownership, not file cleanup or missing web modes.
 
-**Status:** ⬜ **OPEN** — confirmed by source read (`app.js:48-69`).
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-46`. Original report: ⬜ **OPEN** — confirmed by source read (`app.js:48-69`).
 
 ---
 
@@ -224,7 +235,7 @@ start.
 **Prior-audit distinction:** Related to A:GS-012 cancellation guidance, but adds the uncovered
 debounce and early-return paths. U-34 concerns leaked files, not stale visual correctness.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Distinct from U-34** (which is about leaked
+**Status:** ✅ **FIXED (S10)** — resolved; register §5 `U-47`. Original report: ⬜ **OPEN** — confirmed by source read. **Distinct from U-34** (which is about leaked
 temp files, not stale visual results).
 
 ---
@@ -269,7 +280,7 @@ empty string, or reject/skip the entire empty-comment option according to a docu
 **Prior-audit distinction:** A:GS-011 covers malformed booleans and numeric validation, not
 argument cardinality. Shell quoting cannot repair an already-missing argv element.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. The GUI's "Add comment" button
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-48`. Original report: ⬜ **OPEN** — confirmed by source read. The GUI's "Add comment" button
 (`SettingsPanel.cpp`) checks `if (!t.isEmpty())` before adding, so the GUI path is protected. But
 a hand-written `.conf` with `comment = ` (empty value after `=`) loads as an empty string in
 `s.comments` (SettingsIO.h: `s.comments.push_back(v)` where `v` is trimmed to `""`). Then
@@ -307,7 +318,7 @@ round-trip tests for `%`, `%20`, `%22`, plus signs, Unicode, and malformed JSON.
 **Prior-audit distinction:** U-30 is missing semantic validation. This is corruption of
 syntactically valid transport data before validation or engine execution.
 
-**Status:** ⬜ **OPEN** — confirmed by source read (`server.mjs:146-148`).
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-49`. Original report: ⬜ **OPEN** — confirmed by source read (`server.mjs:146-148`).
 
 ---
 
@@ -344,7 +355,7 @@ sanitization.
 **Prior-audit distinction:** A:GS-006 concerns Windows process encoding. This is Node HTTP output
 encoding and can fail on any supported host.
 
-**Status:** ⬜ **OPEN** — confirmed by source read (`server.mjs:173-181`).
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-50`. Original report: ⬜ **OPEN** — confirmed by source read (`server.mjs:173-181`).
 
 ---
 
@@ -384,7 +395,7 @@ signs, and Unicode round trips.
 covers injection of new logical keys through unescaped string serialization. This is not a claim
 of remote code execution.
 
-**Status:** ⬜ **OPEN** — confirmed by source read (`SettingsIO.h:275-276` for save,
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-51`. Original report: ⬜ **OPEN** — confirmed by source read (`SettingsIO.h:275-276` for save,
 `:290` for load).
 
 ---
@@ -420,7 +431,7 @@ replacement and release both URLs during teardown.
 **Prior-audit distinction:** B:BUG-14 / U-34 is desktop preview disk cleanup. This is browser blob
 lifetime on the input side.
 
-**Status:** ⬜ **OPEN** — confirmed by source read (`app.js:64-66`).
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-52`. Original report: ⬜ **OPEN** — confirmed by source read (`app.js:64-66`).
 
 ---
 
@@ -466,7 +477,7 @@ appropriate. Reject duplicate targets and target-equals-source. Prompt once for 
 files or default to non-destructive suffixing. Write to a temporary sibling file and rename
 only after a valid non-empty GIF is produced.
 
-**Status:** ⬜ **OPEN** — the constant-template refusal exists (`MainWindow.cpp:730`), but
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-01`. Original report: ⬜ **OPEN** — the constant-template refusal exists (`MainWindow.cpp:730`), but
 same-basename collisions and target-equals-source are not checked. **This is the #1 finding
 across all audits.** See also C:F-01, D-01.
 
@@ -503,7 +514,7 @@ after validation. Require the exact engine, CLI, GUI, license set, and platform 
 the selected package type. Require `windeployqt` on Windows and propagate its non-zero status.
 Run the packaged CLI from the staging folder and inspect dynamic dependencies before success.
 
-**Status:** ⬜ **OPEN** — confirmed by execution (C:U-02). The packager exits 0 with no GUI
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-02`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-02). The packager exits 0 with no GUI
 binary in the folder.
 
 ---
@@ -537,7 +548,7 @@ The file begins with `# Gifs` rather than GIF87a or GIF89a, even if the exit cod
 If stdout output is a supported feature, send all diagnostics and the command preview to stderr
 before exec. Add an explicit `--stdout` mode so binary behavior cannot happen accidentally.
 
-**Status:** ⬜ **OPEN** — confirmed by execution (C:U-04). The CLI writes status to stdout
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-04`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-04). The CLI writes status to stdout
 before the engine bytes.
 
 ---
@@ -574,7 +585,7 @@ path. On Windows, honor `PATHEXT` and use wide-character filesystem APIs. Resolv
 through PATH before deriving the executable directory. Treat a non-empty `GS_ENGINE` as a
 strict override instead of silently falling through when it is invalid.
 
-**Status:** ⬜ **OPEN** — confirmed by execution (C:U-05). `locate_engine()` returns
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-05`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-05). `locate_engine()` returns
 `"gifsicle"` (bare name) as the last resort, and `path_is_executable("gifsicle")` checks
 CWD, not PATH.
 
@@ -614,7 +625,7 @@ before spawning. Add a small concurrency semaphore, queue limit, output/stderr c
 per-client rate limit. Sandbox the engine and document that the POC is not a deployable
 service.
 
-**Status:** ⬜ **OPEN** — confirmed by execution (C:U-06). `server.mjs:208`:
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-06`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-06). `server.mjs:208`:
 `server.listen(PORT, "0.0.0.0", ...)`. No auth, no concurrency cap.
 
 ---
@@ -695,7 +706,7 @@ statement. Ship complete GPLv3, GPLv2-only, LGPLv3, and relevant Qt notices in a
 directory. Make both packagers require the same audited legal manifest. Have release counsel
 confirm the final Qt and bundled-engine obligations before 1.0.0.
 
-**Status:** ⬜ **OPEN** — confirmed by execution (C:U-08). Root has `LICENSE` (1133 B) and
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-08`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-08). Root has `LICENSE` (1133 B) and
 `COPYING.gifsicle` but **no `COPYING`**, so the `package_system` copy branch never fires.
 
 ---
@@ -809,7 +820,7 @@ code is 0. **A understated this finding.**
 **Fix:** Parse into a typed `Options` struct. Return 2 immediately for unknown flags, missing
 `--engine` values, duplicate incompatible arguments, and misplaced operands.
 
-**Status:** ⬜ **OPEN** — confirmed by execution (C:U-23). Unknown args are silently ignored,
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-23`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-23). Unknown args are silently ignored,
 exit 0.
 
 ---
@@ -844,7 +855,7 @@ a run.
 sets. Validate finite positive scale, resize dimensions, loopcount, threads, gamma, mode/output
 requirements, and allowed enum strings. Separate errors from warnings; make `--run` fail on errors.
 
-**Status:** ⬜ **OPEN** — confirmed by execution (C:U-11). `parse_bool` maps anything outside
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-11`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-11). `parse_bool` maps anything outside
 `1/true/yes/on` to `false` with no warning.
 
 ---
@@ -910,7 +921,7 @@ control becomes available.
 require `GIF87a` or `GIF89a` before queue insertion. Report how many dropped paths were rejected
 and why.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. `MainWindow.cpp:426`:
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-13`. Original report: ⬜ **OPEN** — confirmed by source read. `MainWindow.cpp:426`:
 ```cpp
 if (f.endsWith(".gif", Qt::CaseInsensitive) || QFileInfo::exists(f))
   gifs << f;
@@ -946,7 +957,7 @@ parity/API tests, package negative tests, ShellCheck, compiler warnings-as-error
 jobs. Pin actions by commit SHA and `aqtinstall` by version/hash. Upload only validated package
 roots, not a mixture of raw build directories.
 
-**Status:** ⬜ **OPEN** — confirmed by execution (C:U-14). `verify_audit.sh` is never run in CI;
+**Status:** ◐ **PARTIAL (S8)** — resolved; register §5 `U-14`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-14). `verify_audit.sh` is never run in CI;
 package contents are never asserted.
 
 ---
@@ -1023,7 +1034,7 @@ Unicode path loads.
 failure. Load with `QFile/QTextStream`, then pass bytes through `load_settings(std::istream&)`
 rather than reopening a narrow path. Add a format version and explicit UTF-8 encoding.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. `MainWindow.cpp:1086-1096`: opens with
+**Status:** ✅ **FIXED (S10)** — resolved; register §5 `U-16`. Original report: ⬜ **OPEN** — confirmed by source read. `MainWindow.cpp:1086-1096`: opens with
 `WriteOnly|Truncate`, writes in place. **Identical to C:F-06 / U-16.**
 
 ---
@@ -1093,7 +1104,7 @@ Split the monolithic custom test main into named tests or at least named executa
 CI evidence. Add fuzz targets for `SettingsIO` and the GIF engine boundary, plus ASan/UBSan
 coverage in CI.
 
-**Status:** ⬜ **OPEN** — confirmed by execution (C:U-18). T16 uses `a.gif`/`b.gif` (distinct
+**Status:** ✅ **FIXED (S12)** — resolved; register §5 `U-18`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-18). T16 uses `a.gif`/`b.gif` (distinct
 stems), so same-basename collision is untested.
 
 ---
@@ -1121,7 +1132,7 @@ the logged engine path.
 **Fix:** Read the version from `VERSION.md`, or parse numeric semver components before sorting.
 Prefer an explicit `GS_ENGINE` and fail strictly when it is invalid.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. `server.mjs:52`:
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-26`. Original report: ⬜ **OPEN** — confirmed by source read. `server.mjs:52`:
 `versions.sort().reverse()`. **Identical to C:F-12 / U-26.**
 
 ---
@@ -1200,7 +1211,7 @@ GUI 0 maps to bare `-j`.
 sets `thread_count = GIFSICLE_DEFAULT_THREAD_COUNT (8)`. So `threads=0` in the GUI → no flag →
 `thread_count` stays 0 → **single-threaded**. Real auto is bare `-j` → 8 threads.
 
-**Status:** ⬜ **OPEN** — confirmed by source read + execution. This is **U-03** in the
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-03`. Original report: ⬜ **OPEN** — confirmed by source read + execution. This is **U-03** in the
 consolidated register. **B is right; Audit C's "benign" claim was wrong.**
 
 ---
@@ -1232,7 +1243,7 @@ if (f.endsWith(".gif", Qt::CaseInsensitive) && QFileInfo::exists(f)) gifs << f;
 ```
 Also consider adding a failed-to-add feedback for non-GIF drops.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Identical to A:GS-013 / U-13.**
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-13`. Original report: ⬜ **OPEN** — confirmed by source read. **Identical to A:GS-013 / U-13.**
 
 ---
 
@@ -1257,7 +1268,7 @@ function.
 
 **Fix:** Add `return;` after the `QMessageBox::critical` block (line ~808), mirroring line 772.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Identical to C:U-28.**
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-28`. Original report: ⬜ **OPEN** — confirmed by source read. **Identical to C:U-28.**
 
 ---
 
@@ -1284,7 +1295,7 @@ Desktop `SettingsPanel.cpp:183`: `scaleXSpin_->setValue(100.0);`
 
 **Fix:** Change `value` from 50 to 100 in `web/index.html:81`.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Identical to C:U-25.**
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-25`. Original report: ⬜ **OPEN** — confirmed by source read. **Identical to C:U-25.**
 
 ---
 
@@ -1311,7 +1322,7 @@ option, so users can't select it from the UI.
 ```
 after the 'Fit' option.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Identical to C:U-29.**
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-29`. Original report: ⬜ **OPEN** — confirmed by source read. **Identical to C:U-29.**
 
 ---
 
@@ -1346,7 +1357,7 @@ if (!st || st.size === 0) {
 }
 ```
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Identical to C:U-24.**
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-24`. Original report: ⬜ **OPEN** — confirmed by source read. **Identical to C:U-24.**
 
 ---
 
@@ -1376,7 +1387,7 @@ truth.
 user-friendly list of issues before invoking the engine. This provides parity with the GUI's
 pre-flight dialog.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Identical to C:U-30.**
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-30`. Original report: ⬜ **OPEN** — confirmed by source read. **Identical to C:U-30.**
 
 ---
 
@@ -1453,7 +1464,7 @@ The web UI links both axes to one slider. Acceptable for POC but a parity gap.
 
 **Fix:** Add `scaleXPct` and `scaleYPct` inputs; default both to 100.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Identical to C:U-42.**
+**Status:** ✅ **FIXED (S10)** — resolved; register §5 `U-42`. Original report: ⬜ **OPEN** — confirmed by source read. **Identical to C:U-42.**
 
 ---
 
@@ -1477,7 +1488,7 @@ distros (Ubuntu 18.04 / g++ 7) will fail at link time with undefined references 
 **Fix:** Add a small autodetect in `build.sh` (try linking with and without `-lstdc++fs`). CMake
 handles this via C++17 standard + proper compiler detection; the ad-hoc g++ line does not.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. Cannot test (g++ 12 only).
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-31`. Original report: ⬜ **OPEN** — confirmed by source read. Cannot test (g++ 12 only).
 
 ---
 
@@ -1504,7 +1515,7 @@ return 1;  // after WIFSIGNALED
 **Fix:** Replace `return 1;` with `return 128 + WTERMSIG(status);`. Update Windows branch for
 consistency if desired.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Identical to C:U-32.**
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-32`. Original report: ⬜ **OPEN** — confirmed by source read. **Identical to C:U-32.**
 
 ---
 
@@ -1531,7 +1542,7 @@ Otherwise it should warn and not set `has_position`.
 `has_position`; instead, after parsing all fields, set `has_position = (position_x_was_set &&
 position_y_was_set)`. Alternatively warn if exactly one was provided.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Identical to C:U-33.**
+**Status:** ✅ **FIXED (S8)** — resolved; register §5 `U-33`. Original report: ⬜ **OPEN** — confirmed by source read. **Identical to C:U-33.**
 
 ---
 
@@ -1560,7 +1571,7 @@ whether the previous run completed.
 in `previewDir_` instead of just the predecessor. Or track all created preview paths in a set and
 clean up in `killPreview` or when a new one starts.
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Identical to D-03 / C:U-34.**
+**Status:** ✅ **FIXED (S10)** — resolved; register §5 `U-34`. Original report: ⬜ **OPEN** — confirmed by source read. **Identical to D-03 / C:U-34.**
 
 ---
 
@@ -1584,7 +1595,7 @@ from the GUI.
 
 **Fix:** Document the behavior in README. Optionally add `--strict` that treats warnings as fatal.
 
-**Status:** ⬜ **OPEN** — confirmed by execution. **Identical to C:U-40.**
+**Status:** ✅ **FIXED (S10)** — resolved; register §5 `U-40`. Original report: ⬜ **OPEN** — confirmed by execution. **Identical to C:U-40.**
 
 ---
 
@@ -1612,7 +1623,7 @@ runButton_->setEnabled(!busy && !inputs_.isEmpty() && ensureEngine());
 ```
 (`ensureEngine` re-probes and updates status).
 
-**Status:** ⬜ **OPEN** — confirmed by source read. **Identical to C:U-35.**
+**Status:** ✅ **FIXED (S10)** — resolved; register §5 `U-35`. Original report: ⬜ **OPEN** — confirmed by source read. **Identical to C:U-35.**
 
 ---
 
@@ -1634,9 +1645,9 @@ Deduplicated across A/B/C/D. "Src" = which audit(s) raised it.
 | **U-03** | B:BUG-01 · C:F-02 correction | **Threads "Auto" runs single-threaded.** `threads=0` emits no flag; gifsicle default is single-threaded. Real auto is bare `-j` (→ 8 threads). | ✅ **EXEC**+SRC | ✅ FIXED (S8) — bare `-j` for Auto (C++ + JS parity) |
 | **U-04** | A:GS-003 | **CLI `--run` without `output` corrupts its own stdout.** Status text and binary data share stdout. | ✅ **EXEC** | ✅ FIXED (S8) — `--run` commentary moved to stderr |
 | **U-05** | A:GS-004 | **Documented PATH engine fallback is dead code.** `locate_engine()` returns bare `"gifsicle"`; `path_is_executable()` checks CWD, not PATH. | ✅ **EXEC** | ✅ FIXED (S8) — real `find_on_path()`; `""` when not found |
-| **U-06** | A:GS-005 · D:GS-102 | **Web demo binds `0.0.0.0` with no auth, no concurrency cap, 64 MB bodies, 120 s engine runs.** Concurrent requests can race on temp dirs. | ✅ **EXEC** | ✅ FIXED (S8) — binds 127.0.0.1; `GS_WEB_HOST` to opt in |
+| **U-06** | A:GS-005 · D:GS-102 | **Web demo binds `0.0.0.0` with no auth, no concurrency cap, 64 MB bodies, 120 s engine runs.** Concurrent requests can race on temp dirs. | ✅ **EXEC** | ◐ PARTIAL (S8) — loopback bind + `GS_WEB_HOST` opt-in landed; the concurrency cap, per-client rate limit and engine-run bound named in the finding are still missing (see §13 intake) |
 | **U-07** | A:GS-006 | **Windows CLI execution is ANSI-only.** `CreateProcessA` + `std::string` cmdline ⇒ non-ASCII paths cannot be passed to the engine. | ✅ **EXEC** (wine 8, mingw 12) | ✅ FIXED (S11) — `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly |
-| **U-08** | A:GS-007 | **License set can ship incomplete, silently.** Root has `LICENSE` + `COPYING.gifsicle` but **no `COPYING`**; every license copy is `if [[ -f ]]`-guarded. | ✅ **EXEC**+SRC | ✅ FIXED (S8) — license set asserted, negative-tested |
+| **U-08** | A:GS-007 | **License set can ship incomplete, silently.** Root has `LICENSE` + `COPYING.gifsicle` but **no `COPYING`**; every license copy is `if [[ -f ]]`-guarded. | ✅ **EXEC**+SRC | ◐ PARTIAL (S8) — silent-skip closed: both packagers now hard-require LICENSE + COPYING.gifsicle, with negative tests; the licence set itself is still incomplete (no full GPLv3 text, no Qt LGPL notices staged; owner decision pending — see §13 intake) |
 | **U-09** | A:GS-008 | **Banked Windows snapshot is 5 commits behind the SHA its own notes claim.** Release body pins `d3544b1`; main is `8190c08`. | ✅ **EXEC** | ⬜ OPEN |
 | **U-10** | A:GS-009 | **The "read-only, identical-to-upstream" vendored engine is neither.** Carries a handwritten `config.h` (Linux values), a functional patch, and an extra test. | ✅ **EXEC** (S11 re-clone; S13 relocation) | ◐ PARTIAL (S13) — provenance and product-config relocation verified; `reference_code/gifsicle/` is now upstream-only and native build stages `build_support/gifsicle/config.native.h`. MISSING: CI hash-pinning (workflows scope) |
 
@@ -1710,7 +1721,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 |---|---|---|---|
 | P0-1 | **Plan all batch outputs before the first process starts.** Compute every source/target pair, compare for duplicates **and** target==source, refuse or auto-suffix on collision. Lock the plan. | **U-01, U-45, U-21** | **A/D highest** |
 | P0-2 | **Fix threads "Auto" mapping.** `threads==0` → bare `-j` (auto-detect, 8 threads). `threads==-1` → no flag (gifsicle default, 1 thread). Update `Validate.h`. | **U-03** | **B highest** |
-| P0-3 | **Make packaging fail closed.** Fresh staging dir, required-binary manifest, `windeployqt` failure is fatal, license set asserted, package E2E test. | **U-02, U-08** | **A highest** |
+| P0-3 | **Make packaging fail closed.** Fresh staging dir, required-binary manifest, `windeployqt` failure is fatal, license set asserted, package E2E test. | **U-02** | **A highest** |
 | P0-4 | **Re-cut release evidence.** Artifacts from exact tagged SHA, notes pinning that SHA, then run C4/D3/D4 against them. | **U-09** | **A highest** |
 
 ### P1 — Repair CLI and execution contracts
@@ -1884,7 +1895,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | **P0 honesty** | §7.A all green on Linux; A2 never exits 0 on missing engine; **threads=0 emits `-j`**; **empty comments don't corrupt argv** |
 | **Windows path** | §7.C C2–C5 green with artifacts |
 | **GUI MVP trustworthy** | §7.B B10–B14 green (batch vs merge, no silent loss); **B15–B17 new tests green** |
-| **Web POC honest** | Server binds loopback by default; validates GIF magic; verifies output; no double-decode; browser URLs cleaned |
+| **Web surface honest** (product alternative since S14) | Server binds loopback by default; validates GIF magic; verifies output; no double-decode; browser URLs cleaned. **Open before it is product-grade:** `GS-202`, `GS-203`, `DS-13`, `U-06` remainder — see §13 |
 | **1.0.0** | Tabs + major controls + preview + clean Windows portable (§7.D) + no open U-01…U-10 | then bump VERSION.md |
 | **2.x** | Only after 1.0.0: frame model → WebP/APNG |
 
@@ -1939,5 +1950,68 @@ B and C findings are merged in where they add coverage or contradict A/D.
 > **Audit A and B extracted files have been deleted** — this `COMPILED_AUDIT.md` is now the single
 > source of truth. Run `verify_audit.sh` + `test_gui_offscreen` before trusting anything new.
 > Never "fix" verified-correct behaviors (VP-1/2/3/5); never start WebP/APNG before GIF 1.0.0.
+
+---
+
+## 13. External review intake — 2026-09-12 (S14) — **NOT YET TRIAGED**
+
+> **Read this as an inbox, not a register.** Three external reviews were compiled on
+> 2026-09-12 into `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`. The items below are
+> **not** `U-nn` rows: they have not been triaged, scoped, or fixed, and **no §5 row above was
+> changed** by compiling them. Nothing in this repository was remediated in that intake.
+
+**Sources.** Max via OpenAI (highest tier; 10 findings, `GS-201…GS-210`) · DeepSeek (8 findings —
+DeepSeek labels them `N-06…N-13`; **renamed `DS-06…DS-13` here**, because `N-01…N-06` are already
+this repo's own session findings) · Gemini 3.8 flash high (**empty deployment — nothing to compile**).
+Every item below was re-checked against the shipped source at
+`2d51347817f5cdb39334415a03bb5f2b543119dd`; the intake file records the evidence, the reviewer's
+proposed solution and the verification limits.
+
+| ID | Severity | Finding (short) | Evidence location | Re-check |
+|---|---|---|---|---|
+| **GS-201** | Critical | CLI Batch maps to engine `-b` (in-place edit); the output planner is skipped when `output` is empty, so `--run` can rewrite the source GIFs | `working_code/gifscythe/src/cli/main.cpp`, `working_code/gifscythe/src/core/GifsicleCommand.h` | code-confirmed |
+| **GS-202** | High | Web `/run` builds output paths and the explode prefix from client-supplied upload names; `../` escapes the request temp dir, collisions compared case-sensitively | `web/server.mjs` | code-confirmed |
+| **GS-203** | High | Ordinary runs (Auto/Merge/Batch) claim success on exit 0 with no output verification; GUI and web accept stale/non-GIF files | `src/cli/main.cpp`, `src/qtui/MainWindow.cpp`, `web/server.mjs` | code-confirmed |
+| **GS-204** | High | System packager never clears its destination, copies conditionally, always prints success; portable packager skips Qt deployment when the deployer is absent; negative tests cover portable only | `working_code/gifscythe/scripts/package_system.sh`, `working_code/gifscythe/scripts/package_portable.sh` | code-confirmed |
+| **GS-205** | Medium | Non-GIF inputs still admitted: picker offers `All files`, `appendInputs` validates nothing, drop accepts a directory because it checks existence, not `isFile()` | `src/qtui/MainWindow.cpp` | code-confirmed |
+| **GS-206** | Medium | `long` → `int` narrowing without range checks; validation has no rules for `loopcount`, `threads`, `gamma`, or method-name enums | `src/core/SettingsIO.h`, `src/core/Validate.h` | partly confirmed |
+| **GS-207** | Medium | An unusable `GS_ENGINE` override is silently skipped and another engine runs (CLI and web) | `src/core/EngineLocator.h`, `web/server.mjs` | code-confirmed |
+| **GS-208** | High | Main is release-red: run `34705247115` failed the Linux documentation gate while `SESSION_HANDOFF.md` claims a green open PR #15 and the pending-workflow marker describes an already-applied change | `.github/workflows/build.yml`, `SESSION_HANDOFF.md`, `docs/ci/PENDING_WORKFLOW_CHANGE.md` | live CI + local gate re-run |
+| **GS-209** | Medium | Native "linux/mac" engine build still uses a fixed Linux/glibc `config.native.h` (headers, `random()`, type sizes, SIMD, `gettimeofday`) | `working_code/gifscythe/build_support/gifsicle/config.native.h`, `working_code/gifscythe/scripts/build_engine.sh` | code-confirmed |
+| **GS-210** | Low | `build.sh` ignores unknown options, `build_engine.sh` treats any non-`--windows` argument as native, GUI dispatch tries qmake before CMake, `.pro` hardcodes the version | `build.sh`, `scripts/build_engine.sh`, `gifscythe.pro` | code-confirmed |
+| **DS-06** | High | `threads <= 0` emits a bare `-j`, so the `-1` "unset" sentinel now means 8 threads instead of the engine's single-threaded default; no way to emit no flag | `src/core/GifsicleCommand.h`, `src/core/GifsicleSettings.h` | code-confirmed |
+| **DS-07** | Medium | GUI Threads spinner spans `0..64` and always writes a value — "no flag / unchanged" is unrepresentable | `src/qtui/SettingsPanel.cpp` | code-confirmed |
+| **DS-08** | Low | Non-strict print mode returns 0 even when validation warned; scripts cannot tell valid from warned without parsing stderr | `src/cli/main.cpp` | code-confirmed |
+| **DS-09** | Info | `threads < -1` is accepted without warning and re-interpreted as "auto" | `src/core/SettingsIO.h`, `src/core/Validate.h` | code-confirmed |
+| **DS-10** | Info | Disposal methods `4..7` (and the `-1` sentinel semantics) are unreachable from the desktop picker, though the engine and web validator allow them | `src/qtui/SettingsPanel.cpp`, `web/validate.mjs` | code-confirmed |
+| **DS-11** | Medium | This file's own §3/§4 narrative still marks U-04/U-23/U-03/U-32-era items OPEN while §5 marks them FIXED — following §3 sends a reviewer after closed work | `COMPILED_AUDIT.md` | code-confirmed |
+| **DS-12** | Low | The line-based settings format silently loses leading/trailing whitespace in values (documented, no rejection path) | `src/core/SettingsIO.h` | code-confirmed |
+| **DS-13** | Medium | Web `/optimize` checks only non-empty output; no GIF magic check, so non-GIF bytes are served as `200 image/gif` | `web/server.mjs` | code-confirmed |
+
+**Post-correction CI evidence (2026-09-12, S14).** Run `34707532582` at commit `ddc4194`
+(`arena/01a0968e-gifscythe`) is **green on both jobs**, including the documentation status gate
+step that failed in run `34705247115`; the live `main` tip stays red until that branch lands.
+
+**Local gate state at the time of intake (recorded, not fixed).**
+`working_code/gifscythe/scripts/check_docs.sh --no-gate-run` → **18 passed, 2 failed, 3 skipped**;
+the failures are **G10** (this file's header names base `2176573`, while the accepted bases are
+`2d51347` / `53a6eda`) and **G15** (fresh clone: `core.hooksPath` is not `.githooks`). The live
+run `34705247115` failed its Linux documentation gate on main. **Do not treat main as green.**
+
+**Task registration (S14 follow-up).** These 18 findings are now recorded row-by-row in
+`STATUS.md` (state `UNTRIAGED`, under the reviewers' own ids) with one pending line each in
+`WORKLIST.md`, and their release-blocking subset is listed in
+`docs/release/RELEASE_PROCEDURE.md`. Proposed sequencing lives in `web/WEB_PLAN_TEMPLATE.md` (the web-surface
+plan template the owner drafts are refitted into; its §1 records the owner's S14 decision that the
+web build is a supported product surface, and its state line - `SKELETON` until the refit, then
+`WORKING PLAN` - is mirrored in `SESSION_HANDOFF.md` and checked by gate G16).
+**They are still not in the §6 fix order**: triage (which maps accepted items into `U-nn`) has not
+happened, so nothing here is scheduled for implementation yet.
+
+**Cross-references inside this file.** GS-201 extends U-01's coverage gap (the planner is correct
+but unreachable without an `output` key). GS-203 and DS-13 are one workstream (postcondition
+verification: size + magic + changed-since-snapshot). DS-06/DS-07/DS-09/GS-206 are one workstream
+(numeric sentinels and domains: decide the tri-state once). GS-208 and DS-11 are the same
+stale-status failure mode in two files.
 
 *End of compiled audit v2.*

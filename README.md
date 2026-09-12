@@ -10,7 +10,7 @@ engine-truth controls, debounced async before/after preview, batch output
 folder. **Windows CI green and merged 2026-09-07** (PR #5 → `0ad1ff5`; main
 runs #23/#24 green on both jobs; binaries banked on Release
 `snapshot-2026-09-07`); S5/S6 (GUI honesty fixes, offline-only direction,
-web demo) merged via PR #6. **S7 (2026-09-10) landed the remaining
+the web build) merged via PR #6. **S7 (2026-09-10) landed the remaining
 sandbox-codeable Phase-1 items:** GUI settings persistence between sessions
 (SettingsIO-backed, `GS_SETTINGS_PATH` override), queue reorder (Move
 Up/Down), free-form `{name}` naming templates (default renders the
@@ -65,7 +65,7 @@ that exits 0 without writing is refused at every layer, under Wine too),
 **U-07** (`CreateProcessW` + `GetCommandLineW` argv re-fetch + UTF-8 env reads
 + `u8path_compat` at every string↔path boundary; Wine E2E: an `é`-path conf
 runs rc=0 where the old build fails rc=1, and CJK reaches the child's UTF-16
-command line byte-exact), **U-41** (web demo grew all four modes: mode
+command line byte-exact), **U-41** (the web build grew all four modes: mode
 selector + multi-file queue UI, `POST /run` JSON endpoint with desktop batch
 planning/collision refusal and explode frame verification), **U-10**'s
 provenance half (fresh upstream clone diffed: `reference_code/gifsicle` is
@@ -129,11 +129,12 @@ gifscythe/                        (repo root)
     archive/                           the two dated review snapshots (historical)
     planning/OFFLINE_BUILD_REVIEW.md   offline-only feasibility + language + plan
     release/RELEASE_PROCEDURE.md       how to cut snapshots/releases (S7)
-    web/WEB_FEASIBILITY.md             web-run review (web/ = demo only)
+    web/WEB_FEASIBILITY.md             web-run review (option analysis)
     ci/                            workflow docs + clean-Windows smoke checklist
     screenshots/                   UI screenshots (see docs/screenshots/README.md)
   .githooks/pre-push               blocks a push with a red documentation gate
-  web/                             server-side web POC + JS⇄C++ command parity test
+  web/                             web app (product alternative) + JS⇄C++ parity suites
+    WEB_PLAN_TEMPLATE.md           web-surface plan template (split rules, phases, slots)
 
   reference_code/                 SOURCE MATERIAL — do not edit, do not ship
     gifsicle/                     canonical gifsicle 1.96 source
@@ -163,8 +164,9 @@ gifscythe/                        (repo root)
 3. **`WORKLIST.md`** — short checkbox board toward 1.0.0.
 4. **`docs/planning/OFFLINE_BUILD_REVIEW.md`** — offline-only feasibility,
    language choice (stay C++/Qt through 1.0.0), and the phased plan.
-5. **`docs/web/WEB_FEASIBILITY.md`** — web-run review (the `web/` build is a
-   demo/parity harness, not the product path).
+5. **`web/WEB_PLAN_TEMPLATE.md`** — the web surface is a **product alternative**
+   (self-hosted, S14): split rules, phases and the slots owner drafts are refitted
+   into. Background: `docs/web/WEB_FEASIBILITY.md`.
 6. **`docs/release/RELEASE_PROCEDURE.md`** — how to cut a snapshot or version
    release (gates, packaging, publishing, post-publish verification).
 

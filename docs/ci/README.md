@@ -23,10 +23,13 @@
   and artifact upload (`gifscythe-linux`, `gifscythe-windows`, 14-day
   retention — binaries are banked on Releases instead; see
   `docs/release/RELEASE_PROCEDURE.md`).
-- **Pending (S9):** a `Documentation status gate` step running
-  `scripts/check_docs.sh --no-gate-run` in the linux job. It is in
-  `docs/ci/build.yml.proposed` only, because the push to `.github/` is
-  rejected — see `docs/ci/PENDING_WORKFLOW_CHANGE.md`.
+- **Documentation status gate — APPLIED (confirmed S14).** The linux job runs
+  `scripts/check_docs.sh --no-gate-run`; the S9 change is in the live
+  `.github/workflows/build.yml`, not only in `docs/ci/build.yml.proposed`. S14 introduced gate
+  **G16** (web plan template state) into that checker. The two workflow copies still differ by one
+  line (the Windows E2E temp-path fallback), so
+  `docs/ci/PENDING_WORKFLOW_CHANGE.md` now describes *that* drift instead — see it for the
+  remaining apply-and-delete step.
 - **Both jobs green on main** since 2026-09-07 (runs #23/#24 after PR #5
   merge `0ad1ff5`); S5/S6 merged via PR #6 (`9643654`); maintainer follow-up
   `c5efe07` switched the Windows engine step to `scripts/build_engine.sh`.

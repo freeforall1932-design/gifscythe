@@ -2,6 +2,13 @@
 
 **Date:** 2026-09-09 · **Status:** reviewed + minimal working POC (`web/`) · **Product:** 0.1.0
 
+> **Superseding note (2026-09-12, S14, owner).** This review's conclusion that `web/` is *not* the
+> product path no longer stands: the web build is now a **supported product surface**, a
+> **self-hosted** alternative to the `.exe`/portable build (offline-only / no-cloud promise
+> unchanged). The option analysis below is kept as the dated record; **Option 3** (server-side
+> engine, i.e. what `web/` implements) is the chosen path, and Option 4 (`gifsicle.wasm`) remains
+> optional. Plan, split rules and phases: `web/WEB_PLAN_TEMPLATE.md`.
+
 `FEASIBILITY_REVIEW.md` listed a web-tech UI (Tauri/Electron) as an *alternative*
 to the Qt6 Widgets GUI, but the web path was never built or reviewed. This
 document does that review and ships a working proof-of-concept.
