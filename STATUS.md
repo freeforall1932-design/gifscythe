@@ -29,7 +29,7 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 78 DONE · 4 PARTIAL · 17 OPEN · 0 UNTRIAGED · 99 total
+**Counts (generated - do not edit by hand):** 79 DONE · 4 PARTIAL · 17 OPEN · 0 UNTRIAGED · 100 total
 **Last regenerated:** S11 · 2026-09-12 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
@@ -46,14 +46,14 @@ hand-fudged roll-up fails the gate.
 | U-07 | Windows CLI execution is ANSI-only. | DONE | S11 | `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly | - |
 | U-08 | License set can ship incomplete, silently. | DONE | S8 | license set asserted, negative-tested | - |
 | U-09 | Banked Windows snapshot is 5 commits behind the SHA its own notes claim. | OPEN | - | not started; scoped as P0-4 in COMPILED_AUDIT.md §6 | P0-4: Re-cut release evidence. |
-| U-10 | The "read-only, identical-to-upstream" vendored engine is neither. | PARTIAL | S11 | provenance RECORDED: `gifsicle/` diff-verified byte-identical to upstream `kohler/gifsicle@07f5c4c3` except the handwritten `config.h` (the "functi... | P2-3: Immutable + correctly-labelled upstream tree. |
+| U-10 | The "read-only, identical-to-upstream" vendored engine is neither. | PARTIAL | S11 | provenance recorded: diff+digests vs upstream `07f5c4c3` in REFERENCE_MANIFEST.md. MISSING: CI hash-pinning (workflows scope) + config.h move | P2-3: Immutable + correctly-labelled upstream tree. |
 | U-11 | Malformed booleans degrade silently. | DONE | S8 | `parse_bool_strict` warns, leaves field unchanged | - |
 | U-12 | "Fully async" GUI still blocks the UI thread in 5 places — up to 5 s per run start. | OPEN | S11 | not started; scoped as P1-24 in COMPILED_AUDIT.md §6 | P1-24: Async run/cancel state machine (scoped S11; deliberately NOT yet implemented). |
 | U-13 | Drag-and-drop accepts any existing file. | DONE | S8 | drop filter `&&`; empty comments skipped (C++ + JS) | - |
 | U-14 | Green CI does not enforce the claims used as release gates. | PARTIAL | S8 | negative packaging tests + manifest assertion in CI | P2-1: Run `verify_audit.sh` in CI. |
-| U-15 | CMake writes into the source tree. | DONE | S11 | configure_file writes only to the build tree (template moved to `build_support/`); generated-first includes; new gate C9: builds with the committed... | - |
+| U-15 | CMake writes into the source tree. | DONE | S11 | build-tree-only configure_file (`build_support/version.h.in`); generated-first includes; gate C9 + read-only-src repro flipped FAIL->PASS | - |
 | U-16 | Settings persistence is non-atomic (Truncate + write). | DONE | S10 | `save_settings_file` is tmp+fsync+rename; GUI save is QSaveFile; unit test 32 + T19 no-stray check | - |
-| U-17 | Explode mode never verifies any frame was written. | DONE | S11 | `src/core/ExplodeVerify.h` snapshot-diff in CLI + GUI; lying engine (rc=0, 0 frames) refused at every layer: unit 33, smoke 9–11, harness T7, wine ... | - |
+| U-17 | Explode mode never verifies any frame was written. | DONE | S11 | `src/core/ExplodeVerify.h` snapshot-diff (CLI+GUI); lying engine (rc=0, 0 frames) refused: unit 33, smoke 9-11, harness T7, wine rc=1 | - |
 | U-18 | The regression suite does not cover any of the failure classes above. | PARTIAL | S8 | planning/threads/validate/bool/comment unit tests, T17, package suite | P2-4: Regression suite expansion. |
 | U-19 | `readFrom()` is not the "exact inverse" of `writeInto()`. | DONE | S8 | not reproducible with toggles on; wording fixed, pinned by unit test 26 | - |
 | U-20 | "The CLI reads GUI-saved files without warnings" is false. | DONE | S8 | doc claim reworded; the `input` warning is expected | - |
@@ -77,7 +77,7 @@ hand-fudged roll-up fails the gate.
 | U-38 | `verify_audit.sh` FAILs instead of SKIPping C6 when `cmake` is absent (`[B]` guards properly 13 lines later). | DONE | S8 | C6 SKIPs without cmake | - |
 | U-39 | `docs/ci/build.yml.proposed` is a hand-maintained byte copy of the live workflow (already drifted once). | DONE | S8 | `verify_audit.sh` E9 drift guard | - |
 | U-40 | CLI prints `validate()` warnings and runs anyway; the GUI refuses. | DONE | S10 | `--strict` refuses any warned conf with rc=3 (print+run); usage documents the policy and exit codes; smoke 7→9 cases | - |
-| U-41 | Web POC is single-file Auto mode only — no batch/merge/explode. | DONE | S11 | mode selector + multi-file queue UI; `POST /run` JSON endpoint with desktop semantics (per-file batch runs + collision refusal, `-m` merge, verifie... | - |
+| U-41 | Web POC is single-file Auto mode only — no batch/merge/explode. | DONE | S11 | mode selector + multi-file UI; `POST /run` with desktop semantics (batch planning + collision refusal, verified explode); web suites 17/23/30 | - |
 | U-42 | Web has one `scalePct` for both axes; desktop has independent X/Y. | DONE | S10 | web UI now has Scale X % / Scale Y % inputs; asymmetric parity fixture + live transport case pin per-axis factors | - |
 | U-43 | Summary reads `Batch (1 files) → X … X` (plural + duplicated path) for one input with no Save-as. | DONE | S8 | "Batch (1 file)" (CI-compiled) | - |
 | U-44 | The two dated review snapshots sit at repo root while newer material lives in `docs/`. | DONE | S8 | `git mv` to `docs/archive/`; the 3 prose references updated; README layout lists it | - |
@@ -145,6 +145,7 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 | N-02 | `web/README.md` documented the pre-U-06 bind address | DONE | S9 | README said "binds 0.0.0.0" while `web/server.mjs` defaults to `127.0.0.1`; corrected, plus a `GS_WEB_HOST` note | - |
 | N-03 | `docs/screenshots/*.png` may no longer match the UI, are linked from nowhere, and cannot be regenerated here | DONE | S10 | re-shot offscreen in the S10 sandbox (Qt 6.4.2, same documented scenario) from the CURRENT MainWindow; `docs/screenshots/README.md` rewritten for S10; the three shots are now linked from the root README | - |
 | N-04 | MinGW libstdc++ narrow `fs::path` conversions are NOT UTF-8 (decode bytewise, encode UTF-8) — every string-to-path boundary in core silently mangled non-ASCII paths on Windows | DONE | S11 | found while executing U-07 under Wine (probe: `path("r\xc3\xa9sum\xc3\xa9").string()` came back double-encoded); every core boundary now routes through `u8path_compat`/`path_u8string` (`src/core/WinUnicode.h`); Wine cases B/C/D run é-path confs rc=0 | - |
+| N-06 | `check_docs.sh` emitter truncation was awk-locale-dependent: gawk counts CHARACTERS in length()/substr() under a UTF-8 locale, mawk counts BYTES — a §5 proof note with an en-dash near the 150-char cut emitted different bytes per awk, so the committed STATUS.md passed G0 under gawk (S11 sandbox + CI) but FAILED under mawk (every prior sandbox) | DONE | S11 | surfaced when the sandbox restarted mid-session and lost apt-installed gawk; fixed same-session: `export LC_ALL=C` in the gate (byte semantics under every awk) + the S11 §5 notes reworded ASCII-only under the 150 limit so truncation cannot bite; `--emit` verified byte-identical under mawk AND gawk | - |
 | N-05 | Multi-input Explode silently scatters frames: with `-o prefix` the engine (rc=0) explodes every input except the LAST as `<basename>.NNN` into the process CWD — and the desktop GUI queued all inputs into one explode run | DONE | S11 | found while designing the U-41 web explode rule; verified against the bundled 1.96 (`gifsicle -e a.gif b.gif -o p`: a's 12 frames went to the CWD, only b's frame landed under p); refused same-session at every layer: `validate()` warning (C++ + byte-identical JS mirror, parity-pinned), CLI `--run` rc=2, GUI warning dialog + REFUSED summary; unit block 35, smoke case 12, harness T7 subcase, Wine rc=2 | - |
 <!-- END HAND-MAINTAINED -->
 

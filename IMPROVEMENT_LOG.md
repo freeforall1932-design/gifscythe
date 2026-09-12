@@ -111,6 +111,20 @@ starting; the two stale `414f5fc` mentions (G10) were re-synced first.
   print-policy lines), harness T7 subcase (engine never starts, no frames,
   summary honest), Wine rc=2 + zero frames. The web `/run` already refused
   multi-file explode by design.
+* **N-06 (new finding, closed in-session).** The sandbox restarted late in
+  the session and came back WITHOUT the apt-installed gawk — and suddenly G0
+  failed on a tree that was byte-identical to a pushed, CI-green head. Root
+  cause: the emitter truncates §5 proof notes at 150 via awk
+  `length()`/`substr()`, which count CHARACTERS in gawk under a UTF-8 locale
+  but BYTES in mawk; the U-17 note had an en-dash before the cut, so the
+  gawk-emitted committed STATUS.md (`wine ...`) differed by one byte from
+  mawk's (`win...`). The gate had been non-deterministic across sandboxes
+  since S9 — it only ever bit when a truncated note contained multibyte text.
+  Fixed in the checker, same session: `export LC_ALL=C` at the top of
+  `check_docs.sh` (byte semantics under every awk, sort and grep), and the
+  five S11 §5 notes reworded ASCII-only and under the 150 limit so no
+  truncation can ever cut a multibyte character in half. `--emit` output
+  verified byte-identical under mawk AND gawk before re-push.
 * **U-12 scoped, deliberately NOT implemented (P1-24).** All five waits named
   with re-measured line numbers (842/904 `waitForStarted(5000)`, 919
   `waitForFinished(3000)`, 171 `(2000)`, 1086 `(1000)`), the signal/timer fix
@@ -194,7 +208,10 @@ starting; the two stale `414f5fc` mentions (G10) were re-synced first.
   deleted-fallback copy build). U-10: clone + `diff -rq` + digests executed;
   `git status` proves the vendored trees were never modified.
 * awk parity: `check_docs.sh`/`verify_audit.sh` behavior verified under mawk
-  AND gawk (gawk apt-installed this session — the PR #13 CI-awk scar).
+  AND gawk (gawk apt-installed this session — the PR #13 CI-awk scar), and
+  after N-06 the `--emit` output was re-verified BYTE-IDENTICAL under both
+  (with `LC_ALL=C` in the gate, and again without gawk's UTF-8 locale
+  advantages — the restart proved the mawk path the hard way).
 
 **Not verifiable here:**
 

@@ -53,6 +53,9 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       sandbox HAD Qt6 (apt), so the shots were re-taken offscreen from the
       current UI and are now linked from the root README; see
       `docs/screenshots/README.md`.
+- [x] **N-06** — check_docs.sh emitter truncation was awk-locale-dependent
+      (gawk chars vs mawk bytes). **Found and fixed in S11** (`LC_ALL=C` +
+      ASCII-only §5 notes; emit byte-identical under both awks).
 - [x] **N-05** — multi-input Explode scattered frames silently (engine rc=0,
       all-but-last inputs → CWD). **Found, verified and refused in S11**
       (validate warning + CLI rc=2 + GUI refusal; tests at every layer).
@@ -228,6 +231,12 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       (the freeze needs a slow process start, which the offscreen harness
       cannot produce; cancel rewiring would risk T2/T9/T10 semantics with no
       executable proof of improvement).
+- [x] **N-06** — the check_docs.sh emitter's 150-char proof-note truncation was
+      awk-locale-dependent (gawk counts characters, mawk bytes): the committed
+      STATUS.md passed G0 under gawk but failed under mawk. Found when the
+      sandbox restarted mid-session and lost gawk. Fixed the same session:
+      `LC_ALL=C` in the gate + S11 §5 notes reworded ASCII-only under the
+      limit; `--emit` verified byte-identical under BOTH awks.
 - [x] **N-05** — multi-input Explode silently scattered frames (engine rc=0;
       every input but the LAST exploded into the CWD as `<basename>.NNN`, only
       the last honored the `-o` prefix). Found while designing the U-41 web
