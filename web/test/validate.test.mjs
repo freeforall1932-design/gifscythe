@@ -51,6 +51,19 @@ const fixtures = [
     s: { mode: "batch", info: true, inputs: [IN] } },
   { name: "info conflicts with merge mode",
     s: { mode: "merge", info: true, inputs: [IN] } },
+  // U-41: the web UI can now select Explode, so the third arm of the
+  // info-vs-mode rule (Validate.h:37 / validate.mjs) needs its own parity pin.
+  { name: "info conflicts with explode mode (audit U-41)",
+    s: { mode: "explode", info: true, inputs: [IN] } },
+  // N-05 (S11): multi-input explode scatters frames (engine exits 0) — the
+  // warning text must be byte-identical on both sides.
+  { name: "explode with two inputs scatters frames (N-05)",
+    s: { mode: "explode", inputs: [IN, IN + "2"] } },
+  { name: "explode multi-input warning coexists with the info conflict",
+    s: { mode: "explode", info: true, inputs: [IN, IN + "2"] } },
+  { name: "explode by name still validates resize geometry",
+    s: { mode: "explode", explode_by_name: true, resize_kind: "fit",
+         resize_w: 0, resize_h: 0, inputs: [IN] } },
   { name: "crop with zero height",
     s: { mode: "auto", crop: true, crop_x: 0, crop_y: 0, crop_w: 30, crop_h: 0,
          inputs: [IN] } },

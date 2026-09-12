@@ -10,7 +10,8 @@
 //       explicit Save-as honored (E1)
 //   T5  Merge run: 2 inputs -> 1 output, frames = sum (B11)
 //   T6  Merge with empty output -> refuses, no silent stdout loss (B12)
-//   T7  Explode with empty output -> auto prefix, frames written (E2)
+//   T7  Explode with empty output -> auto prefix, frames written (E2);
+//       rc=0 + zero frames (lying engine) is REFUSED, prefix named (U-17)
 //   T8  Failed engine run -> honest "failed" status + dialog (B4)
 //   T9  async start (B1 proxy), busy indicators (B3), cancel mid-run (B2)
 //   T10 close window while running kills the engine process (B15)
@@ -588,7 +589,88 @@ int main(int argc, char** argv) {
     const QString prefix = tmp.path() + QStringLiteral("/a_frame");
     CHECK(QFileInfo::exists(prefix + QStringLiteral(".000")));
     CHECK(QFileInfo::exists(prefix + QStringLiteral(".011")));
+    // U-17: the completion status must carry the VERIFIED frame count
+    // (logo.gif = 12 frames), not just the word "complete".
+    CHECK_MSG(x.status->text().contains(QStringLiteral("12 frame")),
+              "explode completion reports the verified frame count");
     delete w;
+
+    // ---- N-05: multi-input explode is REFUSED before the engine starts ----
+    // The engine would explode every queued input except the last into the
+    // process CWD (verified: `gifsicle -e a.gif b.gif -o p`, rc=0) and the
+    // U-17 prefix verification would then report the leftover single frame
+    // as "complete". The validate() warning makes runCommand refuse.
+    // (Own temp dir: the happy-path explode above legitimately left
+    // a_frame.* files in tmp.)
+    {
+      QTemporaryDir tmpN;
+      const QString an = tmpN.path() + QStringLiteral("/a.gif");
+      const QString bn = tmpN.path() + QStringLiteral("/b.gif");
+      CHECK(copyFile(logo, an));
+      CHECK(copyFile(logo1, bn));
+      MainWindow* wn = makeWindow();
+      auto xn = findWidgets(wn);
+      dropFiles(wn, {an, bn});
+      xn.mode->setCurrentIndex(2);  // Explode
+      xn.output->clear();
+      g_dialogs.clear();
+      xn.run->click();
+      spinEvents(150);
+      CHECK_MSG(dialogsContain(QStringLiteral("scatters frames")),
+                "multi-input explode refuses with the scattering explanation");
+      CHECK(xn.process->state() == QProcess::NotRunning);  // engine never started
+      CHECK(!QFileInfo::exists(tmpN.path() + QStringLiteral("/a_frame.000")));
+      CHECK(!QFileInfo::exists(tmpN.path() + QStringLiteral("/b_frame.000")));
+      CHECK_MSG(xn.outputSummary->text().contains(QStringLiteral("REFUSED")),
+                "the summary says REFUSED before the click");
+      delete wn;
+    }
+
+    // ---- U-17 (P1-19): rc=0 + ZERO frames written must NOT claim success. ----
+    // The lying engine (tests/fake_engine_exit0.cpp, built next to this
+    // harness) exits 0 without writing anything — the audit's exact repro.
+    // Before the fix this reported "Optimization complete." over an empty
+    // directory; now it must say "No frames produced", surface the prefix in
+    // a dialog, leave no frame files behind, and clear busy honestly.
+    QString fake = QCoreApplication::applicationDirPath()
+                 + QStringLiteral("/fake_engine_exit0");
+#ifdef _WIN32
+    fake += QStringLiteral(".exe");
+#endif
+    CHECK_MSG(QFileInfo::exists(fake),
+              "lying-engine fixture built next to the harness (CMake target fake_engine_exit0)");
+    const QByteArray origEngine = qgetenv("GS_ENGINE");
+    qputenv("GS_ENGINE", QFile::encodeName(fake));
+    {
+      QTemporaryDir tmp2;
+      const QString b = tmp2.path() + QStringLiteral("/b.gif");
+      CHECK(copyFile(logo, b));
+      MainWindow* w2 = makeWindow();  // ctor locates the lying engine via GS_ENGINE
+      auto x2 = findWidgets(w2);
+      // Basename match on purpose: locate_engine() returns NATIVE separators
+      // (backslashes on Windows) while applicationDirPath() uses forward
+      // slashes — a full-path contains() failed only on CI-windows (S11).
+      CHECK_MSG(x2.status->text().contains(QStringLiteral("fake_engine_exit0")),
+                "window picked up the lying engine");
+      dropFiles(w2, {b});
+      x2.mode->setCurrentIndex(2);  // Explode
+      x2.output->clear();
+      g_dialogs.clear();
+      x2.run->click();
+      CHECK_MSG(waitForStatus(w2, QStringLiteral("No frames")),
+                "lying engine (rc=0, 0 frames) is NOT reported complete");
+      CHECK(!QFileInfo::exists(tmp2.path() + QStringLiteral("/b_frame.000")));
+      CHECK_MSG(dialogsContain(QStringLiteral("Explode verification failed")),
+                "the false success is surfaced as a dialog naming the rule");
+      CHECK_MSG(dialogsContain(QStringLiteral("b_frame")),
+                "the dialog names the exact prefix searched");
+      CHECK(x2.process->state() == QProcess::NotRunning);
+      CHECK(x2.run->isEnabled());   // busy cleared honestly
+      CHECK(!x2.cancel->isEnabled());
+      delete w2;
+    }
+    if (origEngine.isNull()) qunsetenv("GS_ENGINE");
+    else qputenv("GS_ENGINE", origEngine);
   }
 
   // ================= T8: failed run is honest (B4) =======================

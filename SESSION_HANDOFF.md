@@ -1,7 +1,9 @@
 # Session Handoff
 
-**Date:** 2026-09-11 (session S10) · **Branch:** `arena/s10-gifscythe` (pushed;
-**PR #13** open against `main`) → based on `main` commit `414f5fc` ·
+**Date:** 2026-09-12 (session S11) · **Branch:** `arena/s11-gifscythe` (pushed;
+**PR #14** open against `main`, CI green on the head `635c986` — run
+`34685470992`, linux + windows) → based on `main` commit `2176573` (the
+PR #13 merge) ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending)
 
 ## TL;DR for the next session
@@ -11,74 +13,116 @@
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S10: **72 DONE · 4 PARTIAL ·
-   21 OPEN · 0 UNTRIAGED · 97 total.**
+   `U-nn` row; neither replaces the other. As of S11: **79 DONE · 4 PARTIAL ·
+   17 OPEN · 0 UNTRIAGED · 100 total.**
 
-1. **What S10 did.** The S10 sandbox had a working apt, so for the first time
-   since S7 the whole stack — core, CLI, GUI, offscreen harness, web — was
-   compiled AND run in one sandbox. That let S10 close **nine audit findings
-   and the untriaged N-03, each with executed proof**:
-   - **U-45** — the last **P0-1** gap: both Browse buttons are now members
-     locked by `setBusy()`, chooser slots guard `busy_`; T18 proves a mid-run
-     folder edit cannot redirect planned outputs. **P0-1 fully closed.**
-   - **U-16** — atomic settings persistence: core `save_settings_file` is
-     tmp+fsync+rename; GUI save is `QSaveFile`. Unit test 32 + T19.
-   - **U-34/U-47 (P1-10)** — `invalidatePreview()` on every schedule/clear/
-     cancel/busy; stale+failed previews delete their file; successes sweep
-     `preview_*.gif` except the displayed one. T20 (in-flight 360-frame
-     preview through clear-queue and Explode switch: zero leaks, no ghost).
-   - **U-35** — `setBusy(false)` re-enables Run only via `ensureEngine()`.
-   - **U-36** — `guiStateKey` (the third conf parser) deleted; `load_settings`
-     collects unknown keys; GUI reads its keys from that map. Test 31.
-   - **U-37** — one-time status note when persistence is unavailable.
-   - **U-40** — `--strict` (rc=3 on any parse/validation warning) + documented
-     warning policy/exit codes in `--help`; smoke 7 → 9 cases.
-   - **U-42** — web Scale X % / Scale Y % inputs; asymmetric parity fixture +
-     live transport case.
-   - **N-03** — screenshots re-shot offscreen (Qt 6.4.2) from the current UI
-     and linked from the root README; `docs/screenshots/README.md` rewritten.
-   - **R-01** closed by measurement: harness **306 checks, 0 failures** (T1–T20)
-     — the new last-measured figure (243 @ S7).
+1. **What S11 did.** The S11 sandbox had working apt (uid 0) and installed,
+   beyond the S10 stack (g++ 12.2 / cmake 3.25.1 / Qt 6.4.2 / ninja / node
+   v20), also **mingw-w64 (12-win32), Wine 8.0 and gawk**. That flipped U-07
+   from "needs a real Windows run" to executable here. Closed **four findings
+   with executed proof, recorded upstream provenance, and scoped a fifth**:
+   - **U-15 (P2-2)** — CMake writes ONLY into the build tree now: template
+     moved to `build_support/version.h.in`, generated dir first on every
+     include path, `core/version.h` includes in path form. `build.sh` remains
+     the sole writer of the committed `src/core/version.h` fallback (A5
+     green). New gate **C9** (build a copy with the fallback DELETED); the
+     audit's read-only-`src/` repro was executed before (FAIL:
+     `version.h.tmp` write error) and after (PASS). The G8 `build_support`
+     allowance was deleted as instructed by its own comment.
+   - **U-17 (P1-19)** — explode verifies frames: `src/core/ExplodeVerify.h`
+     (snapshot `<prefix>.*` before; require ≥1 new/changed GIF87a/GIF89a file
+     after; failure names prefix+dir). Wired into CLI `--run` (rc=1) and the
+     GUI (dialog + honest status; success reports the verified count). A
+     lying engine (exits 0, writes nothing) is refused at EVERY layer: unit
+     block 33, smoke 9→12, harness T7 (`fake_engine_exit0` fixture), Wine
+     rc=1. Prefix rules read off upstream (`-e` `.NNN`, `-E` by name, no-`-o`
+     = input basename in CWD).
+   - **U-07 (P1-4)** — Windows Unicode: `CreateProcessW` + strict UTF-8→UTF-16
+     conversion; new `src/core/WinUnicode.h` (MSVCRT command-line splitter —
+     pure logic, unit block 34; `GetCommandLineW` argv re-fetch;
+     `GetEnvironmentVariableW`; `u8path_compat`/`path_u8string`). Executed
+     under Wine: pre-fix binary (built from HEAD) fails an `é`-path conf rc=1
+     with mojibake; fixed binary rc=0 + output written; é conf-path via argv
+     and é `GS_ENGINE` both work; CJK reaches the child's UTF-16 command line
+     byte-exact (probe); unit exe **289 checks** green under Wine.
+   - **U-41 (P2-11, scoped first)** — web demo: mode selector + multi-file
+     queue + results list in the UI; `POST /run` JSON endpoint on the server
+     with desktop semantics (per-file batch Auto runs + planned targets +
+     collision refusal, one `-m` merge, explode with the P1-19 frame
+     verification, U-24/U-30 honesty layers). Suites: command 15→**17**,
+     validate 19→**21**, transport 18→**30**.
+   - **U-10 (provenance half)** — fresh full clone of `kohler/gifsicle`
+     diffed against both vendored trees: `reference_code/gifsicle` is
+     byte-identical to upstream `07f5c4c3` except the handwritten `config.h`
+     (the "functional patch" + "extra test" ARE upstream commits
+     `9efcc14`/`ed5b018`, five past `v1.96`); `gifsicle-nested-1.96` is
+     pristine `v1.96`. Digests + recipe in `REFERENCE_MANIFEST.md`. Row stays
+     PARTIAL: CI hash-pinning (needs `workflows` scope) + the `config.h` move.
+   - **U-12** — scoped as **P1-24** in §6 (all five waits, fresh line numbers,
+     fix sketch) and deliberately NOT implemented: the freeze needs a slow
+     process start, which the offscreen harness cannot produce, and the
+     cancel rewrite would rewire T2/T9/T10 semantics with no executable proof
+     of improvement. Scoped-OPEN beats an untestable refactor.
+   - **N-06 (new, closed in-session)** — the check_docs.sh emitter's
+     proof-note truncation was awk-locale-dependent (gawk counts characters,
+     mawk bytes), so the committed STATUS.md passed G0 under gawk but failed
+     under mawk. Found when the sandbox RESTARTED mid-session and lost the
+     apt-installed gawk (the tree stayed byte-identical to the CI-green head).
+     Fixed in the checker: `export LC_ALL=C` + the S11 §5 notes reworded
+     ASCII-only under the 150 limit; `--emit` verified byte-identical under
+     both awks. **Lesson: a sandbox can restart mid-session — commit and push
+     early, and never trust locally-installed tools to persist.**
+   - **N-05 (new, closed in-session)** — multi-input Explode silently
+     scattered frames: `gifsicle -e a.gif b.gif -o p` exits 0, explodes every
+     input but the LAST into the process CWD, and only the last input honors
+     the prefix — while the GUI queued all inputs into one explode run.
+     Refused at every layer the same session: `validate()` warning (C++ +
+     byte-identical JS mirror), CLI `--run` rc=2, GUI dialog + REFUSED
+     summary; unit 35, smoke case 12, harness T7 subcase, Wine rc=2.
+   - **N-04 (new, closed in-session)** — MinGW libstdc++ narrow `fs::path`
+     conversions decode bytewise but encode UTF-8 (verified by probe under
+     Wine): every non-ASCII string↔path boundary was silently mangling. All
+     core boundaries now route through the WinUnicode helpers.
+   - **Drift fixed on arrival:** the two stale `414f5fc` mentions (G10) were
+     re-synced to the real tip before anything else.
 
-2. **S10 also fixed pre-existing doc drift on fresh `main`:** G6 (docs quoted
-   the S9 sandbox's 25/0/5 while a Qt-equipped sandbox measures 27/0/3), G10
-   (docs named base `190d030`; origin/main is `414f5fc` after the maintainer's
-   PR #12 merge + workflow update), G11 (log was behind the 2026-09-11
-   workflow commit). **Lesson kept:** gate numbers are sandbox-relative; a
-   session in a different sandbox must re-sync them (G6/G9 fail until it does).
-
-3. **Gates, all run locally this session:** `./build.sh` **238 checks,
-   0 failures** · `test_engine.sh` **5/5** · `smoke_cli.sh` **9/9** ·
-   `test_package.sh` **9/9** · web **15/15 + 19/19 + 18/18** · offscreen
-   harness **306 checks, 0 failures** · `check_docs.sh` **21 passed, 0 failed,
+2. **Gates, all run locally this session:** `./build.sh` **296 checks,
+   0 failures** · `test_engine.sh` **5/5** · `smoke_cli.sh` **14/14** ·
+   `test_package.sh` **9/9** · web **17 + 23 + 30** · offscreen harness
+   **324 checks, 0 failures** · `check_docs.sh` **21 passed, 0 failed,
    1 skipped** (G7 skip = declared-pending workflow) · `verify_audit.sh`
-   **27 PASS / 0 FAIL / 3 SKIP, exit 0** (skips: E9 declared-pending workflow,
-   CI-gated, clean-Windows).
+   **28 PASS / 0 FAIL / 3 SKIP, exit 0** (skips: E9 declared-pending workflow,
+   CI-gated, clean-Windows). awk changes verified under **mawk AND gawk**.
 
-4. **PUSHED, PR OPEN.** Branch `arena/s10-gifscythe` was pushed with the
-   write token and **PR #13** opened against `main` (rule 3 honored:
-   `check_docs.sh` green before the push and again via the pre-push hook).
-   **CI on PR #13 is the first compilation of the S10 code** — watch the
-   linux + windows jobs, especially the Windows half of the atomic save
-   (`_commit`/`_fileno`), which had never been compiled before. Re-check the
-   run rather than trusting this row. Merge is the owner's call (rule 3
-   applies again before merge).
+3. **CI verdict — GREEN.** Final run `34685470992` on the head `635c986`:
+   **linux success + windows success** (every intermediate head green too;
+   only the first run failed, windows-only, on the T7 separator assertion —
+   see the S11 log entry). The windows job was the first NATIVE compilation of the
+   S11 Windows code (CreateProcessW/`_wopen`/splitter; the Wine proofs are
+   executed but Wine ≠ Windows) and ran the extended harness green (317
+   checks, incl. T7's `fake_engine_exit0` fixture). The FIRST run
+   (`34671814580` on `f655987`) failed windows-only on a cosmetic T7
+   assertion: `locate_engine()` returns native separators while
+   `applicationDirPath()` uses forward slashes, so a full-path `contains()`
+   could only pass on POSIX — fixed in `88e15ea` by comparing the basename
+   (all U-17 behavioral checks had passed on Windows untouched). Re-check the
+   tip before merging (rule 3 re-applies).
 
-5. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
+4. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against
    the exact tagged SHA*): release re-cut **U-09** → clean-Windows
    `windeployqt` smoke (C4/D3/D4, `docs/ci/CLEAN_WINDOWS_SMOKE.md`) → desktop
    probes B5/B6/B14 → owner decisions (two-way CLI pane, version 0.2.0 vs
-   1.0.0). Open findings left: **U-07** (Windows Unicode APIs), **U-12**
-   (UI-thread waits — still unscoped in §6), **U-15** (CMake writes into
-   `src/`), **U-17** (explode frame verification), **U-41** (web batch/merge/
-   explode — unscoped). PARTIALs: U-10/U-14/U-18.
+   1.0.0). Audit findings still open: **U-12** (scoped P1-24) and **U-09**.
+   PARTIALs: **U-10** (CI pinning + config.h move), **U-14** (verify_audit in
+   CI — `workflows` scope), **U-18** (regression-suite expansion). W-30 waits
+   on the same `workflows`-scoped maintainer action.
 
-6. **Direction unchanged:** offline-only; C++17 + Qt6 Widgets through 1.0.0;
+5. **Direction unchanged:** offline-only; C++17 + Qt6 Widgets through 1.0.0;
    `web/` is a demo/parity harness only (see
    `docs/planning/OFFLINE_BUILD_REVIEW.md`).
 
-7. **Naming policy in force:** *Gifscythe* = product; *gifsicle* = upstream
+6. **Naming policy in force:** *Gifscythe* = product; *gifsicle* = upstream
    engine only. Engine script: `scripts/build_engine.sh` (the
    `build_gifsicle.sh` shim is gone — do not reintroduce it).
 
@@ -113,16 +157,22 @@ only stick if they are in files a new session reads, not in a conversation.
    softened — it is the only thing that stops a sandbox-specific green being
    read as a universal one.
 
-### Product constraints (unchanged)
+### Product constraints (unchanged unless noted)
 
 - `reference_code/` is read-only; product work lives in `working_code/gifscythe/`.
+  The ONE exception S8/S11 used: `reference_code/REFERENCE_MANIFEST.md` is the
+  provenance record and gets updated with evidence (never the code trees).
 - Do not bump to `1.0.0` before the UI/UX gates + owner decision.
 - Do not add WebP/APNG before the GIF UI is stable.
 - Keep gifsicle as a **subprocess** (GPL v2-only engine vs GPLv3 UI).
 - Do **not** "fix" `--loopcount=0`, `-O0`, crop `+` form, or gamma sentinel —
   verified correct.
 - Live CLI pane stays honest **one-way** (until the owner decides otherwise).
-- Windows exec stays `CreateProcessA` + `win_quote_arg` — never `_spawnvp`/shell.
+- **UPDATED (S11):** Windows exec is `CreateProcessW` + `win_quote_arg`
+  (UTF-8 argv → strict UTF-16 line) — still never `_spawnvp`/shell. Every
+  std::string↔fs::path boundary goes through `u8path_compat`/`path_u8string`
+  (`src/core/WinUnicode.h`) — N-04 proved implicit narrow conversions mangle
+  non-ASCII on MinGW. New Windows-side code MUST follow both rules.
 - Windows CLI/test exes stay `-static`; engine line keeps `-include
   src/win32cfg.h` before `-I.` and never passes `-DVERSION`.
 - Keep `.github/workflows/build.yml` and `docs/ci/build.yml.proposed`
@@ -130,9 +180,23 @@ only stick if they are in files a new session reads, not in a conversation.
   declared exception: while `docs/ci/PENDING_WORKFLOW_CHANGE.md` exists the
   copies differ on purpose, because the CI token has no `workflows` scope.
   **Deleting that marker is part of applying the change.**
+- **NEW (S11):** CMake must never write into `src/` (U-15, gate **C9**). The
+  committed `src/core/version.h` fallback is written ONLY by `build.sh`; the
+  template lives at `build_support/version.h.in`; include order stays
+  generated-first. Do not "simplify" these back.
+- **NEW (S11):** Explode processes ONE file per run (N-05): `validate()`
+  warns on multi-input explode (the JS mirror must stay byte-identical —
+  parity-pinned), CLI `--run` refuses rc=2, the GUI refuses via the warning
+  dialog, web `/run` answers 400. Do not re-allow multi-input explode.
+- **NEW (S11):** Explode success means VERIFIED frames (`ExplodeVerify.h`
+  snapshot-diff) — never rc=0 alone. The harness fixture `fake_engine_exit0`
+  (CMake target) must keep being built next to `test_gui_offscreen`
+  (verify_audit gate B builds both targets).
 - Extend `tests/test_gui_offscreen.cpp` with every GUI feature (regression
-  net). S10 added T18/T19/T20 — keep that habit.
+  net). S10 added T18/T19/T20, S11 extended T7 — keep that habit.
 - Offline-only — no server, no auto-update, no telemetry; `web/` is a demo.
+  Its `/run` endpoint keeps the desktop honesty rules (planned targets,
+  collision refusal, output verification) — do not fork the semantics.
 - Language stays C++17/Qt6 through 1.0.0 (see offline review triggers).
 - **REMOVED (S7):** the `scripts/build_gifsicle.sh` shim is gone. Do not
   reintroduce it.
@@ -144,33 +208,37 @@ only stick if they are in files a new session reads, not in a conversation.
 - The harness sets `GS_SETTINGS_PATH` at startup; keep every persistence test
   on its own temp path and restore the scratch value after (T14/T19 do).
 - The screenshot capture driver is deliberately OUTSIDE the repo
-  (`~/devtools/capture` in the S10 sandbox). Re-shoot recipe:
+  (`~/devtools/capture` in the S10 sandbox). S11 changed NO desktop-visible
+  UI (statuses only), so the S10 shots remain accurate; re-shoot recipe:
   `docs/screenshots/README.md`.
 
-## Verification status this session (S10)
+## Verification status this session (S11)
 
 Everything marked ✅ was **run in this sandbox**; ⏳ could not be. Quote the
 **runtime** counter for test counts, never the `CHECK(` source site count.
 
 | Check | Result |
 |---|---|
-| `./build.sh` (engine + CLI + unit tests) | ✅ **238 checks, 0 failures** (runtime counter) |
+| `./build.sh` (engine + CLI + unit tests) | ✅ **296 checks, 0 failures** (runtime counter; blocks 33/34/35 added in S11) |
 | `scripts/test_engine.sh` | ✅ 5/5 |
-| `scripts/smoke_cli.sh` | ✅ **9/9** (S10 added the two `--strict` cases) |
+| `scripts/smoke_cli.sh` | ✅ **14/14** (S11 added the explode-verification + N-05 refusal cases) |
 | `scripts/test_package.sh` (packaging negative suite) | ✅ 9/9 |
-| `node web/test/command.test.mjs` | ✅ **15/15** (S10 added the asymmetric-scale fixture) |
-| `node web/test/validate.test.mjs` | ✅ 19/19 |
-| `node web/test/transport.test.mjs` (live server) | ✅ **18/18** (S10 added the U-42 case) |
-| GUI offscreen harness (`test_gui_offscreen`) | ✅ **306 checks, 0 failures** — COMPILED AND RUN HERE (T1–T20). New last-measured figure; 243 @ S7 was the previous one |
+| `node web/test/command.test.mjs` | ✅ **17** (S11 added the `-b`/`-e` fixtures) |
+| `node web/test/validate.test.mjs` | ✅ **23** (S11 added info+explode, explode geometry, N-05 ×2) |
+| `node web/test/transport.test.mjs` (live server) | ✅ **30** (S11 added the 12 `/run` cases) |
+| GUI offscreen harness (`test_gui_offscreen`) | ✅ **324 checks, 0 failures** — COMPILED AND RUN HERE (T1–T20, T7 extended). New last-measured figure; 306 @ S10 |
 | `scripts/check_docs.sh` (documentation gate) | ✅ **21 passed, 0 failed, 1 skipped, exit 0** (the skip is G7, the declared-pending workflow change) |
-| `scripts/verify_audit.sh` | ✅ **27 PASS / 0 FAIL / 3 SKIP, exit 0** (skips = E9 declared-pending workflow, CI-gated, clean-Windows) |
+| `scripts/verify_audit.sh` | ✅ **28 PASS / 0 FAIL / 3 SKIP, exit 0** (skips = E9 declared-pending workflow, CI-gated, clean-Windows; S11 added gate C9) |
+| MinGW cross-build (CLI, unit exe, fixture, engine exe) | ✅ zero warnings `-Wall -Wextra -static`; engine reports `LCDF Gifsicle 1.96 (Windows)` under Wine |
+| Wine 8 E2E matrix (U-07/U-17) | ✅ old-build repro rc=1 mojibake; fixed build rc=0 on é paths (conf contents, conf path, `GS_ENGINE`); CJK byte-exact to the child UTF-16 line; unit exe 292 checks; explode 12 frames rc=0 / lying engine rc=1 / multi-input refused rc=2 |
+| U-15 read-only + deleted-fallback repro | ✅ both halves executed (old FAIL / new PASS, uid 65534) |
 | `diff .github/workflows/build.yml docs/ci/build.yml.proposed` | ⏳ **differ on purpose** — the doc-gate step cannot be pushed without `workflows` scope; declared in `docs/ci/PENDING_WORKFLOW_CHANGE.md`. E9/G7 SKIP for declared drift, FAIL for undeclared |
-| GitHub Actions, S10 changes | ✅ run `34571933676` on `9435d71`: **linux success + windows success** (first runs on `44f3617`/`4337f0d` had failed: windows T20 QMovie file-lock, linux G10 in a depth-1 clone, then the gawk bracket-range bug — all fixed in the two follow-ups). Re-check the current tip before merging, not this row |
+| GitHub Actions, S11 changes | ✅ final run `34685470992` on head `635c986`: **linux success + windows success** (first run `34671814580` on `f655987` failed windows-only on the T7 path-separator assertion — fixed in `88e15ea`; heads `88e15ea`/`74091b7`/`635c986` all green). Re-check the current tip before merging, not this row |
 
 **Counts are stated by kind on purpose.** `grep -c 'CHECK('` counts **lines**;
-`grep -o 'CHECK(' | wc -l` counts **occurrences** (S10: harness **240**, unit
-**223** occurrences); neither equals the **runtime** count (unit **238**,
-harness **306**), because loops expand checks. `check_docs.sh` gate **G9**
+`grep -o 'CHECK(' | wc -l` counts **occurrences** (S11: harness **250**, unit
+**261** occurrences); neither equals the **runtime** count (unit **296**,
+harness **324**), because loops expand checks. `check_docs.sh` gate **G9**
 prints which kind it means and compares like with like.
 
 ## Network/toolchain reality of this sandbox (re-check every session)
@@ -178,59 +246,65 @@ prints which kind it means and compares like with like.
 **This varies between sandboxes — always re-check before trusting an older
 section of this file.**
 
-* **S10 sandbox (current):** **full toolchain.** uid 0 with working apt:
-  `apt-get install g++ make cmake qt6-base-dev ninja-build` succeeded (g++
-  12.2.0, cmake 3.25.1, Qt 6.4.2, ninja); node v20.20.2; python3 3.11;
-  DejaVu fonts present (offscreen screenshots render text correctly). So
-  **every local gate including the GUI harness was runnable here.** No mingw,
-  no wine, no `gh`. First token read-only; the second had write scope (branch
-  push + PR #13). **GitHub Actions job logs ARE readable from here** via
-  `GET /repos/…/actions/jobs/<id>/logs` (302 to a working blob host) — S9's
-  "log host unreachable" note applied to a different endpoint.
-* **S10 sandbox quirk worth knowing:** the shell/tooling layer rewrites the
-  literal string `/home/user` to `$ARENA_WORKSPACE` inside *file contents*
+* **S11 sandbox (current):** **full toolchain + Windows cross-proof.** uid 0
+  with working apt (aliyun mirror): g++ 12.2.0, cmake 3.25.1, Qt 6.4.2,
+  ninja, **mingw-w64 (gcc 12-win32)**, **Wine 8.0** (runs; wine32/i386 absent —
+  64-bit exes only), **gawk** (next to mawk — verify awk changes under BOTH),
+  node v20.20.2, python3 3.11, DejaVu fonts, curl. Network open (github clone,
+  apt). Token had read+write. **Wine quirks found the hard way:** (1) Wine 8's
+  ACP is immovable at 1252 — registry (`iDefaultANSICP`, `Nls\CodePage`) and
+  `LANG=ja_JP.UTF-8` all probed, `GetACP()` stays 1252, so CJK-through-engine
+  E2E is out of reach here (Gifscythe's chain still proven byte-exact with a
+  probe child); (2) `Z:` could not see `/home/user` (sandbox mount quirk —
+  `GetFileAttributesW` err 2/3 while `/tmp` works): stage Wine tests under
+  `/tmp`; (3) root ignores `chmod a-w` — read-only repros need
+  `setpriv --reuid 65534`.
+* **S11 sandbox quirk (carried from S10):** the shell/tooling layer rewrites
+  the literal string `/home/user` to `$ARENA_WORKSPACE` inside *file contents*
   written through bash heredocs (shell commands still work because bash
   re-expands it, but CMake/scripts see an undefined variable). Write files
   that must contain workspace paths with the file tool, or pass such paths in
-  via `-D`/argv/env at run time. Cost S10 ~20 minutes of confusion.
-* **awk portability is now a gate concern:** CI runners use gawk, sandboxes so
-  far used mawk. gawk rejects bracket classes like `[^U-0-9]` (invalid range)
-  that mawk accepts — this broke CI-linux only (PR #13). If a script's awk
-  one-liner ever behaves differently here than in CI, check the character
-  classes first (dash last or first).
+  via `-D`/argv/env at run time.
+* **awk portability is a gate concern:** CI runners use gawk, sandboxes have
+  used mawk. gawk rejects bracket classes like `[^U-0-9]` (invalid range)
+  that mawk accepts — this broke CI-linux once (PR #13). Dash first or last
+  in every bracket class; with gawk now installed locally, S11 verified both.
+* **S10 sandbox:** full Qt toolchain via apt (harness 306); no mingw, no wine,
+  no `gh`. GitHub Actions job logs ARE readable from a sandbox via
+  `GET /repos/…/actions/jobs/<id>/logs` (302 to a reachable blob host).
 * **S9 sandbox:** no cmake, no Qt6 (g++ 12.2.0, make, git, node v22.22.3,
   python3). Its numbers (25/0/5) were true there; G6 re-syncs them per sandbox.
 * **S8 sandbox:** apt blocked (`Acquire (13: Permission denied)`, uid 1001).
 * **S7 sandbox:** apt worked; harness measured 243; `-j4` OOMs, use `-j2`.
 * If apt is blocked again, the S5 fallback was `pip install cmake ninja
   PySide6` for the cmake steps; GUI verification then belongs to CI.
-* Clone depth: the S10 clone is **full** (no `.git/shallow`), so G10/G11 saw
-  complete history and G10 caught the S9→main drift. Shallow clones re-open
-  risk **R-02**.
+* Clone depth: the S11 clone is **full** (no `.git/shallow`), so G10/G11 saw
+  complete history. Shallow clones re-open risk **R-02**.
 
 ## Document map
 
 | Doc | Role |
 |-----|------|
 | **`STATUS.md`** | **START HERE** — the single status register. Four states, one row per item, generated header. Roll-up only |
-| `COMPILED_AUDIT.md` | The **detail** behind every `U-nn` row: findings, verification marks, §6 fix order, §7 checklist. The `U-nn` rows in `STATUS.md` are generated from its §5 |
+| `COMPILED_AUDIT.md` | The **detail** behind every `U-nn` row: findings, verification marks, §6 fix order (incl. P1-24 U-12 scope + P2-11 U-41), §7 checklist, §8 risks. The `U-nn` rows in `STATUS.md` are generated from its §5 |
 | `WORKLIST.md` | Human task board + the status rules + the deferred bucket list |
 | `SESSION_HANDOFF.md` | This file — context for the next session |
 | `IMPROVEMENT_LOG.md` | Chronological decisions, newest first, one template per entry |
 | `PROJECT_VISION.md` | Product mission + hard constraints |
 | `FEASIBILITY_REVIEW.md` | Original architecture + gifsicle flag mapping |
+| `reference_code/REFERENCE_MANIFEST.md` | **Provenance record (S11):** upstream clone SHAs, diff verdicts, tree digests, reproduce recipe |
 | `docs/audit/REMEDIATION_2026-09-10.md` | S8 record — dated snapshot; its gate numbers are S8's |
 | `docs/audit/CONSOLIDATED_AUDIT_2026-09-10.md` · `FIX_PICK_2026-09-10.md` · `POST_S7_AUDIT.md` | Dated audit snapshots — excluded from `check_docs.sh` by policy |
 | `docs/release/RELEASE_PROCEDURE.md` | How to cut snapshots/releases, incl. the doc gate |
 | `docs/planning/OFFLINE_BUILD_REVIEW.md` | Offline feasibility + language choice + phased plan |
 | `docs/web/WEB_FEASIBILITY.md` | Web-run review (Option 3 demo exists; Option 4 = future) |
 | `docs/ci/README.md` · `docs/ci/PENDING_WORKFLOW_CHANGE.md` · `docs/ci/CLEAN_WINDOWS_SMOKE.md` | CI workflow status, the blocked workflow change, and the C4/D3/D4 clean-Windows checklist |
-| `docs/screenshots/README.md` | S10 re-shoot recipe + what each shot shows; the shots are linked from the root README |
+| `docs/screenshots/README.md` | S10 re-shoot recipe + what each shot shows (S11 changed no desktop-visible UI, so they remain current); linked from the root README |
 | `docs/archive/` | The two dated review snapshots (historical line refs kept) |
-| `web/` | Server-side web POC + 3 parity/transport tests (demo only, not the product path) |
-| `working_code/gifscythe/VERSION.md` | Version source of truth → `src/core/version.h` |
+| `web/` | Server-side web POC: `/optimize` (legacy single-file) + `/run` (all four modes, S11) + 3 parity/transport suites (demo only, not the product path) |
+| `working_code/gifscythe/VERSION.md` | Version source of truth → committed `src/core/version.h` fallback (build.sh) + build-tree copy (CMake, from `build_support/version.h.in`) |
 
-## Prior-session history (S4/S4b/S5/S6/S7/S8/S9)
+## Prior-session history (S4/S4b/S5/S6/S7/S8/S9/S10)
 
 Windows engine recipe fixed + Wine-proven; `CreateProcessA` quoting; static
 linking; workflow hardening; XNConvert-style UI retrofit (tabs, ~30 controls,
@@ -248,5 +322,9 @@ evidence in `docs/audit/REMEDIATION_2026-09-10.md`; PR #11 merged (`7187cbb`),
 then the maintainer applied the pending CI change in `190d030`. S9: the
 status-tracking system (`STATUS.md`, `check_docs.sh`, F1/F2 gates, pre-push
 hook) + N-01/N-02 drift fixes; merged via PR #12 (`801960c`), then the
-maintainer updated the workflow again in `414f5fc` (2026-09-11) — which is the
-commit S10 based on, and which made G10/G11 red until S10 re-synced the docs.
+maintainer updated the workflow again in `414f5fc` (2026-09-11). S10: the full
+Qt stack in one sandbox again — nine findings + N-03 closed with executed
+proof (U-16/U-34/U-35/U-36/U-37/U-40/U-42/U-45/U-47), harness re-measured at
+306; PR #13 went through three CI lessons (Windows QMovie delete-locks,
+fetch-depth-1 G10 SKIP, the gawk bracket-range bug) and merged green as
+`2176573` — the commit S11 based on.

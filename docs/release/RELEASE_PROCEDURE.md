@@ -21,8 +21,11 @@ anything done without evidence).
 | **1.0.0** | **ONLY** when the UI/UX task is genuinely done: C4/D3/D4 clean-Windows smoke green + desktop probes B5/B6/B14 done + owner decision | bump `VERSION.md` |
 
 Version rules live in `working_code/gifscythe/VERSION.md` — it is the **single
-source of truth**; `build.sh` and CMake sync it into `src/core/version.h`
-(`GS_VERSION`). Never hardcode the version anywhere else. The **engine keeps
+source of truth**; `build.sh` syncs it into the committed
+`src/core/version.h` fallback (`GS_VERSION`), and CMake generates its own
+copy inside the build tree from `build_support/version.h.in` without ever
+writing into `src/` (S11, audit U-15 — gate C9 enforces). Never hardcode the
+version anywhere else. The **engine keeps
 upstream identity 1.96** regardless of the product version (audit A10).
 
 ## 1. Pre-flight (local, ~10 minutes)
@@ -32,7 +35,7 @@ From `working_code/gifscythe/`:
 ```bash
 ./build.sh                    # engine + CLI + unit tests      -> ALL TESTS PASSED
 ./scripts/test_engine.sh      # engine pipeline                -> 5/5
-./scripts/smoke_cli.sh        # CLI integration                -> 9/9
+./scripts/smoke_cli.sh        # CLI integration                -> 14/14
 ./scripts/test_package.sh     # packaging negative suite       -> 0 failed
 ./scripts/check_docs.sh       # documentation status gate      -> 0 failed
 ./scripts/verify_audit.sh     # whole COMPILED_AUDIT §6 suite  -> 0 FAIL
@@ -44,15 +47,15 @@ QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen   # -> 0 failures
 node ../../web/test/command.test.mjs                         # -> ALL PASSED
 ```
 
-Expected counts as of S10 (2026-09-11): unit suite **238 checks, 0 failures**
-(the runtime counter, not the 223 `CHECK(` source sites), GUI harness **306
-runtime checks** *(measured in the S10 sandbox, which had Qt 6.4.2 — re-run it
-on a Qt machine before trusting the number; the file now holds 240 `CHECK(`
-source sites, which is a different quantity)*, `verify_audit.sh` **27 PASS /
-0 FAIL / 3 SKIP, exit 0** (skips are the declared-pending workflow change and
-the CI-gated + clean-Windows items; a toolchain-less sandbox additionally skips
-C6/C7*/B and measures 25/0/5 — the S9 figure). If a count changed, update the
-docs in the same PR — stale counts are treated as a finding, and
+Expected counts as of S11 (2026-09-12): unit suite **296 checks, 0 failures**
+(the runtime counter, not the 261 `CHECK(` source sites), GUI harness **324
+runtime checks** *(measured in the S11 sandbox, which had Qt 6.4.2 — re-run it
+on a Qt machine before trusting the number; the file now holds 250 `CHECK(`
+source sites, which is a different quantity)*, smoke **14/14**, web **17 + 23 +
+30**, `verify_audit.sh` **28 PASS / 0 FAIL / 3 SKIP, exit 0** (skips are the
+declared-pending workflow change and the CI-gated + clean-Windows items; a
+toolchain-less sandbox additionally skips C6/C7*/C9/B). If a count changed,
+update the docs in the same PR — stale counts are treated as a finding, and
 `check_docs.sh` gates **G6/G9** now fail the build over them instead of leaving
 it to review.
 

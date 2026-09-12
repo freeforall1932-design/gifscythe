@@ -53,6 +53,17 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       sandbox HAD Qt6 (apt), so the shots were re-taken offscreen from the
       current UI and are now linked from the root README; see
       `docs/screenshots/README.md`.
+- [x] **N-06** — check_docs.sh emitter truncation was awk-locale-dependent
+      (gawk chars vs mawk bytes). **Found and fixed in S11** (`LC_ALL=C` +
+      ASCII-only §5 notes; emit byte-identical under both awks).
+- [x] **N-05** — multi-input Explode scattered frames silently (engine rc=0,
+      all-but-last inputs → CWD). **Found, verified and refused in S11**
+      (validate warning + CLI rc=2 + GUI refusal; tests at every layer).
+- [x] **N-04** — MinGW libstdc++'s narrow `fs::path` conversions are not UTF-8
+      (decode bytewise, encode UTF-8), silently mangling non-ASCII paths at
+      every core boundary on Windows. **Found and resolved in S11** under Wine
+      while executing U-07: `u8path_compat`/`path_u8string` (`WinUnicode.h`)
+      now sit at every string↔path boundary; Wine E2E cases B/C/D prove it.
 
 ## Direction decisions (2026-09-09 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`)
 
@@ -89,10 +100,10 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 ### Gates before more features
 - [x] **Verify fixes** (`COMPILED_AUDIT.md` §6) — one-command rerun:
       `working_code/gifscythe/scripts/verify_audit.sh`, currently
-      **27 PASS / 0 FAIL / 3 SKIP, exit 0** (skips: E9 declared-pending
-      workflow, CI-gated, clean-Windows; measured in the S10 sandbox which has
-      cmake+Qt6 — a toolchain-less sandbox skips C6/C7*/B as well and measures
-      25/0/5)
+      **28 PASS / 0 FAIL / 3 SKIP, exit 0** (skips: E9 declared-pending
+      workflow, CI-gated, clean-Windows; measured in the S11 sandbox which has
+      cmake+Qt6 — a toolchain-less sandbox skips C6/C7*/C9/B as well; S11
+      added gate C9, the cmake source-tree-purity check for U-15)
 - [x] **Documentation gate** (NEW S9) — `scripts/check_docs.sh` emits and
       enforces `STATUS.md`; wired into `verify_audit.sh` as **F1/F2**, into CI
       (pending — see `docs/ci/PENDING_WORKFLOW_CHANGE.md`) and into
@@ -137,11 +148,20 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       refuses. **S10:** `--strict` flag added (any parse/validation warning →
       refusal, exit 3, nothing printed or run); `--help` documents the warning
       policy and the exit-code table; smoke suite 7 → 9 cases.
-- [ ] Qt-only findings still need a Qt machine to *change*: U-12, U-15, U-17.
-      (S10 closed U-16, U-34, U-35, U-36, U-37, U-45 and U-47 locally — the S10
-      sandbox installed Qt6, so the harness compiled AND ran here for the first
-      time since S7.)
-- [ ] Windows-only: **U-07** ANSI process APIs (needs a real Windows run).
+- [ ] Qt-only findings still need a Qt machine to *change*: **U-12 only**
+      (scoped S11 as P1-24; implementation deliberately deferred — see
+      `COMPILED_AUDIT.md` §6). S10 closed U-16/U-34/U-35/U-36/U-37/U-45/U-47;
+      **S11 closed U-15 and U-17 locally** (Qt6 sandbox again, harness ran).
+- [x] Windows-only: **U-07** ANSI process APIs — **closed in S11 under Wine**:
+      the S11 sandbox installed mingw-w64 + Wine 8, so the fix (CreateProcessW +
+      GetCommandLineW argv re-fetch + wide env + u8path boundaries) was
+      cross-compiled AND executed here: é-path E2E rc=0 (the pre-fix build fails
+      the same conf rc=1 with mojibake), CJK proven lossless to the child's
+      UTF-16 command line, unit suite green under Wine (289 checks). Residual
+      (documented, upstream): gifsicle's own CRT hands IT ACP-encoded argv, so
+      characters outside the system ACP need Windows' UTF-8-ACP option to reach
+      the engine's file APIs. A real-Windows desktop pass stays nice-to-have
+      (W-18/W-19 territory).
 - [ ] **U-09** re-cut the release from *this* SHA.
 
 ### Session S9 (2026-09-10) — status-tracking system
@@ -171,7 +191,68 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] **U-42** — web Scale X/Y inputs; asymmetric parity fixture + transport case.
 - [x] **R-01** — harness measured locally at last: **306 checks, 0 failures**.
 
-### GIF UI/UX → 1.0.0  (S4b retrofit 2026-09-07 + S7 polish 2026-09-10 + S10 fixes — harness T1–T20 last *measured* at **306 runtime checks** in the S10 sandbox (Qt 6.4.2); before that the last measurement was 243 in the S7 sandbox; S8's T17/T8 additions were CI-green on PR #11)
+### Session S11 (2026-09-12) — mingw + Wine in the sandbox flipped U-07; 4 findings closed, provenance recorded
+- [x] **U-15 (P2-2)** — CMake no longer writes into `src/`: single
+      `configure_file` into the build tree, template moved to
+      `build_support/version.h.in`, generated-first include order, `core/version.h`
+      includes switched to path form. New gate **C9** builds a copy with the
+      committed fallback DELETED; the audit's read-only-`src/` repro flips
+      FAIL→PASS (executed both halves, uid 65534). `build.sh` stays the only
+      writer of the committed fallback; the G8 `build_support` allowance was
+      deleted as promised.
+- [x] **U-17 (P1-19)** — explode runs now verify their frames: new
+      `src/core/ExplodeVerify.h` (snapshot `<prefix>.*` before, require ≥1
+      new/changed real GIF after; failure names prefix+dir) wired into the CLI
+      `--run` path (rc=1) and the GUI (`No frames produced…` + dialog). Lying
+      engine (`fake_engine_exit0`) refused at every layer: unit test 33, smoke
+      9→12 cases, harness T7 extended, Wine rc=1. Success reports the verified
+      frame count.
+- [x] **U-07 (P1-4)** — Windows Unicode execution (see the ticked line above).
+- [x] **U-41 (P2-11)** — web demo grew all four desktop modes: scope line
+      added FIRST, then mode selector + multi-file queue + results list in the
+      UI, and `POST /run` (JSON multi-file) on the server with desktop
+      semantics — per-file Auto batch runs with planned targets + collision
+      refusal, one `-m` merge run, `-e`/`-E` explode with the P1-19 frame
+      verification. Suites extended: command 15→**17**, validate 19→**23**,
+      transport 18→**30**.
+- [ ] **U-10 (P2-3)** — provenance half DONE in S11, row stays PARTIAL until
+      the CI-pinning half lands (`workflows` scope) and `config.h` moves out of
+      the read-only tree. What S11 did: fresh full clone of `kohler/gifsicle`
+      diffed against both vendored trees: `reference_code/gifsicle` is
+      byte-identical to upstream `07f5c4c3` (master, 5 commits past `v1.96`)
+      in every shared file; the "functional patch" and "extra test" ARE
+      upstream commits `9efcc14`/`ed5b018`; only local addition is the
+      handwritten `config.h`. `gifsicle-nested-1.96` is pristine `v1.96`
+      (`a08e0f66`). Tree digests + reproduce recipe recorded in
+      `reference_code/REFERENCE_MANIFEST.md`. CI hash-pinning stays
+      proposal-only (`workflows` scope).
+- [ ] **U-12** — scoped in §6 as **P1-24** with all five waits, current line
+      numbers, and the fix sketch; implementation deliberately NOT attempted
+      (the freeze needs a slow process start, which the offscreen harness
+      cannot produce; cancel rewiring would risk T2/T9/T10 semantics with no
+      executable proof of improvement).
+- [x] **N-06** — the check_docs.sh emitter's 150-char proof-note truncation was
+      awk-locale-dependent (gawk counts characters, mawk bytes): the committed
+      STATUS.md passed G0 under gawk but failed under mawk. Found when the
+      sandbox restarted mid-session and lost gawk. Fixed the same session:
+      `LC_ALL=C` in the gate + S11 §5 notes reworded ASCII-only under the
+      limit; `--emit` verified byte-identical under BOTH awks.
+- [x] **N-05** — multi-input Explode silently scattered frames (engine rc=0;
+      every input but the LAST exploded into the CWD as `<basename>.NNN`, only
+      the last honored the `-o` prefix). Found while designing the U-41 web
+      explode rule; verified against the bundled 1.96; refused the same session
+      at every layer: `validate()` warning (C++ + byte-identical JS mirror),
+      CLI `--run` rc=2, GUI dialog + REFUSED summary; unit block 35, smoke
+      case 12 (2 lines), harness T7 subcase, Wine rc=2.
+- [x] **N-04** — found under Wine: this MinGW libstdc++'s narrow `fs::path`
+      conversions decode bytewise but encode UTF-8 (asymmetric mangling of
+      every non-ASCII path). Closed in-session: `u8path_compat`/`path_u8string`
+      at every core boundary (`WinUnicode.h`).
+- [x] Base-commit drift fixed on arrival: `SESSION_HANDOFF.md` +
+      `COMPILED_AUDIT.md` named `414f5fc`; origin/main is `2176573` (the PR #13
+      merge) — G10 green again.
+
+### GIF UI/UX → 1.0.0  (S4b retrofit 2026-09-07 + S7 polish 2026-09-10 + S10/S11 fixes — harness T1–T20 last *measured* at **324 runtime checks** in the S11 sandbox (Qt 6.4.2); before that 306 in S10 and 243 in S7; S8's T17/T8 additions were CI-green on PR #11)
 - [x] Input / Actions / Output tab flow (XNConvert feel) — QTabWidget + Preview
       pane in splitter; bottom live pane/progress/status bar kept
 - [x] Before/after preview (debounced 1200 ms, fully async, seq-guarded;
@@ -217,11 +298,13 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
    once 3+4 are green). Release how-to: `docs/release/RELEASE_PROCEDURE.md`.
    Audit release criterion: *no Critical/High open, package-negative tests green,
    clean-Windows smoke against the exact tagged SHA.*
-6. The 6 remaining `OPEN` audit findings — U-07 (Windows Unicode APIs), U-09
-   (release re-cut), U-12 (UI-thread waits, unscoped), U-15 (CMake writes into
-   `src/`), U-17 (explode frame verification), U-41 (web batch/merge/explode,
-   unscoped) — see `STATUS.md`. S10 could not take these: they need Windows,
-   release infra, or a scoping decision first.
+6. The 2 remaining `OPEN` audit findings — **U-09** (release re-cut: needs a
+   tag + release infra + write-scoped token) and **U-12** (UI-thread waits,
+   scoped as P1-24 in `COMPILED_AUDIT.md` §6 — needs a testable async-start
+   strategy before implementation) — plus the PARTIAL remainders: U-10 (CI
+   hash-pinning, `workflows` scope; `config.h` move to `build_support`), U-14
+   (verify_audit in CI, `workflows` scope), U-18 (regression-suite expansion).
+   See `STATUS.md`.
 7. WebP/APNG stay blocked until all of the above ships.
 
 ## Deferred bucket list — after GIF `1.0.0`
@@ -260,9 +343,9 @@ cd working_code/gifscythe
 
 # Web demo (offline-unrelated; parity harness only)
 node web/server.mjs 8000           # from the repo root; binds 127.0.0.1
-node web/test/command.test.mjs     # JS ⇄ C++ command parity (14 fixtures)
-node web/test/validate.test.mjs    # JS ⇄ C++ validation parity (19 fixtures)
-node web/test/transport.test.mjs   # live-server transport net (17 cases)
+node web/test/command.test.mjs     # JS ⇄ C++ command parity (17 checks)
+node web/test/validate.test.mjs    # JS ⇄ C++ validation parity (21 checks)
+node web/test/transport.test.mjs   # live-server transport net (30 cases)
 ```
 
 ## Do not

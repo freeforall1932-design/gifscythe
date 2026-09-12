@@ -22,18 +22,30 @@ sandbox**. **2026-09-10 (S8):** the audit register was
 worked down — **31 findings closed with executed proof** (both release blockers
 included). **2026-09-10 (S9):** the status-tracking system landed — `STATUS.md`,
 `scripts/check_docs.sh`, the `verify_audit.sh` **F1/F2** gates and a pre-push
-hook — and the one-command gate is green at **27 PASS / 0 FAIL / 3 SKIP,
-exit 0** as measured in the S10 sandbox (E9 SKIPs while the CI workflow change
+hook — and the one-command gate is green at **28 PASS / 0 FAIL / 3 SKIP,
+exit 0** as measured in the S11 sandbox (E9 SKIPs while the CI workflow change
 awaits a `workflows`-scoped token).
 **2026-09-11 (S10):** the S10 sandbox had cmake + Qt6 (apt-installed), so the
 harness was re-measured locally for the first time since S7 — **306 runtime
 checks, 0 failures (T1–T20)** — and 9 findings closed with executed proof
 (U-16, U-34, U-35, U-36, U-37, U-40, U-42, U-45, U-47), plus the N-03
 screenshot re-shoot. **306 is now the last *measured* harness figure**; the
-S8/S9-era GUI edits that were CI-verified only have now also run locally. Remaining: the
+S8/S9-era GUI edits that were CI-verified only have now also run locally.
+**2026-09-12 (S11):** PR #13 merged as `2176573`; the S11 sandbox added
+mingw-w64 + Wine 8 to the full Qt toolchain, which made the Windows Unicode
+fix executable here: **U-07, U-15, U-17, U-41 closed with executed proof**
+(Wine E2E included), **U-10**'s provenance half recorded (the vendored engine
+tree is diff-verified against upstream `kohler/gifsicle@07f5c4c3` — only local
+addition: the handwritten `config.h`), **U-12** scoped as P1-24 and
+deliberately left OPEN, and new finding new findings **N-04** (MinGW `fs::path`
+non-UTF-8 narrow conversions) and **N-05** (multi-input Explode silently
+scattered frames; now refused at every layer) found and closed in-session.
+Harness re-measured at **324 runtime checks**; unit **296**; smoke **14/14**;
+web **17 + 23 + 30**; `verify_audit.sh` **28/0/3**. Remaining: the
 clean-VM / desktop smoke (C4/D3/D4,
-B5/B6/B14 — `docs/ci/CLEAN_WINDOWS_SMOKE.md`) plus the owner decisions
-(two-way CLI, version) remain before **1.0.0**. See `WORKLIST.md`,
+B5/B6/B14 — `docs/ci/CLEAN_WINDOWS_SMOKE.md`), the release re-cut (U-09),
+U-12, U-10's CI-pinning half, plus the owner decisions
+(two-way CLI, version) before **1.0.0**. See `WORKLIST.md`,
 `COMPILED_AUDIT.md`, and `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 
 ## Mission

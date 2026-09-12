@@ -9,6 +9,7 @@
 #define GIFSCYTHE_CORE_SETTINGS_IO_H
 
 #include "GifsicleSettings.h"
+#include "WinUnicode.h"
 #include <cctype>
 #include <cstdio>
 #include <filesystem>
@@ -21,7 +22,8 @@
 #include <vector>
 
 #ifdef _WIN32
-#include <io.h>  // _commit / _fileno — durability step of the atomic save
+#include <fcntl.h>  // _O_RDONLY / _O_BINARY
+#include <io.h>  // _commit / _wopen — durability step of the atomic save
 #else
 #include <fcntl.h>  // open
 #include <unistd.h>  // fsync / close
@@ -310,7 +312,7 @@ inline Settings load_settings(std::istream& in, std::vector<LoadWarning>* warnin
 inline std::optional<Settings> load_settings_file(const std::string& path,
                                                    std::vector<LoadWarning>* warnings = nullptr,
                                                    std::map<std::string, std::string>* extra_keys = nullptr) {
-  std::ifstream f(path);
+  std::ifstream f(u8path_compat(path));  // UTF-8-safe open on Windows (U-07)
   if (!f) return std::nullopt;
   return load_settings(f, warnings, extra_keys);
 }
@@ -412,34 +414,40 @@ inline bool save_settings_file(const std::string& path, const Settings& s) {
   if (path.empty()) return false;
   const std::string tmp = path + ".tmp";
   {
-    std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+    std::ofstream f(u8path_compat(tmp), std::ios::binary | std::ios::trunc);
     if (!f) return false;
     save_settings(f, s);
     f.flush();
     if (!f) {  // write or flush failed — remove the stray, keep the original
       f.close();
       std::error_code rm;
-      std::filesystem::remove(tmp, rm);
+      std::filesystem::remove(u8path_compat(tmp), rm);
       return false;
     }
     f.close();
   }
   // Durability before visibility: push the temp file's bytes to stable
   // storage, then make them the target in one atomic step.
-  if (std::FILE* fh = std::fopen(tmp.c_str(), "rb")) {
 #ifdef _WIN32
-    _commit(_fileno(fh));
+  // Windows opens the temp file WIDE: narrow fopen would go through the ACP
+  // and miss a non-ASCII conf path (audit U-07). POSIX keeps fopen+fsync.
+  const int fd = ::_wopen(u8path_compat(tmp).c_str(), _O_RDONLY | _O_BINARY);
+  if (fd != -1) {
+    ::_commit(fd);
+    ::_close(fd);
+  }
 #else
+  if (std::FILE* fh = std::fopen(tmp.c_str(), "rb")) {
     int fd = fileno(fh);
     if (fd >= 0) ::fsync(fd);
-#endif
     std::fclose(fh);
   }
+#endif
   std::error_code ec;
-  std::filesystem::rename(tmp, path, ec);
+  std::filesystem::rename(u8path_compat(tmp), u8path_compat(path), ec);
   if (ec) {
     std::error_code rm;
-    std::filesystem::remove(tmp, rm);
+    std::filesystem::remove(u8path_compat(tmp), rm);
     return false;
   }
   return true;

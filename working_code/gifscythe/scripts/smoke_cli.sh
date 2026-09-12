@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 #
 # smoke_cli.sh - Integration smoke tests for gifscythe-cli.
-# Covers: missing engine exit code, CWD independence, paths with spaces,
-# batch vs merge semantics, malformed conf warnings.
+# Coverage: missing engine exit code, CWD independence, paths with spaces,
+# batch vs merge semantics, malformed conf warnings, --strict refusal,
+# explode frame verification (audit U-17: real frames counted, lying engine
+# refused, empty-output basename prefix followed).
 #
 set -uo pipefail
 
@@ -167,6 +169,89 @@ if [[ "$rc" -eq 0 ]] && grep -q "gifsicle" "$WORK/out8.txt" && [[ ! -s "$WORK/er
   ok "--strict passes a clean conf (rc=0, command on stdout)"
 else
   bad "--strict mishandled a clean conf (rc=$rc)"
+fi
+
+# 9. Explode E2E (audit U-17): real engine writes prefix.NNN frames and the
+#    CLI reports the verified count on stderr. logo.gif has 12 frames.
+mkdir -p "$WORK/ex"
+cat > "$WORK/explode.conf" <<EOF
+mode = explode
+input = $SRC_GIF
+output = $WORK/ex/f
+EOF
+set +e
+"$CLI" "$WORK/explode.conf" --run --engine "$ENGINE" >"$WORK/out9.txt" 2>"$WORK/err9.txt"
+rc=$?
+set -e
+if [[ "$rc" -eq 0 && -s "$WORK/ex/f.000" && -s "$WORK/ex/f.011" ]] \
+   && grep -q "12 frame(s)" "$WORK/err9.txt"; then
+  ok "explode writes frames and reports the verified count (rc=0, f.000..f.011)"
+else
+  bad "explode E2E (rc=$rc, f.000=$([[ -s $WORK/ex/f.000 ]] && echo y || echo n), stderr=$(tail -1 "$WORK/err9.txt"))"
+fi
+
+# 10. Explode with a LYING engine (exits 0, writes nothing) must NOT exit 0
+#     (audit U-17: rc=0 + zero frames used to mean success).
+printf '#!/bin/sh\nexit 0\n' > "$WORK/lie.sh"
+chmod +x "$WORK/lie.sh"
+rm -f "$WORK"/ex/f.*
+set +e
+"$CLI" "$WORK/explode.conf" --run --engine "$WORK/lie.sh" >"$WORK/out10.txt" 2>"$WORK/err10.txt"
+rc=$?
+set -e
+if [[ "$rc" -eq 1 ]] && grep -q "wrote no frames" "$WORK/err10.txt" \
+   && grep -q "$WORK/ex/f" "$WORK/err10.txt"; then
+  ok "lying engine (rc=0, zero frames) is refused: exit 1, error names the prefix"
+else
+  bad "lying-engine explode not refused honestly (rc=$rc, stderr=$(tail -2 "$WORK/err10.txt" | head -1))"
+fi
+
+# 11. Explode with EMPTY output verifies gifsicle's own fallback prefix: the
+#     input's basename in the CWD (reference gifsicle.c "explode into current
+#     directory"), i.e. <cwd>/logo.gif.NNN — verification must follow the same rule.
+mkdir -p "$WORK/cwd"
+cat > "$WORK/explode_noout.conf" <<EOF
+mode = explode
+input = $SRC_GIF
+EOF
+set +e
+(cd "$WORK/cwd" && "$CLI" "$WORK/explode_noout.conf" --run --engine "$ENGINE" >"$WORK/out11.txt" 2>"$WORK/err11.txt")
+rc=$?
+set -e
+if [[ "$rc" -eq 0 && -s "$WORK/cwd/logo.gif.000" && -s "$WORK/cwd/logo.gif.011" ]] \
+   && grep -q "12 frame(s)" "$WORK/err11.txt"; then
+  ok "explode with empty output verifies the CWD basename prefix (logo.gif.NNN)"
+else
+  bad "explode empty-output prefix rule (rc=$rc, logo.gif.000=$([[ -s $WORK/cwd/logo.gif.000 ]] && echo y || echo n))"
+fi
+
+# 12. Multi-input explode is REFUSED by --run (N-05): the engine exits 0 but
+#     scatters every input except the last into the CWD. Print mode keeps its
+#     documented policy: warn, then print.
+cat > "$WORK/explode_multi.conf" <<EOF
+mode = explode
+input = $SRC_GIF
+input = $SRC_GIF1
+output = $WORK/ex/m
+EOF
+set +e
+(cd "$WORK" && "$CLI" "$WORK/explode_multi.conf" --run --engine "$ENGINE" >"$WORK/out12.txt" 2>"$WORK/err12.txt")
+rc_run=$?
+"$CLI" "$WORK/explode_multi.conf" --engine "$ENGINE" >"$WORK/out12p.txt" 2>"$WORK/err12p.txt"
+rc_print=$?
+set -e
+if [[ "$rc_run" -eq 2 ]] && grep -q "scatters frames" "$WORK/err12.txt" \
+   && ! ls "$WORK"/m.* >/dev/null 2>&1 && ! ls "$WORK"/logo.gif.[0-9]* >/dev/null 2>&1 \
+   && ! ls "$WORK"/logo1.gif.[0-9]* >/dev/null 2>&1; then
+  ok "multi-input explode refused by --run (rc=2), no frames written anywhere"
+else
+  bad "multi-input explode not refused honestly (rc=$rc_run)"
+fi
+if [[ "$rc_print" -eq 0 ]] && grep -q "WARNING: mode=explode" "$WORK/err12p.txt" \
+   && grep -q -- "-e" "$WORK/out12p.txt"; then
+  ok "multi-input explode print mode warns (documented policy) and still prints"
+else
+  bad "multi-input explode print-mode policy wrong (rc=$rc_print)"
 fi
 
 echo "==> Done. $PASS passed, $FAIL failed."

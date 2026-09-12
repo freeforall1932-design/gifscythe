@@ -34,6 +34,8 @@ HEADERS += \
     src/core/OutputName.h \
     src/core/OutputPlan.h \
     src/core/Validate.h \
+    src/core/ExplodeVerify.h \
+    src/core/WinUnicode.h \
     src/core/version.h
 
 INCLUDEPATH += src
