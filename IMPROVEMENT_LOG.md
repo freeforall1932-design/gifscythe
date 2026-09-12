@@ -4,6 +4,72 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S14 continuation — stale-claim sweep, PR preflight, owner-decision register (docs + two scripts)  (2026-09-12)
+
+**Changed:**
+
+* **Added the stale-claim sweep** — `scripts/sweep_stale.sh` scans the same current-state `.md` set
+  as `check_docs.sh` (via `git ls-files '*.md'`, minus the dated snapshots and the append-only log)
+  for claims that can only be checked against *reality*, and names `file:line` + the fix; it never
+  edits. Five rule groups, each mutation-tested (inject the staleness and the rule must FAIL):
+  **S1** workflow copies vs the pending-change marker (class N-01); **S2** a quoted four-cell
+  `DONE/PARTIAL/OPEN/UNTRIAGED` tally must equal `STATUS.md`'s counts line; **S3** volatile
+  "release-red / is red / CI green / not yet merged" wording must carry evidence (run id, PR #,
+  date, sha, session) or prescriptive wording in a +/-1-line window; **S4** retired
+  "demo only / not the product path" claims must carry a supersession marker within +/-2 lines;
+  **S5** a narrative `**Status:**` block claiming FIXED/CORRECTED/DONE/RESOLVED while its §5
+  register row is not ✅/☑. A report-only **S6** surfaces pending/outstanding/TODO wording and
+  never fails.
+* **`check_docs.sh` gained gate G17** — runs the sweep, PASSes with the count of `PASS [S` lines,
+  else FAILs and prints the sweep's `FAIL [S` + `action:` lines. The gate total is now 22 checks.
+* **Added `scripts/pr_preflight.sh`** — the PR/merge companion (`--online`, `--body FILE`): P1
+  `check_docs.sh`, P2 `sweep_stale.sh`, P3 dirty-tree guard, P4 repo/main-tip/latest-run/PR state
+  (offline by default; SKIPs without `gh`), P5 PR body skeleton. Exits 1 on any failed check.
+* **Added the owner-decision register + SkillOpt query** — `docs/planning/OWNER_DECISIONS.md`
+  (`OD-01`…`OD-15`, options + recommendation + what each unblocks) and
+  `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` (incorporate microsoft/SkillOpt into this repo:
+  verified facts, the three non-negotiable conditions, the four shapes), plus
+  `docs/planning/NEXT_SESSION_PROMPT.md` for the copy-paste hand-off.
+* **The sweep's first real catches, corrected in this session:** two undated "CI green" cells in
+  `docs/planning/OFFLINE_BUILD_REVIEW.md` ("Windows CI green" → "green in S6"; "done, CI green" →
+  "as of S6"), and the U-06/U-08 narrative `**Status:**` lines that claimed "FIXED (S8)" while §5
+  marks them ◐ PARTIAL — both corrected to ◐ PARTIAL with the missing half named, and S5 now
+  enforces it.
+
+**Partial:**
+
+* None new — U-06/U-08 remain ◐ PARTIAL as before (their narratives now match §5).
+
+**Left:**
+
+* The owner answers (`OD-01`…`OD-15`) and the SkillOpt integration await the owner (see the two new
+  planning docs); the 18 intake findings remain untriaged.
+
+**Verified:**
+
+* `working_code/gifscythe/scripts/check_docs.sh` — **22 passed, 0 failed, 3 skipped** (skips: G6
+  full-toolchain total, G7 declared-pending workflow, G9b unit-not-built; G17 runs the sweep).
+* `working_code/gifscythe/scripts/sweep_stale.sh` — **5 passed, 0 failed, 0 skipped** after the two
+  corrections above; each of S1–S5 re-checked by injecting the staleness and confirming the rule
+  fails.
+* `working_code/gifscythe/scripts/pr_preflight.sh` — offline run: P1/P2/P3 PASS, P4/P5 SKIP
+  (no `--online`/`--body`), exit 0.
+
+**Not verifiable here:**
+
+* GitHub Actions job runs for this branch (no CI is triggered from this sandbox until the PR is
+  opened) and any `--online` `gh` output — the repo/run/PR values must be read from
+  `scripts/pr_preflight.sh --online` at PR time, never from memory.
+
+**Docs touched:** `STATUS.md` (SW-01/SW-02 + re-emitted counts), `COMPILED_AUDIT.md` (U-06/U-08
+narrative), `SESSION_HANDOFF.md`, `WORKLIST.md`, `README.md`, `docs/ci/README.md`,
+`docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/planning/OWNER_DECISIONS.md`,
+`docs/planning/SKILLOPT_INTEGRATION_QUERY.md`, `docs/planning/NEXT_SESSION_PROMPT.md`,
+`working_code/gifscythe/scripts/check_docs.sh`, `working_code/gifscythe/scripts/sweep_stale.sh`,
+`working_code/gifscythe/scripts/pr_preflight.sh`.
+
+---
+
 ## S14 — External reviews compiled; stale status claims corrected (docs only, no code fixes)  (2026-09-12)
 
 **Changed:**

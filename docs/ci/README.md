@@ -26,7 +26,10 @@
 - **Documentation status gate — APPLIED (confirmed S14).** The linux job runs
   `scripts/check_docs.sh --no-gate-run`; the S9 change is in the live
   `.github/workflows/build.yml`, not only in `docs/ci/build.yml.proposed`. S14 introduced gate
-  **G16** (web plan template state) into that checker. The two workflow copies still differ by one
+  **G16** (web plan template state); the S14 continuation added **G17** (the stale-claim sweep,
+  `scripts/sweep_stale.sh` — five rule groups). Both gates run in the same three places: the
+  `.githooks/pre-push` hook, the linux CI job (`--no-gate-run`), and
+  `scripts/pr_preflight.sh` at PR create and merge. The two workflow copies still differ by one
   line (the Windows E2E temp-path fallback), so
   `docs/ci/PENDING_WORKFLOW_CHANGE.md` now describes *that* drift instead — see it for the
   remaining apply-and-delete step.
