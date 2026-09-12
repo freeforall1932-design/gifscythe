@@ -22,7 +22,7 @@ two batches, each with executed proof** — including both release blockers:
 source file*, rc=0) and **U-02** (`package_portable.sh` exited 0 with no GUI in
 the folder). New `src/core/OutputPlan.h` + `OutputName.h`,
 `scripts/test_package.sh` (9 negative cases), and three web suites; unit suite
-at **293 checks, 0 failures** (S11); `verify_audit.sh` now **28 PASS / 0 FAIL /
+at **296 checks, 0 failures** (S11); `verify_audit.sh` now **28 PASS / 0 FAIL /
 3 SKIP, exit 0** as measured in the S11 Qt6+cmake sandbox (E9 SKIPs while the
 CI workflow change awaits a `workflows`-scoped token —
 `docs/ci/PENDING_WORKFLOW_CHANGE.md`). See `docs/audit/REMEDIATION_2026-09-10.md`.
