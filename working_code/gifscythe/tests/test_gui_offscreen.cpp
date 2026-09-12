@@ -616,7 +616,11 @@ int main(int argc, char** argv) {
       CHECK(copyFile(logo, b));
       MainWindow* w2 = makeWindow();  // ctor locates the lying engine via GS_ENGINE
       auto x2 = findWidgets(w2);
-      CHECK_MSG(x2.status->text().contains(fake), "window picked up the lying engine");
+      // Basename match on purpose: locate_engine() returns NATIVE separators
+      // (backslashes on Windows) while applicationDirPath() uses forward
+      // slashes — a full-path contains() failed only on CI-windows (S11).
+      CHECK_MSG(x2.status->text().contains(QStringLiteral("fake_engine_exit0")),
+                "window picked up the lying engine");
       dropFiles(w2, {b});
       x2.mode->setCurrentIndex(2);  // Explode
       x2.output->clear();
