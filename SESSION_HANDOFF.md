@@ -26,9 +26,12 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
   licence set itself is still incomplete — no full GPLv3 text, no Qt LGPL notices staged);
   `docs/ci/PENDING_WORKFLOW_CHANGE.md` rewritten to describe the drift that actually remains; the
   WORKLIST U-06 tick unticked.
-- **Not done, deliberately:** the 18 intake findings are **not** triaged into §5/`STATUS.md`; the
-  red CI run is not re-run (that needs a push); the workflow copy is not synced (needs a
-  `workflows`-scoped token).
+- **CI re-verified after these corrections:** run `34707532582` at commit `ddc4194` on this
+  branch — **linux + windows both green**, including the "Documentation status gate (STATUS.md
+  register)" step that failed in run `34705247115`, and every Linux step that failure had skipped.
+  The live `main` tip stays red until this branch lands.
+- **Not done, deliberately:** the 18 intake findings are **not** triaged into §5/`STATUS.md`; and
+  the workflow copy is not synced (needs a `workflows`-scoped token).
 
 ## S13 follow-up
 

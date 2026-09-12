@@ -1988,6 +1988,10 @@ proposed solution and the verification limits.
 | **DS-12** | Low | The line-based settings format silently loses leading/trailing whitespace in values (documented, no rejection path) | `src/core/SettingsIO.h` | code-confirmed |
 | **DS-13** | Medium | Web `/optimize` checks only non-empty output; no GIF magic check, so non-GIF bytes are served as `200 image/gif` | `web/server.mjs` | code-confirmed |
 
+**Post-correction CI evidence (2026-09-12, S14).** Run `34707532582` at commit `ddc4194`
+(`arena/01a0968e-gifscythe`) is **green on both jobs**, including the documentation status gate
+step that failed in run `34705247115`; the live `main` tip stays red until that branch lands.
+
 **Local gate state at the time of intake (recorded, not fixed).**
 `working_code/gifscythe/scripts/check_docs.sh --no-gate-run` → **18 passed, 2 failed, 3 skipped**;
 the failures are **G10** (this file's header names base `2176573`, while the accepted bases are

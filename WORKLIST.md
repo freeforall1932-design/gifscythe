@@ -194,8 +194,10 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       U-08 removed from §6 P0-3's Closes list; `STATUS.md` re-emitted.
 - [x] **`docs/ci/PENDING_WORKFLOW_CHANGE.md`** now describes the drift that really remains (the
       Windows temp-path fallback line) instead of a step that is already live.
-- [ ] **Still red:** the live `main` documentation gate. The local G10 cause is fixed; the next
-      push re-runs CI.
+- [x] **CI re-verified:** run `34707532582` at commit `ddc4194` on this branch — linux +
+      windows green, including the documentation status gate that failed in run `34705247115`.
+- [ ] **`main` is still red** until this branch lands (the failing check is the one this branch
+      fixes).
 
 ### Session S9 (2026-09-10) — status-tracking system
 - [x] **N-01** — the pending-workflow marker was left behind after the maintainer
