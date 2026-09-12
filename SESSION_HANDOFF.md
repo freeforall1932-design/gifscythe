@@ -13,8 +13,8 @@ PR #13 merge) ·
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S11: **78 DONE · 4 PARTIAL ·
-   17 OPEN · 0 UNTRIAGED · 99 total.**
+   `U-nn` row; neither replaces the other. As of S11: **79 DONE · 4 PARTIAL ·
+   17 OPEN · 0 UNTRIAGED · 100 total.**
 
 1. **What S11 did.** The S11 sandbox had working apt (uid 0) and installed,
    beyond the S10 stack (g++ 12.2 / cmake 3.25.1 / Qt 6.4.2 / ninja / node
@@ -63,6 +63,15 @@ PR #13 merge) ·
      process start, which the offscreen harness cannot produce, and the
      cancel rewrite would rewire T2/T9/T10 semantics with no executable proof
      of improvement. Scoped-OPEN beats an untestable refactor.
+   - **N-06 (new, closed in-session)** — the check_docs.sh emitter's
+     proof-note truncation was awk-locale-dependent (gawk counts characters,
+     mawk bytes), so the committed STATUS.md passed G0 under gawk but failed
+     under mawk. Found when the sandbox RESTARTED mid-session and lost the
+     apt-installed gawk (the tree stayed byte-identical to the CI-green head).
+     Fixed in the checker: `export LC_ALL=C` + the S11 §5 notes reworded
+     ASCII-only under the 150 limit; `--emit` verified byte-identical under
+     both awks. **Lesson: a sandbox can restart mid-session — commit and push
+     early, and never trust locally-installed tools to persist.**
    - **N-05 (new, closed in-session)** — multi-input Explode silently
      scattered frames: `gifsicle -e a.gif b.gif -o p` exits 0, explodes every
      input but the LAST into the process CWD, and only the last input honors

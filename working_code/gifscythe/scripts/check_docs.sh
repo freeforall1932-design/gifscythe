@@ -27,6 +27,17 @@
 #
 set -uo pipefail
 
+# Byte-deterministic gate (N-06, S11): gawk counts CHARACTERS in
+# length()/substr() under a UTF-8 locale while mawk counts BYTES, so the
+# emitter's 150-char proof-note truncation produced DIFFERENT STATUS.md bytes
+# per awk — a register emitted under gawk passed G0 there and in CI but failed
+# under mawk (every sandbox before S11). LC_ALL=C makes every awk, sort and
+# grep here byte-oriented, so --emit is identical under mawk, gawk and CI
+# regardless of the runner's locale. (Belt and braces: §5 proof notes are also
+# kept ASCII and under the 150 limit so truncation cannot cut a multibyte
+# character in half.)
+export LC_ALL=C
+
 self="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 root="$(cd "$self/../.." && pwd)"
 cd "$root"
