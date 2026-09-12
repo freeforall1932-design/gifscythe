@@ -735,7 +735,7 @@ from `5934339`, not `8190c08`.
 
 ### A-09 / GS-009 [High] — The read-only upstream boundary is already modified and Linux-specific
 
-**Path:** `reference_code/gifsicle/config.h` and `REFERENCE_MANIFEST.md` :: handwritten
+**Former path (before S13):** reference_code/gifsicle/config.h and `REFERENCE_MANIFEST.md` :: handwritten
 `config.h` used by `build_engine.sh`
 
 **Certainty:** Confirmed ✅ **EXEC**
@@ -750,7 +750,7 @@ handwritten `config.h` under `reference_code` with `SIZEOF_UNSIGNED_LONG=8`,
 the rule that `reference_code` is never edited.
 
 **Reproduce:**
-Compare `reference_code/gifsicle/config.h` with upstream commit `07f5c4c3`. Observe that upstream
+Before S13, compare reference_code/gifsicle/config.h with upstream commit `07f5c4c3`. Observe that upstream
 has no tracked root `config.h` and the local file says it is handwritten for Linux/gcc. Attempt
 the advertised native build on macOS, 32-bit Linux, or a non-glibc target.
 
@@ -765,16 +765,16 @@ reference snapshot.
 configs. Pin and verify upstream tree hashes in CI; document the one intentional patch series if
 patches are needed. Correct the manifest's identity claim.
 
-**Status:** ◐ **PARTIAL (S11)** — provenance half CLOSED with executed proof: a
-fresh full clone of `kohler/gifsicle` was diffed against both vendored trees
-(2026-09-12). `gifsicle/` is byte-identical to upstream `07f5c4c3` in every
-shared file (the "functional patch" `FRAME_SELECTION_MODE_MASK 0x1F` and the
-"extra test" `012-framechange.testie` are upstream commits `9efcc14`/`ed5b018`,
-5 commits after the `v1.96` tag); `gifsicle-nested-1.96/` is pristine `v1.96`.
-Only local addition: the handwritten `config.h`. Digests + the reproduce
-recipe are in `reference_code/REFERENCE_MANIFEST.md`. Still open: CI
-hash-pinning (proposal-only — needs `workflows` scope) and moving the
-product-owned `config.h` under `working_code/gifscythe/build_support`.
+**Status:** ◐ **PARTIAL (S13)** — provenance and configuration relocation are
+CLOSED with executed proof: `reference_code/gifsicle/` no longer contains the
+product-owned header; `working_code/gifscythe/build_support/gifsicle/config.native.h`
+is staged as `config.h` in a temporary include directory by
+`scripts/build_engine.sh`. The native engine build, full CLI/unit build,
+engine pipeline, and smoke suite all pass after the move. The S11 upstream
+comparison remains valid after removing the sole local reference-tree file;
+updated digests are recorded in `reference_code/REFERENCE_MANIFEST.md`. Still
+open: CI hash-pinning
+(proposal-only — needs `workflows` scope).
 
 ---
 
@@ -1638,7 +1638,7 @@ Deduplicated across A/B/C/D. "Src" = which audit(s) raised it.
 | **U-07** | A:GS-006 | **Windows CLI execution is ANSI-only.** `CreateProcessA` + `std::string` cmdline ⇒ non-ASCII paths cannot be passed to the engine. | ✅ **EXEC** (wine 8, mingw 12) | ✅ FIXED (S11) — `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly |
 | **U-08** | A:GS-007 | **License set can ship incomplete, silently.** Root has `LICENSE` + `COPYING.gifsicle` but **no `COPYING`**; every license copy is `if [[ -f ]]`-guarded. | ✅ **EXEC**+SRC | ✅ FIXED (S8) — license set asserted, negative-tested |
 | **U-09** | A:GS-008 | **Banked Windows snapshot is 5 commits behind the SHA its own notes claim.** Release body pins `d3544b1`; main is `8190c08`. | ✅ **EXEC** | ⬜ OPEN |
-| **U-10** | A:GS-009 | **The "read-only, identical-to-upstream" vendored engine is neither.** Carries a handwritten `config.h` (Linux values), a functional patch, and an extra test. | ✅ **EXEC** (S11 re-clone) | ◐ PARTIAL (S11) — provenance recorded: diff+digests vs upstream `07f5c4c3` in REFERENCE_MANIFEST.md. MISSING: CI hash-pinning (workflows scope) + config.h move |
+| **U-10** | A:GS-009 | **The "read-only, identical-to-upstream" vendored engine is neither.** Carries a handwritten `config.h` (Linux values), a functional patch, and an extra test. | ✅ **EXEC** (S11 re-clone; S13 relocation) | ◐ PARTIAL (S13) — provenance and product-config relocation verified; `reference_code/gifsicle/` is now upstream-only and native build stages `build_support/gifsicle/config.native.h`. MISSING: CI hash-pinning (workflows scope) |
 
 ### Medium
 

@@ -30,7 +30,7 @@ hand-fudged roll-up fails the gate.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
 **Counts (generated - do not edit by hand):** 80 DONE · 3 PARTIAL · 17 OPEN · 0 UNTRIAGED · 100 total
-**Last regenerated:** S12 · 2026-09-12 · by scripts/check_docs.sh --emit
+**Last regenerated:** S13 · 2026-09-12 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
 
@@ -46,7 +46,7 @@ hand-fudged roll-up fails the gate.
 | U-07 | Windows CLI execution is ANSI-only. | DONE | S11 | `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly | - |
 | U-08 | License set can ship incomplete, silently. | DONE | S8 | license set asserted, negative-tested | - |
 | U-09 | Banked Windows snapshot is 5 commits behind the SHA its own notes claim. | OPEN | - | not started; scoped as P0-4 in COMPILED_AUDIT.md §6 | P0-4: Re-cut release evidence. |
-| U-10 | The "read-only, identical-to-upstream" vendored engine is neither. | PARTIAL | S11 | provenance recorded: diff+digests vs upstream `07f5c4c3` in REFERENCE_MANIFEST.md. MISSING: CI hash-pinning (workflows scope) + config.h move | P2-3: Immutable + correctly-labelled upstream tree. |
+| U-10 | The "read-only, identical-to-upstream" vendored engine is neither. | PARTIAL | S13 | provenance and product-config relocation verified; `reference_code/gifsicle/` is now upstream-only and native build stages `build_support/gifsicle/... | P2-3: Immutable + correctly-labelled upstream tree. |
 | U-11 | Malformed booleans degrade silently. | DONE | S8 | `parse_bool_strict` warns, leaves field unchanged | - |
 | U-12 | "Fully async" GUI still blocks the UI thread in 5 places — up to 5 s per run start. | OPEN | S11 | not started; scoped as P1-24 in COMPILED_AUDIT.md §6 | P1-24: Async run/cancel state machine (scoped S11; deliberately NOT yet implemented). |
 | U-13 | Drag-and-drop accepts any existing file. | DONE | S8 | drop filter `&&`; empty comments skipped (C++ + JS) | - |
