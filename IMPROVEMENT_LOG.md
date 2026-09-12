@@ -65,9 +65,14 @@ Chronological log of decisions and changes. **Newest at the top.**
   green**, including the "Documentation status gate (STATUS.md register)" step that failed on the
   main tip in run `34705247115`.
 * `working_code/gifscythe/scripts/check_docs.sh` in this clone after
-  `working_code/gifscythe/scripts/bootstrap_hooks.sh`: **20 passed, 0 failed, 3 skipped** (G6
+  `working_code/gifscythe/scripts/bootstrap_hooks.sh`: **21 passed, 0 failed, 3 skipped** (G6
   SKIPs — no cmake/Qt6 in this sandbox, so the full-toolchain total is not measurable here); the
-  G10 stale-base failure is gone and the re-emitted register reads 78 DONE / 5 PARTIAL / 17 OPEN.
+  G10 stale-base failure is gone and the re-emitted register reads 78 DONE / 5 PARTIAL / 17 OPEN /
+  18 UNTRIAGED.
+* **New gate G16 (web plan template state):** `web/WEB_PLAN_TEMPLATE.md` carries
+  `**Template state:** SKELETON|WORKING PLAN` and `SESSION_HANDOFF.md` mirrors it; the gate fails if
+  they disagree or name anything else, so the one-way flip at refit time cannot be half-applied.
+  Mutation-tested both ways (disagreeing mirror FAILs, bad token FAILs) before shipping it.
 
 **Not verifiable here:**
 

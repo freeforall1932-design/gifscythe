@@ -14,7 +14,8 @@ is **self-hosted**: the same engine, the same command semantics, loopback by def
 unchanged — a hosted/cloud deployment would be a separate decision and would need its own privacy
 decision. Desktop stays the 1.0.0 release artifact. The split rules that keep the two surfaces from
 drifting — and the plan template the owner drafts are refitted into — live in
-`web/WEB_PLAN_TEMPLATE.md`.
+`web/WEB_PLAN_TEMPLATE.md`, whose state line (`SKELETON` until the owner's draft is refitted,
+then `WORKING PLAN`) is mirrored in `SESSION_HANDOFF.md` and checked by gate **G16**.
 
 **Status:** Feasibility decided (`FEASIBILITY_REVIEW.md`). Engine, control layer,
 CLI, and GUI implemented; P0/P1 honesty fixes landed and were verified with

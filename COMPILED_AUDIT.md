@@ -2003,7 +2003,8 @@ run `34705247115` failed its Linux documentation gate on main. **Do not treat ma
 `WORKLIST.md`, and their release-blocking subset is listed in
 `docs/release/RELEASE_PROCEDURE.md`. Proposed sequencing lives in `web/WEB_PLAN_TEMPLATE.md` (the web-surface
 plan template the owner drafts are refitted into; its §1 records the owner's S14 decision that the
-web build is a supported product surface).
+web build is a supported product surface, and its state line - `SKELETON` until the refit, then
+`WORKING PLAN` - is mirrored in `SESSION_HANDOFF.md` and checked by gate G16).
 **They are still not in the §6 fix order**: triage (which maps accepted items into `U-nn`) has not
 happened, so nothing here is scheduled for implementation yet.
 

@@ -984,5 +984,31 @@ else
   bad "G15" "core.hooksPath is not .githooks - run scripts/bootstrap_hooks.sh (the hook is NOT live)"
 fi
 
+# ---------------------------------------------------------------------------
+# 16. WEB PLAN TEMPLATE STATE - skeleton, or the working plan, never in between.
+#     web/WEB_PLAN_TEMPLATE.md carries the state; SESSION_HANDOFF.md mirrors it.
+#     The flip is one-way and once: SKELETON -> WORKING PLAN on the commit that
+#     refits the owner's draft into the template's slots. Comparing the two makes
+#     it impossible for a new session to read "skeleton" while the plan is live
+#     (or the reverse). Both lines are exact-token lines so the parse is byte
+#     oriented under LC_ALL=C.
+# ---------------------------------------------------------------------------
+TEMPLATE_MD="$root/web/WEB_PLAN_TEMPLATE.md"
+if [[ ! -f "$TEMPLATE_MD" ]]; then
+  bad "G16" "web/WEB_PLAN_TEMPLATE.md is missing - the web plan template is the state source"
+else
+  tpl_state="$(grep -m1 -E '^\*\*Template state:\*\* (SKELETON|WORKING PLAN)$' "$TEMPLATE_MD" | sed 's/.*\*\* //')"
+  hd_state="$(grep -m1 -E '^\*\*Web plan template:\*\* (SKELETON|WORKING PLAN)$' "$HANDOFF_MD" | sed 's/.*\*\* //')"
+  if [[ -z "$tpl_state" ]]; then
+    bad "G16" "web/WEB_PLAN_TEMPLATE.md has no '**Template state:** SKELETON|WORKING PLAN' line"
+  elif [[ -z "$hd_state" ]]; then
+    bad "G16" "$(basename "$HANDOFF_MD") has no '**Web plan template:** SKELETON|WORKING PLAN' mirror line"
+  elif [[ "$tpl_state" != "$hd_state" ]]; then
+    bad "G16" "web plan state disagrees: template says '$tpl_state', handoff says '$hd_state' - move both on the refit commit"
+  else
+    ok "G16" "web plan template state is '$tpl_state' and the handoff mirror agrees (one-way flip at refit time)"
+  fi
+fi
+
 echo "==> Done. $PASS passed, $FAIL failed, $SKIP skipped."
 [[ "$FAIL" -eq 0 ]]

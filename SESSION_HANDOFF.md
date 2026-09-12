@@ -4,7 +4,11 @@
 **Base:** `main` `2d51347` · **PR #15 is MERGED** (its head run `34704221643` was green on
 Linux + Windows; the **post-merge `main` run `34705247115` is RED** — Linux documentation status
 gate failed, Windows passed, every later Linux step skipped) ·
-**Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending)
+**Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
+**Web plan template:** SKELETON
+*(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
+owner's draft is refitted into that template's slots — move both lines in the same commit, gate
+**G16** compares them)*
 
 ## S14 — External reviews compiled for review; stale status claims corrected (docs only)
 
@@ -39,6 +43,9 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
   self-hosted alternative to the `.exe`/portable build (offline-only / no-cloud promise unchanged).
   Recorded in `PROJECT_VISION.md`, `WORKLIST.md` direction decisions, `STATUS.md` (D-07 re-scoped)
   and `web/WEB_PLAN_TEMPLATE.md` §1.
+- **Template state is tracked, once:** the template's `**Template state:** SKELETON` line is
+  mirrored right above in this header, and **gate G16** fails if they disagree — so flipping to
+  `WORKING PLAN` on the refit commit cannot be half-applied or silently reversed.
 - **Not done, deliberately:** **no triage** — nothing was mapped into §6 fix-order `U-nn` ids, so
   nothing is scheduled; and the workflow copy is not synced (needs a `workflows`-scoped token).
 
