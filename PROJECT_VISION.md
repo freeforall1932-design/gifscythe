@@ -43,8 +43,10 @@ scattered frames; now refused at every layer) found and closed in-session.
 Harness re-measured at **324 runtime checks**; unit **296**; smoke **14/14**;
 web **17 + 23 + 30**; `verify_audit.sh` **28/0/3**. S12 also closed the
 P2-4/U-18 regression-coverage scope and repaired the post-merge documentation
-base check (PR #15). Remaining: the
-clean-VM / desktop smoke (C4/D3/D4,
+base check (PR #15). **S13 (2026-09-12):** product-owned native engine
+configuration moved to `working_code/gifscythe/build_support/gifsicle/`, so
+U-10 now remains PARTIAL only for CI hash-pinning. Remaining: the clean-VM /
+desktop smoke (C4/D3/D4,
 B5/B6/B14 — `docs/ci/CLEAN_WINDOWS_SMOKE.md`), the release re-cut (U-09),
 U-12, U-10's CI-pinning half, plus the owner decisions
 (two-way CLI, version) before **1.0.0**. See `WORKLIST.md`,

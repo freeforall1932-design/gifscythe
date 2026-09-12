@@ -4,6 +4,51 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S13 — Product config leaves the vendored tree; U-10 reduced to workflow pinning  (2026-09-12)
+
+**Changed:**
+
+* Moved the product-owned native engine configuration from the read-only
+  the former reference_code/gifsicle/config.h into
+  `working_code/gifscythe/build_support/gifsicle/config.native.h`.
+* `scripts/build_engine.sh` now stages that explicitly named config as
+  `config.h` in a temporary include directory, uses it for native builds, and
+  lets upstream `src/win32cfg.h` win for Windows builds. The temporary staging
+  directory is removed on exit; the reference tree is never written.
+* Updated `REFERENCE_MANIFEST.md` digests and provenance wording. U-10 remains
+  PARTIAL only because CI hash-pinning still needs `workflows` permission.
+
+**Partial:**
+
+* U-10 CI hash-pinning, U-14 CI enforcement, U-09 release re-cut, U-12 GUI
+  waits, clean-Windows/desktop probes, and owner decisions remain blocked or
+  intentionally unstarted.
+
+**Left:**
+
+* Apply the pending workflow change with a `workflows`-scoped token; perform
+  the release and clean-desktop evidence steps when their infrastructure is
+  available. Do not relabel U-12 without a meaningful async GUI test.
+
+**Verified:**
+
+* `bash -n scripts/build_engine.sh && ./scripts/build_engine.sh` — native
+  engine builds and reports `LCDF Gifsicle 1.96` with no reference config.
+* `./build.sh` — 296 checks, 0 failures; `scripts/test_engine.sh` — 5/5;
+  `scripts/smoke_cli.sh` — 19/19.
+* The staged config is absent after the build, and `reference_code/gifsicle/`
+  contains no `config.h`.
+
+**Not verifiable here:**
+
+* Windows cross-build/Wine and CI hash-pinning require the unavailable
+  toolchains or a token with `workflows` scope.
+
+**Docs touched:**
+
+* `COMPILED_AUDIT.md`, `STATUS.md`, `WORKLIST.md`, `IMPROVEMENT_LOG.md`,
+  `reference_code/REFERENCE_MANIFEST.md`, and `build_engine.sh`.
+
 ## S12 — Regression coverage expanded; post-merge documentation gate repaired  (2026-09-12)
 
 **Changed:**

@@ -6,6 +6,16 @@
 `53a6eda` (the PR #14 merge) ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending)
 
+## S13 follow-up
+
+- **U-10 config half completed:** the product-owned native engine configuration
+  is now `working_code/gifscythe/build_support/gifsicle/config.native.h`.
+  `scripts/build_engine.sh` stages it as `config.h` in a temporary include
+  directory, so `reference_code/gifsicle/` is upstream-only and never written.
+  Native build, unit suite, engine tests, and smoke suite pass after the move.
+- U-10 remains PARTIAL only for CI hash-pinning, which still needs a token with
+  `workflows` scope. U-12 remains OPEN; no untestable GUI refactor was claimed.
+
 ## S12 follow-up
 
 - **U-18/P2-4 coverage expanded:** `smoke_cli.sh` is now **19/19**, covering

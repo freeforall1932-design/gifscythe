@@ -82,6 +82,8 @@ session: unit **296**, smoke **14/14**, web **17 + 23 + 30**, harness
 P2-4/U-18 scope with PATH-only engine, strict parser, binary-stdout, and
 unsafe-output tests. It also repaired the post-merge documentation gate; PR
 #15 is green on Linux and Windows.**
+**S13 (2026-09-12) moved the product-owned native engine config out of
+`reference_code/gifsicle`; U-10 now remains PARTIAL only for CI hash-pinning.**
 **Direction (2026-09-09): offline-only, language stays C++17/Qt6 through 1.0.0**
 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 

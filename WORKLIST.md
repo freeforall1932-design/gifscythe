@@ -227,17 +227,17 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       refusal, one `-m` merge run, `-e`/`-E` explode with the P1-19 frame
       verification. Suites extended: command 15→**17**, validate 19→**23**,
       transport 18→**30**.
-- [ ] **U-10 (P2-3)** — provenance half DONE in S11, row stays PARTIAL until
-      the CI-pinning half lands (`workflows` scope) and `config.h` moves out of
-      the read-only tree. What S11 did: fresh full clone of `kohler/gifsicle`
-      diffed against both vendored trees: `reference_code/gifsicle` is
-      byte-identical to upstream `07f5c4c3` (master, 5 commits past `v1.96`)
-      in every shared file; the "functional patch" and "extra test" ARE
-      upstream commits `9efcc14`/`ed5b018`; only local addition is the
-      handwritten `config.h`. `gifsicle-nested-1.96` is pristine `v1.96`
-      (`a08e0f66`). Tree digests + reproduce recipe recorded in
-      `reference_code/REFERENCE_MANIFEST.md`. CI hash-pinning stays
-      proposal-only (`workflows` scope).
+- [ ] **U-10 (P2-3)** — provenance and product-config relocation are DONE in
+      S11/S13; row stays PARTIAL until CI hash-pinning lands (`workflows`
+      scope). `reference_code/gifsicle` is now upstream-only at `07f5c4c3`
+      (master, 5 commits past `v1.96`); `config.native.h` lives under
+      `working_code/gifscythe/build_support/gifsicle/` and is staged as
+      `config.h` in a temporary include directory. Native build, CLI/unit
+      build, engine pipeline, and smoke 19/19 pass after the move. The
+      four upstream deltas remain verified as commits `9efcc14`/`ed5b018`;
+      `gifsicle-nested-1.96` remains pristine `v1.96` (`a08e0f66`). Updated
+      digests + reproduce recipe are in `reference_code/REFERENCE_MANIFEST.md`.
+      CI hash-pinning stays proposal-only (`workflows` scope).
 - [ ] **U-12** — scoped in §6 as **P1-24** with all five waits, current line
       numbers, and the fix sketch; implementation deliberately NOT attempted
       (the freeze needs a slow process start, which the offscreen harness
@@ -314,9 +314,9 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
    tag + release infra + write-scoped token) and **U-12** (UI-thread waits,
    scoped as P1-24 in `COMPILED_AUDIT.md` §6 — needs a testable async-start
    strategy before implementation) — plus the PARTIAL remainders: U-10 (CI
-   hash-pinning, `workflows` scope; `config.h` move to `build_support`), U-14
-   (verify_audit in CI, `workflows` scope). U-18/P2-4 regression coverage is
-   closed in S12; see `STATUS.md` for the remaining partial/open items.
+   hash-pinning, `workflows` scope; product config relocation is DONE in S13),
+   U-14 (verify_audit in CI, `workflows` scope). U-18/P2-4 regression coverage
+   is closed in S12; see `STATUS.md` for the remaining partial/open items.
 7. WebP/APNG stay blocked until all of the above ships.
 
 ## Deferred bucket list — after GIF `1.0.0`
