@@ -29,8 +29,8 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 80 DONE · 3 PARTIAL · 17 OPEN · 0 UNTRIAGED · 100 total
-**Last regenerated:** S13 · 2026-09-12 · by scripts/check_docs.sh --emit
+**Counts (generated - do not edit by hand):** 78 DONE · 5 PARTIAL · 17 OPEN · 0 UNTRIAGED · 100 total
+**Last regenerated:** S14 · 2026-09-12 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
 
@@ -42,9 +42,9 @@ hand-fudged roll-up fails the gate.
 | U-03 | Threads "Auto" runs single-threaded. | DONE | S8 | bare `-j` for Auto (C++ + JS parity) | - |
 | U-04 | CLI `--run` without `output` corrupts its own stdout. | DONE | S8 | `--run` commentary moved to stderr | - |
 | U-05 | Documented PATH engine fallback is dead code. | DONE | S8 | real `find_on_path()`; `""` when not found | - |
-| U-06 | Web demo binds `0.0.0.0` with no auth, no concurrency cap, 64 MB bodies, 120 s engine runs. | DONE | S8 | binds 127.0.0.1; `GS_WEB_HOST` to opt in | - |
+| U-06 | Web demo binds `0.0.0.0` with no auth, no concurrency cap, 64 MB bodies, 120 s engine runs. | PARTIAL | S8 | loopback bind + `GS_WEB_HOST` opt-in landed; the concurrency cap, per-client rate limit and engine-run bound named in the finding are still missing... | P1-5: Web server bounds + request ownership. |
 | U-07 | Windows CLI execution is ANSI-only. | DONE | S11 | `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly | - |
-| U-08 | License set can ship incomplete, silently. | DONE | S8 | license set asserted, negative-tested | - |
+| U-08 | License set can ship incomplete, silently. | PARTIAL | S8 | silent-skip closed: both packagers now hard-require LICENSE + COPYING.gifsicle, with negative tests; the licence set itself is still incomplete (no... | close the gap named in Proof / Blocker |
 | U-09 | Banked Windows snapshot is 5 commits behind the SHA its own notes claim. | OPEN | - | not started; scoped as P0-4 in COMPILED_AUDIT.md §6 | P0-4: Re-cut release evidence. |
 | U-10 | The "read-only, identical-to-upstream" vendored engine is neither. | PARTIAL | S13 | provenance and product-config relocation verified; `reference_code/gifsicle/` is now upstream-only and native build stages `build_support/gifsicle/... | P2-3: Immutable + correctly-labelled upstream tree. |
 | U-11 | Malformed booleans degrade silently. | DONE | S8 | `parse_bool_strict` warns, leaves field unchanged | - |
