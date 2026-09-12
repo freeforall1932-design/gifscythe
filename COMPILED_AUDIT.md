@@ -9,9 +9,11 @@
 > column. CI on **PR #11** (run `34471563229`) is **green on linux and
 > windows**, which is the first compilation of the S8 Qt edits.**
 
-> **Current state (2026-09-12, S14) — main is RELEASE-RED.** Live check: `main` is `2d51347`, and
-> run `34705247115` (the PR #15 merge) **failed the Linux documentation status gate**; every later
-> Linux step was skipped and Windows passed. The S8 banner above is a dated snapshot of that
+> **Current state (2026-09-12, S14) — the red main is FIXED.** History: `main` reached `2d51347`
+> (the PR #15 merge) with run `34705247115` **failing the Linux documentation status gate** — every
+> later Linux step was skipped, Windows passed. The failure was a stale base-commit line in this
+> file (gate **G10**); **PR #16 merged as `629135a` (2026-09-12); `main` run `34709202307` is GREEN on both jobs**. A newer merge on top of this branch keeps `main` red
+> only while a run is in flight; check the tip run before claiming green. The S8 banner above is a dated snapshot of that
 > session, **not** the current state. §13 is the external-review **intake inbox — not triaged**.
 > Narrative `**Status:**` lines in §2/§3/§4 now name their §5 register row; where the original
 > audit text disagreed with the register, the original wording is kept after *"Original report:"*
@@ -1988,9 +1990,9 @@ proposed solution and the verification limits.
 | **DS-12** | Low | The line-based settings format silently loses leading/trailing whitespace in values (documented, no rejection path) | `src/core/SettingsIO.h` | code-confirmed |
 | **DS-13** | Medium | Web `/optimize` checks only non-empty output; no GIF magic check, so non-GIF bytes are served as `200 image/gif` | `web/server.mjs` | code-confirmed |
 
-**Post-correction CI evidence (2026-09-12, S14).** Run `34707532582` at commit `ddc4194`
-(`arena/01a0968e-gifscythe`) is **green on both jobs**, including the documentation status gate
-step that failed in run `34705247115`; the live `main` tip stays red until that branch lands.
+**Post-correction CI evidence (2026-09-12, S14).** Branch runs `34707532582` (`ddc4194`) and later
+were green on both jobs, including the documentation status gate step that failed in run
+`34705247115`. **PR #16 merged as `629135a` (2026-09-12); `main` run `34709202307` is GREEN on both jobs** — the gate that was red now passes on the merged tip.
 
 **Local gate state at the time of intake (recorded, not fixed).**
 `working_code/gifscythe/scripts/check_docs.sh --no-gate-run` → **18 passed, 2 failed, 3 skipped**;
