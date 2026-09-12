@@ -407,8 +407,8 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` (shape A pinned submodule, quarantined; the
       three non-negotiable conditions apply), then register the doc-sweep skill experiment as its
       own item.
-- [ ] **Push + PR** — push this branch and open the PR for the S14-continuation work (sweep,
-      preflight, register, query) via `scripts/pr_preflight.sh --online --body /tmp/pr_body.md`.
+- [x] **Push + PR** — pushed and merged as PR #18 (`e32ed28`; `main` run `34713398377` green on
+      linux + windows), via `scripts/pr_preflight.sh --online --body /tmp/pr_body.md`.
 
 1. **U-09** — re-cut release artifacts from the tagged SHA (the banked zip
    predates S7; its notes pin `d3544b1`). Needs a tag + `gh release` (and a
