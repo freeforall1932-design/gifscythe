@@ -59,7 +59,7 @@ Chronological log of decisions and changes. **Newest at the top.**
 `34713398377` is green on linux + windows** (the branch's PR run `34713246313` was green on both
 jobs first).
 
-**Post-merge sync (branch `arena/01a09712-gifscythe`, staged on disk, not pushed).** PR #19
+**Post-merge sync (branch `arena/01a09712-gifscythe`, pushed as PR #20, tip `4c6311e`).** PR #19
 recorded PR #18's merge but could not record its own, so the handoff header was one merge stale;
 it now names **PR #19 merged as `43e3f96`** and **`main` run `34713800552` on `43e3f96`, `success`
 on linux + windows** (both re-read from the GitHub API, not from memory). Two stale claims found
