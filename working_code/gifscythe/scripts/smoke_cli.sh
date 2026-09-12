@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 #
 # smoke_cli.sh - Integration smoke tests for gifscythe-cli.
-# Coverage: missing engine exit code, CWD independence, paths with spaces,
-# batch vs merge semantics, malformed conf warnings, --strict refusal,
-# explode frame verification (audit U-17: real frames counted, lying engine
-# refused, empty-output basename prefix followed).
+# Coverage: missing engine exit code, strict CLI parsing, PATH-only engine
+# discovery, CWD independence, paths with spaces, binary stdout purity,
+# output-target refusal, batch vs merge semantics, malformed conf warnings,
+# --strict refusal, explode frame verification (audit U-17: real frames counted,
+# lying engine refused, empty-output basename prefix followed).
 #
 set -uo pipefail
 
@@ -44,7 +45,25 @@ rc=$?
 set -e
 if [[ "$rc" -ne 0 ]]; then ok "missing engine exits non-zero (rc=$rc)"; else bad "missing engine exited 0"; fi
 
-# 2. Print mode works from product dir
+# 2. Unknown and incomplete CLI options must fail closed (audit U-23).
+set +e
+"$CLI" "$self/examples/animation.conf" --rnu >"$WORK/out2u.txt" 2>"$WORK/err2u.txt"
+rc_unknown=$?
+"$CLI" "$self/examples/animation.conf" --engine >"$WORK/out2m.txt" 2>"$WORK/err2m.txt"
+rc_missing=$?
+set -e
+if [[ "$rc_unknown" -eq 2 ]] && grep -q "unknown argument '--rnu'" "$WORK/err2u.txt"; then
+  ok "unknown CLI option is rejected with rc=2"
+else
+  bad "unknown CLI option was not rejected honestly (rc=$rc_unknown)"
+fi
+if [[ "$rc_missing" -eq 2 ]] && grep -q -- "--engine requires a path" "$WORK/err2m.txt"; then
+  ok "--engine without a value is rejected with rc=2"
+else
+  bad "missing --engine value was not rejected honestly (rc=$rc_missing)"
+fi
+
+# 3. Print mode works from product dir
 set +e
 (cd "$self" && "$CLI" examples/animation.conf >"$WORK/out2.txt" 2>"$WORK/err2.txt")
 rc=$?
@@ -93,7 +112,73 @@ else
   cat "$WORK/err4.txt" >&2 || true
 fi
 
-# 5. Malformed conf does not crash; bad values warned
+# 5. In --run mode stdout must remain a byte-pure GIF stream (audit U-04).
+# The CLI's progress commentary belongs on stderr; compare its stdout with a
+# direct engine invocation so even a valid-looking GIF with trailing text fails.
+cat > "$WORK/stdout.conf" <<EOF
+mode = auto
+input = $SRC_GIF
+EOF
+set +e
+"$CLI" "$WORK/stdout.conf" --run --engine "$ENGINE" >"$WORK/stdout.gif" 2>"$WORK/err_stdout.txt"
+rc=$?
+set -e
+"$ENGINE" "$SRC_GIF" >"$WORK/direct.gif" 2>/dev/null
+if [[ "$rc" -eq 0 && -s "$WORK/stdout.gif" ]] && cmp -s "$WORK/stdout.gif" "$WORK/direct.gif" \
+   && grep -q "running (argv exec, no shell)" "$WORK/err_stdout.txt"; then
+  ok "--run stdout is byte-pure engine output; commentary stays on stderr"
+else
+  bad "--run stdout was contaminated or engine output changed (rc=$rc)"
+fi
+
+# 6. PATH-only engine discovery must execute the first matching PATH entry
+# (audit U-05 / P2-4), even when the packaged/release candidates are absent.
+mkdir -p "$WORK/path-only" "$WORK/path-app"
+cat > "$WORK/path-only/gifsicle" <<EOF
+#!/bin/sh
+exec "$ENGINE" "\$@"
+EOF
+chmod +x "$WORK/path-only/gifsicle"
+# Run a copy of the CLI outside the product tree so its packaged/dev search
+# candidates are absent; PATH must be the successful discovery route.
+cp "$CLI" "$WORK/path-app/gifscythe-cli"
+cat > "$WORK/path.conf" <<EOF
+mode = auto
+input = $SRC_GIF
+output = $WORK/path_out.gif
+EOF
+set +e
+(cd "$WORK" && env -u GS_ENGINE PATH="$WORK/path-only" "$WORK/path-app/gifscythe-cli" "$WORK/path.conf" --run >"$WORK/out_path.txt" 2>"$WORK/err_path.txt")
+rc=$?
+set -e
+if [[ "$rc" -eq 0 && -s "$WORK/path_out.gif" ]] \
+   && grep -Fq "$WORK/path-only/gifsicle" "$WORK/err_path.txt"; then
+  ok "PATH-only engine is discovered and executed"
+else
+  bad "PATH-only engine discovery failed (rc=$rc)"
+fi
+
+# 7. The CLI must refuse an output that aliases its input before starting the
+# engine (audit U-01 / P2-4), and must leave the source bytes untouched.
+cp "$SRC_GIF" "$WORK/self.gif"
+cp "$WORK/self.gif" "$WORK/self.before.gif"
+cat > "$WORK/self.conf" <<EOF
+mode = auto
+input = $WORK/self.gif
+output = $WORK/self.gif
+EOF
+set +e
+"$CLI" "$WORK/self.conf" --run --engine "$ENGINE" >"$WORK/out_self.txt" 2>"$WORK/err_self.txt"
+rc=$?
+set -e
+if [[ "$rc" -eq 2 ]] && cmp -s "$WORK/self.gif" "$WORK/self.before.gif" \
+   && grep -q "planned output is not safe" "$WORK/err_self.txt"; then
+  ok "output target equal to source is refused before engine start"
+else
+  bad "unsafe output target was not refused honestly (rc=$rc)"
+fi
+
+# 8. Malformed conf does not crash; bad values warned
 cat > "$WORK/bad.conf" <<EOF
 lossy = abc
 optimize = notanumber

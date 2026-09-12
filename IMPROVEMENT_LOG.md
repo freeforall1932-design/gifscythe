@@ -4,6 +4,54 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S12 — Regression coverage expanded; post-merge documentation gate repaired  (2026-09-12)
+
+**Changed:**
+
+* **U-18 (P2-4) closed.** The CLI smoke suite now covers
+  unknown and incomplete options, byte-pure binary stdout, PATH-only engine
+  discovery from an isolated executable directory, and refusal of an output
+  target equal to its input. Existing unit/package coverage already pins
+  output planning, thread flags, and incomplete-package failure behavior.
+* **Post-merge G10 repair.** `check_docs.sh` now accepts the current `main`
+  merge tip or its first parent, including in a depth-1 checkout where parent
+  objects are unavailable. G6 skips honestly when the full local toolchain is
+  unavailable instead of comparing reduced audit totals with the full-toolchain
+  historical headline.
+
+**Partial:**
+
+* U-10 and U-14 remain PARTIAL; U-09, U-12 and the remaining release/desktop
+  items stay OPEN as recorded in `STATUS.md`.
+
+**Left:**
+
+* U-10 `config.h` relocation and workflow hash-pinning; U-09 release re-cut;
+  U-12 async GUI waits; U-14 workflow enforcement; clean Windows and
+  physical-desktop probes; owner decisions.
+
+**Verified:**
+
+* `./build.sh`: 296 checks, 0 failures.
+* `scripts/test_engine.sh`: 5/5.
+* `scripts/smoke_cli.sh`: 19/19.
+* Web suites: 17 + 23 + 30; packaging negatives: 9/9.
+* `scripts/check_docs.sh`: 20 passed, 0 failed, 2 skipped in this sandbox.
+* GitHub Actions run `34688399245` and PR run `34688533670`: Linux and Windows
+  successful for commit `91afbdd`.
+
+**Not verifiable here:**
+
+* This sandbox currently has no CMake, Qt6, MinGW, or Wine. The local audit
+  therefore skips the GUI/CMake/Wine-dependent checks; the GitHub Linux/Windows
+  matrix validates the submitted build.
+
+**Docs touched:**
+
+* `COMPILED_AUDIT.md`, `STATUS.md`, `README.md`, `PROJECT_VISION.md`,
+  `SESSION_HANDOFF.md`, `WORKLIST.md`, `docs/release/RELEASE_PROCEDURE.md`,
+  and this log.
+
 ## S11 — Four findings closed with executed proof, Wine included; upstream provenance recorded  (2026-09-12)
 
 Same branch family (`main` → PR), same version (0.1.0). The S11 sandbox had
@@ -1228,3 +1276,6 @@ missing engine exits 1; engine version string 1.96; demo GIF written end-to-end.
 - **Created + merged PR** for the P0/P1 work (engine + control layer + Qt GUI
   scaffold + one-command build). Committed the authored work and repo
   reorganization to `main`.
+rk and repo
+  reorganization to `main`.
+`main`.
