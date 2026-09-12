@@ -604,6 +604,17 @@ if [[ "$NESTED" == "1" ]]; then
   skip "G6" "running inside verify_audit.sh - gate numbers not re-measured (recursion guard)"
 elif [[ "$NO_GATE_RUN" == "1" ]]; then
   skip "G6" "--no-gate-run: verify_audit.sh not re-run here (CI already runs its steps)"
+elif ! command -v gcc >/dev/null 2>&1 \
+   || ! command -v g++ >/dev/null 2>&1 \
+   || ! command -v node >/dev/null 2>&1 \
+   || ! command -v cmake >/dev/null 2>&1 \
+   || { ! command -v qmake6 >/dev/null 2>&1 && [[ ! -d /usr/lib/x86_64-linux-gnu/cmake/Qt6 ]]; }; then
+  # The committed headline is measured in the full toolchain sandbox. Without
+  # gcc/g++, Node, CMake, or Qt6, verify_audit.sh necessarily reports extra
+  # capability SKIPs (C6/C9/B and/or W1-W3), so comparing that reduced total to
+  # the full-toolchain number would call a valid checkout "stale". The audit
+  # itself still runs its available checks; G9c records the missing GUI tools.
+  skip "G6" "full verify_audit totals not measurable here (gcc/g++/Node/CMake/Qt6 missing)"
 else
   if [[ -x "$VERIFY" ]]; then
     GATE_ADD="$(grep -oE '^DOC_GATE_CHECKS=[0-9]+' "$VERIFY" | grep -oE '[0-9]+' | head -1)"
@@ -842,6 +853,26 @@ if [[ -z "$main_ref" ]]; then
 else
 full_main="$(git rev-parse "$main_ref" 2>/dev/null)"
 main_sha="$(git rev-parse --short=7 "$main_ref" 2>/dev/null)"
+expected_base_label="$main_ref = $main_sha"
+expected_base_shas=("$full_main" "$main_sha")
+
+# A post-merge push points main at a merge commit, while the session documents
+# quite correctly still name the main commit that the PR was based on (the
+# merge's first parent).  This matters in CI: actions/checkout uses a shallow
+# fetch, but the shallow commit object still contains its parent lines even
+# though the parent objects themselves are unavailable.  Read the parent from
+# the object instead of requiring a full clone.  Accept both the merge tip and
+# its first parent: the former is the natural base for a new follow-up session,
+# while the latter is the truthful base recorded by the just-merged session.
+# On a normal non-merge main commit, the expected base remains main's tip.
+merge_parent="$(git cat-file -p "$full_main" 2>/dev/null \
+  | sed -n 's/^parent //p' | head -n 1)"
+if [[ -n "$merge_parent" ]]; then
+  merge_parent_sha="$(git rev-parse --short=7 "$merge_parent" 2>/dev/null || printf '%s' "${merge_parent:0:7}")"
+  expected_base_shas+=("$merge_parent" "$merge_parent_sha")
+  expected_base_label="$main_ref = $main_sha or merge first parent = $merge_parent_sha"
+fi
+
 branch_now="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
 stale_base=""
 for f in "${CURRENT_DOCS[@]}"; do
@@ -849,18 +880,25 @@ for f in "${CURRENT_DOCS[@]}"; do
   # "based on `main` commit `xxxxxxx`" / "base commit `xxxxxxx`" / "of `main` (`xxxxxxx`)"
   while IFS= read -r sha; do
     [[ -n "$sha" ]] || continue
-    [[ "$sha" == "$main_sha" || "$sha" == "$full_main" ]] && continue
-    # a sha this repo does not know at all, or one that is not HEAD -> stale
+    base_match=0
+    for accepted_base in "${expected_base_shas[@]}"; do
+      if [[ "$sha" == "$accepted_base" ]]; then
+        base_match=1
+        break
+      fi
+    done
+    [[ "$base_match" -eq 1 ]] && continue
+    # a sha this repo does not know at all, or one that is not an expected base -> stale
     if git cat-file -e "${sha}^{commit}" 2>/dev/null; then
-      stale_base+="$f names base $sha ($main_ref is $main_sha); "
+      stale_base+="$f names base $sha (expected $expected_base_label); "
     else
-      stale_base+="$f names base $sha, unknown to this clone ($main_ref is $main_sha); "
+      stale_base+="$f names base $sha, unknown to this clone (expected $expected_base_label); "
     fi
   done < <(grep -oE '(based on|base commit|base of|branched from|merge of PR #[0-9]+[,:]?) `?main`?[^`]*`[0-9a-f]{7,40}`' <<<"$content" \
              | grep -oE '[0-9a-f]{7,40}' | sort -u)
 done
 if [[ -z "$stale_base" ]]; then
-  ok "G10" "every doc naming the base commit names the real one ($main_ref = $main_sha; branch is $branch_now)"
+  ok "G10" "every doc naming the base commit names the expected base ($expected_base_label; branch is $branch_now)"
 else
   bad "G10" "stale base commit - $stale_base"
 fi

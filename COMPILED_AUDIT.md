@@ -735,7 +735,7 @@ from `5934339`, not `8190c08`.
 
 ### A-09 / GS-009 [High] — The read-only upstream boundary is already modified and Linux-specific
 
-**Path:** `reference_code/gifsicle/config.h` and `REFERENCE_MANIFEST.md` :: handwritten
+**Former path (before S13):** reference_code/gifsicle/config.h and `REFERENCE_MANIFEST.md` :: handwritten
 `config.h` used by `build_engine.sh`
 
 **Certainty:** Confirmed ✅ **EXEC**
@@ -750,7 +750,7 @@ handwritten `config.h` under `reference_code` with `SIZEOF_UNSIGNED_LONG=8`,
 the rule that `reference_code` is never edited.
 
 **Reproduce:**
-Compare `reference_code/gifsicle/config.h` with upstream commit `07f5c4c3`. Observe that upstream
+Before S13, compare reference_code/gifsicle/config.h with upstream commit `07f5c4c3`. Observe that upstream
 has no tracked root `config.h` and the local file says it is handwritten for Linux/gcc. Attempt
 the advertised native build on macOS, 32-bit Linux, or a non-glibc target.
 
@@ -765,16 +765,16 @@ reference snapshot.
 configs. Pin and verify upstream tree hashes in CI; document the one intentional patch series if
 patches are needed. Correct the manifest's identity claim.
 
-**Status:** ◐ **PARTIAL (S11)** — provenance half CLOSED with executed proof: a
-fresh full clone of `kohler/gifsicle` was diffed against both vendored trees
-(2026-09-12). `gifsicle/` is byte-identical to upstream `07f5c4c3` in every
-shared file (the "functional patch" `FRAME_SELECTION_MODE_MASK 0x1F` and the
-"extra test" `012-framechange.testie` are upstream commits `9efcc14`/`ed5b018`,
-5 commits after the `v1.96` tag); `gifsicle-nested-1.96/` is pristine `v1.96`.
-Only local addition: the handwritten `config.h`. Digests + the reproduce
-recipe are in `reference_code/REFERENCE_MANIFEST.md`. Still open: CI
-hash-pinning (proposal-only — needs `workflows` scope) and moving the
-product-owned `config.h` under `working_code/gifscythe/build_support`.
+**Status:** ◐ **PARTIAL (S13)** — provenance and configuration relocation are
+CLOSED with executed proof: `reference_code/gifsicle/` no longer contains the
+product-owned header; `working_code/gifscythe/build_support/gifsicle/config.native.h`
+is staged as `config.h` in a temporary include directory by
+`scripts/build_engine.sh`. The native engine build, full CLI/unit build,
+engine pipeline, and smoke suite all pass after the move. The S11 upstream
+comparison remains valid after removing the sole local reference-tree file;
+updated digests are recorded in `reference_code/REFERENCE_MANIFEST.md`. Still
+open: CI hash-pinning
+(proposal-only — needs `workflows` scope).
 
 ---
 
@@ -1638,7 +1638,7 @@ Deduplicated across A/B/C/D. "Src" = which audit(s) raised it.
 | **U-07** | A:GS-006 | **Windows CLI execution is ANSI-only.** `CreateProcessA` + `std::string` cmdline ⇒ non-ASCII paths cannot be passed to the engine. | ✅ **EXEC** (wine 8, mingw 12) | ✅ FIXED (S11) — `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly |
 | **U-08** | A:GS-007 | **License set can ship incomplete, silently.** Root has `LICENSE` + `COPYING.gifsicle` but **no `COPYING`**; every license copy is `if [[ -f ]]`-guarded. | ✅ **EXEC**+SRC | ✅ FIXED (S8) — license set asserted, negative-tested |
 | **U-09** | A:GS-008 | **Banked Windows snapshot is 5 commits behind the SHA its own notes claim.** Release body pins `d3544b1`; main is `8190c08`. | ✅ **EXEC** | ⬜ OPEN |
-| **U-10** | A:GS-009 | **The "read-only, identical-to-upstream" vendored engine is neither.** Carries a handwritten `config.h` (Linux values), a functional patch, and an extra test. | ✅ **EXEC** (S11 re-clone) | ◐ PARTIAL (S11) — provenance recorded: diff+digests vs upstream `07f5c4c3` in REFERENCE_MANIFEST.md. MISSING: CI hash-pinning (workflows scope) + config.h move |
+| **U-10** | A:GS-009 | **The "read-only, identical-to-upstream" vendored engine is neither.** Carries a handwritten `config.h` (Linux values), a functional patch, and an extra test. | ✅ **EXEC** (S11 re-clone; S13 relocation) | ◐ PARTIAL (S13) — provenance and product-config relocation verified; `reference_code/gifsicle/` is now upstream-only and native build stages `build_support/gifsicle/config.native.h`. MISSING: CI hash-pinning (workflows scope) |
 
 ### Medium
 
@@ -1651,7 +1651,7 @@ Deduplicated across A/B/C/D. "Src" = which audit(s) raised it.
 | **U-15** | A:GS-015 | **CMake writes into the source tree.** `configure_file` targets `${CMAKE_SOURCE_DIR}/src/core/version.h`. | ✅ **EXEC** | ✅ FIXED (S11) — build-tree-only configure_file (`build_support/version.h.in`); generated-first includes; gate C9 + read-only-src repro flipped FAIL->PASS |
 | **U-16** | A:GS-016 · C:F-06 | **Settings persistence is non-atomic** (Truncate + write). A crash mid-write leaves a truncated conf. | ✅ **SRC** | ✅ FIXED (S10) — `save_settings_file` is tmp+fsync+rename; GUI save is QSaveFile; unit test 32 + T19 no-stray check |
 | **U-17** | A:GS-017 · B:BUG-08 | **Explode mode never verifies any frame was written.** Output verification is explicitly skipped for Explode. | ✅ **EXEC** | ✅ FIXED (S11) — `src/core/ExplodeVerify.h` snapshot-diff (CLI+GUI); lying engine (rc=0, 0 frames) refused: unit 33, smoke 9-11, harness T7, wine rc=1 |
-| **U-18** | A:GS-018 | **The regression suite does not cover any of the failure classes above.** No test for target collisions, package completeness, stdout purity, PATH fallback, or thread flags. | ✅ **EXEC** | ◐ PARTIAL (S8) — planning/threads/validate/bool/comment unit tests, T17, package suite |
+| **U-18** | A:GS-018 | **The regression suite does not cover any of the failure classes above.** No test for target collisions, package completeness, stdout purity, PATH fallback, or thread flags. | ✅ **EXEC** | ✅ FIXED (S12) — unit planning/thread coverage, packaging negatives, strict CLI parsing, byte-pure stdout, PATH-only engine discovery, and unsafe-output refusal; smoke suite 19/19 |
 | **U-19** | C:F-02 | **`readFrom()` is not the "exact inverse" of `writeInto()`.** Crop geometry, position and scale are serialized only when their parent toggle is on. | ✅ **EXEC** | ☑ CORRECTED (S8) — not reproducible with toggles on; wording fixed, pinned by unit test 26 |
 | **U-20** | C:F-03 | **"The CLI reads GUI-saved files without warnings" is false.** A real GUI-saved file has no `input` key, so `validate()` warns. | ✅ **EXEC** | ☑ CORRECTED (S8) — doc claim reworded; the `input` warning is expected |
 | **U-21** | C:F-04 · D:GS-101 | **Name-template sanitisation is POSIX-only** — no Windows invalid chars, no trailing dot/space trim, no reserved-name guard. | ✅ **EXEC** | ✅ FIXED (S8) — new `src/core/OutputName.h` (`NameRules` parameterised, so the Windows rule set is unit-tested on Linux); test 29, 30 assertions |
@@ -1791,7 +1791,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 - [ ] **A9** prvalue `GifsicleCommand(Settings{...})` (unit test 11)
 - [ ] **A10** `release/0.1.0/gifsicle --version` → `LCDF Gifsicle 1.96`
 - [ ] **A11** `./scripts/test_engine.sh` → 5/5
-- [ ] **A12** `./scripts/smoke_cli.sh` → 14/14
+- [ ] **A12** `./scripts/smoke_cli.sh` → 19/19
 - [ ] **A13** **NEW:** threads=0 emits bare `-j` (not nothing)
 - [ ] **A14** **NEW:** empty comment in conf does NOT emit `--comment` with no argument
 - [ ] **A15** **NEW:** unknown CLI arg (`--rnu`) returns exit 2, not 0

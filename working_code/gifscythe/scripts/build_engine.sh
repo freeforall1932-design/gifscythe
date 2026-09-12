@@ -21,6 +21,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SRC="$REPO_ROOT/reference_code/gifsicle"
 OUT="$REPO_ROOT/working_code/gifscythe/release"
+CONFIG_SOURCE="$REPO_ROOT/working_code/gifscythe/build_support/gifsicle/config.native.h"
 
 VERSION="$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' \
   "$REPO_ROOT/working_code/gifscythe/VERSION.md" \
@@ -41,8 +42,8 @@ if [[ ! -d "$SRC" ]]; then
   echo "ERROR: gifsicle source not found at $SRC" >&2
   exit 1
 fi
-if [[ ! -f "$SRC/config.h" ]]; then
-  echo "ERROR: missing $SRC/config.h (hand-written Linux config; required for native builds)." >&2
+if [[ ! -f "$CONFIG_SOURCE" ]]; then
+  echo "ERROR: missing product build config at $CONFIG_SOURCE" >&2
   exit 1
 fi
 
@@ -61,6 +62,14 @@ fi
 echo "==> Using compiler: $CC"
 "$CC" --version | head -1
 
+# Keep the upstream snapshot immutable: sources include <config.h>, but that
+# product-owned header is staged into a temporary include directory rather
+# than written into reference_code/gifsicle. Windows still pre-includes the
+# upstream win32cfg.h, whose GIFSICLE_CONFIG_H guard wins over this fallback.
+CONFIG_STAGE="$(mktemp -d "${TMPDIR:-/tmp}/gifscythe-engine-config.XXXXXX")"
+trap 'rm -rf "$CONFIG_STAGE"' EXIT
+cp "$CONFIG_SOURCE" "$CONFIG_STAGE/config.h"
+
 # Object list matches upstream gifsicle_SOURCES (+ gifwrite; no giftoc/gifview/gifdiff).
 OBJS="gifsicle gifread gifwrite giffunc gifunopt optimize merge quantize support xform kcolor clp fmalloc"
 
@@ -78,12 +87,10 @@ if [[ "$TARGET" == "windows" ]]; then
   #     SIZEOF_UNSIGNED_LONG=4 (Win64 is LLP64!), PATHNAME_SEPARATOR='\\', etc.
   #   * Several 1.96 sources (support.c, kcolor.c, gifsicle.c, merge.c,
   #     optimize.c, quantize.c, xform.c) do an UNCONDITIONAL #include
-  #     <config.h>, so -I. MUST be on the search path or the compile dies
-  #     with "config.h: No such file or directory" (this was the CI Windows
-  #     failure, run #18 step 4). The root config.h shares the
-  #     GIFSICLE_CONFIG_H guard, so its Linux values are skipped and
-  #     win32cfg.h wins. Do not remove -I. and do not put config.h ahead
-  #     of win32cfg.h in the include order.
+  #     <config.h>, so the staged product config must be on the search path.
+  #     It shares the GIFSICLE_CONFIG_H guard, so its native values are skipped
+  #     after win32cfg.h wins. Do not put the staged config ahead of
+  #     win32cfg.h in the pre-include order.
   #   * -DHAVE_UINTPTR_T -DHAVE_INTTYPES_H -DHAVE_CONFIG_H=1 follow upstream
   #     Makefile.mingw (MinGW lacks the _MSC_VER guards win32cfg.h uses).
   #   * No -DVERSION here: win32cfg.h already defines VERSION as
@@ -96,7 +103,7 @@ if [[ "$TARGET" == "windows" ]]; then
   # shellcheck disable=SC2086
   "$CC" -O2 -DHAVE_CONFIG_H=1 -DHAVE_UINTPTR_T -DHAVE_INTTYPES_H \
     -include src/win32cfg.h \
-    -I. -Iinclude -Isrc \
+    -I"$CONFIG_STAGE" -Iinclude -Isrc \
     $SRCS -o "$OUT/$VERSION/$EXE" || {
       echo "ERROR: Windows engine compile failed" >&2
       exit 1
@@ -104,7 +111,7 @@ if [[ "$TARGET" == "windows" ]]; then
 else
   # shellcheck disable=SC2086
   "$CC" -O2 -DHAVE_CONFIG_H -DVERSION=\"$ENGINE_VERSION\" \
-    -I. -Iinclude -Isrc \
+    -I"$CONFIG_STAGE" -Iinclude -Isrc \
     $SRCS -lm -lpthread -o "$OUT/$VERSION/$EXE"
 fi
 
