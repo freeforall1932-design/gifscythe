@@ -10,6 +10,9 @@ This review answers three questions:
 
 It supersedes the "web" thread from `docs/web/WEB_FEASIBILITY.md` for the
 **product** direction: the web server build is a demo, not the offline path.
+*(Superseded 2026-09-12, S14: the owner made the web server build a supported, self-hosted
+product alternative to the desktop/portable build — the desktop/offline path above is unchanged.
+See `web/WEB_PLAN_TEMPLATE.md` §1.)*
 
 ---
 
@@ -36,7 +39,7 @@ Implications of "offline-only":
 
 | Implication | Effect |
 |---|---|
-| No server, no cloud | The `web/` server-side POC (`docs/web/WEB_FEASIBILITY.md` Option 3) is **not** the product path. It remains a demo/parity harness only. |
+| No server, no cloud | The `web/` server-side build (`docs/web/WEB_FEASIBILITY.md` Option 3) was **not** the product path; the S14 owner decision makes it a supported, **self-hosted** product alternative (still no cloud service — the offline-only promise stands). See `web/WEB_PLAN_TEMPLATE.md` §1. |
 | No auto-update | The Phase-3 "auto-update flow" bucket item drops out; releases are downloaded manually (already the model — portable folder + GitHub artifacts/Release). |
 | Everything local | Engine, settings, previews, temp files are all local (already true). One gap: **the GUI does not yet persist settings between sessions** (see §6). |
 | Preview must not phone home | `QMovie` plays the local file — no network. ✅ |

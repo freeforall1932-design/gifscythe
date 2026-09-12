@@ -50,8 +50,8 @@ node web/server.mjs 8000
 **Binding (audit U-06).** The server listens on **`127.0.0.1`** by default and
 says so on startup. It used to bind `0.0.0.0` unconditionally, which exposed an
 unauthenticated engine-runner to the whole network. Set
-`GS_WEB_HOST=0.0.0.0` to expose it deliberately — this is a demo, not a
-deployable service.
+`GS_WEB_HOST=0.0.0.0` to expose it deliberately on a LAN — single-user, no
+auth, so do not expose it to the public internet.
 
 ## Test (parity with the desktop app)
 
@@ -127,7 +127,7 @@ The `settings` object mirrors `gs::Settings` (see `command.mjs`): `mode`,
 
 - Server-side processing → not a portable/offline web build (that needs the
   wasm engine; see the feasibility doc).
-- Single-user demo server; no auth/quotas. Do not expose publicly as-is.
+- Single-user server; no auth/quotas. Self-hosted by design: keep it on loopback (or a trusted LAN) and do not expose it publicly as-is.
 - The browser UI exposes a focused subset of controls (all four modes, but no
   Save-as / batch folder / name template / rotation / crop widgets);
   `command.mjs` already supports the full desktop settings surface.

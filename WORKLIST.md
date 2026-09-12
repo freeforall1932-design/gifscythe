@@ -173,10 +173,10 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] Settings serializer: **U-51** `encode_line_value()` (9 sites + JS mirror)
 - [x] Process layer: **U-32** `128+WTERMSIG` · **U-31** `-lstdc++fs` probe
 - [x] Output names: **U-21** `src/core/OutputName.h` (`NameRules` Host/Win/Posix)
-- [x] Web demo: **U-24** honest rc=0 · **U-25/U-29**
+- [x] Web app: **U-24** honest rc=0 · **U-25/U-29**
       Scale default + Touch · **U-26** version sort · **U-30** validation layer ·
       **U-49/U-50** transport · **U-46/U-52** request ownership + URL revoke
-- [ ] Web demo bounds: **U-06** loopback default **landed** (S8); still open — concurrency cap,
+- [ ] Web app bounds: **U-06** loopback default **landed** (S8); still open — concurrency cap,
       per-client rate limit, engine-run bound. U-06 was corrected DONE → PARTIAL in S14.
 - [x] Process hygiene: **U-38** SKIP not FAIL · **U-39** workflow-drift guard
       **E9** · **U-44** `docs/archive/` · **U-43** · **U-48** empty comment
