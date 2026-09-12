@@ -63,7 +63,7 @@ From `working_code/gifscythe/`:
 cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON
 cmake --build build-cmake -j2
 QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen   # -> 0 failures
-# Web parity harness (demo, must still mirror the core command layer):
+# Web app parity harness (must still mirror the core command layer):
 node ../../web/test/command.test.mjs                         # -> ALL PASSED
 ```
 

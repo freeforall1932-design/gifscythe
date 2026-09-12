@@ -10,7 +10,7 @@ engine-truth controls, debounced async before/after preview, batch output
 folder. **Windows CI green and merged 2026-09-07** (PR #5 → `0ad1ff5`; main
 runs #23/#24 green on both jobs; binaries banked on Release
 `snapshot-2026-09-07`); S5/S6 (GUI honesty fixes, offline-only direction,
-web demo) merged via PR #6. **S7 (2026-09-10) landed the remaining
+the web build) merged via PR #6. **S7 (2026-09-10) landed the remaining
 sandbox-codeable Phase-1 items:** GUI settings persistence between sessions
 (SettingsIO-backed, `GS_SETTINGS_PATH` override), queue reorder (Move
 Up/Down), free-form `{name}` naming templates (default renders the
@@ -65,7 +65,7 @@ that exits 0 without writing is refused at every layer, under Wine too),
 **U-07** (`CreateProcessW` + `GetCommandLineW` argv re-fetch + UTF-8 env reads
 + `u8path_compat` at every string↔path boundary; Wine E2E: an `é`-path conf
 runs rc=0 where the old build fails rc=1, and CJK reaches the child's UTF-16
-command line byte-exact), **U-41** (web demo grew all four modes: mode
+command line byte-exact), **U-41** (the web build grew all four modes: mode
 selector + multi-file queue UI, `POST /run` JSON endpoint with desktop batch
 planning/collision refusal and explode frame verification), **U-10**'s
 provenance half (fresh upstream clone diffed: `reference_code/gifsicle` is

@@ -187,9 +187,10 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    — `workflows` scope). U-18/P2-4 regression coverage is DONE in S12.
    W-30 waits on the same `workflows`-scoped maintainer action.
 
-5. **Direction unchanged:** offline-only; C++17 + Qt6 Widgets through 1.0.0;
-   `web/` is a demo/parity harness only (see
-   `docs/planning/OFFLINE_BUILD_REVIEW.md`).
+5. **Direction (amended S14):** offline-only; C++17 + Qt6 Widgets through 1.0.0; the `web/`
+   build is a **supported, self-hosted product alternative** to the `.exe`/portable build (owner
+   decision 2026-09-12) — see `web/WEB_PLAN_TEMPLATE.md` §1 and
+   `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 
 6. **Naming policy in force:** *Gifscythe* = product; *gifsicle* = upstream
    engine only. Engine script: `scripts/build_engine.sh` (the
@@ -263,9 +264,10 @@ only stick if they are in files a new session reads, not in a conversation.
   (verify_audit gate B builds both targets).
 - Extend `tests/test_gui_offscreen.cpp` with every GUI feature (regression
   net). S10 added T18/T19/T20, S11 extended T7 — keep that habit.
-- Offline-only — no server, no auto-update, no telemetry; `web/` is a demo.
-  Its `/run` endpoint keeps the desktop honesty rules (planned targets,
-  collision refusal, output verification) — do not fork the semantics.
+- Offline-only — no cloud service, no auto-update, no telemetry. The `web/` app is
+  **self-hosted** (loopback by default) and is a supported product alternative since S14. Its
+  `/run` endpoint keeps the desktop honesty rules (planned targets, collision refusal, output
+  verification) — do not fork the semantics.
 - Language stays C++17/Qt6 through 1.0.0 (see offline review triggers).
 - **REMOVED (S7):** the `scripts/build_gifsicle.sh` shim is gone. Do not
   reintroduce it.
@@ -366,7 +368,7 @@ section of this file.**
 | `docs/audit/CONSOLIDATED_AUDIT_2026-09-10.md` · `FIX_PICK_2026-09-10.md` · `POST_S7_AUDIT.md` | Dated audit snapshots — excluded from `check_docs.sh` by policy |
 | `docs/release/RELEASE_PROCEDURE.md` | How to cut snapshots/releases, incl. the doc gate |
 | `docs/planning/OFFLINE_BUILD_REVIEW.md` | Offline feasibility + language choice + phased plan |
-| `docs/web/WEB_FEASIBILITY.md` | Web-run review (Option 3 demo exists; Option 4 = future) |
+| `docs/web/WEB_FEASIBILITY.md` | Web-run review (Option 3 = the chosen web app; Option 4 = optional) — conclusion superseded by S14 |
 | `docs/ci/README.md` · `docs/ci/PENDING_WORKFLOW_CHANGE.md` · `docs/ci/CLEAN_WINDOWS_SMOKE.md` | CI workflow status, the blocked workflow change, and the C4/D3/D4 clean-Windows checklist |
 | `docs/screenshots/README.md` | S10 re-shoot recipe + what each shot shows (S11 changed no desktop-visible UI, so they remain current); linked from the root README |
 | `docs/archive/` | The two dated review snapshots (historical line refs kept) |
