@@ -14,12 +14,13 @@
 > later Linux step was skipped, Windows passed. The failure was a stale base-commit line in this
 > file (gate **G10**); **PR #16 merged as `629135a` (2026-09-12); `main` run `34709202307` is GREEN on both jobs**. A newer merge on top of this branch keeps `main` red
 > only while a run is in flight; check the tip run before claiming green. The S8 banner above is a dated snapshot of that
-> session, **not** the current state. §13 is the external-review **intake inbox — not triaged**.
+> session, **not** the current state. §13 is the external-review intake — **triaged
+> into §6 in S15**; **GS-201 closed S16** (P0-5). The other 17 intake rows stay OPEN.
 > Narrative `**Status:**` lines in §2/§3/§4 now name their §5 register row; where the original
 > audit text disagreed with the register, the original wording is kept after *"Original report:"*
 > and is superseded by the register.
 
-**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), **S14 (2026-09-12 — external-review intake and status-truth corrections)**
+**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), S14 (2026-09-12 — external-review intake and status-truth corrections), S15 (2026-09-13 — 18-row triage), **S16 (2026-09-13 — GS-201 / P0-5 stop-loss)**
 **Branch:** `main` at `2d51347817f5cdb39334415a03bb5f2b543119dd` (the PR #15 merge; re-confirm with
 `gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`;
 `check_docs.sh` gate **G10** fails if this line names anything else)
@@ -1664,7 +1665,7 @@ Deduplicated across A/B/C/D. "Src" = which audit(s) raised it.
 | **U-15** | A:GS-015 | **CMake writes into the source tree.** `configure_file` targets `${CMAKE_SOURCE_DIR}/src/core/version.h`. | ✅ **EXEC** | ✅ FIXED (S11) — build-tree-only configure_file (`build_support/version.h.in`); generated-first includes; gate C9 + read-only-src repro flipped FAIL->PASS |
 | **U-16** | A:GS-016 · C:F-06 | **Settings persistence is non-atomic** (Truncate + write). A crash mid-write leaves a truncated conf. | ✅ **SRC** | ✅ FIXED (S10) — `save_settings_file` is tmp+fsync+rename; GUI save is QSaveFile; unit test 32 + T19 no-stray check |
 | **U-17** | A:GS-017 · B:BUG-08 | **Explode mode never verifies any frame was written.** Output verification is explicitly skipped for Explode. | ✅ **EXEC** | ✅ FIXED (S11) — `src/core/ExplodeVerify.h` snapshot-diff (CLI+GUI); lying engine (rc=0, 0 frames) refused: unit 33, smoke 9-11, harness T7, wine rc=1 |
-| **U-18** | A:GS-018 | **The regression suite does not cover any of the failure classes above.** No test for target collisions, package completeness, stdout purity, PATH fallback, or thread flags. | ✅ **EXEC** | ✅ FIXED (S12) — unit planning/thread coverage, packaging negatives, strict CLI parsing, byte-pure stdout, PATH-only engine discovery, and unsafe-output refusal; smoke suite 19/19 |
+| **U-18** | A:GS-018 | **The regression suite does not cover any of the failure classes above.** No test for target collisions, package completeness, stdout purity, PATH fallback, or thread flags. | ✅ **EXEC** | ✅ FIXED (S12) — unit planning/thread coverage, packaging negatives, strict CLI parsing, byte-pure stdout, PATH-only engine discovery, and unsafe-output refusal; smoke suite 21/21 |
 | **U-19** | C:F-02 | **`readFrom()` is not the "exact inverse" of `writeInto()`.** Crop geometry, position and scale are serialized only when their parent toggle is on. | ✅ **EXEC** | ☑ CORRECTED (S8) — not reproducible with toggles on; wording fixed, pinned by unit test 26 |
 | **U-20** | C:F-03 | **"The CLI reads GUI-saved files without warnings" is false.** A real GUI-saved file has no `input` key, so `validate()` warns. | ✅ **EXEC** | ☑ CORRECTED (S8) — doc claim reworded; the `input` warning is expected |
 | **U-21** | C:F-04 · D:GS-101 | **Name-template sanitisation is POSIX-only** — no Windows invalid chars, no trailing dot/space trim, no reserved-name guard. | ✅ **EXEC** | ✅ FIXED (S8) — new `src/core/OutputName.h` (`NameRules` parameterised, so the Windows rule set is unit-tested on Linux); test 29, 30 assertions |
@@ -1818,7 +1819,8 @@ B and C findings are merged in where they add coverage or contradict A/D.
 - [ ] **A9** prvalue `GifsicleCommand(Settings{...})` (unit test 11)
 - [ ] **A10** `release/0.1.0/gifsicle --version` → `LCDF Gifsicle 1.96`
 - [ ] **A11** `./scripts/test_engine.sh` → 5/5
-- [ ] **A12** `./scripts/smoke_cli.sh` → 19/19
+- [ ] **A12** `./scripts/smoke_cli.sh` → 21/21
+- [ ] **A18** **NEW (S16):** Batch with no `output` is refused by `--run` — exit 2, named reason (`Batch with no output` / `in-place -b`), source GIF `cmp`-identical; print mode still emits `-b` (GS-201 / P0-5; smoke cases 17–18)
 - [ ] **A13** **NEW:** threads=0 emits bare `-j` (not nothing)
 - [ ] **A14** **NEW:** empty comment in conf does NOT emit `--comment` with no argument
 - [ ] **A15** **NEW:** unknown CLI arg (`--rnu`) returns exit 2, not 0
@@ -1969,12 +1971,13 @@ B and C findings are merged in where they add coverage or contradict A/D.
 
 ---
 
-## 13. External review intake — 2026-09-12 (S14) — **NOT YET TRIAGED**
+## 13. External review intake — 2026-09-12 (S14) — **triaged S15; GS-201 closed S16**
 
-> **Read this as an inbox, not a register.** Three external reviews were compiled on
+> **Read this as the intake record, not a second register.** Three external reviews were compiled on
 > 2026-09-12 into `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`. The items below are
-> **not** `U-nn` rows: they have not been triaged, scoped, or fixed, and **no §5 row above was
-> changed** by compiling them. Nothing in this repository was remediated in that intake.
+> **not** `U-nn` rows: they keep the reviewers' own ids. **S15 triaged all 18 into §6
+> fix-order ids** (`OD-01 = a`). **S16 closed GS-201 (P0-5)** with executed proof. The other
+> 17 stay OPEN. **No §5 row above was changed** by compiling them.
 
 **Sources.** Max via OpenAI (highest tier; 10 findings, `GS-201…GS-210`) · DeepSeek (8 findings —
 DeepSeek labels them `N-06…N-13`; **renamed `DS-06…DS-13` here**, because `N-01…N-06` are already
@@ -1985,7 +1988,7 @@ proposed solution and the verification limits.
 
 | ID | Severity | Finding (short) | Evidence location | Re-check |
 |---|---|---|---|---|
-| **GS-201** | Critical | CLI Batch maps to engine `-b` (in-place edit); the output planner is skipped when `output` is empty, so `--run` can rewrite the source GIFs | `working_code/gifscythe/src/cli/main.cpp`, `working_code/gifscythe/src/core/GifsicleCommand.h` | code-confirmed |
+| **GS-201** | Critical | CLI Batch maps to engine `-b` (in-place edit); the output planner is skipped when `output` is empty, so `--run` can rewrite the source GIFs | `working_code/gifscythe/src/cli/main.cpp`, `working_code/gifscythe/src/core/GifsicleCommand.h` | **CLOSED S16 (P0-5)** — CLI `--run` refuses Batch with no `output` (rc=2, named reason) before the engine starts; smoke 21/21; engine `-b` rewrite confirmed 8703→8637 B, CLI left the source `cmp`-identical |
 | **GS-202** | High | Web `/run` builds output paths and the explode prefix from client-supplied upload names; `../` escapes the request temp dir, collisions compared case-sensitively | `web/server.mjs` | code-confirmed |
 | **GS-203** | High | Ordinary runs (Auto/Merge/Batch) claim success on exit 0 with no output verification; GUI and web accept stale/non-GIF files | `src/cli/main.cpp`, `src/qtui/MainWindow.cpp`, `web/server.mjs` | code-confirmed |
 | **GS-204** | High | System packager never clears its destination, copies conditionally, always prints success; portable packager skips Qt deployment when the deployer is absent; negative tests cover portable only | `working_code/gifscythe/scripts/package_system.sh`, `working_code/gifscythe/scripts/package_portable.sh` | code-confirmed |
@@ -2028,19 +2031,25 @@ P2-12…P2-14, P3-11**) and 4 folded into actions that already covered them (**D
 **DS-12**→P1-13, **GS-208**→P2-7, **DS-08**→P3-5). Their `STATUS.md` state is therefore `OPEN`,
 not `UNTRIAGED`, so gate **G12** no longer blocks a newer `## S<n>` entry in `IMPROVEMENT_LOG.md`.
 
-**Task registration (S14 follow-up, triaged S15).** These 18 findings are recorded row-by-row in
-`STATUS.md` (state `OPEN` under the reviewers' own ids, each naming its §6 fix-order id) with one
-pending line each in
-`WORKLIST.md`, and their release-blocking subset is listed in
-`docs/release/RELEASE_PROCEDURE.md`. Proposed sequencing lives in `web/WEB_PLAN_TEMPLATE.md` (the web-surface
-plan template the owner drafts are refitted into; its §1 records the owner's S14 decision that the
-web build is a supported product surface, and its state line - `SKELETON` until the refit, then
-`WORKING PLAN` - is mirrored in `SESSION_HANDOFF.md` and checked by gate G16).
-**They are still not in the §6 fix order**: triage (which maps accepted items into `U-nn`) has not
-happened, so nothing here is scheduled for implementation yet.
+**Task registration (S14 follow-up, triaged S15; GS-201 closed S16).** These 18 findings are recorded
+row-by-row in `STATUS.md` under the reviewers' own ids, each naming its §6 fix-order id, with one
+pending line each in `WORKLIST.md` (GS-201 ticked S16), and their remaining release-blocking subset
+in `docs/release/RELEASE_PROCEDURE.md`. Proposed sequencing lives in `web/WEB_PLAN_TEMPLATE.md` (the
+web-surface plan template the owner drafts are refitted into; its §1 records the owner's S14
+decision that the web build is a supported product surface, and its state line - `SKELETON` until
+the refit, then `WORKING PLAN` - is mirrored in `SESSION_HANDOFF.md` and checked by gate G16).
+**They are in the §6 fix order (S15).** 14 got new ids and 4 folded into actions that already
+covered them. **GS-201 / P0-5 closed S16**; the other 17 remain OPEN. They were never mapped into
+`U-nn` rows — the reviewers' ids are the register keys.
 
 **Cross-references inside this file.** GS-201 extends U-01's coverage gap (the planner is correct
 but unreachable without an `output` key). GS-203 and DS-13 are one workstream (postcondition
+verification: size + magic + changed-since-snapshot). DS-06/DS-07/DS-09/GS-206 are one workstream
+(numeric sentinels and domains: decide the tri-state once). GS-208 and DS-11 are the same
+stale-status failure mode in two files.
+
+*End of compiled audit v2.*
+condition
 verification: size + magic + changed-since-snapshot). DS-06/DS-07/DS-09/GS-206 are one workstream
 (numeric sentinels and domains: decide the tri-state once). GS-208 and DS-11 are the same
 stale-status failure mode in two files.

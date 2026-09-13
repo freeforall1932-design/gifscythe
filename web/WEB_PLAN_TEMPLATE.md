@@ -147,8 +147,9 @@ both is a rewrite and needs its own decision.
 
 **5.6 De-duplication option (strategic, not mandatory).** The server could drive `gifscythe-cli`
 instead of re-implementing argv building in `web/command.mjs`. It removes the largest duplication,
-but it requires the CLI binary next to the server and must wait on `GS-201` (the CLI Batch `-b`
-path) before anything is routed through it.
+but it requires the CLI binary next to the server. The CLI Batch `-b` stop-loss (`GS-201`, closed
+S16) is the prerequisite for routing anything through `gifscythe-cli`; the spike itself is still
+`OD-05 = b` later.
 
 ---
 
@@ -220,11 +221,13 @@ wait if the web keeps emitting argv for the same settings.
 
 *Slot: newest first — date · who · what changed in this file.*
 
+- **2026-09-13 · S16 ·** `GS-201` closed (CLI `--run` refuses Batch with no `output`). §5.6 no
+  longer waits on that stop-loss; the web-via-CLI spike is still `OD-05 = b` later.
 - **2026-09-12 · S14 ·** file created here as the web plan template (the same session's dated
   draft lived under docs/planning and was deleted when this file absorbed its content), filled
   with draft v0, and the §1 decision record added after the owner made the web-is-a-product
-  decision. Registered in `WORKLIST.md`; the 18 intake ids it references are `UNTRIAGED` rows in
-  `STATUS.md`.
+  decision. Registered in `WORKLIST.md`; the 18 intake ids it referenced were `UNTRIAGED` rows in
+  `STATUS.md` at write time (triaged S15; `GS-201` closed S16).
 - `<next>` · `<who>` · `<what>` — and on the refit commit, record here: the flip
   `SKELETON → WORKING PLAN`, the mirror line in `SESSION_HANDOFF.md`, and which parts of the plan
   changed. (The state line itself is the machine-readable half; this entry is the human half.)

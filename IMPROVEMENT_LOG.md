@@ -4,6 +4,77 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S16 — `OD-02 = a` executed: CLI `--run` refuses Batch with no output (GS-201 / P0-5)  (2026-09-13)
+
+**Changed:**
+
+- **Landed S15 on this branch first.** Cherry-picked the S15 triage commit
+  `5677612` (from `arena/01a09712-gifscythe`) onto `2542f1b` as `0e6e1a7`. That
+  is the 18-row §6 mapping (`OD-01 = a`) plus `N-07` registered UNTRIAGED. This
+  session then executed the only owner-authorized code change.
+
+- **`OD-02 = a` / GS-201 / P0-5 stop-loss.** CLI `--run` with `mode = batch` and
+  no `output` key now exits **2** with a named reason (`Batch with no output` /
+  `in-place -b`) **before** engine locate. Print mode still prints (the builder
+  stays a faithful `-b` mapping). Usage documents the refusal. The planner skip
+  (`!s.output.empty() && mode != Explode`) is unchanged: Batch-with-output and
+  Auto/Merge empty-output are out of scope. GUI and web never emit a single `-b`
+  run (they already per-file Auto).
+
+- **Regression.** `scripts/smoke_cli.sh` gained cases 17–18: `--run` rc=2 +
+  source GIF `cmp`-identical + greppable named reason; print still emits `-b`.
+  Suite **19 → 21** `ok()`.
+
+- **Engine hazard confirmed here** (intake A.1 had not executed it): bundled
+  `gifsicle -b -O3` rewrote `logo.gif` **8703 → 8637** bytes. The same file under
+  the CLI stop-loss stayed `cmp`-identical.
+
+- **`N-07` triaged, not implemented.** Mapped to **P2-15** (OPEN): fail when a
+  current-state doc's quoted UNTRIAGED count disagrees with `STATUS.md`'s
+  generated counts line, or restate S4 as the 5-phrase list it actually is.
+  Docs-only; the sweep was not changed. Closing it by restating S4's existing
+  comment would not have been a triage.
+
+- **Stale leftover claims corrected** because they were live false after S15:
+  `COMPILED_AUDIT.md` still said §13 was "not triaged" / "still not in the §6
+  fix order"; `RELEASE_PROCEDURE.md` still listed GS-201 as an open blocker;
+  current-state smoke quotes that would have gone 19/19 → 21/21.
+
+**Partial:**
+
+- None of GS-201. The authorized stop-loss is the whole finding. A per-file Auto
+  orchestrator (full Batch redesign) is future work, not a missing half of this
+  row.
+
+**Left:**
+
+- **N-07 / P2-15** OPEN (detector gap). Remaining 17 intake rows OPEN. Duplicate
+  §6 **P2-5** left alone (S15). **OD-03…OD-15** unanswered. No PR until an
+  explicit yes.
+
+**Verified:**
+
+- `./build.sh` — **296 checks, 0 failures**.
+- `scripts/smoke_cli.sh` — **21 passed, 0 failed**.
+- Direct engine `-b -O3` rewrite: 8703 → 8637 B.
+- CLI `--run` on Batch-no-output: rc=2, named reason on stderr, source
+  `cmp`-identical; print rc=0 and the line contains `-b`.
+
+**Not verifiable here:**
+
+- Native Windows / Wine re-run of the new CLI cases (not executed this session).
+- gifsicle `-b -o` (Batch-with-output `--run`) — deliberately untested.
+- GitHub Actions for this branch (not pushed). GUI/web Batch paths were
+  review-confirmed as already per-file Auto, not re-run.
+
+**Docs touched:** `STATUS.md` (GS-201 DONE, N-07 OPEN/P2-15, W-04/W-11 21/21,
+re-emitted), `COMPILED_AUDIT.md` (§6 P2-15, §7 A12/A18, §13 leftovers, U-18
+count), `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`,
+`docs/release/RELEASE_PROCEDURE.md`, `docs/planning/OWNER_DECISIONS.md`,
+`web/WEB_PLAN_TEMPLATE.md`.
+
+---
+
 ## S15 — PR #20 merged; `OD-01 = a` executed, all 18 intake findings triaged  (2026-09-13)
 
 **Changed:**
