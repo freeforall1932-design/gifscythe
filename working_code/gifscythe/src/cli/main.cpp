@@ -53,7 +53,7 @@ void print_usage(const char* argv0, std::FILE* to) {
   std::fprintf(to, "                -b would rewrite the source GIF). Exit codes: 0 ok, 1\n");
   std::fprintf(to, "                engine/path/output verification failure, 2 usage or\n");
   std::fprintf(to, "                unsafe target, 3 --strict refusal.\n");
-  std::fprintf(to, "  GS_ENGINE env: override default engine path.\n");
+  std::fprintf(to, "  GS_ENGINE env: exact engine path; invalid non-empty values fail (no fallback).\n");
   std::fprintf(to, "  Gifscythe %s\n", GS_VERSION);
 }
 
@@ -255,10 +255,17 @@ int main(int argc, char** argv) {
 
   // Locate engine.
   std::string engine_path;
+  const char* engine_source = "--engine";
   if (!engine_override.empty()) {
     engine_path = resolve_path(engine_override, fs::current_path(ec));
   } else {
-    engine_path = gs::locate_engine(gs::path_u8string(exe_path_of(argv[0])));
+    const auto resolution = gs::resolve_engine(gs::path_u8string(exe_path_of(argv[0])));
+    if (!resolution.error.empty()) {
+      std::fprintf(stderr, "ERROR: %s\n", resolution.error.c_str());
+      return 1;  // invalid environment override is an error in print AND run mode
+    }
+    engine_path = resolution.path;
+    engine_source = gs::engine_source_name(resolution.source);
   }
 
   // ---- stdout purity (audit U-04) ----
@@ -317,6 +324,8 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "       Or set GS_ENGINE / pass --engine <path>\n");
     return 1;
   }
+
+  std::fprintf(stderr, "# Engine source: %s\n", engine_source);
 
   // Build argv: engine + command args. NEVER concatenate into a shell string.
   std::vector<std::string> full_argv;

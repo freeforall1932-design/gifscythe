@@ -368,5 +368,75 @@ else
   bad "Batch with no output print-mode policy wrong (rc=$rc_batch_print)"
 fi
 
+# 18. GS-207: invalid explicit environment overrides must never fall back to
+# the real release engine or the working PATH engine. Print also fails clearly.
+mkdir -p "$WORK/engine choice"
+printf 'not executable\n' > "$WORK/not-executable"
+chmod 600 "$WORK/not-executable"
+for invalid in "$WORK/missing-engine" "$WORK/engine choice" "$WORK/not-executable" "gifsicle" "   "; do
+  set +e
+  (cd "$WORK" && GS_ENGINE="$invalid" PATH="$WORK/path-only" "$CLI" "$WORK/stdout.conf" --run \
+    >"$WORK/env_run.out" 2>"$WORK/env_run.err")
+  rc_run=$?
+  (cd "$WORK" && GS_ENGINE="$invalid" PATH="$WORK/path-only" "$CLI" "$WORK/stdout.conf" \
+    >"$WORK/env_print.out" 2>"$WORK/env_print.err")
+  rc_print=$?
+  set -e
+  if [[ "$rc_run" -eq 1 && "$rc_print" -eq 1 && ! -s "$WORK/env_run.out" && ! -s "$WORK/env_print.out" ]] \
+     && grep -q 'GS_ENGINE.*refusing automatic fallback' "$WORK/env_run.err" \
+     && grep -Fq -- "$invalid" "$WORK/env_run.err" \
+     && grep -q 'GS_ENGINE' "$WORK/env_print.err"; then
+    ok "GS-207 invalid GS_ENGINE refused in print+run: [$invalid]"
+  else bad "GS-207 override fell back or lacked a diagnostic: [$invalid] (run=$rc_run print=$rc_print)"; fi
+done
+
+# A distinct real-engine wrapper proves the selected override actually runs;
+# check both absolute and CWD-relative paths containing spaces.
+cat > "$WORK/engine choice/selected engine" <<EOF
+#!/bin/sh
+printf selected >> "$WORK/selected.log"
+exec "$ENGINE" "\$@"
+EOF
+chmod +x "$WORK/engine choice/selected engine"
+for chosen in "$WORK/engine choice/selected engine" "engine choice/selected engine"; do
+  rm -f "$WORK/selected.log"
+  set +e
+  (cd "$WORK" && GS_ENGINE="$chosen" "$CLI" "$WORK/stdout.conf" --run \
+    >"$WORK/env_valid.gif" 2>"$WORK/env_valid.err")
+  rc=$?
+  set -e
+  if [[ "$rc" -eq 0 && -s "$WORK/selected.log" ]] && cmp -s "$WORK/env_valid.gif" "$WORK/direct.gif" \
+     && grep -q '# Engine source: GS_ENGINE' "$WORK/env_valid.err"; then
+    ok "GS-207 exact override selected with binary-pure stdout: [$chosen]"
+  else bad "GS-207 valid override failed (rc=$rc): [$chosen]"; fi
+done
+
+# CLI --engine retains highest priority; print mode may display a prospective
+# explicit --engine path without requiring that path to exist.
+set +e
+GS_ENGINE="$WORK/missing-engine" "$CLI" "$WORK/stdout.conf" --run --engine "$ENGINE" \
+  >"$WORK/flag.gif" 2>"$WORK/flag.err"
+rc_flag=$?
+GS_ENGINE="$WORK/missing-engine" "$CLI" "$WORK/stdout.conf" --engine "$WORK/prospective" \
+  >"$WORK/flag-print.out" 2>"$WORK/flag-print.err"
+rc_flag_print=$?
+set -e
+if [[ "$rc_flag" -eq 0 && "$rc_flag_print" -eq 0 ]] && cmp -s "$WORK/flag.gif" "$WORK/direct.gif" \
+   && grep -q '# Engine source: --engine' "$WORK/flag.err" \
+   && grep -Fq "$WORK/prospective" "$WORK/flag-print.out"; then
+  ok "GS-207 --engine takes precedence over invalid GS_ENGINE (run and prospective print)"
+else bad "GS-207 --engine precedence regressed"; fi
+
+# Empty is deliberately equivalent to unset, including PATH-only discovery.
+set +e
+(cd "$WORK" && GS_ENGINE='' PATH="$WORK/path-only" "$WORK/path-app/gifscythe-cli" "$WORK/stdout.conf" --run \
+  >"$WORK/env_empty.gif" 2>"$WORK/env_empty.err")
+rc=$?
+set -e
+if [[ "$rc" -eq 0 ]] && cmp -s "$WORK/env_empty.gif" "$WORK/direct.gif" \
+   && grep -q '# Engine source: PATH' "$WORK/env_empty.err"; then
+  ok "GS-207 empty override preserves PATH discovery"
+else bad "GS-207 empty override did not discover PATH engine"; fi
+
 echo "==> Done. $PASS passed, $FAIL failed."
 [[ "$FAIL" -eq 0 ]]

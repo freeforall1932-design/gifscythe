@@ -15,12 +15,12 @@
 > file (gate **G10**); **PR #16 merged as `629135a` (2026-09-12); `main` run `34709202307` is GREEN on both jobs**. A newer merge on top of this branch keeps `main` red
 > only while a run is in flight; check the tip run before claiming green. The S8 banner above is a dated snapshot of that
 > session, **not** the current state. §13 is the external-review intake — **triaged
-> into §6 in S15**; **GS-201 closed S16** (P0-5), **GS-202 and DS-13 closed S17** (P0-6 / P1-32). The other 15 intake rows stay OPEN.
+> into §6 in S15**; **GS-201 closed S16** (P0-5), **GS-202, DS-13 and GS-207 closed S17** (P0-6 / P1-32 / P1-29). The other 14 intake rows stay OPEN.
 > Narrative `**Status:**` lines in §2/§3/§4 now name their §5 register row; where the original
 > audit text disagreed with the register, the original wording is kept after *"Original report:"*
 > and is superseded by the register.
 
-**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), S14 (2026-09-12 — external-review intake and status-truth corrections), S15 (2026-09-13 — 18-row triage), **S16 (2026-09-13 — GS-201 / P0-5 stop-loss)**, **S17 (2026-09-13 — N-07 count check, GS-202 path containment and DS-13 signature check)**
+**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), S14 (2026-09-12 — external-review intake and status-truth corrections), S15 (2026-09-13 — 18-row triage), **S16 (2026-09-13 — GS-201 / P0-5 stop-loss)**, **S17 (2026-09-13 — N-07 count check, GS-202 path containment DS-13 signature check and GS-207 strict engine override)**
 **Branch:** `main` at `2d51347817f5cdb39334415a03bb5f2b543119dd` (the PR #15 merge; re-confirm with
 `gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`;
 `check_docs.sh` gate **G10** fails if this line names anything else)
@@ -1761,7 +1761,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P1-26 | **Close the packaging fail-open paths.** The system packager never clears its destination and always prints success; portable skips Qt deployment when the deployer is absent; negative tests cover portable only. Manifest-driven stager per platform and package type, negative tests for both. Release-gated. | **GS-204** | **A (S15 triage)** |
 | P1-27 | **One `admitInputs()`.** The picker offers `All files`, `appendInputs` validates nothing, and drop checks existence not `isFile()`. Existing readable regular file + GIF magic, shared by picker and drop, with rejected-item feedback. | **GS-205** | **A (S15 triage)** |
 | P1-28 | **Parse into the destination width; add the missing domains.** `long`→`int` narrowing without range checks, and validation has no rules for loopcount, threads, gamma or method-name enums. `std::from_chars` into the destination type; add the domains in C++ and the JS mirror. | **GS-206** | **A (S15 triage)** |
-| P1-29 | **Strict engine override.** An unusable `GS_ENGINE` is silently skipped and another engine runs (CLI and web). Typed engine resolution, stop and name an unusable override, log the chosen source at startup. | **GS-207** | **A (S15 triage)** |
+| P1-29 | **Strict engine override — DONE S17.** Non-empty GS_ENGINE is an exact path; invalid overrides stop discovery. Structured core/web resolution, named diagnostics (CLI print/run rc=1; web 503), selected-source logs. Empty/unset preserves discovery; CLI --engine retains priority and prospective print behavior. Smoke 30/30 and web 63/63 on Linux; original CLI accepts all 5 invalid cases. | **GS-207** | **A (S15 triage; S17 closed)** |
 | P1-30 | **Let the GUI Threads spinner say "unchanged".** It spans 0..64 and always writes a value, so the no-flag/unchanged state is unrepresentable. Map the minimum to -1 'Unchanged', or document GUI-always-explicit — it must agree with **P0-2**. | **DS-07** | **B (S15 triage)** |
 | P1-31 | **Warn on `threads < -1`.** Accepted with no warning and silently re-interpreted as auto. Warn in C++ and the JS mirror; unit assertion for -7. Pairs with **P0-2** and **P1-28**. | **DS-09** | **B (S15 triage)** |
 | P1-32 | **GIF-magic check on `/optimize` before 200 — DONE S17.** Shared exact GIF87a/GIF89a predicate checks the buffer being served (no second file read); invalid signatures get JSON 422 with exitCode 0, stderr and command. Transport 53/53 includes 11 output fixtures; the original server fails 6 invalid-signature cases. Signature-only, not full decoding; GS-203 remains OPEN. | **DS-13** | **B (S15 triage; S17 closed)** |
@@ -1996,7 +1996,7 @@ proposed solution and the verification limits.
 | **GS-204** | High | System packager never clears its destination, copies conditionally, always prints success; portable packager skips Qt deployment when the deployer is absent; negative tests cover portable only | `working_code/gifscythe/scripts/package_system.sh`, `working_code/gifscythe/scripts/package_portable.sh` | code-confirmed |
 | **GS-205** | Medium | Non-GIF inputs still admitted: picker offers `All files`, `appendInputs` validates nothing, drop accepts a directory because it checks existence, not `isFile()` | `src/qtui/MainWindow.cpp` | code-confirmed |
 | **GS-206** | Medium | `long` → `int` narrowing without range checks; validation has no rules for `loopcount`, `threads`, `gamma`, or method-name enums | `src/core/SettingsIO.h`, `src/core/Validate.h` | partly confirmed |
-| **GS-207** | Medium | An unusable `GS_ENGINE` override is silently skipped and another engine runs (CLI and web) | `src/core/EngineLocator.h`, `web/server.mjs` | code-confirmed |
+| **GS-207** | Medium | Original report: an unusable GS_ENGINE silently selects another engine. **Closed S17:** strict override preflight, explicit source/error result and source logs | `src/core/EngineLocator.h`, `web/server.mjs` | smoke 30/30; web 63/63 on Linux; baseline invalid-override probes fail |
 | **GS-208** | High | Main is release-red: run `34705247115` failed the Linux documentation gate while `SESSION_HANDOFF.md` claims a green open PR #15 and the pending-workflow marker describes an already-applied change | `.github/workflows/build.yml`, `SESSION_HANDOFF.md`, `docs/ci/PENDING_WORKFLOW_CHANGE.md` | live CI + local gate re-run |
 | **GS-209** | Medium | Native "linux/mac" engine build still uses a fixed Linux/glibc `config.native.h` (headers, `random()`, type sizes, SIMD, `gettimeofday`) | `working_code/gifscythe/build_support/gifsicle/config.native.h`, `working_code/gifscythe/scripts/build_engine.sh` | code-confirmed |
 | **GS-210** | Low | `build.sh` ignores unknown options, `build_engine.sh` treats any non-`--windows` argument as native, GUI dispatch tries qmake before CMake, `.pro` hardcodes the version | `build.sh`, `scripts/build_engine.sh`, `gifscythe.pro` | code-confirmed |
@@ -2041,7 +2041,7 @@ web-surface plan template the owner drafts are refitted into; its §1 records th
 decision that the web build is a supported product surface, and its state line - `SKELETON` until
 the refit, then `WORKING PLAN` - is mirrored in `SESSION_HANDOFF.md` and checked by gate G16).
 **They are in the §6 fix order (S15).** 14 got new ids and 4 folded into actions that already
-covered them. **GS-201 / P0-5 closed S16, GS-202 / P0-6 and DS-13 / P1-32 closed S17**; the other 15 remain OPEN. They were never mapped into
+covered them. **GS-201 / P0-5 closed S16, GS-202 / P0-6, DS-13 / P1-32 and GS-207 / P1-29 closed S17**; the other 14 remain OPEN. They were never mapped into
 `U-nn` rows — the reviewers' ids are the register keys.
 
 **Cross-references inside this file.** GS-201 extends U-01's coverage gap (the planner is correct

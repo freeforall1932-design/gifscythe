@@ -35,7 +35,7 @@ import { spawn } from "node:child_process";
 import {
   readFile, writeFile, mkdtemp, rm, readdir, access, stat, open,
 } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, extname, normalize, resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -65,9 +65,24 @@ const MIME = {
   ".json": "application/json",
 };
 
+async function isExecutableFile(file) {
+  try {
+    if (!(await stat(file)).isFile()) return false;
+    await access(file, process.platform === "win32" ? constants.F_OK : constants.X_OK);
+    return true;
+  } catch { return false; }
+}
+
+// Structured resolution distinguishes an invalid explicit override from absent
+// automatic discovery. A non-empty GS_ENGINE is exact (relative to CWD), never
+// a PATH lookup. Empty/unset keeps discovery. Launch errors never cause fallback.
 async function findEngine() {
   if (process.env.GS_ENGINE) {
-    try { await access(process.env.GS_ENGINE); return process.env.GS_ENGINE; } catch {}
+    const override = process.env.GS_ENGINE;
+    const file = resolve(override);
+    if (await isExecutableFile(file)) return { path: file, source: "GS_ENGINE", error: null };
+    return { path: null, source: "GS_ENGINE", error:
+      `GS_ENGINE override is not an executable regular file: ${JSON.stringify(override)}; refusing automatic fallback` };
   }
   const rel = join(PRODUCT, "release");
   let versions = [];
@@ -87,10 +102,11 @@ async function findEngine() {
   for (const v of versions) {
     for (const name of ["gifsicle", "gifsicle.exe"]) {
       const p = join(rel, v, name);
-      if (existsSync(p)) return p;
+      if (await isExecutableFile(p)) return { path: p, source: "release", error: null };
     }
   }
-  return null;
+  return { path: null, source: "none", error:
+    "Gifscythe engine (gifsicle) not found. Run ./build.sh first or set GS_ENGINE." };
 }
 
 function run(argv) {
@@ -187,16 +203,16 @@ async function handleOptimize(req, res, url) {
     return;
   }
 
-  const engine = await findEngine();
-  if (!engine) {
+  const resolution = await findEngine();
+  if (!resolution.path) {
     res.writeHead(503, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
-      ok: false, error:
-        "Gifscythe engine (gifsicle) not found. Run ./build.sh first or set GS_ENGINE.",
+      ok: false, error: resolution.error,
     }));
     return;
   }
 
+  const engine = resolution.path;
   const dir = await mkdtemp(join(tmpdir(), "gsweb-"));
   try {
     const body = await readBody(req, MAX_BODY);
@@ -412,15 +428,16 @@ async function handleRun(req, res) {
     return;
   }
 
-  const engine = await findEngine();
-  if (!engine) {
+  const resolution = await findEngine();
+  if (!resolution.path) {
     sendJson(res, 503, {
       ok: false,
-      error: "Gifscythe engine (gifsicle) not found. Run ./build.sh first or set GS_ENGINE.",
+      error: resolution.error,
     });
     return;
   }
 
+  const engine = resolution.path;
   const dir = await mkdtemp(join(tmpdir(), "gsweb-"));
   try {
     // ---- plan + refuse BEFORE anything runs (desktop batch parity, U-01) ----
@@ -594,11 +611,11 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-const enginePath = await findEngine();
+const engineResolution = await findEngine();
 server.listen(PORT, HOST, () => {
   console.log(`Gifscythe web server on http://${HOST}:${PORT}`);
   if (HOST === "127.0.0.1") {
     console.log("  (loopback only — set GS_WEB_HOST=0.0.0.0 to expose it on the network)");
   }
-  console.log(`Engine: ${enginePath || "NOT FOUND (build with ./build.sh or set GS_ENGINE)"}`);
+  console.log(`Engine [${engineResolution.source}]: ${engineResolution.path || `ERROR: ${engineResolution.error}`}`);
 });

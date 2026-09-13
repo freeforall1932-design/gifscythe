@@ -94,6 +94,31 @@ each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, an
 `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
 alone would have passed straight through both skipped syncs.
 
+## S17 continuation — GS-207 / P1-29 (2026-09-13)
+
+Owner approved the recommended strict engine-override fix. Core resolution now
+returns path/source/error; invalid non-empty GS_ENGINE stops discovery. CLI print
+and run return 1 with a named diagnostic; web APIs return 503, and startup logs
+identify the source/error while the static UI remains available. Empty/unset means
+automatic discovery. CLI --engine stays higher priority; prospective --engine
+print mode is unchanged. --run source logs stay on stderr (binary stdout pure).
+Windows executability beyond regular-file existence is left to process launch;
+no launch error retries another engine. GUI wrapper preserves its string API but
+returns empty on an invalid override; Qt/Windows GUI not re-tested here.
+
+Executed: build/unit **296/0**, CLI smoke **30/30**, web transport **63/63** on
+Linux, command parity **17**, validation parity **23**. Invalid overrides tested
+with a real fallback engine available; web spawn logs prove no engine starts.
+Valid absolute/relative paths with spaces, empty/unset, --engine precedence,
+PATH-only CLI discovery and override removal after web startup are covered.
+Original CLI: all 5 invalid paths return zero in print/run instead of one;
+original web: missing and removed overrides fall back, directories/non-executable
+files attempt launch instead of preflight refusal. Baseline suites fail 9 CLI and
+10 web groups including new source-log assertions. Scratch baselines removed.
+Final audit **25 passed / 0 failed / 6 skipped** (no CMake/Qt, pending workflow,
+remote CI and clean-Windows checks not run); docs gate **23/0/2**, change review **4/0/1**.
+No version, workflow, release, other owner decision, push, PR or merge changed.
+
 ## S17 continuation — DS-13 / P1-32 (2026-09-13)
 
 Owner approved the next recommended fix. `/optimize` now checks the exact output
@@ -153,7 +178,7 @@ S15 triage landed on this branch as cherry-pick `0e6e1a7` (of `5677612`). Then
 **`OD-02 = a`**: CLI `--run` with Batch and no `output` exits 2 with a named
 reason before the engine starts. Print still prints `-b`. Smoke **21/21** (source
 GIF `cmp`-identical). Engine `-b -O3` rewrite confirmed 8703→8637 B.
-**`N-07` triaged to P2-15** (OPEN at S16; closed by the S17 count check). Current register after the S17 count-check follow-up: **85 DONE · 5 PARTIAL · 32 OPEN · 0 UNTRIAGED · 122 total.**
+**`N-07` triaged to P2-15** (OPEN at S16; closed by the S17 count check). Current register after the S17 count-check follow-up: **86 DONE · 5 PARTIAL · 31 OPEN · 0 UNTRIAGED · 122 total.**
 No PR until yes.
 
 ## S16 continuation — uncommitted-work hard rule (G18) + template content check (G16)
@@ -270,7 +295,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S17: **85 DONE · 5 PARTIAL · 32 OPEN · 0 UNTRIAGED · 122 total.**
+   `U-nn` row; neither replaces the other. As of S17: **86 DONE · 5 PARTIAL · 31 OPEN · 0 UNTRIAGED · 122 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —

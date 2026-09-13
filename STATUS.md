@@ -29,7 +29,7 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 85 DONE · 5 PARTIAL · 32 OPEN · 0 UNTRIAGED · 122 total
+**Counts (generated - do not edit by hand):** 86 DONE · 5 PARTIAL · 31 OPEN · 0 UNTRIAGED · 122 total
 **Last regenerated:** S17 · 2026-09-13 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
@@ -102,14 +102,14 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 | W-01 | Project setup: `reference_code/` vs `working_code/` separation | DONE | S1 | split in place; README "What is reference vs. working" states the rule | - |
 | W-02 | GIF engine build + upstream identity verification | DONE | S8 | `verify_audit.sh` A10: `release/0.1.0/gifsicle --version` prints `LCDF Gifsicle 1.96` | - |
 | W-03 | Qt-independent command/settings control layer | DONE | S11 | `src/core/*.h` compile with plain g++ (no Qt); unit suite 296 checks (S11 count) | - |
-| W-04 | CLI driver + unit tests + integration smoke | DONE | S16 | `./build.sh` 296 checks, 0 failures; `scripts/smoke_cli.sh` 21/21 | - |
+| W-04 | CLI driver + unit tests + integration smoke | DONE | S17 | `./build.sh` 296 checks, 0 failures; `scripts/smoke_cli.sh` 30/30 (GS-207 strict override regression coverage) | - |
 | W-05 | Qt6 GUI MVP (Batch default, mode combo, async run, queue, DnD) | DONE | S8 | CI run `34471563229` green on linux + windows; NOT compiled in the S8/S9 sandboxes (no Qt6) | - |
 | W-06 | Portable + system-dependent packaging scripts | DONE | S8 | `scripts/test_package.sh` 9/9 negative cases; `verify_audit.sh` D1/D2/D5 | - |
 | W-07 | Linux GitHub Actions path with Qt6 + artifacts | DONE | S8 | `.github/workflows/build.yml`; main runs #23/#24 green both jobs | - |
 | W-08 | Root LICENSE / COPYING.gifsicle / .gitignore / .gitattributes | DONE | S8 | CI "Assert package manifest" step requires LICENSE + COPYING.gifsicle in the package | - |
 | W-09 | P0 silent-failure fixes (2026-09-07) | DONE | S4 | `COMPILED_AUDIT.md` §6.A re-run green | - |
 | W-10 | P1 honesty work (2026-09-07) | DONE | S4 | `COMPILED_AUDIT.md` §6.E 8/8 | - |
-| W-11 | Smoke suite + engine test scripts | DONE | S16 | `scripts/test_engine.sh` 5/5; `scripts/smoke_cli.sh` 21/21 (S12: strict parsing, PATH-only discovery, stdout purity, unsafe-output; S16: Batch-no-output `--run` refusal) | - |
+| W-11 | Smoke suite + engine test scripts | DONE | S17 | `scripts/test_engine.sh` 5/5; `scripts/smoke_cli.sh` 30/30 (S12: strict parsing, PATH-only discovery, stdout purity, unsafe-output; S16: Batch-no-output `--run` refusal) | - |
 | W-12 | Apply `docs/ci/build.yml.proposed` to the live workflow | DONE | S4 | maintainer `821a310` + S4 hardening; copies kept byte-identical (gate E9) | - |
 | W-13 | Merge the compiled audit into one register | DONE | S3 | `COMPILED_AUDIT.md` §5 holds all 52 findings | - |
 | W-14 | One-command verification of `COMPILED_AUDIT.md` §6 | DONE | S11 | `scripts/verify_audit.sh` 28 PASS / 0 FAIL / 3 SKIP, exit 0 (re-measured in the S11 Qt6+cmake sandbox, which added gate C9; the S9 sandbox measured 25/0/5 because C6/C7*/B skipped there) | - |
@@ -161,7 +161,7 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 `OD-01 = a` and S15 mapped every row into a `§6` fix-order id, named in each Next action below —
 14 new ids (**P0-5, P0-6, P1-25…P1-32, P2-12…P2-14, P3-11**) and 4 folded into actions that already
 covered the same defect (**DS-06**→P0-2, **DS-12**→P1-13, **GS-208**→P2-7, **DS-08**→P3-5).
-Triage scoped them; it did not fix them. **S16 closed `GS-201` (P0-5); S17 closed `GS-202` (P0-6) and `DS-13` (P1-32)** with executed proof; the other 15 remain OPEN.
+Triage scoped them; it did not fix them. **S16 closed `GS-201` (P0-5); S17 closed `GS-202` (P0-6), `DS-13` (P1-32) and `GS-207` (P1-29)** with executed proof; the other 14 remain OPEN.
 
 | ID | Item | State | Session | Proof / Blocker | Next action |
 |----|-------|-------|---------|-----------------|-------------|
@@ -171,7 +171,7 @@ Triage scoped them; it did not fix them. **S16 closed `GS-201` (P0-5); S17 close
 | GS-204 | Packaging still fail-open outside its happy path: the system packager never clears its destination and always prints success; portable skips Qt deployment when the deployer is absent; negative tests cover portable only | OPEN | S15 | `scripts/package_system.sh:9,23,39`, `scripts/package_portable.sh:46,100`, `scripts/test_package.sh:3` (intake A.4) | **P1-26** — Manifest-driven stager per platform and package type; extend negative tests to both (release-gated) |
 | GS-205 | Non-GIF inputs still admitted: picker offers `All files`, `appendInputs` validates nothing, drop checks existence not `isFile()` | OPEN | S15 | `src/qtui/MainWindow.cpp:358,405,415` (intake A.5) | **P1-27** — One `admitInputs()` (existing readable regular file + GIF magic) used by picker and drop, with rejected-item feedback |
 | GS-206 | `long` to `int` narrowing without range checks; validation has no rules for loopcount, threads, gamma or method-name enums | OPEN | S15 | `src/core/SettingsIO.h:132,187-233`; `src/core/Validate.h` has no such rules; wrapped values not executed (intake A.6) | **P1-28** — Parse into the destination width with `std::from_chars`; add domains for loop/threads/gamma/enums in C++ and the JS mirror |
-| GS-207 | An unusable `GS_ENGINE` override is silently skipped and another engine runs (CLI and web) | OPEN | S15 | `src/core/EngineLocator.h:100-144`; `web/server.mjs` findEngine (intake A.7) | **P1-29** — Strict override: typed engine resolution, stop and name an unusable override, log the chosen source at startup |
+| GS-207 | An invalid GS_ENGINE override could silently select another engine | DONE | S17 | P1-29: structured resolution; CLI print/run exit 1, web APIs 503 on invalid override; source logs; smoke 30/30 and web 63/63 on Linux; old CLI accepts all 5 invalid cases | - |
 | GS-208 | Main is release-red (run 34705247115 failed the Linux documentation gate) while status docs claimed a green open PR #15 and the pending marker described an applied change | OPEN | S15 | fixed-doc half in `ddc4194`: header base, handoff, pending marker; branch run `34707532582` green on linux + windows. Still missing: workflow-copy sync | **P2-7** — Apply `docs/ci/build.yml.proposed` and delete `docs/ci/PENDING_WORKFLOW_CHANGE.md` in one commit (needs a `workflows`-scoped token) |
 | GS-209 | Native linux/mac engine build uses a fixed Linux/glibc config (headers, `random()`, type sizes, SIMD, gettimeofday) | OPEN | S15 | `working_code/gifscythe/build_support/gifsicle/config.native.h`; `scripts/build_engine.sh:6` (intake A.9) | **P2-12** — Generate config from feature checks per target, or narrow the advertised targets to x86_64 glibc |
 | GS-210 | Build entry points accept mistyped options; GUI dispatch tries qmake before CMake; the qmake project hardcodes the version | OPEN | S15 | `build.sh:30-34,157`; `scripts/build_engine.sh:31-35`; `gifscythe.pro:17` (intake A.10) | **P2-13** — Strict option parsing (exit 2 on unknown), CMake-first or CMake-only GUI path |
