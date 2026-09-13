@@ -260,7 +260,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] **GS-201 (P0-5)** — CLI `--run` refuses Batch with no `output` (rc=2, named
       reason) before the engine starts. Engine `-b` rewrite confirmed (8703→8637 B);
       CLI left the source `cmp`-identical. Smoke **21/21**. Print still emits `-b`.
-- [x] **N-07 triaged to P2-15** (still OPEN) — S4 is a 5-phrase list, not a general
+- [x] **N-07 triaged to P2-15** (OPEN at S16; closed S17) — S4 is a 5-phrase list, not a general
       reversal detector. Sweep not changed this session.
 - [x] **SW-03** — uncommitted-work hard rule (**G18** dirty-tree FAIL in
       `check_docs.sh`; **P3b** unpushed FAIL in `pr_preflight.sh`) plus **G16**
@@ -432,12 +432,12 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       from that row's own options; `OD-15` runs `a`–`d`).
       **`OD-01 = a` and `OD-02 = a` are answered** (2026-09-12); the other 13 are direction
       choices the plan can proceed without.
-- [ ] **`N-07` → `P2-15` (found S15, triaged S16, still OPEN):** sweep **S4** matches 5 hardcoded
-      retired phrases, so it cannot catch a current-state doc that still says findings "stay
-      `UNTRIAGED`" after a triage empties the register. Measured S15: 4 such claims, sweep stayed
-      `5 passed, 0 failed` before *and* after correcting them by hand. Next: a rule that compares a
-      quoted `UNTRIAGED` count against `STATUS.md`'s generated counts line, or restate S4 as the
-      5-phrase list it is. Not closed by restating S4.
+- [x] **N-07 / P2-15 — closed S17 (2026-09-13):** S2 now checks standalone
+      numeric `UNTRIAGED` counts against the generated register, including Markdown
+      emphasis/backticks and line wraps. Fourteen isolated regression tests pass;
+      two stale-count probes demonstrably fail against the pre-fix sweep. S4 remains
+      the five-phrase retired-web-scope check, not a general prose reversal detector.
+      Unnumbered prose still needs review; this closes the scoped count-check action.
 - [x] **Execute `OD-01 = a` — done S15 (2026-09-13):** all 18 intake findings now carry a
       `COMPILED_AUDIT.md` §6 fix-order id (14 new, 4 folded into existing actions) and are `OPEN`
       in `STATUS.md`. Gate **G12** is unblocked: with no `UNTRIAGED` row left, the `## S15` entry

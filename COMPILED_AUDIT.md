@@ -1786,6 +1786,8 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P2-13 | **Strict option parsing in the build entry points.** `build.sh` accepts mistyped options, GUI dispatch tries qmake before CMake, and the qmake project hardcodes the version. Exit 2 on unknown options; CMake-first or CMake-only GUI path. | **GS-210** | **A (S15 triage)** |
 | P2-14 | **Gate the narrative-vs-register contradiction.** §3/§4 narrative claimed OPEN for items the §5 register marked fixed. S14 reconciled the narrative status lines to cite their §5 row, but the mechanical check is still missing: add a `check_docs.sh` gate that fails when a narrative row claims OPEN while its register row says FIXED. | **DS-11** | **C (S15 triage)** |
 
+| P2-15 | **Check standalone UNTRIAGED counts (DONE S17).** S2 compares numeric counts in current-state docs with STATUS.md, even without DONE/PARTIAL/OPEN cells. Markdown and line wraps supported, paragraphs kept separate; file:line diagnostics. Fourteen isolated regression tests pass. S4 stays a fixed five-phrase check; unnumbered prose is not mechanically understood. | **N-07** | **C (S16 triage; S17 closed)** |
+
 ### P3 — Docs and polish
 
 | # | Action | Closes | Priority |
@@ -2020,7 +2022,7 @@ run `34705247115` failed its Linux documentation gate on main. **Do not treat ma
 **Automation around these findings (S14 continuation).** `working_code/gifscythe/scripts/sweep_stale.sh`
 plus gate **G17** now fail a session that leaves a stale claim behind: a pending-workflow marker
 that outlived its change (**S1**), a quoted register tally that no longer matches `STATUS.md`
-(**S2**), volatile live-state wording with no run id or session to re-check it (**S3**), a retired
+(**S2**, including standalone numeric UNTRIAGED counts since S17), volatile live-state wording with no run id or session to re-check it (**S3**), a retired
 claim a decision reversed (**S4**), and a narrative status block that disagrees with its §5 row
 (**S5** — the rule that caught **U-06**/**U-08**). `working_code/gifscythe/scripts/pr_preflight.sh`
 is the PR/merge companion. The 15 owner questions this intake raises — triage first — are collected
