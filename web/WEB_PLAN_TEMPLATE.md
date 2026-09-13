@@ -95,10 +95,11 @@ producing nothing (`GS-203` class) or write anywhere the user did not choose (`G
 - **The web surface already carries real logic**, not a toy: `web/server.mjs` 572 lines,
   `web/app.js` 288, `web/command.mjs` 238, `web/validate.mjs` 89, plus three suites
   (196 + 353 + 129 lines of tests).
-- **Open intake items hit the web directly** (all `UNTRIAGED` in `STATUS.md`, evidence in
-  `COMPILED_AUDIT.md` §13): `GS-202` (output paths derived from upload names), `GS-203`
-  (success without verification), `DS-13` (`/optimize` serves non-GIF bytes as `image/gif`),
-  plus the `U-06` remainder (concurrency cap / rate limit / engine-run bound).
+- **Open intake items hit the web directly** (all `OPEN` in `STATUS.md` since the S15 triage,
+  each with its `COMPILED_AUDIT.md` §6 id; evidence in §13): `GS-202` → **P0-6** (output paths
+  derived from upload names), `GS-203` → **P1-25** (success without verification), `DS-13` →
+  **P1-32** (`/optimize` serves non-GIF bytes as `image/gif`), plus the `U-06` remainder
+  (concurrency cap / rate limit / engine-run bound).
 - **The desktop side carries the release bar** until the owner says otherwise: `COMPILED_AUDIT.md`
   §9 defines 1.0.0 around the desktop artifact + clean-Windows evidence, and `U-09`'s re-cut is
   still open.
