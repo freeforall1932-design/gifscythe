@@ -1,149 +1,104 @@
 #!/usr/bin/env bash
-#
-# test_package.sh - NEGATIVE tests for package_portable.sh (audit U-02/U-08/U-14).
-#
-# The packager used to exit 0 for a folder with no application in it, and CI
-# uploaded that folder without ever looking inside. These tests assert the
-# opposite: an incomplete package MUST fail, and a complete one must contain
-# exactly the promised files.
-#
-# The negative cases run against a minimal synthetic product tree in a temp
-# dir, so they are fast and do not need Qt. The last case runs the REAL script
-# against the REAL tree in --engine-cli-only mode.
-#
-set -uo pipefail
-
+# GS-204: exercise both package types in disposable fixture trees, plus real CLI bundles.
+set -euo pipefail
 self="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-version="$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' "$self/VERSION.md" \
-  | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
-version="${version:-0.1.0}"
-
+ROOT="$(mktemp -d)"; trap 'rm -rf "$ROOT"' EXIT
 PASS=0; FAIL=0
-ok()  { echo "  PASS: $1"; PASS=$((PASS + 1)); }
-bad() { echo "  FAIL: $1"; FAIL=$((FAIL + 1)); }
-
-ROOT="$(mktemp -d)"
-trap 'rm -rf "$ROOT"' EXIT
-
-# ---- Build a minimal synthetic product tree -------------------------------
-mk_tree() {
-  local t="$ROOT/$1"
-  rm -rf "$t"; mkdir -p "$t/working_code/gifscythe/scripts"
-  mkdir -p "$t/working_code/gifscythe/release/$version"
-  mkdir -p "$t/working_code/gifscythe/build"
-  cp "$self/scripts/package_portable.sh" "$t/working_code/gifscythe/scripts/"
-  printf '# Gifscythe Versioning\nCurrent version: %s\n' "$version" \
-    > "$t/working_code/gifscythe/VERSION.md"
-  printf '# Gifscythe\n' > "$t/working_code/gifscythe/README.md"
-  printf '#!/bin/sh\necho fake engine\n' > "$t/working_code/gifscythe/release/$version/gifsicle"
-  chmod +x "$t/working_code/gifscythe/release/$version/gifsicle"
-  printf '#!/bin/sh\necho fake cli\n' > "$t/working_code/gifscythe/build/gifscythe-cli"
-  chmod +x "$t/working_code/gifscythe/build/gifscythe-cli"
-  printf 'GPL v2 text\n' > "$t/LICENSE"
-  printf 'gifsicle GPL v2 text\n' > "$t/COPYING.gifsicle"
-  echo "$t/working_code/gifscythe"
+ok() { echo "  PASS: $*"; PASS=$((PASS+1)); }
+bad() { echo "  FAIL: $*"; FAIL=$((FAIL+1)); }
+fixture() {
+  local root="$ROOT/repo"
+  rm -rf "$root"
+  t="$root/working_code/gifscythe"
+  mkdir -p "$t/scripts" "$t/build" "$t/release/0.1.0"
+  cp "$self/scripts/"package*.sh "$t/scripts/"
+  printf 'Current version: 0.1.0\n' > "$t/VERSION.md"
+  printf 'product\n' > "$t/README.md"
+  printf 'license\n' > "$root/LICENSE"
+  printf 'engine license\n' > "$root/COPYING.gifsicle"
+  printf '#!/bin/sh\nexit 0\n' > "$t/build/gifscythe-cli"
+  cp "$t/build/gifscythe-cli" "$t/release/0.1.0/gifsicle"
+  chmod +x "$t/build/gifscythe-cli" "$t/release/0.1.0/gifsicle"
+  out="$t/release/0.1.0/$folder"
 }
-
+refused() {
+  if "$t/scripts/package_$kind.sh" "$@" >"$ROOT/log" 2>&1; then bad "$kind $label succeeded";
+  elif [[ -e "$out" ]] || compgen -G "$t/release/0.1.0/.package-*" >/dev/null; then bad "$kind $label left a package/stage";
+  else ok "$kind $label fails without publishing stale/partial contents"; fi
+}
 echo "==> Packaging negative tests"
-
-# 1. No GUI, default mode -> MUST fail closed (this is the exact U-02 repro).
-t="$(mk_tree nogui)"
-if "$t/scripts/package_portable.sh" >"$ROOT/o1" 2>"$ROOT/e1"; then
-  bad "no GUI + default mode exited 0 (U-02 regression)"
-else
-  if grep -q "Qt GUI not found" "$ROOT/e1"; then
-    ok "no GUI + default mode fails closed and says why"
-  else
-    bad "no GUI failed but without an explanatory error"
-  fi
-fi
-
-# 2. No GUI + --engine-cli-only -> succeeds, and the folder is what it claims.
-t="$(mk_tree optout)"
-if "$t/scripts/package_portable.sh" --engine-cli-only >"$ROOT/o2" 2>"$ROOT/e2"; then
-  pkg="$t/release/$version/Gifscythe"
-  miss=""
-  [[ -x "$pkg/gifsicle" ]]        || miss+=" engine"
-  [[ -x "$pkg/gifscythe-cli" ]]   || miss+=" cli"
-  [[ -s "$pkg/LICENSE" ]]         || miss+=" LICENSE"
-  [[ -s "$pkg/COPYING.gifsicle" ]]|| miss+=" COPYING.gifsicle"
-  [[ -s "$pkg/README.txt" ]]      || miss+=" README.txt"
-  if [[ -z "$miss" ]]; then ok "--engine-cli-only produces a complete headless package";
-  else bad "--engine-cli-only package missing:$miss"; fi
-  if grep -q "no GUI, by request" "$pkg/README.txt"; then
-    ok "headless package states its reduced scope in README.txt"
-  else
-    bad "headless README.txt does not disclose the missing GUI"
-  fi
-else
-  bad "--engine-cli-only failed (rc=$?): $(tail -2 "$ROOT/e2")"
-fi
-
-# 3. Missing CLI -> MUST fail (it used to be silently skipped).
-t="$(mk_tree nocli)"
-rm -f "$t/build/gifscythe-cli"
-if "$t/scripts/package_portable.sh" --engine-cli-only >"$ROOT/o3" 2>"$ROOT/e3"; then
-  bad "missing CLI still exited 0"
-else
-  grep -q "gifscythe-cli missing" "$ROOT/e3" \
-    && ok "missing CLI is fatal" || bad "missing CLI failed without the right message"
-fi
-
-# 4. Missing engine -> MUST fail (was already fatal; pin it).
-t="$(mk_tree noeng)"
-rm -f "$t/release/$version/gifsicle"
-if "$t/scripts/package_portable.sh" --engine-cli-only >"$ROOT/o4" 2>"$ROOT/e4"; then
-  bad "missing engine still exited 0"
-else
-  ok "missing engine is fatal"
-fi
-
-# 5. Missing license set -> MUST fail (audit U-08: a GPL v2 engine shipped with
-#    no license text used to sail through because every copy was [[ -f ]]-guarded).
-t="$(mk_tree nolic)"
-# The license set lives at the REPO ROOT, i.e. two levels above the product dir.
-rm -f "$t/../../LICENSE" "$t/../../COPYING.gifsicle"
-if "$t/scripts/package_portable.sh" --engine-cli-only >"$ROOT/o5" 2>"$ROOT/e5"; then
-  bad "missing licenses still exited 0"
-else
-  grep -q "no LICENSE or COPYING" "$ROOT/e5" \
-    && ok "missing license set is fatal" || bad "missing licenses failed without the right message"
-fi
-
-# 6. Stale staging must be wiped, not merged into.
-t="$(mk_tree stale)"
-mkdir -p "$t/release/$version/Gifscythe"
-echo leftover > "$t/release/$version/Gifscythe/STALE.txt"
-"$t/scripts/package_portable.sh" --engine-cli-only >"$ROOT/o6" 2>"$ROOT/e6"
-if [[ -e "$t/release/$version/Gifscythe/STALE.txt" ]]; then
-  bad "stale file survived the re-cut"
-else
-  ok "staging dir is wiped before packaging"
-fi
-
-# 7. Unknown argument -> non-zero (no silent ignore).
-t="$(mk_tree badarg)"
-if "$t/scripts/package_portable.sh" --nope >"$ROOT/o7" 2>"$ROOT/e7"; then
-  bad "unknown packager argument exited 0"
-else
-  ok "unknown packager argument is rejected"
-fi
-
-# 8. The REAL script against the REAL tree, headless (engine + CLI are built by
-#    ./build.sh, which this repo's CI always runs before packaging).
-if [[ -x "$self/build/gifscythe-cli" && -f "$self/release/$version/gifsicle" ]]; then
-  if "$self/scripts/package_portable.sh" --engine-cli-only >"$ROOT/o8" 2>"$ROOT/e8"; then
-    if grep -q "verified present and non-empty" "$ROOT/o8"; then
-      ok "real tree: headless package built and self-verified"
-    else
-      bad "real tree: package built but the assertion pass did not report"
-    fi
-  else
-    bad "real tree: --engine-cli-only failed: $(tail -2 "$ROOT/e8")"
-  fi
-else
-  echo "  SKIP: real-tree case (run ./build.sh first)"
-fi
-
+for kind in portable system; do
+  folder=Gifscythe; [[ "$kind" == system ]] && folder=Gifscythe-system
+  fixture; label="no GUI"; refused
+  for missing in build/gifscythe-cli release/0.1.0/gifsicle ../../LICENSE ../../COPYING.gifsicle; do
+    fixture; rm "$t/$missing"; mkdir -p "$out"; echo stale > "$out/STALE"
+    label="missing $missing"; refused --engine-cli-only
+  done
+  fixture; : > "$t/build/gifscythe-cli"; label="empty CLI"; refused --engine-cli-only
+  fixture; chmod -x "$t/build/gifscythe-cli"; label="non-executable native CLI"; refused --engine-cli-only
+  fixture; label="native/Windows mix"; refused --windows --engine-cli-only
+  fixture
+  mkdir -p "$out"; echo stale > "$out/STALE"
+  cp "$t/build/gifscythe-cli" "$t/build/gifscythe"
+  if "$t/scripts/package_$kind.sh" --engine-cli-only >"$ROOT/log" 2>&1 \
+     && [[ ! -e "$out/STALE" && ! -e "$out/gifscythe" && -s "$out/MANIFEST.txt" ]] \
+     && grep -q 'no GUI, by request' "$out/README.txt"; then
+    ok "$kind explicit headless excludes even an available GUI and wipes stale files"
+  else bad "$kind headless manifest/scope/staging"; fi
+  fixture; cp "$t/build/gifscythe-cli" "$t/build/gifscythe"
+  if "$t/scripts/package_$kind.sh" >"$ROOT/log" 2>&1 && [[ -x "$out/gifscythe" ]]; then
+    ok "$kind complete native GUI fixture stages required files"
+  else bad "$kind complete GUI fixture"; fi
+  fixture
+  if "$t/scripts/package_$kind.sh" --bad >"$ROOT/log" 2>&1; then bad "$kind unknown option accepted";
+  else [[ $? == 2 ]] && ok "$kind unknown option exits 2" || bad "$kind wrong option exit"; fi
+  # Real native headless artifacts built by build.sh (also executed in CI).
+  fixture
+  real_version="$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' "$self/VERSION.md" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+  cp "$self/build/gifscythe-cli" "$t/build/gifscythe-cli"
+  cp "$self/release/$real_version/gifsicle" "$t/release/0.1.0/gifsicle"
+  if "$t/scripts/package_$kind.sh" --engine-cli-only >"$ROOT/log" 2>&1; then
+    ok "$kind real engine/CLI package verified in an isolated tree"
+  else bad "$kind real package: $(tail -1 "$ROOT/log")"; fi
+done
+# Deterministic deployer fixtures: isolated PATH contains required utilities only.
+kind=portable; folder=Gifscythe
+fixture
+for name in gifsicle gifscythe-cli gifscythe; do
+  printf 'fake Windows binary\n' > "$t/build/$name.exe"
+done
+cp "$t/build/gifsicle.exe" "$t/release/0.1.0/gifsicle.exe"
+TOOLS="$ROOT/tools"; mkdir -p "$TOOLS"
+for tool in bash uname dirname grep head mkdir rm mktemp cp cat mv; do ln -s "$(command -v "$tool")" "$TOOLS/$tool"; done
+label="missing Windows deployer"
+old_path="$PATH"; PATH="$TOOLS"; refused --windows; PATH="$old_path"
+for behavior in 'exit 1' 'exit 0'; do
+  printf '#!/bin/sh\n%s\n' "$behavior" > "$TOOLS/windeployqt"; chmod +x "$TOOLS/windeployqt"
+  label="failed/lying Windows deployer ($behavior)"
+  PATH="$TOOLS"; refused --windows; PATH="$old_path"
+done
+# Successful deployment fixture proves the manifest predicate is not vacuous;
+# it does NOT prove real Windows DLL completeness or runtime compatibility.
+cat > "$TOOLS/windeployqt" <<'EOF'
+#!/bin/sh
+dir="$(dirname "$3")"
+mkdir -p "$dir/platforms"
+for f in Qt6Core.dll Qt6Gui.dll Qt6Widgets.dll platforms/qwindows.dll; do
+  printf 'fixture DLL\n' > "$dir/$f"
+done
+EOF
+chmod +x "$TOOLS/windeployqt"
+if PATH="$TOOLS" "$t/scripts/package_portable.sh" --windows >"$ROOT/log" 2>&1 \
+   && [[ -s "$out/platforms/qwindows.dll" && ! -e "$out/gifscythe" ]]; then
+  ok "portable Windows fixture stages only target binaries and asserted runtime entries"
+else bad "portable successful deployer fixture"; fi
+if PATH="$TOOLS" "$t/scripts/package_portable.sh" --windows --engine-cli-only >"$ROOT/log" 2>&1 \
+   && [[ ! -e "$out/gifscythe.exe" && ! -e "$out/Qt6Core.dll" ]]; then
+  ok "Windows explicit headless omits GUI and runtime"
+else bad "Windows headless fixture"; fi
+if PATH="$TOOLS" "$t/scripts/package_system.sh" --windows >"$ROOT/log" 2>&1 \
+   && [[ -s "$t/release/0.1.0/Gifscythe-system/gifscythe.exe" && ! -e "$t/release/0.1.0/Gifscythe-system/Qt6Core.dll" ]]; then
+  ok "system Windows fixture deliberately does not deploy Qt"
+else bad "system Windows fixture"; fi
 echo "==> Done. $PASS passed, $FAIL failed."
-[[ "$FAIL" -eq 0 ]]
+[[ "$FAIL" == 0 ]]

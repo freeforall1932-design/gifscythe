@@ -62,8 +62,23 @@ QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
 # Packaging
 ./scripts/package_portable.sh                    # GUI required (fails closed)
 ./scripts/package_portable.sh --engine-cli-only   # headless package, on purpose
-./scripts/package_system.sh
+./scripts/package_system.sh                      # GUI required; system Qt runtime
+./scripts/package_system.sh --engine-cli-only
+# Add --windows when packaging .exe artifacts from a non-Windows host.
 ```
+
+Both packagers clear their destination, stage privately, and publish only after all
+required manifest entries are non-empty. `--engine-cli-only` always excludes GUI,
+even if one is built. Portable Windows GUI packaging requires `windeployqt` and
+key Qt DLL/plugin entries; real clean-Windows testing is still a release gate.
+Linux GUI bundles currently require system Qt6, not a self-contained Qt runtime.
+
+CLI `--run` with an explicit ordinary GIF output verifies a new or size/mtime-
+changed non-empty regular file with a GIF87a/GIF89a signature; failures return 1
+and name the output. This is not full decoding or transactional rollback.
+Byte-identical rewrites within timestamp granularity conservatively fail.
+Streaming stdout, `--info`, and Explode keep their existing contracts.
+
 
 Cross-compile the Windows engine (needs mingw-w64):
 ```bash

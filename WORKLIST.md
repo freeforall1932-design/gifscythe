@@ -70,10 +70,12 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
             every resolved target/prefix contained before engine launch; case/NFC collisions
             refused with 422. Transport 42/42; original server fails 7 security groups;
             outside-request sentinels unchanged with the fix.
-      - [ ] **GS-203** → **P1-25** — (High) ordinary runs claim success on exit 0 with no output verification
-            (CLI Explode-only, GUI/web existence+size).
-      - [ ] **GS-204** → **P1-26** — (High) packaging fail-open outside the portable happy path; negative tests
-            cover portable only.
+      - [ ] **GS-203** → **P1-25** — **PARTIAL S17:** core/CLI explicit-file and web
+            postconditions implemented (smoke 40/40, transport 67/67 on Linux); Qt lifecycle
+            integration remains. See `docs/planning/SEQUENTIAL_WORK_HANDOFF.md`.
+      - [ ] **GS-204** → **P1-26** — **PARTIAL S17:** both packagers share verified fresh staging,
+            explicit targets/headless scope; 30 Linux checks pass. Real Qt/Windows deployment,
+            architecture and clean-machine verification remain; U-08/U-09 are not waived.
       - [ ] **GS-205** → **P1-27** — (Med) non-GIF inputs still admitted via the picker and drop.
       - [ ] **GS-206** → **P1-28** — (Med) `long`→`int` narrowing; no validation for loopcount/threads/gamma/enums.
       - [x] **GS-207** → **P1-29** — **closed S17:** invalid non-empty `GS_ENGINE`
@@ -82,14 +84,15 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       - [ ] **GS-208** → **P2-7** — (High, PARTIAL-fixed) main release-red; docs corrected in S14, workflow-copy
             sync + marker deletion still open (needs a `workflows`-scoped token).
       - [ ] **GS-209** → **P2-12** — (Med) native linux/mac build uses a fixed glibc config.
-      - [ ] **GS-210** → **P2-13** — (Low) build entry points ignore mistyped options; qmake tried before CMake.
+      - [ ] **GS-210** → **P2-13** — **PARTIAL S17:** strict arguments fixed (12 cases pass).
+            qmake-first dispatch and hardcoded .pro VERSION remain for a Qt-equipped agent.
       - [ ] **DS-06** → **P0-2** — (High) `threads <= 0` → bare `-j`; the `-1` sentinel now means 8 threads.
       - [ ] **DS-07** → **P1-30** — (Med) GUI threads spinner cannot express "no flag".
       - [ ] **DS-08** → **P3-5** — (Low) non-strict print mode exits 0 after warnings.
       - [ ] **DS-09** → **P1-31** — (Info) `threads < -1` accepted silently.
       - [ ] **DS-10** → **P3-11** — (Info) disposal 4..7 unreachable from the desktop picker.
-      - [ ] **DS-11** → **P2-14** — (Med, PARTIAL-fixed) audit narrative reconciled in S14; the mechanical gate
-            check that keeps it reconciled is still missing.
+      - [x] **DS-11** → **P2-14** — **closed S17:** S5/G17 checks OPEN vs closed and
+            closed vs nonclosed current status; ignores historical tails. 20 regression tests pass.
       - [ ] **DS-12** → **P1-13** — (Low) settings values lose leading/trailing whitespace on round trip.
       - [x] **DS-13** → **P1-32** — **closed S17:** `/optimize` checks the response buffer
             for GIF87a/GIF89a before success; invalid signatures get JSON 422. Transport 53/53;

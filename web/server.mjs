@@ -41,6 +41,7 @@ import { join, extname, normalize, resolve, dirname, basename } from "node:path"
 import { fileURLToPath } from "node:url";
 import { buildArgs, shellQuote } from "./command.mjs";
 import { validate } from "./validate.mjs";
+import { hasGifMagic, snapshotOutput, verifyOutput } from "./output-verify.mjs";
 import { uploadNameError, outputNameKey, requestPath } from "./run-paths.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url)); // web/
@@ -227,6 +228,8 @@ async function handleOptimize(req, res, url) {
 
     const s = { ...settings, inputs: [inFile], output: outFile };
     const argv = [engine, ...buildArgs(s)];
+    const before = await snapshotOutput(outFile);
+    if (before.error) { sendJson(res, 422, { ok: false, error: before.error }); return; }
     const result = await run(argv);
 
     if (result.code !== 0) {
@@ -238,35 +241,13 @@ async function handleOptimize(req, res, url) {
       return;
     }
 
-    // U-24: rc=0 does not prove a GIF was written. Reading a missing file used
-    // to throw ENOENT into the generic catch and surface as a 500; the desktop
-    // app has verified its output before claiming success since S4, and the
-    // demo has to be just as honest.
-    let outBytes;
-    try {
-      outBytes = await readFile(outFile);
-    } catch {
-      outBytes = null;
-    }
-    if (!outBytes || outBytes.length === 0) {
-      res.writeHead(422, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({
-        ok: false, exitCode: 0,
-        stderr: "the engine exited 0 but produced no output file",
-        command: argv.map(shellQuote).join(" "),
-      }));
+    const verified = await verifyOutput(outFile, before);
+    if (verified.error) {
+      sendJson(res, 422, { ok: false, exitCode: 0, stderr: verified.error,
+        command: argv.map(shellQuote).join(" ") });
       return;
     }
-    // DS-13: inspect the exact buffer we will serve, not a second file read.
-    // This is a signature check, not a full GIF decoder/integrity validator.
-    if (!hasGifMagic(outBytes)) {
-      sendJson(res, 422, {
-        ok: false, exitCode: 0,
-        stderr: "the engine exited 0 but produced invalid GIF output (expected GIF87a or GIF89a signature)",
-        command: argv.map(shellQuote).join(" "),
-      });
-      return;
-    }
+    const outBytes = verified.data;  // serve the exact verified buffer
     res.writeHead(200, {
       "Content-Type": "image/gif",
       "Content-Disposition": 'attachment; filename="gifscythe-opt.gif"',
@@ -313,11 +294,6 @@ const stemOf = (name) => {
   const i = String(name).lastIndexOf(".");
   return i > 0 ? String(name).slice(0, i) : String(name);
 };
-
-// Shared signature rule for response buffers and explode frame files.
-const hasGifMagic = (buf) => buf.length >= 6
-  && (buf.subarray(0, 6).equals(Buffer.from("GIF87a"))
-      || buf.subarray(0, 6).equals(Buffer.from("GIF89a")));
 
 const isGifMagic = async (path) => {
   let fh;
@@ -499,6 +475,11 @@ async function handleRun(req, res) {
     let outBytes = 0;
 
     const runOne = async (s, outPath, label) => {
+      const before = await snapshotOutput(outPath);
+      if (before.error) {
+        sendJson(res, 422, { ok: false, error: before.error, file: label });
+        return false;
+      }
       const argv = [engine, ...buildArgs(s)];
       commands.push(quote(argv));
       const result = await run(argv);
@@ -509,18 +490,14 @@ async function handleRun(req, res) {
         });
         return false;
       }
-      // rc=0 does not prove output (audit U-24, desktop parity).
-      let st = null;
-      try { st = await stat(outPath); } catch { st = null; }
-      if (!st || st.size === 0) {
-        sendJson(res, 422, {
-          ok: false, exitCode: 0, file: label, command: quote(argv),
-          stderr: "the engine exited 0 but produced no output file",
-        });
+      const verified = await verifyOutput(outPath, before);
+      if (verified.error) {
+        sendJson(res, 422, { ok: false, exitCode: 0, file: label,
+          command: quote(argv), stderr: verified.error });
         return false;
       }
-      outputs.push({ name: basename(outPath), path: outPath });
-      outBytes += st.size;
+      outputs.push({ name: basename(outPath), path: outPath, data: verified.data });
+      outBytes += verified.data.length;
       return true;
     };
 
@@ -577,7 +554,7 @@ async function handleRun(req, res) {
 
     const out = [];
     for (const o of outputs) {
-      const data = await readFile(o.path);
+      const data = o.data ?? await readFile(o.path);
       out.push({ name: o.name, bytes: data.length, data: data.toString("base64") });
     }
     sendJson(res, 200, { ok: true, mode, outputs: out, commands, inBytes, outBytes });

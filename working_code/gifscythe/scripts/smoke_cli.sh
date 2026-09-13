@@ -438,5 +438,43 @@ if [[ "$rc" -eq 0 ]] && cmp -s "$WORK/env_empty.gif" "$WORK/direct.gif" \
   ok "GS-207 empty override preserves PATH discovery"
 else bad "GS-207 empty override did not discover PATH engine"; fi
 
+# GS-203 file-output postconditions. Fake engines are real processes; an old
+# valid output must not make an exit-zero/no-write process appear successful.
+if "$self/scripts/test_output_verify.sh" >"$WORK/verifier-unit.log" 2>&1; then
+  ok "GS-203 core output snapshot/signature assertions"
+else bad "GS-203 core output verifier: $(cat "$WORK/verifier-unit.log")"; fi
+printf '#!/bin/sh\nexit 0\n' > "$WORK/no-write-engine"
+chmod +x "$WORK/no-write-engine"
+cat > "$WORK/bogus-engine" <<'EOF'
+#!/bin/sh
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = -o ]; then shift; printf 'not a GIF' > "$1"; exit 0; fi
+  shift
+done
+exit 1
+EOF
+chmod +x "$WORK/bogus-engine"
+for mode in auto merge batch; do
+  cat > "$WORK/verify.conf" <<EOF
+mode = $mode
+input = $SRC_GIF
+output = $WORK/verify.gif
+EOF
+  for shape in missing stale bogus; do
+    rm -f "$WORK/verify.gif"
+    engine="$WORK/no-write-engine"
+    [[ "$shape" == stale ]] && cp "$SRC_GIF" "$WORK/verify.gif"
+    [[ "$shape" == bogus ]] && engine="$WORK/bogus-engine"
+    set +e
+    "$CLI" "$WORK/verify.conf" --run --engine "$engine" >"$WORK/verify.out" 2>"$WORK/verify.err"
+    rc=$?
+    set -e
+    if [[ "$rc" == 1 ]] && grep -q 'output verification failed' "$WORK/verify.err" \
+       && grep -Fq "$WORK/verify.gif" "$WORK/verify.err"; then
+      ok "GS-203 $mode refuses $shape output after engine exit zero"
+    else bad "GS-203 $mode/$shape wrong verdict (rc=$rc)"; fi
+  done
+done
+
 echo "==> Done. $PASS passed, $FAIL failed."
 [[ "$FAIL" -eq 0 ]]

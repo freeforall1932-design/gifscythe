@@ -18,6 +18,21 @@
 
 set -euo pipefail
 
+TARGET=native
+EXE="gifsicle"
+want_help=0
+for arg in "$@"; do
+  case "$arg" in
+    --windows) TARGET=windows; EXE="gifsicle.exe" ;;
+    -h|--help) want_help=1 ;;
+    *) echo "ERROR: unknown argument '$arg'" >&2; exit 2 ;;
+  esac
+done
+if [[ "$want_help" == 1 ]]; then
+  echo "usage: build_engine.sh [--windows]"
+  exit 0
+fi
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SRC="$REPO_ROOT/reference_code/gifsicle"
 OUT="$REPO_ROOT/working_code/gifscythe/release"
@@ -28,13 +43,6 @@ VERSION="$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' \
   | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
 VERSION="${VERSION:-0.1.0}"
 ENGINE_VERSION="1.96"
-
-TARGET=native
-EXE="gifsicle"
-if [[ "${1:-}" == "--windows" ]]; then
-  TARGET=windows
-  EXE="gifsicle.exe"
-fi
 
 echo "==> Building gifsicle engine (target: $TARGET, product: $VERSION, engine: $ENGINE_VERSION)"
 
