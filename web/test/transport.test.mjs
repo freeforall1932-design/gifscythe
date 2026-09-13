@@ -24,9 +24,16 @@
 // Run:  node web/test/transport.test.mjs   (after ./build.sh)
 
 import { spawn } from "node:child_process";
+import assert from "node:assert/strict";
+import { snapshotOutput, verifyOutput } from "../output-verify.mjs";
+import { once } from "node:events";
+import { mkdtemp, mkdir, readFile, writeFile, readdir, rm, copyFile, chmod, utimes } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { assertContainedPath, requestPath, uploadNameError } from "../run-paths.mjs";
 import { createServer } from "node:net";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SERVER = join(__dirname, "..", "server.mjs");
@@ -165,9 +172,77 @@ const cases = [
     expect: { status: 200 } },
 ];
 
+// Isolate even the PRE-FIX traversal reproduction inside this test's temp root.
+// Instrument actual spawn calls using a Node preload (no shell wrapper, no fake
+// engine for GS-202): refusals must precede ANY engine launch, including batch item 1.
+const testRoot = await mkdtemp(join(tmpdir(), "gsweb-security-test-"));
+const requestRoot = join(testRoot, "requests");
+await mkdir(requestRoot);
+const launchLog = join(testRoot, "launches.jsonl");
+await writeFile(launchLog, "");
+// DS-13 fixture is a REAL child process writing controlled output. Only the
+// test preload redirects marked requests to it; production has no test hook.
+const gif87 = Buffer.concat([GIF.subarray(0, 19), GIF.subarray(27)]);
+gif87.write("GIF87a", 0, "ascii");
+const outputCases = [
+  { name: "text", bytes: Buffer.from("not a GIF"), status: 422 },
+  { name: "PNG", bytes: Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), status: 422 },
+  { name: "truncated signature", bytes: Buffer.from("GIF89"), status: 422 },
+  { name: "wrong version", bytes: Buffer.from("GIF88a..."), status: 422 },
+  { name: "wrong signature suffix", bytes: Buffer.from("GIF89b..."), status: 422 },
+  { name: "lowercase signature", bytes: Buffer.from("gif89a..."), status: 422 },
+  { name: "valid GIF87a", bytes: gif87, status: 200 },
+  { name: "valid GIF89a", bytes: GIF, status: 200 },
+  { name: "missing output", bytes: null, status: 422, noOutput: true },
+  { name: "empty output", bytes: Buffer.alloc(0), status: 422, noOutput: true },
+  { name: "nonzero exit with valid GIF", bytes: GIF, status: 422, exitCode: 7 },
+];
+const outputFixture = join(testRoot, "output-engine.mjs");
+await writeFile(outputFixture, `
+import { writeFile } from "node:fs/promises";
+const fixtures = ${JSON.stringify(outputCases.map((c) => ({ data: c.bytes?.toString("base64") ?? null, code: c.exitCode || 0 })))};
+const [outPath, index] = process.argv.slice(2);
+const fixture = fixtures[Number(index)];
+if (fixture.data !== null) await writeFile(outPath, Buffer.from(fixture.data, "base64"));
+if (fixture.code) process.stderr.write("fixture engine failed");
+process.exitCode = fixture.code;
+`);
+const preload = join(testRoot, "record-spawn.mjs");
+await writeFile(preload, `
+import cp from "node:child_process";
+import { appendFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+const spawn = cp.spawn;
+cp.spawn = (...args) => {
+  appendFileSync(process.env.GS_TEST_SPAWN_LOG, JSON.stringify(args.slice(0, 2)) + "\\n");
+  const argv = args[1] || [];
+  const comment = argv[argv.indexOf("--comment") + 1];
+  if (argv.includes("--comment") && /^DS13-output:[0-9]+$/.test(comment)) {
+    return spawn(process.execPath, [process.env.GS_TEST_OUTPUT_FIXTURE,
+      argv[argv.indexOf("-o") + 1], comment.slice("DS13-output:".length)], args[2]);
+  }
+  return spawn(...args);
+};
+syncBuiltinESMExports();
+`);
+const launches = () => readFile(launchLog, "utf8");
+// res.end precedes the server's asynchronous finally/rm. Wait for that cleanup,
+// rather than racing it and treating a transient request directory as a leak.
+async function leftoversExcept(allowed) {
+  const deadline = Date.now() + 3000;
+  let extra;
+  do {
+    extra = (await readdir(requestRoot)).filter((name) => !allowed.includes(name));
+    if (!extra.length) return extra;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  } while (Date.now() < deadline);
+  return extra;
+}
 const port = await freePort();
-const child = spawn(process.execPath, [SERVER, String(port)], {
+const child = spawn(process.execPath, ["--import", pathToFileURL(preload).href, SERVER, String(port)], {
   stdio: ["ignore", "pipe", "pipe"],
+  env: { ...process.env, GS_WEB_HOST: "127.0.0.1", GS_TEST_SPAWN_LOG: launchLog, GS_TEST_OUTPUT_FIXTURE: outputFixture,
+         TMPDIR: requestRoot, TMP: requestRoot, TEMP: requestRoot },
 });
 let serverLog = "";
 child.stdout.on("data", (d) => { serverLog += d; });
@@ -230,6 +305,112 @@ try {
       } else console.log(`PASS ${name}`);
     };
     const decode = (b64) => Buffer.from(b64, "base64");
+
+    // GS-202 / P0-6: independently exercise the final containment guard, even
+    // though name admission makes these escapes unreachable through the API.
+    {
+      const p = [];
+      try {
+        for (const [paths, root, childName, escapes] of [
+          [path.posix, "/tmp/gsweb-private", "/tmp/gsweb-private/out.gif",
+            ["/tmp/gsweb-private", "/tmp/gsweb-private-other/out.gif", "/tmp/out.gif",
+             "/tmp/gsweb-private/../out.gif"]],
+          [path.win32, "C:\\Temp\\gsweb-private", "C:\\Temp\\gsweb-private\\out.gif",
+            ["C:\\Temp\\gsweb-private", "C:\\Temp\\gsweb-private-other\\out.gif",
+             "C:\\Temp\\gsweb-private\\..\\out.gif", "D:\\out.gif", "\\\\server\\share\\out.gif"]],
+          [path.win32, "\\\\server\\share\\gsweb-private", "\\\\server\\share\\gsweb-private\\out.gif",
+            ["\\\\server\\other\\out.gif", "\\\\server\\share\\gsweb-private-other\\out.gif"]],
+        ]) {
+          assert.equal(assertContainedPath(root, childName, paths), paths.resolve(childName));
+          for (const target of escapes) assert.throws(() => assertContainedPath(root, target, paths));
+        }
+        assert.equal(uploadNameError("作品 café.gif"), null);
+        assert.equal(requestPath(requestRoot, "作品 café_opt.gif"), join(requestRoot, "作品 café_opt.gif"));
+        for (const name of ["../escape.gif", "..\\escape.gif", "C:escape.gif", "a\0.gif", ".", ".."]) {
+          assert.throws(() => requestPath(requestRoot, name));
+        }
+      } catch (err) { p.push(String(err)); }
+      t("GS-202 final containment guard (POSIX, Windows drives and UNC)", p);
+    }
+
+    // Sentinels are OUTSIDE every gsweb-* request dir, but inside testRoot.
+    // The old server overwrites the first two with Auto/Batch or Explode.
+    const sentinels = ["gs202-victim_opt.gif", "gs202-victim_frame.000"];
+    const sentinelBytes = Buffer.from("DO NOT OVERWRITE: GS-202 outside request directory");
+    for (const name of sentinels) await writeFile(join(requestRoot, name), sentinelBytes);
+    const unsafeNames = [
+      "../gs202-victim.gif", "..\\gs202-victim.gif", "nested/clip.gif", "nested\\clip.gif",
+      join(requestRoot, "absolute.gif"), "C:\\Temp\\clip.gif", "C:clip.gif", "\\\\server\\share\\clip.gif",
+      ".", "..", "clip\0.gif", "clip\n.gif", "clip.gif:stream", "clip.gif.", "clip.gif ",
+      "CON.gif", "LPT1.gif", "COM¹.gif", "clip<1>.gif", "clip?.gif", "clip*.gif",
+      "clip|x.gif", 'clip"x.gif', "clip\u007f.gif", "clip\ud800.gif",
+    ];
+    for (const mode of ["auto", "batch", "merge", "explode"]) {
+      for (const name of sentinels) await writeFile(join(requestRoot, name), sentinelBytes);
+      const p = [];
+      const beforeLaunches = await launches();
+      for (const name of unsafeNames) {
+        // Put the malicious item LAST: the entire batch must be refused before
+        // even the first, valid item's engine can run.
+        const files = mode === "batch" || mode === "merge"
+          ? [gifFile("safe.gif"), gifFile(name)] : [gifFile(name)];
+        const r = await postRun(port, { mode }, files);
+        if (r.status !== 400 || !String(r.json?.error || "").includes("invalid upload name")) {
+          p.push(`${JSON.stringify(name)}: expected named 400, got ${r.status} ${JSON.stringify(r.json)}`);
+        }
+      }
+      if (await launches() !== beforeLaunches) p.push("invalid request launched the engine");
+      for (const name of sentinels) {
+        if (!(await readFile(join(requestRoot, name))).equals(sentinelBytes)) p.push(`outside sentinel changed: ${name}`);
+      }
+      const leftovers = await leftoversExcept(sentinels);
+      if (leftovers.length) p.push(`uncontained writes / leaked temp directories: ${leftovers.join(", ")}`);
+      t(`GS-202 ${mode}: unsafe names refused before engine, no outside writes`, p);
+      // Keep mutations independent when running this net against the old server.
+      for (const name of leftovers) await rm(join(requestRoot, name), { recursive: true, force: true });
+    }
+
+    for (const [label, names, error] of [
+      ["case-only target collision", ["Clip.gif", "clip.GIF"], "would both write"],
+      ["case-only source collision", ["Clip.gif", "CLIP_OPT.GIF"], "overwrite the uploaded file"],
+      ["Unicode normalized target collision", ["café.gif", "cafe\u0301.gif"], "would both write"],
+    ]) {
+      const beforeLaunches = await launches();
+      const r = await postRun(port, { mode: "batch" }, names.map(gifFile));
+      const p = [];
+      if (r.status !== 422 || !String(r.json?.error || "").includes(error)) p.push(`response ${r.status}: ${JSON.stringify(r.json)}`);
+      if (await launches() !== beforeLaunches) p.push("collision launched the engine");
+      t(`GS-202 batch: ${label} refused before any run`, p);
+    }
+
+    // Valid names (spaces, Unicode, multiple dots, literal percent encoding,
+    // leading dash) stay usable; settings cannot replace server-owned paths.
+    for (const mode of ["auto", "batch", "merge", "explode"]) {
+      const beforeLaunches = await launches();
+      const files = mode === "batch"
+        ? ["作品 café.v2.gif", "%2e%2e%2fclip.gif", "-clip.gif", "🎉.gif"].map(gifFile)
+        : [gifFile("作品 café.v2.gif")];
+      const r = await postRun(port, { mode, output: "../forbidden.gif", inputs: ["../forbidden.gif"] }, files);
+      const expected = mode === "merge" ? ["merged.gif"]
+        : mode === "explode" ? ["作品 café.v2_frame.000"]
+        : files.map((f) => f.name.slice(0, -4) + "_opt.gif");
+      const p = [];
+      if (r.status !== 200 || JSON.stringify(r.json?.outputs?.map((o) => o.name)) !== JSON.stringify(expected)) {
+        p.push(`response ${r.status}: ${JSON.stringify(r.json)}`);
+      }
+      const log = (await launches()).slice(beforeLaunches.length).trim().split("\n").filter(Boolean);
+      if (log.length !== (mode === "batch" ? files.length : 1)) p.push("unexpected engine invocation count");
+      for (const line of log) {
+        const [, argv] = JSON.parse(line);
+        const target = argv[argv.indexOf("-o") + 1];
+        const rel = path.relative(requestRoot, target);
+        if (path.isAbsolute(rel) || rel.startsWith("..") || !rel.startsWith("gsweb-") || rel.split(path.sep).length !== 2) {
+          p.push(`uncontained engine output/prefix: ${target}`);
+        }
+      }
+      if ((await leftoversExcept(sentinels)).length) p.push("request files not cleaned up");
+      t(`GS-202 ${mode}: valid names preserved and engine target contained`, p);
+    }
 
     // auto: exactly one file -> one <stem>_opt.gif output
     let r = await postRun(port, { mode: "auto", optimize_level: 2 }, [gifFile("in.gif")]);
@@ -312,6 +493,150 @@ try {
     t("U-41 /run refuses out-of-range settings before any run", p);
   }
 
+  // DS-13: test the actual HTTP response, not only a predicate. Invalid output
+  // must never carry successful GIF headers/body; missing/empty and exit failures
+  // keep their established diagnostics. The existing cases use the real engine.
+  for (const [index, c] of outputCases.entries()) {
+    const r = await post(port, { comments: [`DS13-output:${index}`] });
+    const problems = [];
+    if (r.status !== c.status) problems.push(`status ${r.status} != ${c.status}`);
+    if (c.status === 200) {
+      if (!r.type.startsWith("image/gif")) problems.push(`type ${r.type}`);
+      if (!r.body.equals(c.bytes)) problems.push("valid output buffer changed");
+      if (!r.command?.includes(`DS13-output:${index}`)) problems.push("missing success metadata");
+    } else {
+      if (!r.type.startsWith("application/json") || r.json?.ok !== false) problems.push("failure is not ok:false JSON");
+      if (r.json?.exitCode !== (c.exitCode || 0)) problems.push(`exitCode ${r.json?.exitCode}`);
+      const expected = c.exitCode ? "fixture engine failed"
+        : c.noOutput ? "produced no output file" : "invalid GIF output";
+      if (!String(r.json?.stderr || "").includes(expected)) problems.push(`stderr ${r.json?.stderr}`);
+      if (!r.json?.command?.includes(`DS13-output:${index}`)) problems.push("missing diagnostic command");
+      if (r.command) problems.push("failure exposes success command header");
+    }
+    if (problems.length) {
+      failures++;
+      console.log(`FAIL DS-13 ${c.name}\n       ${problems.join("; ")}`);
+    } else console.log(`PASS DS-13 ${c.name}`);
+  }
+
+  // GS-203 shared JS postcondition: including unchanged existing outputs,
+  // which fresh per-request directories normally make unreachable via HTTP.
+  try {
+    const file = join(testRoot, "verify.gif");
+    const absent = await snapshotOutput(file);
+    assert.ok((await verifyOutput(file, absent)).error);
+    await writeFile(file, GIF);
+    assert.equal((await verifyOutput(file, absent)).error, null);
+    const before = await snapshotOutput(file);
+    assert.match((await verifyOutput(file, before)).error, /unchanged/);
+    const future = new Date(Date.now() + 5000);
+    await utimes(file, future, future);
+    assert.equal((await verifyOutput(file, before)).error, null);
+    assert.ok((await snapshotOutput(testRoot)).error);
+    await rm(file);
+    console.log("PASS GS-203 snapshot/unchanged/refreshed metadata rule");
+  } catch (err) { failures++; console.log(`FAIL GS-203 snapshot rule: ${err}`); }
+  for (const mode of ["auto", "batch", "merge"]) {
+    const problems = [];
+    for (const [index, c] of outputCases.entries()) {
+      const r = await postRun(port, { mode, comments: [`DS13-output:${index}`] }, [gifFile("clip.gif")]);
+      if (r.status !== c.status) problems.push(`${c.name}: ${r.status} != ${c.status}`);
+      if (c.status === 422 && (r.json?.ok !== false || r.json?.exitCode !== (c.exitCode || 0)))
+        problems.push(`${c.name}: dishonest failure ${JSON.stringify(r.json)}`);
+      if (c.status === 200 && !Buffer.from(r.json?.outputs?.[0]?.data || "", "base64").equals(c.bytes))
+        problems.push(`${c.name}: response differs from verified buffer`);
+    }
+    if (problems.length) { failures++; console.log(`FAIL GS-203 ${mode}: ${problems.join("; ")}`); }
+    else console.log(`PASS GS-203 ${mode} output fixtures (11 cases)`);
+  }
+
+  // GS-207: a good fallback engine is available throughout these tests. Each
+  // server gets its own explicit environment; the spawn log proves invalid
+  // overrides never launch either the requested path OR a fallback.
+  const actualEngine = JSON.parse((await launches()).trim().split("\n")[0])[0];
+  const engineDir = join(testRoot, "engine choice");
+  await mkdir(engineDir);
+  const selectedEngine = join(engineDir, process.platform === "win32" ? "selected engine.exe" : "selected engine");
+  await copyFile(actualEngine, selectedEngine);
+  await chmod(selectedEngine, 0o755);
+  const noExec = join(testRoot, "non-executable");
+  await writeFile(noExec, "not executable");
+  await chmod(noExec, 0o600);
+
+  async function withEngine(override, check) {
+    const p = await freePort();
+    const env = { ...process.env, GS_WEB_HOST: "127.0.0.1", GS_TEST_SPAWN_LOG: launchLog,
+      GS_TEST_OUTPUT_FIXTURE: outputFixture, TMPDIR: requestRoot, TMP: requestRoot, TEMP: requestRoot };
+    if (override === undefined) delete env.GS_ENGINE;
+    else env.GS_ENGINE = override;
+    const server = spawn(process.execPath, ["--import", pathToFileURL(preload).href, SERVER, String(p)],
+      { cwd: testRoot, env, stdio: ["ignore", "pipe", "pipe"] });
+    let log = "";
+    server.stdout.on("data", (d) => { log += d; });
+    server.stderr.on("data", (d) => { log += d; });
+    try {
+      await waitForServer(p);
+      await check(p, () => log);
+    } finally {
+      const closed = once(server, "close");
+      server.kill("SIGKILL");
+      if (server.exitCode === null && server.signalCode === null) await closed;
+    }
+  }
+  async function engineCheck(name, override, check) {
+    try {
+      await withEngine(override, check);
+      console.log(`PASS GS-207 ${name}`);
+    } catch (err) {
+      failures++;
+      console.log(`FAIL GS-207 ${name}\n       ${err}`);
+    }
+  }
+  async function refused(p, override) {
+    const before = await launches();
+    const responses = [await post(p, {}), await postRun(p, { mode: "auto" }, [gifFile("clip.gif")])];
+    for (const r of responses) {
+      assert.equal(r.status, 503, JSON.stringify(r.json));
+      assert.equal(r.json?.ok, false);
+      assert.match(r.json?.error || "", /GS_ENGINE.*refusing automatic fallback/);
+      assert.ok(r.json.error.includes(JSON.stringify(override)));
+    }
+    assert.equal(await launches(), before, "invalid override launched an engine");
+  }
+  for (const [name, override] of [
+    ["missing override", join(testRoot, "missing-engine")],
+    ["directory override", engineDir],
+    ["bare override is exact, not a PATH search", "gifsicle"],
+    ["whitespace is not an empty override", "   "],
+    ...(process.platform === "win32" ? [] : [["non-executable override", noExec]]),
+  ]) {
+    await engineCheck(name, override, async (p, log) => {
+      await refused(p, override);
+      assert.match(log(), /Engine \[GS_ENGINE\]: ERROR:/);
+      assert.ok(log().includes(JSON.stringify(override)), "startup diagnostic omits the override");
+    });
+  }
+  for (const [name, override, source] of [
+    ["valid absolute override with spaces", selectedEngine, "GS_ENGINE"],
+    ["valid relative override with spaces", path.relative(testRoot, selectedEngine), "GS_ENGINE"],
+    ["unset override preserves release discovery", undefined, "release"],
+    ["empty override preserves release discovery", "", "release"],
+  ]) {
+    await engineCheck(name, override, async (p, log) => {
+      const before = await launches();
+      const responses = [await post(p, {}), await postRun(p, { mode: "auto" }, [gifFile("clip.gif")])];
+      for (const r of responses) assert.equal(r.status, 200, JSON.stringify(r.json));
+      const entries = (await launches()).slice(before.length).trim().split("\n").map(JSON.parse);
+      assert.equal(entries.length, 2);
+      if (source === "GS_ENGINE") for (const [engine] of entries) assert.equal(engine, selectedEngine);
+      assert.ok(log().includes(`Engine [${source}]:`), "startup log omits the selected source");
+    });
+  }
+  await engineCheck("override removed after startup still refuses fallback", selectedEngine, async (p) => {
+    await rm(selectedEngine);
+    await refused(p, selectedEngine);
+  });
+
   // Malformed JSON must stay a 400 and must NOT be swallowed into a 500.
   for (const [name, raw] of [
     ["malformed settings JSON -> 400", "{not json"],
@@ -342,7 +667,10 @@ try {
   failures++;
   console.log(`FAIL harness error: ${err}\n--- server log ---\n${serverLog}`);
 } finally {
+  const closed = once(child, "close");
   child.kill("SIGKILL");
+  if (child.exitCode === null && child.signalCode === null) await closed;
+  await rm(testRoot, { recursive: true, force: true });
 }
 
 if (failures === 0) {

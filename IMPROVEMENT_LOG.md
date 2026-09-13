@@ -4,6 +4,212 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S17 continuation — sequential DS-11 / GS-210 / GS-204 / GS-203 (2026-09-13)
+
+**Authorization:** owner requested highest→high confidence sequential work, medium/
+low portions handed to another agent, followed by PR creation (not merge).
+
+1. **DS-11 DONE:** leading-current-status S5 checks both OPEN-vs-closed and
+   closed-vs-nonclosed, prefers explicit §5 references, ignores historical tails,
+   and fails uncheckable claims/Python errors. Four current status references made
+   explicit. **20 tests pass**; baseline falsely passes all **3** OPEN-vs-fixed variants.
+2. **GS-210 PARTIAL:** both entry points validate all args before consuming files,
+   tools, logs or hooks; unknown rc=2/help rc=0. **12 cases pass**, and all **12**
+   fail against original scripts. Native build **296/0**; qmake-first selection and
+   hardcoded `.pro` version are unchanged and handed off.
+3. **GS-204 PARTIAL:** both package types share fresh private staging and required
+   non-empty manifests. Explicit headless omits GUI, target extension selection
+   avoids native/Windows filename mixing, portable Windows GUI requires a working
+   deployer plus key runtime/plugin entries. **30 checks pass on Linux**; real
+   engine/CLI artifact tests are isolated so CI's GUI package is preserved. Baseline
+   system packager returns zero with no binaries. Synthetic Windows files/deployers
+   do not prove runtime deployment, architecture, complete licensing or release SHA.
+4. **GS-203 PARTIAL:** Qt-independent core and JS verifier require new or size/mtime-
+   changed non-empty regular GIF87a/89a-signature outputs. CLI ordinary explicit-file
+   runs and both web APIs use them; web serves the exact verified buffer. **Smoke
+   40/40** includes **12** core assertions; **transport 67/67** on Linux, with three
+   11-case ordinary-mode output-fixture groups. Original CLI fails all **9** missing/
+   stale/bogus probes; original server fails **3** mode groups (six invalid signatures
+   in each). Qt integration, stdout/info semantics, full decoding and rollback are
+   not changed. Metadata granularity can conservatively reject identical rewrites.
+
+**Handoff:** `docs/planning/SEQUENTIAL_WORK_HANDOFF.md` gives the three PARTIAL
+findings' remaining work, environment and acceptance tests. Registers/worklist and
+release blocker text updated without pretending Linux/synthetic proof closes Qt/
+Windows work. Review and sync of merged **PR #21** (`df1dfd5`) covers its OD-01
+triage, GS-201 stop-loss and G18/G16/P3b gates; header and PR ledger now agree.
+No version, workflow, template or other owner-decision change. F3/F4 add Python
+regressions to the local audit. Change review: **4 passed / 1 R1 flag / 0 skipped** — expected mandatory manual
+review for edited check logic, not suppressed. S5 baseline mutations and all 20
+regressions supply the proof; forced Python exit 44 produces FAIL in S5 and in
+both new F3/F4 gates.
+
+**Final executed local gates:** full audit **27 passed / 0 failed / 6 skipped**;
+docs **23 passed / 0 failed / 2 skipped**; sweep **5/0/0**. Audit includes native
+build/unit **296/0**, CLI smoke **40/40**, engine **5/5**, packaging **30/30**,
+web parity **17** / validation **23** and transport **67/67**. Skips remain missing
+Qt/CMake, declared workflow drift, remote CI and clean-Windows verification.
+Register regenerated: **87 DONE · 8 PARTIAL · 27 OPEN · 0 UNTRIAGED · 122 total**.
+
+---
+
+## S17 continuation — GS-207 / P1-29 strict engine overrides (2026-09-13)
+
+**Authorization:** owner approved the recommended GS-207 fix ("Let's go with that").
+Core resolver now returns a typed path/source/error result and stops on invalid
+non-empty GS_ENGINE. CLI print/run exit 1 naming the override; --engine remains
+higher priority and its prospective print-mode contract is unchanged. Run source
+logs go to stderr. Empty/unset preserves discovery, including CLI PATH fallback.
+POSIX checks require a regular file and access(X_OK); Windows regular files defer
+format/architecture errors to process launch, with no retry using another engine.
+The GUI compatibility wrapper still returns a string, empty on invalid overrides;
+no GUI source changed, but Qt/Windows runtime verification was not performed here.
+
+Web resolution now returns path/source/error too. Invalid overrides yield 503 on
+both APIs and a startup error naming GS_ENGINE (the static UI remains available).
+Valid startup logs identify GS_ENGINE/release; release discovery ignores unusable
+candidates when no override is set. Request-time resolution refuses fallback even
+if an initially valid override disappears after startup.
+
+**Executed:** build and unit suite 296 checks, 0 failures; CLI smoke **30/30**;
+web command **17**, validation **23**, transport **63/63** on Linux. Nine added
+CLI groups cover five invalid paths in print/run, absolute/relative space paths,
+--engine priority and empty/PATH discovery. Ten web groups cover both endpoints,
+actual subprocess counts, source logs, invalid/valid/empty/unset overrides and
+removal after startup. The POSIX non-executable-file group is omitted on Windows;
+Windows runtime not measured. Node syntax and diff whitespace checks pass.
+
+**Baseline proof:** compiled the pre-fix CLI from HEAD in an isolated scratch tree
+and ran the expanded smoke suite: 21 passing, 9 failing groups. All five invalid
+GS_ENGINE cases wrongly return zero in print/run; the four valid-path/priority/
+discovery groups additionally expose missing source logs. The pre-fix web server
+fails 10 groups: missing/removed overrides fall back, directories/non-executable
+files attempt spawn, and the source-log assertions are absent. Neither baseline
+was committed; scratch trees/files removed.
+
+**Final gates:** `verify_audit.sh` **25 passed, 0 failed, 6 skipped** (CMake/Qt
+C6/C9/B unavailable; E9 pending workflow; remote CI and clean-Windows smoke not
+run). Engine 5/5, packaging negatives and the full CLI/web suites reran green.
+Docs gate **23 passed, 0 failed, 2 skipped**; change review **4/0/1**.
+
+**Docs:** GS-207 marked DONE, STATUS header regenerated; worklist, audit §6/§13,
+root/product/web README, handoff, next-session prompt and template facts updated.
+Template stays SKELETON; no other finding or owner decision changed. No workflow,
+version, release, push, PR or merge.
+
+---
+
+## S17 continuation — DS-13 / P1-32 optimize output signature (2026-09-13)
+
+**Authorization:** owner approved proceeding with the recommended DS-13 fix.
+`/optimize` checks the exact response buffer for GIF87a or GIF89a before sending
+200. A non-empty buffer with an invalid signature gets JSON 422, exitCode 0,
+named diagnostic stderr and the command. Factored the signature predicate so
+explode-file verification uses the same rule; no second file read for optimize.
+Missing/empty output and nonzero engine exits retain their prior diagnostics.
+This is signature-only, not a full GIF decoder; GS-203 remains OPEN.
+
+**Executed proof:** transport **53/53**, up from 42. Eleven new cases run a real
+Node child that writes controlled output: text, PNG, truncated signature, wrong
+version/suffix/case, valid GIF87a/GIF89a, missing/empty output and nonzero exit.
+A test-only preload redirects marked spawns; production has no test hook. Existing
+cases still run gifsicle. The pre-fix server fails exactly **6 invalid-signature
+cases**, returning success where 422 is required. Temporary baseline files were
+removed. Web command parity **17**, validation parity **23** remain passing.
+Node syntax checks and `git diff --check` pass.
+
+**Final gates:** `verify_audit.sh` **25 passed, 0 failed, 6 skipped** (C6/C9/B
+require CMake/Qt; E9 pending workflow; remote CI and clean-Windows smoke not run).
+`check_docs.sh` **23 passed, 0 failed, 2 skipped**; change review **4/0/1**.
+The audit also reran the engine/CLI/unit build, engine 5/5, smoke 21/21,
+packaging negatives and all three web suites successfully.
+
+**Docs:** DS-13 marked DONE; STATUS header regenerated; worklist, audit §6/§13,
+handoff, next-session prompt, root/web READMEs and template facts updated. Earlier
+GS-202 proof counts remain historical; the live suite is now 53 check groups.
+Template stays SKELETON. No workflow, version, release, push, PR or merge changes.
+
+---
+
+## S17 continuation — GS-202 / P0-6 web path containment (2026-09-13)
+
+**Authorization:** owner said "Do that" to the recommended GS-202 security fix.
+No other product decision or finding was included.
+
+**Changed:** `web/run-paths.mjs` defines portable name admission (reject, not
+sanitize), independent resolved-path containment, and conservative case/NFC
+collision keys. `/run` validates every upload name before engine lookup, resolves
+all output targets/prefixes before upload writes or engine launch, then executes
+the locked plan. Batch target/target and target/source comparisons are no longer
+case-sensitive. Neutral input paths and returned explode-frame paths also use the
+guard. Spaces, Unicode, emoji and literal percent sequences remain supported;
+client settings cannot replace server-owned input/output paths.
+
+**Regression evidence:** expanded the existing CI-gated transport suite from 30 to
+42 check groups, including 100 invalid-name requests across all modes, a Node preload
+logging actual subprocess launches, two outside-request sentinel files, case/NFC
+collision cases, valid-name runs and direct POSIX/Windows-drive/UNC guard assertions.
+Tests isolate TMPDIR/TMP/TEMP in a disposable test root, so baseline escape attempts
+cannot touch unrelated files. Cleanup assertions wait for asynchronous server cleanup.
+
+The unmodified pre-fix server fails **7 security groups**: it launches the engine for
+unsafe requests, overwrites the Auto/Batch and Explode sentinels outside its request
+directory, and accepts case/NFC collisions. The fixed server passes **42/42** and
+preserves both sentinels. Independently disabling the containment predicate fails
+its direct guard group (the other 41 remain passing). Scratch mutations were removed.
+
+**Other executed checks:** build + C++ unit 296 checks / 0 failures; engine 5/5;
+CLI smoke 21/21; package negatives 9/9; web command 17, validation 23; N-07 sweep
+regressions 14 tests; Node syntax checks and `git diff --check` pass. Windows path
+semantics tested with Node path.win32 on Linux, not a real Windows GUI/runtime run.
+
+**Final gates (executed after the local commit):** `verify_audit.sh` **25 passed,
+0 failed, 6 skipped** in this non-Qt/non-CMake sandbox (C6/C9/B, pending E9,
+remote CI and clean-Windows smoke skipped). `check_docs.sh` **23 passed,
+0 failed, 2 skipped** (G6 full-toolchain measurement and pending G7).
+`review_change.sh --report`: **4 passed, 0 failed, 1 skipped** (no gate script edit).
+
+**Scope and docs:** GS-202 marked DONE; register header regenerated. Audit §6/§13,
+worklist, handoff, next-session prompt, root/web README and template current-state
+facts updated; template still SKELETON. Remaining GS-203/DS-13 output verification,
+U-06 resource limits, licensing/release work and owner decisions are unchanged.
+The containment guarantee assumes a trusted engine and private temp directory; it
+is not a sandbox against arbitrary engine code or hostile local symlink writers.
+No workflow edit, version bump, push, PR, or merge.
+
+---
+
+## S17 — N-07 / P2-15: standalone UNTRIAGED count check (2026-09-13)
+
+**Selected work:** the owner asked to choose and immediately execute a job within current
+capabilities. Chose documentation tooling, leaving product decisions OD-03…OD-15 untouched.
+
+**Changed:** extended sweep S2 to check standalone numeric UNTRIAGED counts against the
+STATUS.md generated counts line, not just a full four-state tally. Inline Markdown and
+line wraps work; paragraph boundaries and token boundaries prevent unrelated matches.
+Failures name file:line and reference count; malformed reference counts fail closed.
+Historical corpus exclusions and `--report` semantics are unchanged. S4 is still a
+fixed five-phrase list, not a general natural-language reversal detector. Unnumbered
+claims remain a review responsibility; N-07 is closed for the scoped P2-15 count check.
+
+**Executed evidence:** `python3 working_code/gifscythe/tests/test_sweep_stale.py`:
+14 tests passed (including subcases for formatting and the existing full-tally check).
+Tests invoke the real sweep in temporary Git repositories and assert no Markdown writes.
+The stale standalone and changed-reference probes both fail against the pre-fix script:
+it returns zero instead of one. The patched script rejects both. Live sweep: 5 passed,
+0 failed, 0 skipped. `bash -n` and `git diff --check` pass.
+
+**Review:** `review_change.sh --report` flags R1 because S2 check logic changed;
+this is expected, not waived: the baseline-negative and patched-positive mutations
+above supply its required proof. R2/R3/R4 pass. R5 obligations addressed in the handoff,
+worklist, this log, and STATUS (hand-maintained N-07 row; header regenerated by `--emit`).
+P2-15 now also has its missing §6 fix-order row in COMPILED_AUDIT.md.
+
+No product source, CI workflow, release artifact, version, or owner decision was changed.
+No push, PR, or merge performed. All work remains on `arena/01a09934-gifscythe`.
+
+---
+
 ## S16 continuation — uncommitted-work hard rule (G18) + template content check (G16)  (2026-09-13)
 
 **Changed:**

@@ -62,33 +62,41 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       `COMPILED_AUDIT.md` §13 + `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`, and recorded
       row-by-row in `STATUS.md` under the reviewers' ids. **Triage is done**: the owner chose
       (a) all 18, and every row is now mapped to a `COMPILED_AUDIT.md` §6 fix-order id — 14 new
-      ids and 4 folded into actions that already covered them. The lines below stay unchecked:
-      they are the remediation work, one line per finding, each now naming its §6 id.
+      ids and 4 folded into actions that already covered them. Unchecked lines below are the remaining remediation work, one line per finding, each now naming its §6 id.
       - [x] **GS-201** → **P0-5** — (Critical) CLI Batch → engine `-b` can rewrite the source GIFs; cheap
             stop-loss = refuse `--run` with Batch and no `output` key. **Closed S16:** CLI `--run`
             exits 2 with a named reason before the engine starts; smoke 21/21; source GIF untouched.
-      - [ ] **GS-202** → **P0-6** — (High) web `/run` builds output paths from upload names; `../` escapes the
-            request temp dir.
-      - [ ] **GS-203** → **P1-25** — (High) ordinary runs claim success on exit 0 with no output verification
-            (CLI Explode-only, GUI/web existence+size).
-      - [ ] **GS-204** → **P1-26** — (High) packaging fail-open outside the portable happy path; negative tests
-            cover portable only.
+      - [x] **GS-202** → **P0-6** — **closed S17**: unsafe upload names refused with 400;
+            every resolved target/prefix contained before engine launch; case/NFC collisions
+            refused with 422. Transport 42/42; original server fails 7 security groups;
+            outside-request sentinels unchanged with the fix.
+      - [ ] **GS-203** → **P1-25** — **PARTIAL S17:** core/CLI explicit-file and web
+            postconditions implemented (smoke 40/40, transport 67/67 on Linux); Qt lifecycle
+            integration remains. See `docs/planning/SEQUENTIAL_WORK_HANDOFF.md`.
+      - [ ] **GS-204** → **P1-26** — **PARTIAL S17:** both packagers share verified fresh staging,
+            explicit targets/headless scope; 30 Linux checks pass. Real Qt/Windows deployment,
+            architecture and clean-machine verification remain; U-08/U-09 are not waived.
       - [ ] **GS-205** → **P1-27** — (Med) non-GIF inputs still admitted via the picker and drop.
       - [ ] **GS-206** → **P1-28** — (Med) `long`→`int` narrowing; no validation for loopcount/threads/gamma/enums.
-      - [ ] **GS-207** → **P1-29** — (Med) unusable `GS_ENGINE` silently falls back to another engine.
+      - [x] **GS-207** → **P1-29** — **closed S17:** invalid non-empty `GS_ENGINE`
+            refuses fallback (CLI print/run exit 1; web 503); source logged; empty/unset
+            preserves discovery and `--engine` has precedence. Smoke 30/30, web 63/63 on Linux.
       - [ ] **GS-208** → **P2-7** — (High, PARTIAL-fixed) main release-red; docs corrected in S14, workflow-copy
             sync + marker deletion still open (needs a `workflows`-scoped token).
       - [ ] **GS-209** → **P2-12** — (Med) native linux/mac build uses a fixed glibc config.
-      - [ ] **GS-210** → **P2-13** — (Low) build entry points ignore mistyped options; qmake tried before CMake.
+      - [ ] **GS-210** → **P2-13** — **PARTIAL S17:** strict arguments fixed (12 cases pass).
+            qmake-first dispatch and hardcoded .pro VERSION remain for a Qt-equipped agent.
       - [ ] **DS-06** → **P0-2** — (High) `threads <= 0` → bare `-j`; the `-1` sentinel now means 8 threads.
       - [ ] **DS-07** → **P1-30** — (Med) GUI threads spinner cannot express "no flag".
       - [ ] **DS-08** → **P3-5** — (Low) non-strict print mode exits 0 after warnings.
       - [ ] **DS-09** → **P1-31** — (Info) `threads < -1` accepted silently.
       - [ ] **DS-10** → **P3-11** — (Info) disposal 4..7 unreachable from the desktop picker.
-      - [ ] **DS-11** → **P2-14** — (Med, PARTIAL-fixed) audit narrative reconciled in S14; the mechanical gate
-            check that keeps it reconciled is still missing.
+      - [x] **DS-11** → **P2-14** — **closed S17:** S5/G17 checks OPEN vs closed and
+            closed vs nonclosed current status; ignores historical tails. 20 regression tests pass.
       - [ ] **DS-12** → **P1-13** — (Low) settings values lose leading/trailing whitespace on round trip.
-      - [ ] **DS-13** → **P1-32** — (Med) web `/optimize` serves non-GIF output as `200 image/gif`.
+      - [x] **DS-13** → **P1-32** — **closed S17:** `/optimize` checks the response buffer
+            for GIF87a/GIF89a before success; invalid signatures get JSON 422. Transport 53/53;
+            the pre-fix server fails all 6 invalid-signature cases. Not full GIF decoding.
 - [ ] **CI/infra (S14):** apply `docs/ci/build.yml.proposed` and delete
       `docs/ci/PENDING_WORKFLOW_CHANGE.md` in one commit — both copies then enforce
       byte-equality again (E9/G7). Needs a token with the `workflows` scope.
@@ -260,7 +268,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] **GS-201 (P0-5)** — CLI `--run` refuses Batch with no `output` (rc=2, named
       reason) before the engine starts. Engine `-b` rewrite confirmed (8703→8637 B);
       CLI left the source `cmp`-identical. Smoke **21/21**. Print still emits `-b`.
-- [x] **N-07 triaged to P2-15** (still OPEN) — S4 is a 5-phrase list, not a general
+- [x] **N-07 triaged to P2-15** (OPEN at S16; closed S17) — S4 is a 5-phrase list, not a general
       reversal detector. Sweep not changed this session.
 - [x] **SW-03** — uncommitted-work hard rule (**G18** dirty-tree FAIL in
       `check_docs.sh`; **P3b** unpushed FAIL in `pr_preflight.sh`) plus **G16**
@@ -422,7 +430,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [ ] **Owner draft:** refit the web plan into `web/WEB_PLAN_TEMPLATE.md` (slot-by-slot; §0
       rules). On that commit do the **one-time flip** — `Template state:` here and the mirror line
       in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it). The 18 intake rows were triaged
-      in S15; **GS-201 closed S16**.
+      in S15; **GS-201 closed S16, GS-202 closed S17**.
 - [ ] **Review, don't accept:** run `scripts/review_change.sh --pr <n>` (or `--commit`/`--patch`)
       on any change before merging it. R1 flags edited check logic, R2 flags a matcher that
       matches nothing (how G10 stayed dead for five PRs), R3 flags prose counts that disagree
@@ -432,12 +440,12 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       from that row's own options; `OD-15` runs `a`–`d`).
       **`OD-01 = a` and `OD-02 = a` are answered** (2026-09-12); the other 13 are direction
       choices the plan can proceed without.
-- [ ] **`N-07` → `P2-15` (found S15, triaged S16, still OPEN):** sweep **S4** matches 5 hardcoded
-      retired phrases, so it cannot catch a current-state doc that still says findings "stay
-      `UNTRIAGED`" after a triage empties the register. Measured S15: 4 such claims, sweep stayed
-      `5 passed, 0 failed` before *and* after correcting them by hand. Next: a rule that compares a
-      quoted `UNTRIAGED` count against `STATUS.md`'s generated counts line, or restate S4 as the
-      5-phrase list it is. Not closed by restating S4.
+- [x] **N-07 / P2-15 — closed S17 (2026-09-13):** S2 now checks standalone
+      numeric `UNTRIAGED` counts against the generated register, including Markdown
+      emphasis/backticks and line wraps. Fourteen isolated regression tests pass;
+      two stale-count probes demonstrably fail against the pre-fix sweep. S4 remains
+      the five-phrase retired-web-scope check, not a general prose reversal detector.
+      Unnumbered prose still needs review; this closes the scoped count-check action.
 - [x] **Execute `OD-01 = a` — done S15 (2026-09-13):** all 18 intake findings now carry a
       `COMPILED_AUDIT.md` §6 fix-order id (14 new, 4 folded into existing actions) and are `OPEN`
       in `STATUS.md`. Gate **G12** is unblocked: with no `UNTRIAGED` row left, the `## S15` entry
@@ -518,7 +526,7 @@ cd working_code/gifscythe
 node web/server.mjs 8000           # from the repo root; binds 127.0.0.1
 node web/test/command.test.mjs     # JS ⇄ C++ command parity (17 checks)
 node web/test/validate.test.mjs    # JS ⇄ C++ validation parity (21 checks)
-node web/test/transport.test.mjs   # live-server transport net (30 cases)
+node web/test/transport.test.mjs   # live-server transport net (63 check groups on Linux, S17)
 ```
 
 ## Do not

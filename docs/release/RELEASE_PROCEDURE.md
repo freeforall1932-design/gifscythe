@@ -12,10 +12,11 @@ anything done without evidence).
 ---
 
 
-## Open release-blocking items (as of 2026-09-13, session S16)
+## Open release-blocking items (as of 2026-09-13, session S17)
 
-**`main` is green** — run `34735692932` on merge commit `2542f1b` (PR #20) passes both jobs. Release
-is still **blocked by the items below**, not by CI. Do not cut a release until they are closed or
+Historical CI evidence: run `34735692932` on PR #20 merge `2542f1b` passed both jobs.
+PR #21 subsequently merged as `df1dfd5`; re-check the exact candidate SHA's CI rather than
+carrying forward that earlier green result. Release is still **blocked by the items below**. Do not cut a release until they are closed or
 explicitly waived by the owner.
 
 **S15 triaged the whole intake** (`OD-01 = a`). **S16 closed `GS-201` (P0-5)** — CLI `--run` now
@@ -24,7 +25,7 @@ them is still scheduled as **P0** (`DS-06`→**P0-2**).
 
 | Item | Why it blocks | Where the task lives |
 |---|---|---|
-| `GS-204` packaging fail-open | a "successful" package can be incomplete or mixed-platform | **P1-26** · `STATUS.md` · §13 · `working_code/gifscythe/scripts/test_package.sh` scope |
+| `GS-204` packaging (PARTIAL S17) | local stager/manifest fixes pass 30 checks; real Windows/Qt deployment, target architecture and clean-machine proof remain | **P1-26** · `STATUS.md` · `docs/planning/SEQUENTIAL_WORK_HANDOFF.md` |
 | `GS-208` red main / stale status docs | release evidence must come from a green exact SHA | **P2-7** · `docs/ci/PENDING_WORKFLOW_CHANGE.md` + this file's gate below |
 | `U-08` licence set incomplete | GPLv3 text and Qt notices are not staged | `STATUS.md` row (PARTIAL) · `LICENSE` |
 | `U-09` release re-cut | banked artifact SHA does not match the claimed source | `STATUS.md` row (OPEN) · `docs/ci/CLEAN_WINDOWS_SMOKE.md` |

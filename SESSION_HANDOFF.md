@@ -1,17 +1,16 @@
 # Session Handoff
 
-**Session:** S16 · **Date:** 2026-09-13
-**Branch:** `arena/s16-gifscythe` by convention — this session is tracked by the platform under its
-assigned id `arena/01a098ff-gifscythe`
-**PR #20 merged as `2542f1b`** (2026-09-13); post-merge `main` run `34735692932` is green on both
-jobs. This session's own PR number is *not* written here: a session cannot know it at write time,
+**Session:** S17 · **Date:** 2026-09-13
+**Branch:** `arena/01a09934-gifscythe` (platform-assigned; all S17 work stays here)
+**PR #21 merged as `df1dfd5`** (2026-09-13); merge status and diff reviewed with `gh` in S17.
+This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written here: a session cannot know it at write time,
 and guessing it is how stale claims get born.
-**Docs synced through:** PR #20 · branch `arena/01a09712-gifscythe` · merged as `2542f1b`
+**Docs synced through:** PR #21 · branch `arena/01a098ff-gifscythe` · merged as `df1dfd5`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares
 this against the newest merged PR and fails when a merge landed with no doc sync — that is the
 "we jumped a merge without updating any docs" case. Move this line as part of the sync, never
 before the writing is done.)*
-Based on `main` commit `2542f1b` ·
+Based on `main` commit `df1dfd5` ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
@@ -20,7 +19,7 @@ owner's draft is refitted into that template's slots — move both lines in the 
 =`SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back.
 Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (S16 continuation)
+## Next session — fast hand-off (after S17)
 
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
@@ -29,10 +28,8 @@ Inspect that content at every new-session start.)*
   measurement taken now (**R3**), lost executable bits (**R4**), and lists the
   docs the change obliges you to update (**R5**). Every flag carries its
   evidence; it never edits anything.
-- **Branch naming:** push session work to **`arena/sNN-gifscythe`** (the S7/S10/S11 convention),
-  not to an opaque platform id — a session number stays meaningful after the session ends, an id
-  like `arena/01a098ff-gifscythe` does not. When a platform assigns its own branch name anyway,
-  record the session number first and the assigned id second, as this header does.
+- **Branch naming:** use the platform-assigned session branch; do not switch branches
+  to satisfy the older session-number convention. The current branch is in the header.
 - **Copy-paste prompt:** `docs/planning/NEXT_SESSION_PROMPT.md` — recovery steps,
   the SkillOpt ask, the decision backlog, and the standing constraints in one block.
 - **Owner decisions:** `docs/planning/OWNER_DECISIONS.md` — answer `OD-01`…`OD-15`
@@ -80,7 +77,7 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #18 | S14 | `arena/01a096ec-gifscythe` | `e32ed28` | S14 continuation: stale-claim sweep + PR preflight + owner-decision register |
 | #19 | S14 continuation | `arena/01a096ec-gifscythe` | `43e3f96` | docs: re-sync handoff to PR #18 merge + main run 34713398377 |
 | #20 | S14 continuation | `arena/01a09712-gifscythe` | `2542f1b` | docs: post-merge sync for PR #19 + owner patch adjudicated + OD answer-format fix |
-| #21 | S16 | `arena/01a098ff-gifscythe` | **open** | S15 OD-01 triage + S16 GS-201 stop-loss + G18/G16/P3b process gates |
+| #21 | S16 | `arena/01a098ff-gifscythe` | `df1dfd5` | Merged 2026-09-13; reviewed S17: S15 OD-01 triage + S16 GS-201 stop-loss + G18/G16/P3b process gates |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
@@ -97,14 +94,130 @@ each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, an
 `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
 alone would have passed straight through both skipped syncs.
 
+## S17 sequential high-confidence work (2026-09-13)
+
+Owner authorized highest-to-high confidence changes, deferring medium/low work
+for another agent, followed by PR creation (not merge). Execution order: DS-11,
+GS-210 parser, GS-204 local packaging, GS-203 core/CLI/web postconditions.
+
+- **DS-11 DONE:** S5/G17 reads leading current statuses/references, rejects both
+  OPEN-vs-closed and closed-vs-nonclosed contradictions, excludes historical tails.
+  20 tests pass; original checker falsely passes three OPEN-vs-fixed variants.
+- **GS-210 PARTIAL:** strict side-effect-free argument parsing (12 cases pass);
+  original scripts fail all 12. qmake-first and .pro version remain unchanged.
+- **GS-204 PARTIAL:** shared fresh staging/required manifests; explicit headless
+  excludes GUI; portable Windows GUI refuses absent/failing/incomplete deployer.
+  30 checks pass on Linux, including real native engine/CLI packages in isolated
+  trees. Windows DLL fixtures are not runtime proof; no real Qt GUI was available.
+- **GS-203 PARTIAL:** core/CLI explicit-file and web verifiers require new or
+  size/mtime-changed non-empty regular GIF87a/89a-signature files. Web serves the
+  exact verified buffer. CLI smoke 40/40 includes 12 core assertions; transport
+  67/67 on Linux. Original CLI fails nine missing/stale/bogus-output probes; old
+  web fails three ordinary-mode fixture groups. GUI is unchanged; stdout/info
+  contracts and Explode rules stay as before. No full GIF decoding/rollback.
+
+**Next agent:** read `docs/planning/SEQUENTIAL_WORK_HANDOFF.md` for remaining Qt,
+Windows, build-tool/version and verifier work plus acceptance tests. Do not mark
+these three findings DONE based on synthetic Windows or Linux-only evidence.
+No owner-decision, workflow, template state, version or release change.
+
+Final local gates: audit **27 passed / 0 failed / 6 skipped**, docs **23/0/2**,
+sweep **5/0/0**, native unit **296/0**, engine **5/5**, web parity **17** and
+validation **23**. Change review reports **4 passes and the mandatory R1 flag**
+for edited checks; baseline/negative mutations were executed, including forced
+Python errors producing S5/F3/F4 FAIL. No check was weakened to remove that flag.
+Qt/CMake, remote CI and clean-Windows skips are not platform proof.
+
+**PR #21 sync:** reviewed its merged diff and metadata: 18-row OD-01 triage,
+GS-201 Batch-no-output stop-loss/21-case smoke, and G18/G16/P3b process gates.
+The merge is `df1dfd5619b45e7774fd0df755076427c8ee00b7`, this branch's base.
+Header and PR ledger now describe that merge; no current CI success is inferred.
+
+## S17 continuation — GS-207 / P1-29 (2026-09-13)
+
+Owner approved the recommended strict engine-override fix. Core resolution now
+returns path/source/error; invalid non-empty GS_ENGINE stops discovery. CLI print
+and run return 1 with a named diagnostic; web APIs return 503, and startup logs
+identify the source/error while the static UI remains available. Empty/unset means
+automatic discovery. CLI --engine stays higher priority; prospective --engine
+print mode is unchanged. --run source logs stay on stderr (binary stdout pure).
+Windows executability beyond regular-file existence is left to process launch;
+no launch error retries another engine. GUI wrapper preserves its string API but
+returns empty on an invalid override; Qt/Windows GUI not re-tested here.
+
+Executed: build/unit **296/0**, CLI smoke **30/30**, web transport **63/63** on
+Linux, command parity **17**, validation parity **23**. Invalid overrides tested
+with a real fallback engine available; web spawn logs prove no engine starts.
+Valid absolute/relative paths with spaces, empty/unset, --engine precedence,
+PATH-only CLI discovery and override removal after web startup are covered.
+Original CLI: all 5 invalid paths return zero in print/run instead of one;
+original web: missing and removed overrides fall back, directories/non-executable
+files attempt launch instead of preflight refusal. Baseline suites fail 9 CLI and
+10 web groups including new source-log assertions. Scratch baselines removed.
+Final audit **25 passed / 0 failed / 6 skipped** (no CMake/Qt, pending workflow,
+remote CI and clean-Windows checks not run); docs gate **23/0/2**, change review **4/0/1**.
+No version, workflow, release, other owner decision, push, PR or merge changed.
+
+## S17 continuation — DS-13 / P1-32 (2026-09-13)
+
+Owner approved the next recommended fix. `/optimize` now checks the exact output
+buffer for GIF87a/GIF89a magic before success; invalid signatures get JSON 422
+with exitCode 0, diagnostic stderr and command. Explode verification shares the
+same predicate. Missing/empty-output and nonzero-exit diagnostics are unchanged.
+This was a signature-only checkpoint; broader GS-203 is now PARTIAL as recorded above.
+
+Transport **53/53**: 11 new real-child output-fixture cases, including 6 invalid
+signatures, valid GIF87a/GIF89a, missing/empty output and nonzero exit. The pre-fix
+server fails exactly those 6 invalid-signature cases. Existing real-engine and
+GS-202 security checks still pass. Command parity **17**, validation parity **23**.
+Test-only preload redirects marked engine calls; production contains no test hook.
+Final audit: **25 passed / 0 failed / 6 skipped** (no CMake/Qt, pending workflow,
+remote CI and clean-Windows checks not run). Docs gate: **23/0/2**.
+No push, PR, merge, workflow edit, version bump or other owner decision changed.
+
+## S17 continuation — GS-202 / P0-6 (2026-09-13)
+
+Owner approved the recommended security fix with "Do that". Web `/run` now rejects
+unsafe portable names before engine lookup, contains every final output target/prefix
+before writing uploads or launching a process, and refuses case/NFC target/source
+collisions. No silent basename sanitization; valid Unicode/space/percent names preserved.
+The helper `web/run-paths.mjs` explicitly assumes a private temp dir and trusted engine,
+not a malicious-process or hostile-local-symlink sandbox.
+
+Executed: build/unit **296/0**, engine **5/5**, smoke **21/21**, packaging negatives
+**9/9**, web command **17**, validation **23**, transport **42** check groups; N-07
+sweep regressions **14 tests passed**. Transport includes 100 unsafe-name requests,
+real subprocess-launch instrumentation, outside-request sentinel files and Windows
+path-function probes on Linux (not a Windows runtime test). Old server: **7 security
+groups fail**, including sentinel overwrites; guard-disabled mutation: **1 group fails**.
+No workflow, version, owner decision or release changed. No push/PR/merge performed.
+Final local gates: `verify_audit.sh` **25 passed / 0 failed / 6 skipped** (no
+Qt/CMake, pending workflow, remote CI and clean-Windows checks not exercised);
+`check_docs.sh` **23 passed / 0 failed / 2 skipped**. Change review: **4/0/1**.
+At that checkpoint GS-203, DS-13 and the U-06 remainder were open; DS-13 closed below; this is not public-hosting
+approval. Existing CI/verify_audit W3 already runs the expanded transport suite.
+
+## S17 — N-07 / P2-15 standalone-count sweep (2026-09-13)
+
+The owner asked this session to choose and execute a locally verifiable job. Selected
+only the documentation tooling item, not a pending product decision. S2 now compares
+standalone numeric UNTRIAGED counts with the generated STATUS counts, including inline
+Markdown and wrapped lines, without joining paragraphs. It reports file:line; excluded
+historical snapshots stay excluded and report-only mode still exits zero.
+
+Proof: `python3 working_code/gifscythe/tests/test_sweep_stale.py` — **14 tests passed**.
+Two stale-count cases fail against the pre-fix script (it incorrectly exits zero),
+then pass with the fix. Live sweep: **5 passed, 0 failed, 0 skipped**.
+S4 remains a fixed five-phrase rule; unnumbered prose still requires human review.
+No product behavior, workflow, release, version, or owner decision changed; no PR opened.
+
 ## S16 — GS-201 / P0-5 stop-loss (this session)
 
 S15 triage landed on this branch as cherry-pick `0e6e1a7` (of `5677612`). Then
 **`OD-02 = a`**: CLI `--run` with Batch and no `output` exits 2 with a named
 reason before the engine starts. Print still prints `-b`. Smoke **21/21** (source
 GIF `cmp`-identical). Engine `-b -O3` rewrite confirmed 8703→8637 B.
-**`N-07` triaged to P2-15** (OPEN, sweep not changed). Register after the
-process-gate follow-up: **82 DONE · 5 PARTIAL · 35 OPEN · 0 UNTRIAGED · 122 total.**
+**`N-07` triaged to P2-15** (OPEN at S16; closed by the S17 count check). Current register after the S17 count-check follow-up: **87 DONE · 8 PARTIAL · 27 OPEN · 0 UNTRIAGED · 122 total.**
 No PR until yes.
 
 ## S16 continuation — uncommitted-work hard rule (G18) + template content check (G16)
@@ -221,7 +334,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S16: **82 DONE · 5 PARTIAL · 35 OPEN · 0 UNTRIAGED · 122 total.**
+   `U-nn` row; neither replaces the other. As of S17: **87 DONE · 8 PARTIAL · 27 OPEN · 0 UNTRIAGED · 122 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —
