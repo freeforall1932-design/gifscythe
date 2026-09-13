@@ -89,16 +89,35 @@ else
 fi
 
 echo "== P3b: unpushed commits"
-if ! git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
-  echo "  FAIL [P3b] branch has no upstream - git push -u origin HEAD before create/merge (unpushed commits are not in the repo)"
-  FAIL=$((FAIL + 1))
-else
-  ahead="$(git rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)"
+# @{u} is missing on clones that pushed without -u (this sandbox). Fall back
+# to origin/<branch> if it exists locally, else ls-remote. FAIL only when HEAD
+# is not on the remote branch — that is the "not in the repo" case.
+branch_now="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)"
+p3b_ref=""
+if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+  p3b_ref="@{u}"
+elif git rev-parse --verify -q "origin/${branch_now}" >/dev/null; then
+  p3b_ref="origin/${branch_now}"
+fi
+if [[ -n "$p3b_ref" ]]; then
+  ahead="$(git rev-list --count "${p3b_ref}..HEAD" 2>/dev/null || echo 0)"
   if [[ "$ahead" -gt 0 ]]; then
-    echo "  FAIL [P3b] $ahead unpushed commit(s) - git push before create/merge (unpushed commits are not in the repo)"
+    echo "  FAIL [P3b] $ahead unpushed commit(s) vs $p3b_ref - git push before create/merge (unpushed commits are not in the repo)"
     FAIL=$((FAIL + 1))
   else
-    echo "  PASS [P3b] HEAD is not ahead of origin"
+    echo "  PASS [P3b] HEAD is not ahead of $p3b_ref"
+  fi
+else
+  remote_sha="$(git ls-remote --heads origin "$branch_now" 2>/dev/null | awk '{print $1; exit}')"
+  local_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+  if [[ -z "$remote_sha" ]]; then
+    echo "  FAIL [P3b] origin has no branch '$branch_now' - git push -u origin HEAD before create/merge (unpushed commits are not in the repo)"
+    FAIL=$((FAIL + 1))
+  elif [[ "$remote_sha" == "$local_sha" ]]; then
+    echo "  PASS [P3b] HEAD $local_sha is on origin/$branch_now (no local upstream tracking)"
+  else
+    echo "  FAIL [P3b] HEAD ${local_sha:0:7} != origin/$branch_now ${remote_sha:0:7} - git push before create/merge (unpushed commits are not in the repo)"
+    FAIL=$((FAIL + 1))
   fi
 fi
 
