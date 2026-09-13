@@ -42,14 +42,14 @@ class SweepTests(unittest.TestCase):
         self.write("STATUS.md", "**Counts (generated - do not edit by hand):** "
                    f"82 DONE · 5 PARTIAL · 35 OPEN · {count} UNTRIAGED · {122 + count} total\n")
 
-    def sweep(self, fail=False, report=False, location=None):
+    def sweep(self, fail=False, report=False, location=None, rule="S2"):
         before = {p: p.read_bytes() for p in self.root.rglob("*.md")}
         result = subprocess.run(["bash", str(self.script)] + (["--report"] if report else []),
                                 cwd=self.root, env=self.env, text=True,
                                 capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 0 if report or not fail else 1,
                          result.stdout + result.stderr)
-        self.assertIn("FAIL [S2]" if fail else "PASS [S2]", result.stdout)
+        self.assertIn(f"FAIL [{rule}]" if fail else f"PASS [{rule}]", result.stdout)
         if location:
             self.assertIn(location, result.stdout)
         self.assertEqual(before, {p: p.read_bytes() for p in self.root.rglob("*.md")})
@@ -125,6 +125,38 @@ class SweepTests(unittest.TestCase):
     def test_report_mode_reports_but_succeeds(self):
         self.write("README.md", "18 UNTRIAGED findings.\n")
         self.sweep(fail=True, report=True)
+
+    def narrative(self, text, glyph="✅"):
+        self.write("COMPILED_AUDIT.md", "## 3. Narrative\n" + text +
+                   f"\n\n## 5. Register\n| **U-04** | proof | {glyph} state |\n## 6. Tasks\n")
+
+    def test_open_narrative_fixed_register(self):
+        for marker in ("⬜ **OPEN**", "OPEN", "**OPEN**"):
+            with self.subTest(marker=marker):
+                self.narrative(f"**Status:** {marker} — register §5 `U-04`.")
+                self.sweep(fail=True, rule="S5", location="COMPILED_AUDIT.md:2: U-04 narrative OPEN")
+
+    def test_fixed_narrative_open_register(self):
+        self.narrative("**Status:** ✅ **FIXED** — register §5 `U-04`.", "⬜")
+        self.sweep(fail=True, rule="S5")
+
+    def test_historical_open_and_unrelated_ids_are_not_current(self):
+        self.narrative("**Status:** ✅ **FIXED** — register §5 `U-04`. "
+                       "Original report: ⬜ OPEN — U-99 was broken.")
+        self.sweep(rule="S5")
+
+    def test_matching_open_and_partial_are_allowed(self):
+        for state, glyph in (("OPEN", "⬜"), ("PARTIAL", "◐")):
+            self.narrative(f"**Status:** {state} — register §5 `U-04`. resolved in part.", glyph)
+            self.sweep(rule="S5")
+
+    def test_uncheckable_current_claim_fails(self):
+        self.narrative("**Status:** OPEN. Original report: U-04")
+        self.sweep(fail=True, rule="S5", location="uncheckable current status")
+
+    def test_wrapped_claim_and_report_only(self):
+        self.narrative("**Status:** ⬜ **OPEN** —\nregister §5 `U-04`.")
+        self.sweep(fail=True, report=True, rule="S5")
 
 
 if __name__ == "__main__":

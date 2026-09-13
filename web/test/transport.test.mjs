@@ -25,8 +25,9 @@
 
 import { spawn } from "node:child_process";
 import assert from "node:assert/strict";
+import { snapshotOutput, verifyOutput } from "../output-verify.mjs";
 import { once } from "node:events";
-import { mkdtemp, mkdir, readFile, writeFile, readdir, rm, copyFile, chmod } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile, readdir, rm, copyFile, chmod, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { assertContainedPath, requestPath, uploadNameError } from "../run-paths.mjs";
@@ -516,6 +517,37 @@ try {
       failures++;
       console.log(`FAIL DS-13 ${c.name}\n       ${problems.join("; ")}`);
     } else console.log(`PASS DS-13 ${c.name}`);
+  }
+
+  // GS-203 shared JS postcondition: including unchanged existing outputs,
+  // which fresh per-request directories normally make unreachable via HTTP.
+  try {
+    const file = join(testRoot, "verify.gif");
+    const absent = await snapshotOutput(file);
+    assert.ok((await verifyOutput(file, absent)).error);
+    await writeFile(file, GIF);
+    assert.equal((await verifyOutput(file, absent)).error, null);
+    const before = await snapshotOutput(file);
+    assert.match((await verifyOutput(file, before)).error, /unchanged/);
+    const future = new Date(Date.now() + 5000);
+    await utimes(file, future, future);
+    assert.equal((await verifyOutput(file, before)).error, null);
+    assert.ok((await snapshotOutput(testRoot)).error);
+    await rm(file);
+    console.log("PASS GS-203 snapshot/unchanged/refreshed metadata rule");
+  } catch (err) { failures++; console.log(`FAIL GS-203 snapshot rule: ${err}`); }
+  for (const mode of ["auto", "batch", "merge"]) {
+    const problems = [];
+    for (const [index, c] of outputCases.entries()) {
+      const r = await postRun(port, { mode, comments: [`DS13-output:${index}`] }, [gifFile("clip.gif")]);
+      if (r.status !== c.status) problems.push(`${c.name}: ${r.status} != ${c.status}`);
+      if (c.status === 422 && (r.json?.ok !== false || r.json?.exitCode !== (c.exitCode || 0)))
+        problems.push(`${c.name}: dishonest failure ${JSON.stringify(r.json)}`);
+      if (c.status === 200 && !Buffer.from(r.json?.outputs?.[0]?.data || "", "base64").equals(c.bytes))
+        problems.push(`${c.name}: response differs from verified buffer`);
+    }
+    if (problems.length) { failures++; console.log(`FAIL GS-203 ${mode}: ${problems.join("; ")}`); }
+    else console.log(`PASS GS-203 ${mode} output fixtures (11 cases)`);
   }
 
   // GS-207: a good fallback engine is available throughout these tests. Each

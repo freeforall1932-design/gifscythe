@@ -262,6 +262,18 @@ else
   fi
 fi
 
+# New tooling regressions are independent of product/GUI build availability.
+if command -v python3 >/dev/null 2>&1; then
+  if python3 tests/test_sweep_stale.py >/tmp/vs_sweep_tests.log 2>&1; then
+    ok "F3" "stale-sweep mutation regression suite"
+  else bad "F3" "sweep regression suite failed (see /tmp/vs_sweep_tests.log)"; fi
+  if python3 tests/test_build_options.py >/tmp/vs_build_options.log 2>&1; then
+    ok "F4" "build option parser regression suite"
+  else bad "F4" "build option parser regression failed (see /tmp/vs_build_options.log)"; fi
+else
+  skip "F3/F4" "python3 unavailable for tooling regression tests"
+fi
+
 # ---------- W: web demo parity (JS ⇄ C++) ----------
 # web/ is not the product path, but it ships a SECOND copy of the command
 # builder and — since audit U-30 — of the validation rules. Neither is checked
