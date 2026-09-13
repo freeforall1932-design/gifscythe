@@ -45,7 +45,14 @@ node web/server.mjs 8000
 # 3. open http://localhost:8000 (or use the live preview)
 ```
 
-`GS_ENGINE=/path/to/gifsicle` overrides the engine location.
+`GS_ENGINE=/path/to/gifsicle` is an **exact path override** (relative paths resolve
+from the server's working directory, not PATH). Since GS-207 (S17), an invalid
+non-empty value never falls back: the server logs `Engine [GS_ENGINE]: ERROR: ...`
+and both API endpoints return **503** with the offending value and a diagnostic.
+The static UI remains available. A directory or, on POSIX, a non-executable file
+is invalid; engine format/architecture failures remain subprocess errors, with no
+retry using another engine. Empty/unset values preserve release-tree discovery.
+Startup logs name the chosen source (`GS_ENGINE`, `release`, or `none`).
 
 **Binding (audit U-06).** The server listens on **`127.0.0.1`** by default and
 says so on startup. It used to bind `0.0.0.0` unconditionally, which exposed an
@@ -58,7 +65,7 @@ auth, so do not expose it to the public internet.
 ```bash
 node web/test/command.test.mjs     # command builder  — 17 PASS
 node web/test/validate.test.mjs    # validation rules — 23 PASS
-node web/test/transport.test.mjs   # live-server transport net — 53 PASS (S17)
+node web/test/transport.test.mjs   # live-server transport net — 63 PASS on Linux (S17)
 ```
 
 Both run the **real** C++ `gifscythe-cli` in print mode and compare against the
@@ -94,7 +101,12 @@ JS side, so the two clients cannot drift silently:
   to a real Node child that writes text/PNG/malformed signatures, valid GIF87a/89a,
   missing/empty output, or exits nonzero. Production has no test hook; existing
   cases still run the real gifsicle engine. The pre-fix server fails all six
-  invalid-signature cases; the fixed suite passes all 53 check groups.
+  invalid-signature cases; that DS-13 checkpoint passed 53 check groups.
+  GS-207 adds 10 groups on Linux: missing/directory/non-executable/bare/whitespace
+  overrides, valid absolute/relative paths with spaces, unset/empty discovery and
+  an override removed after startup. Both endpoints and startup source logs are
+  checked, with the spawn log proving invalid overrides launch nothing. The POSIX
+  execute-bit group is omitted on Windows (62 groups there; not measured locally).
 
 All three are run by the CI linux job and by `scripts/verify_audit.sh`
 (gates W1/W2/W3).
@@ -128,7 +140,7 @@ writer; the existing single-user/no-public-exposure limitations still apply.
   batch target collisions / target-equals-source refusals, engine failure
   (`exitCode`, `stderr`, `command`), rc=0-with-no-output, and explode
   rc=0-with-zero-frames (names the prefix searched).
-- `503` → engine missing.
+- `503` → engine missing or invalid non-empty `GS_ENGINE` (no fallback).
 
 ### `POST /optimize?settings=<urlencoded JSON>` — single-file legacy path
 

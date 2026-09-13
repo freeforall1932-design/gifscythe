@@ -106,6 +106,9 @@ producing nothing (`GS-203` class) or write anywhere the user did not choose (`G
 - **DS-13 / P1-32 closed S17:** `/optimize` verifies GIF87a/GIF89a magic on its
   response buffer. Transport 53/53. This is signature-only, not full GIF decoding;
   GS-203 remains open and the template remains SKELETON.
+- **GS-207 / P1-29 closed S17:** non-empty engine overrides now fail explicitly
+  instead of falling back; empty/unset retains discovery. CLI smoke 30/30 and web
+  transport 63/63 on Linux; source labels logged. Workflow-copy sync remains open.
 - **The desktop side carries the release bar** until the owner says otherwise: `COMPILED_AUDIT.md`
   §9 defines 1.0.0 around the desktop artifact + clean-Windows evidence, and `U-09`'s re-cut is
   still open.

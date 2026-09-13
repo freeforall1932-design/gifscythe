@@ -76,7 +76,9 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
             cover portable only.
       - [ ] **GS-205** → **P1-27** — (Med) non-GIF inputs still admitted via the picker and drop.
       - [ ] **GS-206** → **P1-28** — (Med) `long`→`int` narrowing; no validation for loopcount/threads/gamma/enums.
-      - [ ] **GS-207** → **P1-29** — (Med) unusable `GS_ENGINE` silently falls back to another engine.
+      - [x] **GS-207** → **P1-29** — **closed S17:** invalid non-empty `GS_ENGINE`
+            refuses fallback (CLI print/run exit 1; web 503); source logged; empty/unset
+            preserves discovery and `--engine` has precedence. Smoke 30/30, web 63/63 on Linux.
       - [ ] **GS-208** → **P2-7** — (High, PARTIAL-fixed) main release-red; docs corrected in S14, workflow-copy
             sync + marker deletion still open (needs a `workflows`-scoped token).
       - [ ] **GS-209** → **P2-12** — (Med) native linux/mac build uses a fixed glibc config.
@@ -521,7 +523,7 @@ cd working_code/gifscythe
 node web/server.mjs 8000           # from the repo root; binds 127.0.0.1
 node web/test/command.test.mjs     # JS ⇄ C++ command parity (17 checks)
 node web/test/validate.test.mjs    # JS ⇄ C++ validation parity (21 checks)
-node web/test/transport.test.mjs   # live-server transport net (53 check groups, S17)
+node web/test/transport.test.mjs   # live-server transport net (63 check groups on Linux, S17)
 ```
 
 ## Do not

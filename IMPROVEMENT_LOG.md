@@ -4,6 +4,52 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S17 continuation — GS-207 / P1-29 strict engine overrides (2026-09-13)
+
+**Authorization:** owner approved the recommended GS-207 fix ("Let's go with that").
+Core resolver now returns a typed path/source/error result and stops on invalid
+non-empty GS_ENGINE. CLI print/run exit 1 naming the override; --engine remains
+higher priority and its prospective print-mode contract is unchanged. Run source
+logs go to stderr. Empty/unset preserves discovery, including CLI PATH fallback.
+POSIX checks require a regular file and access(X_OK); Windows regular files defer
+format/architecture errors to process launch, with no retry using another engine.
+The GUI compatibility wrapper still returns a string, empty on invalid overrides;
+no GUI source changed, but Qt/Windows runtime verification was not performed here.
+
+Web resolution now returns path/source/error too. Invalid overrides yield 503 on
+both APIs and a startup error naming GS_ENGINE (the static UI remains available).
+Valid startup logs identify GS_ENGINE/release; release discovery ignores unusable
+candidates when no override is set. Request-time resolution refuses fallback even
+if an initially valid override disappears after startup.
+
+**Executed:** build and unit suite 296 checks, 0 failures; CLI smoke **30/30**;
+web command **17**, validation **23**, transport **63/63** on Linux. Nine added
+CLI groups cover five invalid paths in print/run, absolute/relative space paths,
+--engine priority and empty/PATH discovery. Ten web groups cover both endpoints,
+actual subprocess counts, source logs, invalid/valid/empty/unset overrides and
+removal after startup. The POSIX non-executable-file group is omitted on Windows;
+Windows runtime not measured. Node syntax and diff whitespace checks pass.
+
+**Baseline proof:** compiled the pre-fix CLI from HEAD in an isolated scratch tree
+and ran the expanded smoke suite: 21 passing, 9 failing groups. All five invalid
+GS_ENGINE cases wrongly return zero in print/run; the four valid-path/priority/
+discovery groups additionally expose missing source logs. The pre-fix web server
+fails 10 groups: missing/removed overrides fall back, directories/non-executable
+files attempt spawn, and the source-log assertions are absent. Neither baseline
+was committed; scratch trees/files removed.
+
+**Final gates:** `verify_audit.sh` **25 passed, 0 failed, 6 skipped** (CMake/Qt
+C6/C9/B unavailable; E9 pending workflow; remote CI and clean-Windows smoke not
+run). Engine 5/5, packaging negatives and the full CLI/web suites reran green.
+Docs gate **23 passed, 0 failed, 2 skipped**; change review **4/0/1**.
+
+**Docs:** GS-207 marked DONE, STATUS header regenerated; worklist, audit §6/§13,
+root/product/web README, handoff, next-session prompt and template facts updated.
+Template stays SKELETON; no other finding or owner decision changed. No workflow,
+version, release, push, PR or merge.
+
+---
+
 ## S17 continuation — DS-13 / P1-32 optimize output signature (2026-09-13)
 
 **Authorization:** owner approved proceeding with the recommended DS-13 fix.

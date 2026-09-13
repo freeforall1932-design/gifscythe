@@ -94,6 +94,10 @@ blockers and owner decisions remain open; see `STATUS.md`.
 an exact GIF87a/GIF89a signature before sending success. Transport **53/53**;
 the old server fails six invalid-signature tests. This is signature-only,
 not full GIF decoding; GS-203 remains open.
+**S17 continuation closed GS-207 / P1-29:** invalid non-empty `GS_ENGINE`
+overrides now fail explicitly in CLI and web, rather than silently selecting a
+different engine. CLI smoke **30/30**, web transport **63/63** on Linux; valid
+space-containing paths, empty/unset discovery and CLI `--engine` priority verified.
 **Direction (2026-09-09): offline-only, language stays C++17/Qt6 through 1.0.0**
 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 

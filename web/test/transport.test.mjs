@@ -26,7 +26,7 @@
 import { spawn } from "node:child_process";
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { mkdtemp, mkdir, readFile, writeFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile, readdir, rm, copyFile, chmod } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { assertContainedPath, requestPath, uploadNameError } from "../run-paths.mjs";
@@ -517,6 +517,93 @@ try {
       console.log(`FAIL DS-13 ${c.name}\n       ${problems.join("; ")}`);
     } else console.log(`PASS DS-13 ${c.name}`);
   }
+
+  // GS-207: a good fallback engine is available throughout these tests. Each
+  // server gets its own explicit environment; the spawn log proves invalid
+  // overrides never launch either the requested path OR a fallback.
+  const actualEngine = JSON.parse((await launches()).trim().split("\n")[0])[0];
+  const engineDir = join(testRoot, "engine choice");
+  await mkdir(engineDir);
+  const selectedEngine = join(engineDir, process.platform === "win32" ? "selected engine.exe" : "selected engine");
+  await copyFile(actualEngine, selectedEngine);
+  await chmod(selectedEngine, 0o755);
+  const noExec = join(testRoot, "non-executable");
+  await writeFile(noExec, "not executable");
+  await chmod(noExec, 0o600);
+
+  async function withEngine(override, check) {
+    const p = await freePort();
+    const env = { ...process.env, GS_WEB_HOST: "127.0.0.1", GS_TEST_SPAWN_LOG: launchLog,
+      GS_TEST_OUTPUT_FIXTURE: outputFixture, TMPDIR: requestRoot, TMP: requestRoot, TEMP: requestRoot };
+    if (override === undefined) delete env.GS_ENGINE;
+    else env.GS_ENGINE = override;
+    const server = spawn(process.execPath, ["--import", pathToFileURL(preload).href, SERVER, String(p)],
+      { cwd: testRoot, env, stdio: ["ignore", "pipe", "pipe"] });
+    let log = "";
+    server.stdout.on("data", (d) => { log += d; });
+    server.stderr.on("data", (d) => { log += d; });
+    try {
+      await waitForServer(p);
+      await check(p, () => log);
+    } finally {
+      const closed = once(server, "close");
+      server.kill("SIGKILL");
+      if (server.exitCode === null && server.signalCode === null) await closed;
+    }
+  }
+  async function engineCheck(name, override, check) {
+    try {
+      await withEngine(override, check);
+      console.log(`PASS GS-207 ${name}`);
+    } catch (err) {
+      failures++;
+      console.log(`FAIL GS-207 ${name}\n       ${err}`);
+    }
+  }
+  async function refused(p, override) {
+    const before = await launches();
+    const responses = [await post(p, {}), await postRun(p, { mode: "auto" }, [gifFile("clip.gif")])];
+    for (const r of responses) {
+      assert.equal(r.status, 503, JSON.stringify(r.json));
+      assert.equal(r.json?.ok, false);
+      assert.match(r.json?.error || "", /GS_ENGINE.*refusing automatic fallback/);
+      assert.ok(r.json.error.includes(JSON.stringify(override)));
+    }
+    assert.equal(await launches(), before, "invalid override launched an engine");
+  }
+  for (const [name, override] of [
+    ["missing override", join(testRoot, "missing-engine")],
+    ["directory override", engineDir],
+    ["bare override is exact, not a PATH search", "gifsicle"],
+    ["whitespace is not an empty override", "   "],
+    ...(process.platform === "win32" ? [] : [["non-executable override", noExec]]),
+  ]) {
+    await engineCheck(name, override, async (p, log) => {
+      await refused(p, override);
+      assert.match(log(), /Engine \[GS_ENGINE\]: ERROR:/);
+      assert.ok(log().includes(JSON.stringify(override)), "startup diagnostic omits the override");
+    });
+  }
+  for (const [name, override, source] of [
+    ["valid absolute override with spaces", selectedEngine, "GS_ENGINE"],
+    ["valid relative override with spaces", path.relative(testRoot, selectedEngine), "GS_ENGINE"],
+    ["unset override preserves release discovery", undefined, "release"],
+    ["empty override preserves release discovery", "", "release"],
+  ]) {
+    await engineCheck(name, override, async (p, log) => {
+      const before = await launches();
+      const responses = [await post(p, {}), await postRun(p, { mode: "auto" }, [gifFile("clip.gif")])];
+      for (const r of responses) assert.equal(r.status, 200, JSON.stringify(r.json));
+      const entries = (await launches()).slice(before.length).trim().split("\n").map(JSON.parse);
+      assert.equal(entries.length, 2);
+      if (source === "GS_ENGINE") for (const [engine] of entries) assert.equal(engine, selectedEngine);
+      assert.ok(log().includes(`Engine [${source}]:`), "startup log omits the selected source");
+    });
+  }
+  await engineCheck("override removed after startup still refuses fallback", selectedEngine, async (p) => {
+    await rm(selectedEngine);
+    await refused(p, selectedEngine);
+  });
 
   // Malformed JSON must stay a 400 and must NOT be swallowed into a 500.
   for (const [name, raw] of [

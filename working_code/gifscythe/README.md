@@ -110,6 +110,17 @@ working_code/gifscythe/
 GS_ENGINE=/path/to/gifsicle ./build/gifscythe-cli examples/animation.conf --run
 ```
 
+**Engine selection (GS-207, S17).** CLI `--engine PATH` has priority over
+`GS_ENGINE`; otherwise a non-empty `GS_ENGINE` is an exact path relative to CWD,
+not a PATH search. An invalid environment override exits 1 in print and run mode
+with a named error, never silently selecting a bundled/PATH engine. Empty/unset
+preserves automatic discovery. `--run` logs the selected source to stderr, leaving
+binary stdout untouched. Explicit `--engine` in print mode still allows a
+prospective path that does not yet exist; `--run` requires an executable file.
+Windows file format/architecture is checked by process launch; launch failures
+never cause a fallback. The shared GUI locator returns no engine for an invalid
+environment override; the GUI itself was not re-tested in the S17 non-Qt sandbox.
+
 Default GUI mode is **Batch** (one optimized file per input). **Merge** is an
 explicit choice (concatenates animations).
 
