@@ -15,8 +15,10 @@ Based on `main` commit `2542f1b` ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
-owner's draft is refitted into that template's slots — move both lines in the same commit, gate
-**G16** compares them)*
+owner's draft is refitted into that template's slots — move both lines in the same commit. Gate
+**G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders
+=`SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back.
+Inspect that content at every new-session start.)*
 
 ## Next session — fast hand-off (S16 continuation)
 
@@ -100,8 +102,21 @@ S15 triage landed on this branch as cherry-pick `0e6e1a7` (of `5677612`). Then
 **`OD-02 = a`**: CLI `--run` with Batch and no `output` exits 2 with a named
 reason before the engine starts. Print still prints `-b`. Smoke **21/21** (source
 GIF `cmp`-identical). Engine `-b -O3` rewrite confirmed 8703→8637 B.
-**`N-07` triaged to P2-15** (OPEN, sweep not changed). Register:
-**81 DONE · 5 PARTIAL · 35 OPEN · 0 UNTRIAGED · 121 total.** No PR until yes.
+**`N-07` triaged to P2-15** (OPEN, sweep not changed). Register after the
+process-gate follow-up: **82 DONE · 5 PARTIAL · 35 OPEN · 0 UNTRIAGED · 122 total.**
+No PR until yes.
+
+## S16 continuation — uncommitted-work hard rule (G18) + template content check (G16)
+
+No GitHub patch was in the asking message; none was applied. The process gap:
+uncommitted work is lost when the sandbox is cut off (second time), merge-related
+checks were labelled "after merge", and G16 compared only the SKELETON token.
+Now **G18** fails `check_docs.sh` on a dirty tree (so pre-push cannot push dirty);
+`pr_preflight.sh` **P3b** fails create/merge if HEAD is ahead of origin; **G16**
+also fails when the token disagrees with leftover slot placeholders in
+`web/WEB_PLAN_TEMPLATE.md` §1–§10. Current template content is still skeleton —
+state stays **SKELETON**; the gate never auto-edits. Standing rule 6 lives in
+`SESSION_HANDOFF.md`, `WORKLIST.md` and `docs/release/RELEASE_PROCEDURE.md`.
 
 ## S14 — External reviews compiled for review; stale status claims corrected (docs only)
 
@@ -205,7 +220,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S16: **81 DONE · 5 PARTIAL · 35 OPEN · 0 UNTRIAGED · 121 total.**
+   `U-nn` row; neither replaces the other. As of S16: **82 DONE · 5 PARTIAL · 35 OPEN · 0 UNTRIAGED · 122 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —
@@ -356,6 +371,17 @@ only stick if they are in files a new session reads, not in a conversation.
    verifiable here`** line is **mandatory** and must never be omitted or
    softened — it is the only thing that stops a sandbox-specific green being
    read as a universal one.
+6. **HARD RULE — commit every edit/write/delete before merge AND before the
+   session can close.** Uncommitted work is lost when the sandbox is cut off
+   (it happened twice). Do not wait to be reminded. Gate **G18** fails
+   `check_docs.sh` on a dirty tree, so pre-push cannot push dirty.
+   `pr_preflight.sh` **P3** fails create/merge on dirty and **P3b** fails if
+   HEAD is ahead of origin (unpushed commits are not in the repo). Push
+   after you commit. Anything labelled "after merge" is done **before**
+   merging, not after. At every new-session start, inspect
+   `web/WEB_PLAN_TEMPLATE.md` §1–§10: leftover `<placeholders>` = stay
+   **SKELETON**; filled content = flip both **G16** lines to **WORKING PLAN**
+   in the same commit (one-way). The gate never auto-edits.
 
 ### Product constraints (unchanged unless noted)
 

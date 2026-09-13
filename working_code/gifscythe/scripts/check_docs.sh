@@ -966,7 +966,7 @@ fi
 rules_missing=""
 for f in "$HANDOFF_MD" "$WORKLIST_MD" "$root/docs/release/RELEASE_PROCEDURE.md"; do
   [[ -f "$f" ]] || { rules_missing+="${f#$root/} missing; "; continue; }
-  for needle in 'check_docs.sh' 'UNTRIAGED' 'STATUS.md'; do
+  for needle in 'check_docs.sh' 'UNTRIAGED' 'STATUS.md' 'G18'; do
     grep -q "$needle" "$f" || rules_missing+="${f#$root/} does not mention $needle; "
   done
 done
@@ -996,6 +996,10 @@ fi
 #     it impossible for a new session to read "skeleton" while the plan is live
 #     (or the reverse). Both lines are exact-token lines so the parse is byte
 #     oriented under LC_ALL=C.
+#     Content vs token (session-start check): remaining slot placeholders in
+#     §1–§10 must agree with the token. SKELETON + leftover placeholders = stay.
+#     Filled content + SKELETON = flip both lines (never auto-edit). WORKING PLAN
+#     + leftover placeholders = fill them; never flip back.
 # ---------------------------------------------------------------------------
 TEMPLATE_MD="$root/web/WEB_PLAN_TEMPLATE.md"
 if [[ ! -f "$TEMPLATE_MD" ]]; then
@@ -1010,7 +1014,24 @@ else
   elif [[ "$tpl_state" != "$hd_state" ]]; then
     bad "G16" "web plan state disagrees: template says '$tpl_state', handoff says '$hd_state' - move both on the refit commit"
   else
-    ok "G16" "web plan template state is '$tpl_state' and the handoff mirror agrees (one-way flip at refit time)"
+    # Content vs token (session-start check). Slot placeholders live in §1–§10;
+    # §0 documents the placeholder syntax and must not count. SKELETON +
+    # remaining placeholders = stay. Filled content + SKELETON = flip both
+    # lines to WORKING PLAN (one-way, same commit). WORKING PLAN + leftover
+    # placeholders = the flip happened before the refit — fill them; never
+    # flip back. This gate never edits.
+    tpl_kind="filled"
+    if awk '/^## 1\./{on=1} on' "$TEMPLATE_MD" \
+         | grep -qE '<date>|<owner>|<next>|<who>|<what>|<ids the draft names>|<open:|the owner.s draft fills this in'; then
+      tpl_kind="skeleton"
+    fi
+    if [[ "$tpl_state" == "SKELETON" && "$tpl_kind" == "filled" ]]; then
+      bad "G16" "template CONTENT is filled (no slot placeholders in §1-§10) but state is SKELETON - flip both lines to WORKING PLAN in the same commit (one-way)"
+    elif [[ "$tpl_state" == "WORKING PLAN" && "$tpl_kind" == "skeleton" ]]; then
+      bad "G16" "state is WORKING PLAN but §1-§10 still have slot placeholders - fill them (never flip back to SKELETON)"
+    else
+      ok "G16" "web plan template state is '$tpl_state' (content $tpl_kind) and the handoff mirror agrees (one-way flip at refit time)"
+    fi
   fi
 fi
 
@@ -1034,6 +1055,25 @@ else
   else
     bad "G17" "stale-claim sweep found staleness - fix each named file:line as its 'action:' says, then re-run"
     grep -E '^  FAIL \[S' <<<"$sweep_out" | head -12 | sed 's/^/         /'
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 18. NO UNCOMMITTED WORK. Edit / write / delete that is not in a commit is
+#     lost when the sandbox is cut off — it happened twice. Pre-push and
+#     pr_preflight (PR create AND merge) run this script, so a dirty tree
+#     cannot be pushed or merged. Commit first, then re-run until green.
+# ---------------------------------------------------------------------------
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  skip "G18" "not a git work tree - uncommitted-work check skipped"
+else
+  dirty="$(git status --porcelain 2>/dev/null || true)"
+  if [[ -n "$dirty" ]]; then
+    bad "G18" "uncommitted work - commit it NOW (session cut-off loses it; this is how it was lost twice)"
+    printf '%s\n' "$dirty" | head -20 | sed 's/^/         /'
+    note "action: git add the files above, git commit, then re-run check_docs.sh. Do not merge, push, or end the session with a dirty tree."
+  else
+    ok "G18" "working tree clean - every edit/write/delete is in a commit"
   fi
 fi
 
