@@ -88,6 +88,9 @@ inline void GifsicleCommand::build() {
   const Settings& s = settings_;
 
   // Mode (must come before filenames).
+  // Batch emits the engine's in-place -b. The CLI --run path refuses that
+  // combination when `output` is empty (GS-201 / P0-5); the builder itself
+  // stays a faithful mapping so print mode still shows what would have run.
   switch (s.mode) {
     case Mode::Merge:   add(args_, "-m"); break;
     case Mode::Batch:   add(args_, "-b"); break;

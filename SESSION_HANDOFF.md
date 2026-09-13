@@ -1,8 +1,8 @@
 # Session Handoff
 
-**Session:** S15 · **Date:** 2026-09-13
-**Branch:** `arena/s15-gifscythe` by convention — this session was pushed by the platform under its
-own generated id `arena/01a09712-gifscythe`
+**Session:** S16 · **Date:** 2026-09-13
+**Branch:** `arena/s16-gifscythe` by convention — this session is tracked by the platform under its
+assigned id `arena/01a098ff-gifscythe`
 **PR #20 merged as `2542f1b`** (2026-09-13); post-merge `main` run `34735692932` is green on both
 jobs. This session's own PR number is *not* written here: a session cannot know it at write time,
 and guessing it is how stale claims get born.
@@ -18,7 +18,7 @@ Based on `main` commit `2542f1b` ·
 owner's draft is refitted into that template's slots — move both lines in the same commit, gate
 **G16** compares them)*
 
-## Next session — fast hand-off (S14 continuation)
+## Next session — fast hand-off (S16 continuation)
 
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
@@ -29,22 +29,23 @@ owner's draft is refitted into that template's slots — move both lines in the 
   evidence; it never edits anything.
 - **Branch naming:** push session work to **`arena/sNN-gifscythe`** (the S7/S10/S11 convention),
   not to an opaque platform id — a session number stays meaningful after the session ends, an id
-  like `arena/01a09712-gifscythe` does not. When a platform assigns its own branch name anyway,
+  like `arena/01a098ff-gifscythe` does not. When a platform assigns its own branch name anyway,
   record the session number first and the assigned id second, as this header does.
 - **Copy-paste prompt:** `docs/planning/NEXT_SESSION_PROMPT.md` — recovery steps,
   the SkillOpt ask, the decision backlog, and the standing constraints in one block.
 - **Owner decisions:** `docs/planning/OWNER_DECISIONS.md` — answer `OD-01`…`OD-15`
   in the form `OD-nn = <letter>` (one letter per row, from that row's own option
   list — `OD-15` runs `a`–`d`, and `OD-14` has two sub-questions so it needs two
-  letters). Nothing gets scheduled until `OD-01` (triage the 18 intake findings
-  into `COMPILED_AUDIT.md` §6 fix-order ids) and `OD-02` (the `GS-201`
-  stop-loss — CLI `--run` refusing Batch with no `output`) are answered; they
-  are the release blockers, and the rest are direction choices the plan can
+  letters). **`OD-01 = a` executed S15** (18 intake rows mapped into §6).
+  **`OD-02 = a` executed S16** (CLI `--run` refuses Batch with no `output`,
+  exit 2). The rest (`OD-03`…`OD-15`) are direction choices the plan can
   proceed without.
 - **SkillOpt ask:** `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` — verified facts,
   the three non-negotiable conditions, the four shapes, and open questions Q1–Q4.
   Await `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer** — the query exists to decide *whether*, not *how fast*.
+  **`OD-01 = a` executed S15; `OD-02 = a` executed S16** (GS-201 / P0-5 stop-loss
+  landed). Remaining answers are `OD-03`…`OD-15`.
 
 ## PR ledger (append-only — this is how you see a skipped or closed PR)
 
@@ -92,6 +93,15 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, and
 `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
 alone would have passed straight through both skipped syncs.
+
+## S16 — GS-201 / P0-5 stop-loss (this session)
+
+S15 triage landed on this branch as cherry-pick `0e6e1a7` (of `5677612`). Then
+**`OD-02 = a`**: CLI `--run` with Batch and no `output` exits 2 with a named
+reason before the engine starts. Print still prints `-b`. Smoke **21/21** (source
+GIF `cmp`-identical). Engine `-b -O3` rewrite confirmed 8703→8637 B.
+**`N-07` triaged to P2-15** (OPEN, sweep not changed). Register:
+**81 DONE · 5 PARTIAL · 35 OPEN · 0 UNTRIAGED · 121 total.** No PR until yes.
 
 ## S14 — External reviews compiled for review; stale status claims corrected (docs only)
 
@@ -186,7 +196,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
 ## TL;DR for the next session
 
 > **Read the block at the top of this file first** (*"Next session — fast
-> hand-off (S14 continuation)"*). It is the current entry point: the copy-paste
+> hand-off (S16 continuation)"*). It is the current entry point: the copy-paste
 > prompt, `OD-01`…`OD-15`, and the SkillOpt ask. The list below is the older,
 > longer orientation and is kept for background, not as the current state.
 
@@ -195,7 +205,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S15: **80 DONE · 5 PARTIAL · 35 OPEN · 1 UNTRIAGED · 121 total.**
+   `U-nn` row; neither replaces the other. As of S16: **81 DONE · 5 PARTIAL · 35 OPEN · 0 UNTRIAGED · 121 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —
@@ -382,6 +392,10 @@ only stick if they are in files a new session reads, not in a conversation.
   snapshot-diff) — never rc=0 alone. The harness fixture `fake_engine_exit0`
   (CMake target) must keep being built next to `test_gui_offscreen`
   (verify_audit gate B builds both targets).
+- **NEW (S16):** CLI `--run` refuses Batch with no `output` (GS-201 / P0-5):
+  exit 2, named reason, before the engine starts. Print mode still prints `-b`.
+  Do not re-allow in-place `--run`. GUI/web stay per-file Auto (they never emit
+  a single `-b` run).
 - Extend `tests/test_gui_offscreen.cpp` with every GUI feature (regression
   net). S10 added T18/T19/T20, S11 extended T7 — keep that habit.
 - Offline-only — no cloud service, no auto-update, no telemetry. The `web/` app is

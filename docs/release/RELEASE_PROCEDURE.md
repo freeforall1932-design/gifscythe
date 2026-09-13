@@ -12,19 +12,18 @@ anything done without evidence).
 ---
 
 
-## Open release-blocking items (as of 2026-09-13, session S15)
+## Open release-blocking items (as of 2026-09-13, session S16)
 
 **`main` is green** — run `34735692932` on merge commit `2542f1b` (PR #20) passes both jobs. Release
 is still **blocked by the items below**, not by CI. Do not cut a release until they are closed or
 explicitly waived by the owner.
 
-**S15 triaged the whole intake** (`OD-01 = a`): every row below now names its `COMPILED_AUDIT.md`
-§6 fix-order id, and none of them is `UNTRIAGED` any more. Two of the six are now scheduled as
-**P0** (`GS-201`→**P0-5**, `DS-06`→**P0-2**).
+**S15 triaged the whole intake** (`OD-01 = a`). **S16 closed `GS-201` (P0-5)** — CLI `--run` now
+refuses Batch with no `output` (exit 2) before the engine starts. Five blockers remain; one of
+them is still scheduled as **P0** (`DS-06`→**P0-2**).
 
 | Item | Why it blocks | Where the task lives |
 |---|---|---|
-| `GS-201` CLI Batch in-place overwrite | a documented path can destroy user source GIFs | **P0-5** · `STATUS.md` (OPEN) · `COMPILED_AUDIT.md` §13 |
 | `GS-204` packaging fail-open | a "successful" package can be incomplete or mixed-platform | **P1-26** · `STATUS.md` · §13 · `working_code/gifscythe/scripts/test_package.sh` scope |
 | `GS-208` red main / stale status docs | release evidence must come from a green exact SHA | **P2-7** · `docs/ci/PENDING_WORKFLOW_CHANGE.md` + this file's gate below |
 | `U-08` licence set incomplete | GPLv3 text and Qt notices are not staged | `STATUS.md` row (PARTIAL) · `LICENSE` |
@@ -59,7 +58,7 @@ From `working_code/gifscythe/`:
 ```bash
 ./build.sh                    # engine + CLI + unit tests      -> ALL TESTS PASSED
 ./scripts/test_engine.sh      # engine pipeline                -> 5/5
-./scripts/smoke_cli.sh        # CLI integration                -> 19/19
+./scripts/smoke_cli.sh        # CLI integration                -> 21/21
 ./scripts/test_package.sh     # packaging negative suite       -> 0 failed
 ./scripts/check_docs.sh       # documentation status gate      -> 0 failed
 ./scripts/verify_audit.sh     # whole COMPILED_AUDIT §6 suite  -> 0 FAIL

@@ -49,14 +49,12 @@ answers are fine; `OD-14` has two sub-questions and needs both.
   (CLI `--run` refuses Batch with no `output`, exit 2). It is the only
   **Critical** in the intake. This is the one answer that authorizes a code
   change; the standing docs-only constraint does not cover anything else.
+  **Executed S16 (2026-09-13):** CLI `--run` refuses Batch with no `output`
+  (rc=2, named reason) before the engine starts; smoke 21/21.
 
-**`OD-01` executed S15 (2026-09-13); `OD-02` still open.** The triage of all 18
-rows has landed: every row carries a `COMPILED_AUDIT.md` §6 fix-order id and is
-`OPEN` in `STATUS.md`, so **G12** no longer blocks a new `## S<n>` entry in
-`IMPROVEMENT_LOG.md` — the `## S15` entry exists because of it. Triage scoped the
-work; it remediated none of it. The `GS-201` stop-loss (**`OD-02 = a`**, now
-scheduled as **P0-5**) is the next task and is still a code change awaiting
-execution.
+**`OD-01` executed S15 (2026-09-13); `OD-02` executed S16 (2026-09-13).** The
+triage of all 18 rows landed in S15. The `GS-201` stop-loss (**P0-5**) landed in
+S16. Remaining owner questions are **OD-03…OD-15**.
 
 ## Notes
 
