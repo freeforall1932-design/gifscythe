@@ -29,7 +29,7 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 83 DONE · 5 PARTIAL · 34 OPEN · 0 UNTRIAGED · 122 total
+**Counts (generated - do not edit by hand):** 84 DONE · 5 PARTIAL · 33 OPEN · 0 UNTRIAGED · 122 total
 **Last regenerated:** S17 · 2026-09-13 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
@@ -161,12 +161,12 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 `OD-01 = a` and S15 mapped every row into a `§6` fix-order id, named in each Next action below —
 14 new ids (**P0-5, P0-6, P1-25…P1-32, P2-12…P2-14, P3-11**) and 4 folded into actions that already
 covered the same defect (**DS-06**→P0-2, **DS-12**→P1-13, **GS-208**→P2-7, **DS-08**→P3-5).
-Triage scoped them; it did not fix them. **S16 closed `GS-201` (P0-5)** with executed proof; the other 17 remain OPEN.
+Triage scoped them; it did not fix them. **S16 closed `GS-201` (P0-5); S17 closed `GS-202` (P0-6)** with executed proof; the other 16 remain OPEN.
 
 | ID | Item | State | Session | Proof / Blocker | Next action |
 |----|-------|-------|---------|-----------------|-------------|
 | GS-201 | CLI **Batch** maps to the engine's in-place `-b`; with no `output` key the output planner is skipped, so `--run` can rewrite the source GIFs | DONE | S16 | CLI `--run` stop-loss in `src/cli/main.cpp` (Batch + empty output, named reason, rc=2, before engine locate). Engine `-b -O3` rewrote logo.gif 8703 to 8637 B; CLI `--run` left the source cmp-identical. `scripts/smoke_cli.sh` 21/21 (cases 17-18). Print mode still emits `-b`. GUI/web never emit a single `-b` run. | - |
-| GS-202 | Web `/run` derives output paths and the explode prefix from client upload names; `../` escapes the request temp dir; collisions compared case-sensitively | OPEN | S15 | `web/server.mjs:285,426,481,493,523`; no containment assertion on targets (intake A.2) | **P0-6** — P0 candidate: reject upload names containing path separators, then assert every resolved target stays under the request temp dir |
+| GS-202 | Web upload names could escape the request temp directory and case-only output collisions were missed | DONE | S17 | P0-6: portable name admission + resolved target containment + case/NFC collision checks; transport 42/42; old server fails 7 security groups and overwrites isolated sentinels; disabling containment fails its probe | - |
 | GS-203 | Ordinary runs report success on exit 0 with no output verification; CLI verifies Explode only, GUI/web check existence + size | OPEN | S15 | `src/cli/main.cpp:325-326`, `src/qtui/MainWindow.cpp:986,1147`, `web/server.mjs:465-466` (intake A.3) | **P1-25** — Shared single-output verifier (non-empty + GIF87a/89a + changed since snapshot) for CLI, GUI and web |
 | GS-204 | Packaging still fail-open outside its happy path: the system packager never clears its destination and always prints success; portable skips Qt deployment when the deployer is absent; negative tests cover portable only | OPEN | S15 | `scripts/package_system.sh:9,23,39`, `scripts/package_portable.sh:46,100`, `scripts/test_package.sh:3` (intake A.4) | **P1-26** — Manifest-driven stager per platform and package type; extend negative tests to both (release-gated) |
 | GS-205 | Non-GIF inputs still admitted: picker offers `All files`, `appendInputs` validates nothing, drop checks existence not `isFile()` | OPEN | S15 | `src/qtui/MainWindow.cpp:358,405,415` (intake A.5) | **P1-27** — One `admitInputs()` (existing readable regular file + GIF magic) used by picker and drop, with rejected-item feedback |

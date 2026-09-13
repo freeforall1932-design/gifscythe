@@ -93,14 +93,15 @@ producing nothing (`GS-203` class) or write anywhere the user did not choose (`G
   | argv building | `working_code/gifscythe/src/core/GifsicleCommand.h` | `web/command.mjs` | `web/test/command.test.mjs` |
   | validation rules | `working_code/gifscythe/src/core/Validate.h` | `web/validate.mjs` | `web/test/validate.test.mjs` |
   | engine/process plumbing | `src/core/EngineLocator.h`, `ProcessRunner.h`, `ExplodeVerify.h` | `server.mjs` | `web/test/transport.test.mjs` + CLI smoke |
-  | output planning | `src/core/OutputPlan.h` | server-side planning in `server.mjs` | partial (unit tests on the C++ side) |
+  | output planning | `src/core/OutputPlan.h` | server-side planning in `server.mjs` + `run-paths.mjs` | C++ unit tests + web transport containment/collision checks (S17) |
 
-- **The web surface already carries real logic**, not a toy: `web/server.mjs` 572 lines,
+- **S14 snapshot sizes (historical; before the S17 containment changes):** `web/server.mjs` 572 lines,
   `web/app.js` 288, `web/command.mjs` 238, `web/validate.mjs` 89, plus three suites
   (196 + 353 + 129 lines of tests).
-- **Open intake items hit the web directly** (all `OPEN` in `STATUS.md` since the S15 triage,
-  each with its `COMPILED_AUDIT.md` §6 id; evidence in §13): `GS-202` → **P0-6** (output paths
-  derived from upload names), `GS-203` → **P1-25** (success without verification), `DS-13` →
+- **GS-202 / P0-6 closed S17:** portable upload-name rejection, contained output/prefix
+  plan, case/NFC collision checks; transport 42/42. The template remains SKELETON.
+- **Open intake items hit the web directly** (each with its `COMPILED_AUDIT.md` §6 id;
+  evidence in §13): `GS-203` → **P1-25** (success without verification), `DS-13` →
   **P1-32** (`/optimize` serves non-GIF bytes as `image/gif`), plus the `U-06` remainder
   (concurrency cap / rate limit / engine-run bound).
 - **The desktop side carries the release bar** until the owner says otherwise: `COMPILED_AUDIT.md`

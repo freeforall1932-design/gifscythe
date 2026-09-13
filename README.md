@@ -84,6 +84,12 @@ unsafe-output tests. It also repaired the post-merge documentation gate; PR
 #15 is green on Linux and Windows.**
 **S13 (2026-09-12) moved the product-owned native engine config out of
 `reference_code/gifsicle`; U-10 now remains PARTIAL only for CI hash-pinning.**
+**S17 (2026-09-13) closed GS-202 / P0-6:** `/run` rejects unsafe upload names,
+contains resolved output paths and explode prefixes, and refuses case/NFC batch
+collisions before any engine starts. Web transport: **42 passing check groups**;
+pre-fix server fails seven security groups, including outside-request sentinel
+writes. The N-07 documentation count check also closed in S17. Other release
+blockers and owner decisions remain open; see `STATUS.md`.
 **Direction (2026-09-09): offline-only, language stays C++17/Qt6 through 1.0.0**
 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 

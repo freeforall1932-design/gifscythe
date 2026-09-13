@@ -15,12 +15,12 @@
 > file (gate **G10**); **PR #16 merged as `629135a` (2026-09-12); `main` run `34709202307` is GREEN on both jobs**. A newer merge on top of this branch keeps `main` red
 > only while a run is in flight; check the tip run before claiming green. The S8 banner above is a dated snapshot of that
 > session, **not** the current state. §13 is the external-review intake — **triaged
-> into §6 in S15**; **GS-201 closed S16** (P0-5). The other 17 intake rows stay OPEN.
+> into §6 in S15**; **GS-201 closed S16** (P0-5), **GS-202 closed S17** (P0-6). The other 16 intake rows stay OPEN.
 > Narrative `**Status:**` lines in §2/§3/§4 now name their §5 register row; where the original
 > audit text disagreed with the register, the original wording is kept after *"Original report:"*
 > and is superseded by the register.
 
-**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), S14 (2026-09-12 — external-review intake and status-truth corrections), S15 (2026-09-13 — 18-row triage), **S16 (2026-09-13 — GS-201 / P0-5 stop-loss)**
+**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), S14 (2026-09-12 — external-review intake and status-truth corrections), S15 (2026-09-13 — 18-row triage), **S16 (2026-09-13 — GS-201 / P0-5 stop-loss)**, **S17 (2026-09-13 — N-07 count check and GS-202 path containment)**
 **Branch:** `main` at `2d51347817f5cdb39334415a03bb5f2b543119dd` (the PR #15 merge; re-confirm with
 `gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`;
 `check_docs.sh` gate **G10** fails if this line names anything else)
@@ -1727,7 +1727,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P0-3 | **Make packaging fail closed.** Fresh staging dir, required-binary manifest, `windeployqt` failure is fatal, license set asserted, package E2E test. | **U-02** | **A highest** |
 | P0-4 | **Re-cut release evidence.** Artifacts from exact tagged SHA, notes pinning that SHA, then run C4/D3/D4 against them. | **U-09** | **A highest** |
 | P0-5 | **Refuse `--run` with Batch and no `output`.** CLI **Batch** maps to the engine's in-place `-b`, so with no `output` key the output planner is skipped and `--run` can rewrite the source GIFs. Stop-loss: exit 2 with a named reason before any process starts (**OD-02 = a**). | **GS-201** | **A highest (S15 triage)** |
-| P0-6 | **Contain web upload names, then assert every target.** `/run` derives output paths and the explode prefix from client upload names, so `../` escapes the request temp dir and collisions are compared case-sensitively. Reject names containing path separators, then assert every resolved target stays under the request temp dir. | **GS-202** | **A highest (S15 triage)** |
+| P0-6 | **Contain web upload names, then assert every target — DONE S17.** Reject portable-unsafe filenames before engine discovery; contain all resolved targets and explode prefixes before the first run; compare batch target/source names case-insensitively with NFC normalization. Transport 42/42 (100 unsafe-name requests across four modes, real-engine spawn log, outside-request sentinels, POSIX/Windows guard probes). Original server fails 7 security groups; disabling containment fails its probe. | **GS-202** | **A highest (S15 triage; S17 closed)** |
 
 ### P1 — Repair CLI and execution contracts
 
@@ -1915,7 +1915,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | **P0 honesty** | §7.A all green on Linux; A2 never exits 0 on missing engine; **threads=0 emits `-j`**; **empty comments don't corrupt argv** |
 | **Windows path** | §7.C C2–C5 green with artifacts |
 | **GUI MVP trustworthy** | §7.B B10–B14 green (batch vs merge, no silent loss); **B15–B17 new tests green** |
-| **Web surface honest** (product alternative since S14) | Server binds loopback by default; validates GIF magic; verifies output; no double-decode; browser URLs cleaned. **Open before it is product-grade:** `GS-202`, `GS-203`, `DS-13`, `U-06` remainder — see §13 |
+| **Web surface honest** (product alternative since S14) | Server binds loopback by default; validates GIF magic; verifies output; no double-decode; browser URLs cleaned. **GS-202 closed S17. Open before it is product-grade:** `GS-203`, `DS-13`, `U-06` remainder — see §13 |
 | **1.0.0** | Tabs + major controls + preview + clean Windows portable (§7.D) + no open U-01…U-10 | then bump VERSION.md |
 | **2.x** | Only after 1.0.0: frame model → WebP/APNG |
 
@@ -1973,7 +1973,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 
 ---
 
-## 13. External review intake — 2026-09-12 (S14) — **triaged S15; GS-201 closed S16**
+## 13. External review intake — 2026-09-12 (S14) — **triaged S15; GS-201 closed S16, GS-202 closed S17**
 
 > **Read this as the intake record, not a second register.** Three external reviews were compiled on
 > 2026-09-12 into `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`. The items below are
@@ -1991,7 +1991,7 @@ proposed solution and the verification limits.
 | ID | Severity | Finding (short) | Evidence location | Re-check |
 |---|---|---|---|---|
 | **GS-201** | Critical | CLI Batch maps to engine `-b` (in-place edit); the output planner is skipped when `output` is empty, so `--run` can rewrite the source GIFs | `working_code/gifscythe/src/cli/main.cpp`, `working_code/gifscythe/src/core/GifsicleCommand.h` | **CLOSED S16 (P0-5)** — CLI `--run` refuses Batch with no `output` (rc=2, named reason) before the engine starts; smoke 21/21; engine `-b` rewrite confirmed 8703→8637 B, CLI left the source `cmp`-identical |
-| **GS-202** | High | Web `/run` builds output paths and the explode prefix from client-supplied upload names; `../` escapes the request temp dir, collisions compared case-sensitively | `web/server.mjs` | code-confirmed |
+| **GS-202** | High | Original report: web upload names escape the request temp dir; case-only collisions missed. **Closed S17:** portable name rejection, contained target/prefix plan, case/NFC collision checks | `web/server.mjs`, `web/run-paths.mjs` | transport 42/42; original server fails 7 security groups; independent containment mutation fails |
 | **GS-203** | High | Ordinary runs (Auto/Merge/Batch) claim success on exit 0 with no output verification; GUI and web accept stale/non-GIF files | `src/cli/main.cpp`, `src/qtui/MainWindow.cpp`, `web/server.mjs` | code-confirmed |
 | **GS-204** | High | System packager never clears its destination, copies conditionally, always prints success; portable packager skips Qt deployment when the deployer is absent; negative tests cover portable only | `working_code/gifscythe/scripts/package_system.sh`, `working_code/gifscythe/scripts/package_portable.sh` | code-confirmed |
 | **GS-205** | Medium | Non-GIF inputs still admitted: picker offers `All files`, `appendInputs` validates nothing, drop accepts a directory because it checks existence, not `isFile()` | `src/qtui/MainWindow.cpp` | code-confirmed |
@@ -2033,15 +2033,15 @@ P2-12…P2-14, P3-11**) and 4 folded into actions that already covered them (**D
 **DS-12**→P1-13, **GS-208**→P2-7, **DS-08**→P3-5). Their `STATUS.md` state is therefore `OPEN`,
 not `UNTRIAGED`, so gate **G12** no longer blocks a newer `## S<n>` entry in `IMPROVEMENT_LOG.md`.
 
-**Task registration (S14 follow-up, triaged S15; GS-201 closed S16).** These 18 findings are recorded
+**Task registration (S14 follow-up, triaged S15; GS-201 closed S16, GS-202 closed S17).** These 18 findings are recorded
 row-by-row in `STATUS.md` under the reviewers' own ids, each naming its §6 fix-order id, with one
-pending line each in `WORKLIST.md` (GS-201 ticked S16), and their remaining release-blocking subset
+pending line each in `WORKLIST.md` (GS-201 ticked S16, GS-202 ticked S17), and their remaining release-blocking subset
 in `docs/release/RELEASE_PROCEDURE.md`. Proposed sequencing lives in `web/WEB_PLAN_TEMPLATE.md` (the
 web-surface plan template the owner drafts are refitted into; its §1 records the owner's S14
 decision that the web build is a supported product surface, and its state line - `SKELETON` until
 the refit, then `WORKING PLAN` - is mirrored in `SESSION_HANDOFF.md` and checked by gate G16).
 **They are in the §6 fix order (S15).** 14 got new ids and 4 folded into actions that already
-covered them. **GS-201 / P0-5 closed S16**; the other 17 remain OPEN. They were never mapped into
+covered them. **GS-201 / P0-5 closed S16, GS-202 / P0-6 closed S17**; the other 16 remain OPEN. They were never mapped into
 `U-nn` rows — the reviewers' ids are the register keys.
 
 **Cross-references inside this file.** GS-201 extends U-01's coverage gap (the planner is correct

@@ -62,13 +62,14 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       `COMPILED_AUDIT.md` §13 + `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`, and recorded
       row-by-row in `STATUS.md` under the reviewers' ids. **Triage is done**: the owner chose
       (a) all 18, and every row is now mapped to a `COMPILED_AUDIT.md` §6 fix-order id — 14 new
-      ids and 4 folded into actions that already covered them. The lines below stay unchecked:
-      they are the remediation work, one line per finding, each now naming its §6 id.
+      ids and 4 folded into actions that already covered them. Unchecked lines below are the remaining remediation work, one line per finding, each now naming its §6 id.
       - [x] **GS-201** → **P0-5** — (Critical) CLI Batch → engine `-b` can rewrite the source GIFs; cheap
             stop-loss = refuse `--run` with Batch and no `output` key. **Closed S16:** CLI `--run`
             exits 2 with a named reason before the engine starts; smoke 21/21; source GIF untouched.
-      - [ ] **GS-202** → **P0-6** — (High) web `/run` builds output paths from upload names; `../` escapes the
-            request temp dir.
+      - [x] **GS-202** → **P0-6** — **closed S17**: unsafe upload names refused with 400;
+            every resolved target/prefix contained before engine launch; case/NFC collisions
+            refused with 422. Transport 42/42; original server fails 7 security groups;
+            outside-request sentinels unchanged with the fix.
       - [ ] **GS-203** → **P1-25** — (High) ordinary runs claim success on exit 0 with no output verification
             (CLI Explode-only, GUI/web existence+size).
       - [ ] **GS-204** → **P1-26** — (High) packaging fail-open outside the portable happy path; negative tests
@@ -422,7 +423,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [ ] **Owner draft:** refit the web plan into `web/WEB_PLAN_TEMPLATE.md` (slot-by-slot; §0
       rules). On that commit do the **one-time flip** — `Template state:` here and the mirror line
       in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it). The 18 intake rows were triaged
-      in S15; **GS-201 closed S16**.
+      in S15; **GS-201 closed S16, GS-202 closed S17**.
 - [ ] **Review, don't accept:** run `scripts/review_change.sh --pr <n>` (or `--commit`/`--patch`)
       on any change before merging it. R1 flags edited check logic, R2 flags a matcher that
       matches nothing (how G10 stayed dead for five PRs), R3 flags prose counts that disagree
@@ -518,7 +519,7 @@ cd working_code/gifscythe
 node web/server.mjs 8000           # from the repo root; binds 127.0.0.1
 node web/test/command.test.mjs     # JS ⇄ C++ command parity (17 checks)
 node web/test/validate.test.mjs    # JS ⇄ C++ validation parity (21 checks)
-node web/test/transport.test.mjs   # live-server transport net (30 cases)
+node web/test/transport.test.mjs   # live-server transport net (42 check groups, S17)
 ```
 
 ## Do not
