@@ -31,9 +31,11 @@ reads them in a file, not in a conversation.
    below. It may not wait for a later audit pass. Gate **G12** fails if an
    `UNTRIAGED` row outlives the session that found it.
 3. **Before `gh pr create`, and again before `gh pr merge`:** run
-   `working_code/gifscythe/scripts/check_docs.sh`, fix every failure, re-run
-   until green. Do not create or merge with a failing doc check, and **do not
-   ask whether to run it**.
+   `working_code/gifscythe/scripts/pr_preflight.sh --online` (it runs
+   `check_docs.sh` and `sweep_stale.sh`, and prints the repo/run/PR state),
+   fix every failure, re-run until green. Do not create or merge with a
+   failing check, and **do not ask whether to run it**. Anything labelled
+   "after merge" is done **before** merging.
 4. **It is also enforced mechanically.** `.githooks/pre-push` blocks a red push.
    Git does not copy hooks on clone, so run
    `working_code/gifscythe/scripts/bootstrap_hooks.sh` once per clone —
@@ -41,42 +43,52 @@ reads them in a file, not in a conversation.
 5. **`IMPROVEMENT_LOG.md` entries use the template** (`Changed / Partial / Left /
    Verified / Not verifiable here / Docs touched`). The **`Not verifiable here`**
    line is mandatory and must never be omitted or softened.
+6. **HARD RULE — commit every edit/write/delete before merge AND before the
+   session can close.** Uncommitted work is lost when the sandbox is cut off
+   (it happened twice). Do not wait to be reminded. Gate **G18** fails
+   `check_docs.sh` on a dirty tree; `pr_preflight.sh` **P3** fails create/merge
+   on dirty and **P3b** fails if HEAD is ahead of origin. Push after you
+   commit. At every new-session start, inspect `web/WEB_PLAN_TEMPLATE.md`
+   §1–§10: leftover `<placeholders>` = stay **SKELETON**; filled content =
+   flip both **G16** lines to **WORKING PLAN** in the same commit (one-way).
+   The gate never auto-edits.
 
 ## Found this session — pending lines (rule 2)
 
 Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
-- [ ] **External review intake (S14) — registered `UNTRIAGED`, triage waits on the owner.**
+- [x] **External review intake (S14) — triaged in S15 (`OD-01 = a`).**
       18 findings (Max/GPT-class `GS-201…GS-210`, DeepSeek `DS-06…DS-13`) are compiled in
       `COMPILED_AUDIT.md` §13 + `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`, and recorded
-      row-by-row in `STATUS.md` under the reviewers' ids. Proposed sequencing lives in
-      `web/WEB_PLAN_TEMPLATE.md` (template; the owner's draft is refitted into it).
-      Triage = map accepted items into `COMPILED_AUDIT.md` §6 fix-order ids. One pending line per
-      finding, as rule 2 requires:
-      - [ ] **GS-201** (Critical) CLI Batch → engine `-b` can rewrite the source GIFs; cheap
-            stop-loss = refuse `--run` with Batch and no `output` key.
-      - [ ] **GS-202** (High) web `/run` builds output paths from upload names; `../` escapes the
+      row-by-row in `STATUS.md` under the reviewers' ids. **Triage is done**: the owner chose
+      (a) all 18, and every row is now mapped to a `COMPILED_AUDIT.md` §6 fix-order id — 14 new
+      ids and 4 folded into actions that already covered them. The lines below stay unchecked:
+      they are the remediation work, one line per finding, each now naming its §6 id.
+      - [x] **GS-201** → **P0-5** — (Critical) CLI Batch → engine `-b` can rewrite the source GIFs; cheap
+            stop-loss = refuse `--run` with Batch and no `output` key. **Closed S16:** CLI `--run`
+            exits 2 with a named reason before the engine starts; smoke 21/21; source GIF untouched.
+      - [ ] **GS-202** → **P0-6** — (High) web `/run` builds output paths from upload names; `../` escapes the
             request temp dir.
-      - [ ] **GS-203** (High) ordinary runs claim success on exit 0 with no output verification
+      - [ ] **GS-203** → **P1-25** — (High) ordinary runs claim success on exit 0 with no output verification
             (CLI Explode-only, GUI/web existence+size).
-      - [ ] **GS-204** (High) packaging fail-open outside the portable happy path; negative tests
+      - [ ] **GS-204** → **P1-26** — (High) packaging fail-open outside the portable happy path; negative tests
             cover portable only.
-      - [ ] **GS-205** (Med) non-GIF inputs still admitted via the picker and drop.
-      - [ ] **GS-206** (Med) `long`→`int` narrowing; no validation for loopcount/threads/gamma/enums.
-      - [ ] **GS-207** (Med) unusable `GS_ENGINE` silently falls back to another engine.
-      - [ ] **GS-208** (High, PARTIAL-fixed) main release-red; docs corrected in S14, workflow-copy
+      - [ ] **GS-205** → **P1-27** — (Med) non-GIF inputs still admitted via the picker and drop.
+      - [ ] **GS-206** → **P1-28** — (Med) `long`→`int` narrowing; no validation for loopcount/threads/gamma/enums.
+      - [ ] **GS-207** → **P1-29** — (Med) unusable `GS_ENGINE` silently falls back to another engine.
+      - [ ] **GS-208** → **P2-7** — (High, PARTIAL-fixed) main release-red; docs corrected in S14, workflow-copy
             sync + marker deletion still open (needs a `workflows`-scoped token).
-      - [ ] **GS-209** (Med) native linux/mac build uses a fixed glibc config.
-      - [ ] **GS-210** (Low) build entry points ignore mistyped options; qmake tried before CMake.
-      - [ ] **DS-06** (High) `threads <= 0` → bare `-j`; the `-1` sentinel now means 8 threads.
-      - [ ] **DS-07** (Med) GUI threads spinner cannot express "no flag".
-      - [ ] **DS-08** (Low) non-strict print mode exits 0 after warnings.
-      - [ ] **DS-09** (Info) `threads < -1` accepted silently.
-      - [ ] **DS-10** (Info) disposal 4..7 unreachable from the desktop picker.
-      - [ ] **DS-11** (Med, PARTIAL-fixed) audit narrative reconciled in S14; the mechanical gate
+      - [ ] **GS-209** → **P2-12** — (Med) native linux/mac build uses a fixed glibc config.
+      - [ ] **GS-210** → **P2-13** — (Low) build entry points ignore mistyped options; qmake tried before CMake.
+      - [ ] **DS-06** → **P0-2** — (High) `threads <= 0` → bare `-j`; the `-1` sentinel now means 8 threads.
+      - [ ] **DS-07** → **P1-30** — (Med) GUI threads spinner cannot express "no flag".
+      - [ ] **DS-08** → **P3-5** — (Low) non-strict print mode exits 0 after warnings.
+      - [ ] **DS-09** → **P1-31** — (Info) `threads < -1` accepted silently.
+      - [ ] **DS-10** → **P3-11** — (Info) disposal 4..7 unreachable from the desktop picker.
+      - [ ] **DS-11** → **P2-14** — (Med, PARTIAL-fixed) audit narrative reconciled in S14; the mechanical gate
             check that keeps it reconciled is still missing.
-      - [ ] **DS-12** (Low) settings values lose leading/trailing whitespace on round trip.
-      - [ ] **DS-13** (Med) web `/optimize` serves non-GIF output as `200 image/gif`.
+      - [ ] **DS-12** → **P1-13** — (Low) settings values lose leading/trailing whitespace on round trip.
+      - [ ] **DS-13** → **P1-32** — (Med) web `/optimize` serves non-GIF output as `200 image/gif`.
 - [ ] **CI/infra (S14):** apply `docs/ci/build.yml.proposed` and delete
       `docs/ci/PENDING_WORKFLOW_CHANGE.md` in one commit — both copies then enforce
       byte-equality again (E9/G7). Needs a token with the `workflows` scope.
@@ -244,6 +256,17 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] **Release notes placed:** `docs/release/RELEASE_PROCEDURE.md` carries the open
       release-blocking pointers; `docs/ci/PENDING_WORKFLOW_CHANGE.md` carries the CI one.
 
+### Session S16 (2026-09-13) — GS-201 / P0-5 stop-loss
+- [x] **GS-201 (P0-5)** — CLI `--run` refuses Batch with no `output` (rc=2, named
+      reason) before the engine starts. Engine `-b` rewrite confirmed (8703→8637 B);
+      CLI left the source `cmp`-identical. Smoke **21/21**. Print still emits `-b`.
+- [x] **N-07 triaged to P2-15** (still OPEN) — S4 is a 5-phrase list, not a general
+      reversal detector. Sweep not changed this session.
+- [x] **SW-03** — uncommitted-work hard rule (**G18** dirty-tree FAIL in
+      `check_docs.sh`; **P3b** unpushed FAIL in `pr_preflight.sh`) plus **G16**
+      content-vs-token (never auto-edit). Template stays **SKELETON**. Rule 6
+      written in the three files a new session reads. No PR until yes.
+
 ### Session S14 continuation (2026-09-12) — stale-claim sweep, PR preflight, owner-decision register (docs only)
 
 - [x] **Stale-claim sweep:** `scripts/sweep_stale.sh` (rules **S1–S5**, each mutation-tested) +
@@ -398,8 +421,8 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
 - [ ] **Owner draft:** refit the web plan into `web/WEB_PLAN_TEMPLATE.md` (slot-by-slot; §0
       rules). On that commit do the **one-time flip** — `Template state:` here and the mirror line
-      in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it) — then triage the 18 intake rows
-      into `COMPILED_AUDIT.md` §6 fix-order ids.
+      in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it). The 18 intake rows were triaged
+      in S15; **GS-201 closed S16**.
 - [ ] **Review, don't accept:** run `scripts/review_change.sh --pr <n>` (or `--commit`/`--patch`)
       on any change before merging it. R1 flags edited check logic, R2 flags a matcher that
       matches nothing (how G10 stayed dead for five PRs), R3 flags prose counts that disagree
@@ -409,12 +432,20 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       from that row's own options; `OD-15` runs `a`–`d`).
       **`OD-01 = a` and `OD-02 = a` are answered** (2026-09-12); the other 13 are direction
       choices the plan can proceed without.
-- [ ] **Execute `OD-01 = a`:** triage all 18 intake findings into `COMPILED_AUDIT.md` §6 fix-order
-      ids. This is what unblocks gate **G12** — until every `UNTRIAGED` row is scoped, no new
-      `## S<n>` entry can be added to `IMPROVEMENT_LOG.md`.
-- [ ] **Execute `OD-02 = a`:** the ~10-line `GS-201` stop-loss (CLI `--run` refuses Batch with no
-      `output`, exit 2) plus a regression test. The only code change the current decisions
-      authorize.
+- [ ] **`N-07` → `P2-15` (found S15, triaged S16, still OPEN):** sweep **S4** matches 5 hardcoded
+      retired phrases, so it cannot catch a current-state doc that still says findings "stay
+      `UNTRIAGED`" after a triage empties the register. Measured S15: 4 such claims, sweep stayed
+      `5 passed, 0 failed` before *and* after correcting them by hand. Next: a rule that compares a
+      quoted `UNTRIAGED` count against `STATUS.md`'s generated counts line, or restate S4 as the
+      5-phrase list it is. Not closed by restating S4.
+- [x] **Execute `OD-01 = a` — done S15 (2026-09-13):** all 18 intake findings now carry a
+      `COMPILED_AUDIT.md` §6 fix-order id (14 new, 4 folded into existing actions) and are `OPEN`
+      in `STATUS.md`. Gate **G12** is unblocked: with no `UNTRIAGED` row left, the `## S15` entry
+      in `IMPROVEMENT_LOG.md` now passes it. Triage scoped the work; it fixed none of it — the
+      remediation lines above stay open.
+- [x] **Execute `OD-02 = a` — done S16 (2026-09-13):** CLI `--run` refuses Batch with no `output`
+      (exit 2, named reason) before the engine starts; smoke 21/21 (source GIF `cmp`-identical;
+      print still emits `-b`). The only code change the current decisions authorized.
 - [ ] **SkillOpt** — after `OD-15`, add microsoft/SkillOpt per
       `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` (shape A pinned submodule, quarantined; the
       three non-negotiable conditions apply), then register the doc-sweep skill experiment as its

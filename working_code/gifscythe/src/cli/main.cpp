@@ -49,9 +49,10 @@ void print_usage(const char* argv0, std::FILE* to) {
   std::fprintf(to, "                proceeds anyway (the GUI refuses instead); pass\n");
   std::fprintf(to, "                --strict to make the CLI refuse like the GUI does.\n");
   std::fprintf(to, "                An UNSAFE output target is always refused with exit\n");
-  std::fprintf(to, "                code 2. Exit codes: 0 ok, 1 engine/path/output\n");
-  std::fprintf(to, "                verification failure, 2 usage or unsafe target,\n");
-  std::fprintf(to, "                3 --strict refusal.\n");
+  std::fprintf(to, "                code 2, as is Batch with no output (the engine's in-place\n");
+  std::fprintf(to, "                -b would rewrite the source GIF). Exit codes: 0 ok, 1\n");
+  std::fprintf(to, "                engine/path/output verification failure, 2 usage or\n");
+  std::fprintf(to, "                unsafe target, 3 --strict refusal.\n");
   std::fprintf(to, "  GS_ENGINE env: override default engine path.\n");
   std::fprintf(to, "  Gifscythe %s\n", GS_VERSION);
 }
@@ -236,6 +237,19 @@ int main(int argc, char** argv) {
                  "       only the LAST input honors the -o prefix; earlier inputs write\n"
                  "       <basename>.NNN into the current directory (the engine exits 0).\n"
                  "       Run one file at a time.\n");
+    return 2;
+  }
+
+  // ---- GS-201 / P0-5: Batch with no output is the engine's in-place -b ----
+  // CLI Batch maps to gifsicle -b (gifsicle.1:190: "Modify each GIF input in
+  // place by reading and writing to the same filename"). With no `output` key
+  // the planner below is skipped (it only runs when output is non-empty), so
+  // --run would rewrite the source GIFs. Stop-loss (OD-02 = a): named reason,
+  // exit 2, before any process starts. Print mode still prints, like N-05.
+  if (do_run && s.mode == gs::Mode::Batch && s.output.empty()) {
+    std::fprintf(stderr,
+                 "ERROR: refusing to run — Batch with no output uses the engine's in-place -b\n"
+                 "       and would rewrite the source GIF(s). Set an `output` key, or use Auto.\n");
     return 2;
   }
 

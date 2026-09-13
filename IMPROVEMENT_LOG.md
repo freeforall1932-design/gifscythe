@@ -4,12 +4,216 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S16 continuation — uncommitted-work hard rule (G18) + template content check (G16)  (2026-09-13)
+
+**Changed:**
+
+- **No GitHub patch** was in the asking message; none was applied this session.
+  The S14 owner patch was adjudicated earlier and was not applied wholesale.
+
+- **HARD RULE, mechanical:** every edit/write/delete is committed into the repo
+  before merge **and** before the session can close. Uncommitted work is lost
+  when the sandbox is cut off (second time). Do not wait to be reminded.
+  - `check_docs.sh` gate **G18** FAILs on a dirty tree. Pre-push runs this
+    script, so a dirty tree cannot be pushed. CI checkouts are clean, so G18
+    PASSes there.
+  - `pr_preflight.sh` **P3** FAILs create/merge on dirty; new **P3b** FAILs if
+    HEAD has no upstream or is ahead of origin (unpushed commits are not in
+    the repo).
+  - Standing rule 6 is written in `SESSION_HANDOFF.md`, `WORKLIST.md` and
+    `docs/release/RELEASE_PROCEDURE.md` (G13 now requires those files to
+    mention **G18**). `docs/planning/NEXT_SESSION_PROMPT.md` recovery no
+    longer hardcodes a check_docs triple; it requires 0 failed and names G18.
+
+- **Merge-related checks run before merge**, not after. Rule 3 already pointed
+  at `pr_preflight.sh --online`; WORKLIST rule 3 now matches, and the prompt
+  says create **and** merge.
+
+- **G16 inspects template content vs the state token** (session-start check).
+  Slot placeholders in `web/WEB_PLAN_TEMPLATE.md` §1–§10 (not §0) must agree
+  with the token: leftover `<date>`/`<owner>`/`<next>`/`<who>`/`<what>` /
+  `<ids the draft names>` / `<open:` / "the owner's draft fills this in" =
+  stay **SKELETON**; filled content + SKELETON = flip both lines to
+  **WORKING PLAN** in the same commit (one-way). WORKING PLAN + leftover
+  placeholders = fill them; never flip back. The gate never auto-edits.
+  Current tree is still skeleton — both lines stay **SKELETON**.
+
+- **SW-03** registered DONE in `STATUS.md` (hand-maintained).
+
+**Partial:** none of this work. N-07 / P2-15 remains OPEN (detector gap).
+
+**Left:** OD-03…OD-15 unanswered. Remaining 17 intake rows OPEN. No PR until
+an explicit yes.
+
+**Verified:**
+
+- Mutation: dirty tree → `FAIL [G18]`; restore → PASS after commit.
+- Mutation: `WORKING PLAN` token while §1–§10 still have placeholders →
+  `FAIL [G16]`; restore → PASS (`SKELETON`, content skeleton).
+- Mutation: strip §1–§10 placeholders while token stays `SKELETON` →
+  `FAIL [G16]`; restore → PASS.
+- Gate never edited the template state lines.
+
+**Not verifiable here:**
+
+- Whether a future sandbox cut-off still drops unpushed commits if the agent
+  ignores P3b (the check cannot run after the sandbox is gone).
+- Native Windows / CI for this commit (not yet pushed at write time).
+
+**Docs touched:** `working_code/gifscythe/scripts/check_docs.sh`,
+`working_code/gifscythe/scripts/pr_preflight.sh`, `STATUS.md`,
+`SESSION_HANDOFF.md`, `WORKLIST.md`, `IMPROVEMENT_LOG.md`,
+`docs/release/RELEASE_PROCEDURE.md`, `docs/planning/NEXT_SESSION_PROMPT.md`,
+`docs/ci/README.md`, `web/WEB_PLAN_TEMPLATE.md`.
+
+---
+
+## S16 — `OD-02 = a` executed: CLI `--run` refuses Batch with no output (GS-201 / P0-5)  (2026-09-13)
+
+**Changed:**
+
+- **Landed S15 on this branch first.** Cherry-picked the S15 triage commit
+  `5677612` (from `arena/01a09712-gifscythe`) onto `2542f1b` as `0e6e1a7`. That
+  is the 18-row §6 mapping (`OD-01 = a`) plus `N-07` registered UNTRIAGED. This
+  session then executed the only owner-authorized code change.
+
+- **`OD-02 = a` / GS-201 / P0-5 stop-loss.** CLI `--run` with `mode = batch` and
+  no `output` key now exits **2** with a named reason (`Batch with no output` /
+  `in-place -b`) **before** engine locate. Print mode still prints (the builder
+  stays a faithful `-b` mapping). Usage documents the refusal. The planner skip
+  (`!s.output.empty() && mode != Explode`) is unchanged: Batch-with-output and
+  Auto/Merge empty-output are out of scope. GUI and web never emit a single `-b`
+  run (they already per-file Auto).
+
+- **Regression.** `scripts/smoke_cli.sh` gained cases 17–18: `--run` rc=2 +
+  source GIF `cmp`-identical + greppable named reason; print still emits `-b`.
+  Suite **19 → 21** `ok()`.
+
+- **Engine hazard confirmed here** (intake A.1 had not executed it): bundled
+  `gifsicle -b -O3` rewrote `logo.gif` **8703 → 8637** bytes. The same file under
+  the CLI stop-loss stayed `cmp`-identical.
+
+- **`N-07` triaged, not implemented.** Mapped to **P2-15** (OPEN): fail when a
+  current-state doc's quoted UNTRIAGED count disagrees with `STATUS.md`'s
+  generated counts line, or restate S4 as the 5-phrase list it actually is.
+  Docs-only; the sweep was not changed. Closing it by restating S4's existing
+  comment would not have been a triage.
+
+- **Stale leftover claims corrected** because they were live false after S15:
+  `COMPILED_AUDIT.md` still said §13 was "not triaged" / "still not in the §6
+  fix order"; `RELEASE_PROCEDURE.md` still listed GS-201 as an open blocker;
+  current-state smoke quotes that would have gone 19/19 → 21/21.
+
+**Partial:**
+
+- None of GS-201. The authorized stop-loss is the whole finding. A per-file Auto
+  orchestrator (full Batch redesign) is future work, not a missing half of this
+  row.
+
+**Left:**
+
+- **N-07 / P2-15** OPEN (detector gap). Remaining 17 intake rows OPEN. Duplicate
+  §6 **P2-5** left alone (S15). **OD-03…OD-15** unanswered. No PR until an
+  explicit yes.
+
+**Verified:**
+
+- `./build.sh` — **296 checks, 0 failures**.
+- `scripts/smoke_cli.sh` — **21 passed, 0 failed**.
+- Direct engine `-b -O3` rewrite: 8703 → 8637 B.
+- CLI `--run` on Batch-no-output: rc=2, named reason on stderr, source
+  `cmp`-identical; print rc=0 and the line contains `-b`.
+
+**Not verifiable here:**
+
+- Native Windows / Wine re-run of the new CLI cases (not executed this session).
+- gifsicle `-b -o` (Batch-with-output `--run`) — deliberately untested.
+- GitHub Actions for this branch (not pushed). GUI/web Batch paths were
+  review-confirmed as already per-file Auto, not re-run.
+
+**Docs touched:** `STATUS.md` (GS-201 DONE, N-07 OPEN/P2-15, W-04/W-11 21/21,
+re-emitted), `COMPILED_AUDIT.md` (§6 P2-15, §7 A12/A18, §13 leftovers, U-18
+count), `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`,
+`docs/release/RELEASE_PROCEDURE.md`, `docs/planning/OWNER_DECISIONS.md`,
+`web/WEB_PLAN_TEMPLATE.md`.
+
+---
+
+## S15 — PR #20 merged; `OD-01 = a` executed, all 18 intake findings triaged  (2026-09-13)
+
+**Changed:**
+
+- **PR #20 merged as `2542f1b`** (2026-09-13); post-merge `main` run **`34735692932`** is green on
+  both jobs. That PR carried the `G10` and `S2` gate repairs, `pr_preflight.sh` step **P6**, the
+  append-only PR ledger and `scripts/review_change.sh`. Per the ledger's maintenance rule the merge
+  sha went into the ledger row and the header's **Docs synced through** line moved to PR #20 — and
+  only after this write-up, which is the order **P6** enforces.
+
+- **`OD-01 = a` executed: the 18-finding triage.** Every `UNTRIAGED` intake row now names a
+  `COMPILED_AUDIT.md` §6 fix-order id and is `OPEN` in `STATUS.md`. At the moment of triage the
+  register went `80 · 5 · 17 · 18 · 120` → **`80 · 5 · 35 · 0 · 120`** (emitted by
+  `check_docs.sh --emit`, not edited by hand) — total unchanged at 120, so the triage moved rows
+  and added none. It reads `80 · 5 · 35 · 1 · 121` now because S15 registered one finding of its
+  own (**N-07**, below).
+
+  **Four rows folded into actions that already specified the same fix.** Inventing a new id for
+  each would have hidden that the work was already scoped, and left two places to update forever:
+
+  | Finding | §6 id | Why it is the same work |
+  |---|---|---|
+  | `DS-06` | **P0-2** | P0-2 already prescribes `0` → bare `-j`, `-1` → no flag; the intake restated it as "`-1` now means 8 threads". Added the tri-state wording, unit test 28 and the settings comment. |
+  | `DS-12` | **P1-13** | P1-13 is "settings string escaping … or reject unrepresentable values" — the whitespace loss is the same defect. |
+  | `GS-208` | **P2-7** | P2-7 is "delete or CI-enforce `build.yml.proposed`"; the intake's remaining half of the release-red finding is exactly that commit. |
+  | `DS-08` | **P3-5** | P3-5 is the CLI warning-policy doc task. Corrected while triaging: it says "add `--strict`", but `--strict` already exists at `src/cli/main.cpp:216-222`, so the row now describes the real remainder — the advisory exit-code contract. |
+
+  **Fourteen got new ids**, tiered by the harm rather than by reviewer severity:
+
+  | §6 id | Finding | Tier rationale |
+  |---|---|---|
+  | **P0-5** | `GS-201` | destroys user source GIFs; row says P0 candidate; `OD-02 = a` authorises the ~10-line stop-loss |
+  | **P0-6** | `GS-202` | `../` escapes the web request temp dir; row says P0 candidate |
+  | **P1-25** | `GS-203` | success claimed on exit 0 with no output check — P1-6/P1-19 cover web and Explode only |
+  | **P1-26** | `GS-204` | packaging fail-open; P0-3 fixed the manifest path, these are the paths still open |
+  | **P1-27** | `GS-205` | non-GIF inputs admitted; P1-9 fixes only the drop `||`→`&&` |
+  | **P1-28** | `GS-206` | `long`→`int` narrowing plus four missing validation domains |
+  | **P1-29** | `GS-207` | unusable `GS_ENGINE` silently falls back; P1-3 is PATH resolution only |
+  | **P1-30** | `DS-07` | GUI spinner cannot express "unchanged"; must agree with P0-2 |
+  | **P1-31** | `DS-09` | `threads < -1` accepted silently; pairs with P0-2 and P1-28 |
+  | **P1-32** | `DS-13` | `/optimize` serves non-GIF bytes as `200 image/gif` |
+  | **P2-12** | `GS-209` | one fixed glibc config for linux *and* mac engine builds |
+  | **P2-13** | `GS-210` | build entry points accept mistyped options |
+  | **P2-14** | `DS-11` | the mechanical narrative-vs-register gate S14 proposed but never built |
+  | **P3-11** | `DS-10` | disposal 4..7 unreachable from the picker |
+
+  **Triage scoped them; it fixed none of them.** Every one of the 18 stays an unchecked line in
+  `WORKLIST.md`, now naming its §6 id.
+
+- **Gate consequence:** with zero `UNTRIAGED` rows, **G12** no longer blocks a newer `## S<n>`
+  heading — which is what allows this entry to exist at all. The S14-continuation entry above
+  keeps its note explaining why it could not be filed as `## S15` at the time.
+
+- **Registered `N-07` (new, `UNTRIAGED`, S15):** sweep **S4** matches only 5 hardcoded retired
+  phrases (`demo only`, `not the product path`, `is a demo`, `demo/parity harness`,
+  `not the product`), so it cannot catch a current-state doc that still says findings "stay
+  `UNTRIAGED`" after a triage empties the register. Measured, not suspected: the triage left
+  **4** such live claims (`SESSION_HANDOFF.md:121`, `WORKLIST.md:411`,
+  `docs/planning/OWNER_DECISIONS.md:53`, `web/WEB_PLAN_TEMPLATE.md:98`) and the sweep reported
+  `5 passed, 0 failed` both before and after they were corrected by hand. All four are fixed;
+  the detector gap is the finding. This is also a correction to how S4 has been described in
+  these docs — "a retired claim a decision reversed" overstates a fixed 5-phrase list.
+
+**Found while triaging (not fixed):** `COMPILED_AUDIT.md` §6 has two rows numbered **`P2-5`**
+(independent X/Y scale, and the web validation layer). Left alone — renumbering a tier that other
+documents cite by id would break every existing reference for a cosmetic defect. New ids therefore
+start at **P2-12**, not P2-5.
+
 ## S14 continuation — stale-claim sweep, PR preflight, owner-decision register, gate repairs  (2026-09-13)
 
-*(This entry spans 2026-09-12 → 2026-09-13 and is deliberately **not** filed as `## S15`: gate
-**G12** fails on a session heading newer than any `UNTRIAGED` row, and the 18 intake findings are
-still `UNTRIAGED` since S14. The date is the newest so that **G11** can see the log is current with
-the code changed on 2026-09-13 — `check_docs.sh`, `sweep_stale.sh` and `pr_preflight.sh`.)*
+*(This entry spans 2026-09-12 → 2026-09-13 and was deliberately **not** filed as `## S15` at the
+time: gate **G12** fails on a session heading newer than any `UNTRIAGED` row, and the 18 intake
+findings were still `UNTRIAGED` since S14. **S15 resolved that** by executing `OD-01 = a` — see the
+entry above. The date is the newest of its day so that **G11** can see the log is current with the
+code changed on 2026-09-13 — `check_docs.sh`, `sweep_stale.sh` and `pr_preflight.sh`.)*
 
 **Changed:**
 

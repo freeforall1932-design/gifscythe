@@ -3,7 +3,9 @@
 **Template state:** SKELETON
 *(One-way flip, once: when the owner's draft is refitted into the slots below, change this line
 to `WORKING PLAN` **and** the mirror in `SESSION_HANDOFF.md` in the same commit. Gate **G16** fails
-if the two lines disagree or name anything else; never flip back.)*
+if the two lines disagree or name anything else, **or** if the token disagrees with §1–§10
+content (leftover `<placeholders>` = stay SKELETON; filled = flip both lines). The gate never
+auto-edits and never flips back. Inspect that content at every new-session start.)*
 
 **What this file is.** The reusable skeleton for a Gifscythe web-surface plan, parked in `web/`
 so it is easy to find next to the code it describes. The slots below are filled with the
@@ -32,10 +34,11 @@ document that drifts from `STATUS.md`, `COMPILED_AUDIT.md` and the vision.
 7. **§5 is fixed boilerplate.** Its meaning is the anti-divergence contract; a refit may extend
    the examples but must not weaken the rules.
 8. **After editing, run `working_code/gifscythe/scripts/check_docs.sh`** and keep it green.
-9. **The flip is one-way and once.** A refit that fills §2–§9 changes `**Template state:** SKELETON`
+9. **The flip is one-way and once.** A refit that fills §1–§10 changes `**Template state:** SKELETON`
    to `WORKING PLAN` and moves the mirror line in `SESSION_HANDOFF.md` in the same commit. Gate
-   **G16** compares the two, so the handoff can never tell a session "skeleton" while the plan is
-   live (or the reverse).
+   **G16** compares the two tokens **and** leftover slot placeholders in §1–§10, so the handoff
+   can never tell a session "skeleton" while the plan is live (or the reverse). Never auto-edit
+   the state lines; never flip back.
 
 ---
 
@@ -95,10 +98,11 @@ producing nothing (`GS-203` class) or write anywhere the user did not choose (`G
 - **The web surface already carries real logic**, not a toy: `web/server.mjs` 572 lines,
   `web/app.js` 288, `web/command.mjs` 238, `web/validate.mjs` 89, plus three suites
   (196 + 353 + 129 lines of tests).
-- **Open intake items hit the web directly** (all `UNTRIAGED` in `STATUS.md`, evidence in
-  `COMPILED_AUDIT.md` §13): `GS-202` (output paths derived from upload names), `GS-203`
-  (success without verification), `DS-13` (`/optimize` serves non-GIF bytes as `image/gif`),
-  plus the `U-06` remainder (concurrency cap / rate limit / engine-run bound).
+- **Open intake items hit the web directly** (all `OPEN` in `STATUS.md` since the S15 triage,
+  each with its `COMPILED_AUDIT.md` §6 id; evidence in §13): `GS-202` → **P0-6** (output paths
+  derived from upload names), `GS-203` → **P1-25** (success without verification), `DS-13` →
+  **P1-32** (`/optimize` serves non-GIF bytes as `image/gif`), plus the `U-06` remainder
+  (concurrency cap / rate limit / engine-run bound).
 - **The desktop side carries the release bar** until the owner says otherwise: `COMPILED_AUDIT.md`
   §9 defines 1.0.0 around the desktop artifact + clean-Windows evidence, and `U-09`'s re-cut is
   still open.
@@ -146,8 +150,9 @@ both is a rewrite and needs its own decision.
 
 **5.6 De-duplication option (strategic, not mandatory).** The server could drive `gifscythe-cli`
 instead of re-implementing argv building in `web/command.mjs`. It removes the largest duplication,
-but it requires the CLI binary next to the server and must wait on `GS-201` (the CLI Batch `-b`
-path) before anything is routed through it.
+but it requires the CLI binary next to the server. The CLI Batch `-b` stop-loss (`GS-201`, closed
+S16) is the prerequisite for routing anything through `gifscythe-cli`; the spike itself is still
+`OD-05 = b` later.
 
 ---
 
@@ -219,11 +224,13 @@ wait if the web keeps emitting argv for the same settings.
 
 *Slot: newest first — date · who · what changed in this file.*
 
+- **2026-09-13 · S16 ·** `GS-201` closed (CLI `--run` refuses Batch with no `output`). §5.6 no
+  longer waits on that stop-loss; the web-via-CLI spike is still `OD-05 = b` later.
 - **2026-09-12 · S14 ·** file created here as the web plan template (the same session's dated
   draft lived under docs/planning and was deleted when this file absorbed its content), filled
   with draft v0, and the §1 decision record added after the owner made the web-is-a-product
-  decision. Registered in `WORKLIST.md`; the 18 intake ids it references are `UNTRIAGED` rows in
-  `STATUS.md`.
+  decision. Registered in `WORKLIST.md`; the 18 intake ids it referenced were `UNTRIAGED` rows in
+  `STATUS.md` at write time (triaged S15; `GS-201` closed S16).
 - `<next>` · `<who>` · `<what>` — and on the refit commit, record here: the flip
   `SKELETON → WORKING PLAN`, the mirror line in `SESSION_HANDOFF.md`, and which parts of the plan
   changed. (The state line itself is the machine-readable half; this entry is the human half.)

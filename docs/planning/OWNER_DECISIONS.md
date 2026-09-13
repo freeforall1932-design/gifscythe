@@ -32,6 +32,9 @@ answers are fine; `OD-14` has two sub-questions and needs both.
 ## Answers so far
 
 - **`OD-01` = a** (2026-09-12) — triage all 18 intake findings into §6 ids.
+  **Executed S15 (2026-09-13):** 14 new ids (**P0-5, P0-6, P1-25…P1-32, P2-12…P2-14, P3-11**) plus
+  4 folded into existing actions (**DS-06**→P0-2, **DS-12**→P1-13, **GS-208**→P2-7,
+  **DS-08**→P3-5). No row is `UNTRIAGED` any more, so **G12** is unblocked.
   Option (b) was rejected on mechanics, not preference: gate **G12** fails if
   *any* `UNTRIAGED` row outlives the session that found it, so triaging only the
   release-blockers would leave 14 rows untriaged and the repo still unable to
@@ -46,11 +49,12 @@ answers are fine; `OD-14` has two sub-questions and needs both.
   (CLI `--run` refuses Batch with no `output`, exit 2). It is the only
   **Critical** in the intake. This is the one answer that authorizes a code
   change; the standing docs-only constraint does not cover anything else.
+  **Executed S16 (2026-09-13):** CLI `--run` refuses Batch with no `output`
+  (rc=2, named reason) before the engine starts; smoke 21/21.
 
-**Recorded, not yet executed.** Both answers are decisions, not done work. The
-triage of all 18 rows and the `GS-201` code fix are the next session's first
-tasks. Until the triage actually lands, the 18 rows stay `UNTRIAGED` and
-**G12** still blocks a new `## S<n>` entry in `IMPROVEMENT_LOG.md`.
+**`OD-01` executed S15 (2026-09-13); `OD-02` executed S16 (2026-09-13).** The
+triage of all 18 rows landed in S15. The `GS-201` stop-loss (**P0-5**) landed in
+S16. Remaining owner questions are **OD-03…OD-15**.
 
 ## Notes
 

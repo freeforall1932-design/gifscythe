@@ -5,7 +5,8 @@
 # discovery, CWD independence, paths with spaces, binary stdout purity,
 # output-target refusal, batch vs merge semantics, malformed conf warnings,
 # --strict refusal, explode frame verification (audit U-17: real frames counted,
-# lying engine refused, empty-output basename prefix followed).
+# lying engine refused, empty-output basename prefix followed), Batch-with-no-
+# output refusal (GS-201 / P0-5: --run must not rewrite source GIFs).
 #
 set -uo pipefail
 
@@ -337,6 +338,34 @@ if [[ "$rc_print" -eq 0 ]] && grep -q "WARNING: mode=explode" "$WORK/err12p.txt"
   ok "multi-input explode print mode warns (documented policy) and still prints"
 else
   bad "multi-input explode print-mode policy wrong (rc=$rc_print)"
+fi
+
+# 17. Batch with no output is REFUSED by --run (GS-201 / P0-5): CLI Batch
+#     maps to engine -b, and with no output key the planner is skipped, so
+#     the engine would rewrite the source GIF. Print mode still prints.
+cp "$SRC_GIF" "$WORK/batch_src.gif"
+cp "$WORK/batch_src.gif" "$WORK/batch_src.before.gif"
+cat > "$WORK/batch_noout.conf" <<EOF
+mode = batch
+input = $WORK/batch_src.gif
+EOF
+set +e
+"$CLI" "$WORK/batch_noout.conf" --run --engine "$ENGINE" >"$WORK/out13.txt" 2>"$WORK/err13.txt"
+rc_batch=$?
+"$CLI" "$WORK/batch_noout.conf" --engine "$ENGINE" >"$WORK/out13p.txt" 2>"$WORK/err13p.txt"
+rc_batch_print=$?
+set -e
+if [[ "$rc_batch" -eq 2 ]] && cmp -s "$WORK/batch_src.gif" "$WORK/batch_src.before.gif" \
+   && grep -q "Batch with no output" "$WORK/err13.txt" \
+   && grep -q "in-place -b" "$WORK/err13.txt"; then
+  ok "Batch with no output refused by --run (rc=2), source GIF untouched"
+else
+  bad "Batch with no output not refused honestly (rc=$rc_batch)"
+fi
+if [[ "$rc_batch_print" -eq 0 ]] && grep -q -- "-b" "$WORK/out13p.txt"; then
+  ok "Batch with no output print mode still prints (documented policy)"
+else
+  bad "Batch with no output print-mode policy wrong (rc=$rc_batch_print)"
 fi
 
 echo "==> Done. $PASS passed, $FAIL failed."
