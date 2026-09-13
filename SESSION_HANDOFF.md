@@ -1,24 +1,26 @@
 # Session Handoff
 
-**Session:** S14 continuation · **Date:** 2026-09-12
-**Branch:** `arena/s14-gifscythe` by convention — this session was pushed by the platform under its
-own generated id `arena/01a09712-gifscythe`
-**This session's PR:** #20 — **open**. Its merge sha and post-merge `main` run are *not* written
-here: a session cannot know them at write time, and guessing them is how stale claims get born.
-Whoever merges fills that row in the ledger below.
-**Docs synced through:** PR #19 · branch `arena/01a096ec-gifscythe` · merged as `43e3f96`
+**Session:** S16 · **Date:** 2026-09-13
+**Branch:** `arena/s16-gifscythe` by convention — this session is tracked by the platform under its
+assigned id `arena/01a098ff-gifscythe`
+**PR #20 merged as `2542f1b`** (2026-09-13); post-merge `main` run `34735692932` is green on both
+jobs. This session's own PR number is *not* written here: a session cannot know it at write time,
+and guessing it is how stale claims get born.
+**Docs synced through:** PR #20 · branch `arena/01a09712-gifscythe` · merged as `2542f1b`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares
 this against the newest merged PR and fails when a merge landed with no doc sync — that is the
 "we jumped a merge without updating any docs" case. Move this line as part of the sync, never
 before the writing is done.)*
-Based on `main` commit `43e3f96` ·
+Based on `main` commit `2542f1b` ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
-owner's draft is refitted into that template's slots — move both lines in the same commit, gate
-**G16** compares them)*
+owner's draft is refitted into that template's slots — move both lines in the same commit. Gate
+**G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders
+=`SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back.
+Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (S14 continuation)
+## Next session — fast hand-off (S16 continuation)
 
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
@@ -29,22 +31,23 @@ owner's draft is refitted into that template's slots — move both lines in the 
   evidence; it never edits anything.
 - **Branch naming:** push session work to **`arena/sNN-gifscythe`** (the S7/S10/S11 convention),
   not to an opaque platform id — a session number stays meaningful after the session ends, an id
-  like `arena/01a09712-gifscythe` does not. When a platform assigns its own branch name anyway,
+  like `arena/01a098ff-gifscythe` does not. When a platform assigns its own branch name anyway,
   record the session number first and the assigned id second, as this header does.
 - **Copy-paste prompt:** `docs/planning/NEXT_SESSION_PROMPT.md` — recovery steps,
   the SkillOpt ask, the decision backlog, and the standing constraints in one block.
 - **Owner decisions:** `docs/planning/OWNER_DECISIONS.md` — answer `OD-01`…`OD-15`
   in the form `OD-nn = <letter>` (one letter per row, from that row's own option
   list — `OD-15` runs `a`–`d`, and `OD-14` has two sub-questions so it needs two
-  letters). Nothing gets scheduled until `OD-01` (triage the 18 intake findings
-  into `COMPILED_AUDIT.md` §6 fix-order ids) and `OD-02` (the `GS-201`
-  stop-loss — CLI `--run` refusing Batch with no `output`) are answered; they
-  are the release blockers, and the rest are direction choices the plan can
+  letters). **`OD-01 = a` executed S15** (18 intake rows mapped into §6).
+  **`OD-02 = a` executed S16** (CLI `--run` refuses Batch with no `output`,
+  exit 2). The rest (`OD-03`…`OD-15`) are direction choices the plan can
   proceed without.
 - **SkillOpt ask:** `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` — verified facts,
   the three non-negotiable conditions, the four shapes, and open questions Q1–Q4.
   Await `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer** — the query exists to decide *whether*, not *how fast*.
+  **`OD-01 = a` executed S15; `OD-02 = a` executed S16** (GS-201 / P0-5 stop-loss
+  landed). Remaining answers are `OD-03`…`OD-15`.
 
 ## PR ledger (append-only — this is how you see a skipped or closed PR)
 
@@ -76,7 +79,8 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #17 | S14 | `arena/01a0968e-gifscythe` | `75b73a5` | docs: post-merge sync — record PR #16 and the green main (run 34709202307) |
 | #18 | S14 | `arena/01a096ec-gifscythe` | `e32ed28` | S14 continuation: stale-claim sweep + PR preflight + owner-decision register |
 | #19 | S14 continuation | `arena/01a096ec-gifscythe` | `43e3f96` | docs: re-sync handoff to PR #18 merge + main run 34713398377 |
-| #20 | — | `arena/01a09712-gifscythe` | **open** | docs: post-merge sync for PR #19 + owner patch adjudicated + OD answer-format fix |
+| #20 | S14 continuation | `arena/01a09712-gifscythe` | `2542f1b` | docs: post-merge sync for PR #19 + owner patch adjudicated + OD answer-format fix |
+| #21 | S16 | `arena/01a098ff-gifscythe` | **open** | S15 OD-01 triage + S16 GS-201 stop-loss + G18/G16/P3b process gates |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
@@ -92,6 +96,28 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, and
 `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
 alone would have passed straight through both skipped syncs.
+
+## S16 — GS-201 / P0-5 stop-loss (this session)
+
+S15 triage landed on this branch as cherry-pick `0e6e1a7` (of `5677612`). Then
+**`OD-02 = a`**: CLI `--run` with Batch and no `output` exits 2 with a named
+reason before the engine starts. Print still prints `-b`. Smoke **21/21** (source
+GIF `cmp`-identical). Engine `-b -O3` rewrite confirmed 8703→8637 B.
+**`N-07` triaged to P2-15** (OPEN, sweep not changed). Register after the
+process-gate follow-up: **82 DONE · 5 PARTIAL · 35 OPEN · 0 UNTRIAGED · 122 total.**
+No PR until yes.
+
+## S16 continuation — uncommitted-work hard rule (G18) + template content check (G16)
+
+No GitHub patch was in the asking message; none was applied. The process gap:
+uncommitted work is lost when the sandbox is cut off (second time), merge-related
+checks were labelled "after merge", and G16 compared only the SKELETON token.
+Now **G18** fails `check_docs.sh` on a dirty tree (so pre-push cannot push dirty);
+`pr_preflight.sh` **P3b** fails create/merge if HEAD is ahead of origin; **G16**
+also fails when the token disagrees with leftover slot placeholders in
+`web/WEB_PLAN_TEMPLATE.md` §1–§10. Current template content is still skeleton —
+state stays **SKELETON**; the gate never auto-edits. Standing rule 6 lives in
+`SESSION_HANDOFF.md`, `WORKLIST.md` and `docs/release/RELEASE_PROCEDURE.md`.
 
 ## S14 — External reviews compiled for review; stale status claims corrected (docs only)
 
@@ -118,8 +144,9 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
   run `34705247115` and every Linux step that failure had skipped. **PR #16 merged as `629135a`;
   `main` run `34709202307` is GREEN on linux + windows** — the documentation gate now passes on
   the merged tip.
-- **Tasks placed in their documents:** the 18 findings are now `UNTRIAGED` rows in `STATUS.md`
-  (reviewers' ids), one pending line each in `WORKLIST.md`, release-blocking pointers in
+- **Tasks placed in their documents:** the 18 findings were registered as `UNTRIAGED` rows in
+  `STATUS.md` (reviewers' ids) and **triaged into `§6` fix-order ids in S15** (`OD-01 = a`), one
+  pending line each in `WORKLIST.md`, release-blocking pointers in
   `docs/release/RELEASE_PROCEDURE.md`, detail in `COMPILED_AUDIT.md` §13, and the sequencing +
   split rules in `web/WEB_PLAN_TEMPLATE.md` (parked in `web/` as a template so the owner's draft
   can be refitted into it).
@@ -185,7 +212,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
 ## TL;DR for the next session
 
 > **Read the block at the top of this file first** (*"Next session — fast
-> hand-off (S14 continuation)"*). It is the current entry point: the copy-paste
+> hand-off (S16 continuation)"*). It is the current entry point: the copy-paste
 > prompt, `OD-01`…`OD-15`, and the SkillOpt ask. The list below is the older,
 > longer orientation and is kept for background, not as the current state.
 
@@ -194,7 +221,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S14: **80 DONE · 5 PARTIAL · 17 OPEN · 18 UNTRIAGED · 120 total.**
+   `U-nn` row; neither replaces the other. As of S16: **82 DONE · 5 PARTIAL · 35 OPEN · 0 UNTRIAGED · 122 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —
@@ -345,6 +372,17 @@ only stick if they are in files a new session reads, not in a conversation.
    verifiable here`** line is **mandatory** and must never be omitted or
    softened — it is the only thing that stops a sandbox-specific green being
    read as a universal one.
+6. **HARD RULE — commit every edit/write/delete before merge AND before the
+   session can close.** Uncommitted work is lost when the sandbox is cut off
+   (it happened twice). Do not wait to be reminded. Gate **G18** fails
+   `check_docs.sh` on a dirty tree, so pre-push cannot push dirty.
+   `pr_preflight.sh` **P3** fails create/merge on dirty and **P3b** fails if
+   HEAD is ahead of origin (unpushed commits are not in the repo). Push
+   after you commit. Anything labelled "after merge" is done **before**
+   merging, not after. At every new-session start, inspect
+   `web/WEB_PLAN_TEMPLATE.md` §1–§10: leftover `<placeholders>` = stay
+   **SKELETON**; filled content = flip both **G16** lines to **WORKING PLAN**
+   in the same commit (one-way). The gate never auto-edits.
 
 ### Product constraints (unchanged unless noted)
 
@@ -381,6 +419,10 @@ only stick if they are in files a new session reads, not in a conversation.
   snapshot-diff) — never rc=0 alone. The harness fixture `fake_engine_exit0`
   (CMake target) must keep being built next to `test_gui_offscreen`
   (verify_audit gate B builds both targets).
+- **NEW (S16):** CLI `--run` refuses Batch with no `output` (GS-201 / P0-5):
+  exit 2, named reason, before the engine starts. Print mode still prints `-b`.
+  Do not re-allow in-place `--run`. GUI/web stay per-file Auto (they never emit
+  a single `-b` run).
 - Extend `tests/test_gui_offscreen.cpp` with every GUI feature (regression
   net). S10 added T18/T19/T20, S11 extended T7 — keep that habit.
 - Offline-only — no cloud service, no auto-update, no telemetry. The `web/` app is

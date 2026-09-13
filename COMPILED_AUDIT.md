@@ -14,12 +14,13 @@
 > later Linux step was skipped, Windows passed. The failure was a stale base-commit line in this
 > file (gate **G10**); **PR #16 merged as `629135a` (2026-09-12); `main` run `34709202307` is GREEN on both jobs**. A newer merge on top of this branch keeps `main` red
 > only while a run is in flight; check the tip run before claiming green. The S8 banner above is a dated snapshot of that
-> session, **not** the current state. §13 is the external-review **intake inbox — not triaged**.
+> session, **not** the current state. §13 is the external-review intake — **triaged
+> into §6 in S15**; **GS-201 closed S16** (P0-5). The other 17 intake rows stay OPEN.
 > Narrative `**Status:**` lines in §2/§3/§4 now name their §5 register row; where the original
 > audit text disagreed with the register, the original wording is kept after *"Original report:"*
 > and is superseded by the register.
 
-**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), **S14 (2026-09-12 — external-review intake and status-truth corrections)**
+**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), S14 (2026-09-12 — external-review intake and status-truth corrections), S15 (2026-09-13 — 18-row triage), **S16 (2026-09-13 — GS-201 / P0-5 stop-loss)**
 **Branch:** `main` at `2d51347817f5cdb39334415a03bb5f2b543119dd` (the PR #15 merge; re-confirm with
 `gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`;
 `check_docs.sh` gate **G10** fails if this line names anything else)
@@ -1664,7 +1665,7 @@ Deduplicated across A/B/C/D. "Src" = which audit(s) raised it.
 | **U-15** | A:GS-015 | **CMake writes into the source tree.** `configure_file` targets `${CMAKE_SOURCE_DIR}/src/core/version.h`. | ✅ **EXEC** | ✅ FIXED (S11) — build-tree-only configure_file (`build_support/version.h.in`); generated-first includes; gate C9 + read-only-src repro flipped FAIL->PASS |
 | **U-16** | A:GS-016 · C:F-06 | **Settings persistence is non-atomic** (Truncate + write). A crash mid-write leaves a truncated conf. | ✅ **SRC** | ✅ FIXED (S10) — `save_settings_file` is tmp+fsync+rename; GUI save is QSaveFile; unit test 32 + T19 no-stray check |
 | **U-17** | A:GS-017 · B:BUG-08 | **Explode mode never verifies any frame was written.** Output verification is explicitly skipped for Explode. | ✅ **EXEC** | ✅ FIXED (S11) — `src/core/ExplodeVerify.h` snapshot-diff (CLI+GUI); lying engine (rc=0, 0 frames) refused: unit 33, smoke 9-11, harness T7, wine rc=1 |
-| **U-18** | A:GS-018 | **The regression suite does not cover any of the failure classes above.** No test for target collisions, package completeness, stdout purity, PATH fallback, or thread flags. | ✅ **EXEC** | ✅ FIXED (S12) — unit planning/thread coverage, packaging negatives, strict CLI parsing, byte-pure stdout, PATH-only engine discovery, and unsafe-output refusal; smoke suite 19/19 |
+| **U-18** | A:GS-018 | **The regression suite does not cover any of the failure classes above.** No test for target collisions, package completeness, stdout purity, PATH fallback, or thread flags. | ✅ **EXEC** | ✅ FIXED (S12) — unit planning/thread coverage, packaging negatives, strict CLI parsing, byte-pure stdout, PATH-only engine discovery, and unsafe-output refusal; smoke suite 21/21 |
 | **U-19** | C:F-02 | **`readFrom()` is not the "exact inverse" of `writeInto()`.** Crop geometry, position and scale are serialized only when their parent toggle is on. | ✅ **EXEC** | ☑ CORRECTED (S8) — not reproducible with toggles on; wording fixed, pinned by unit test 26 |
 | **U-20** | C:F-03 | **"The CLI reads GUI-saved files without warnings" is false.** A real GUI-saved file has no `input` key, so `validate()` warns. | ✅ **EXEC** | ☑ CORRECTED (S8) — doc claim reworded; the `input` warning is expected |
 | **U-21** | C:F-04 · D:GS-101 | **Name-template sanitisation is POSIX-only** — no Windows invalid chars, no trailing dot/space trim, no reserved-name guard. | ✅ **EXEC** | ✅ FIXED (S8) — new `src/core/OutputName.h` (`NameRules` parameterised, so the Windows rule set is unit-tested on Linux); test 29, 30 assertions |
@@ -1722,9 +1723,11 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | # | Action | Closes | Priority |
 |---|---|---|---|
 | P0-1 | **Plan all batch outputs before the first process starts.** Compute every source/target pair, compare for duplicates **and** target==source, refuse or auto-suffix on collision. Lock the plan. | **U-01, U-45, U-21** | **A/D highest** |
-| P0-2 | **Fix threads "Auto" mapping.** `threads==0` → bare `-j` (auto-detect, 8 threads). `threads==-1` → no flag (gifsicle default, 1 thread). Update `Validate.h`. | **U-03** | **B highest** |
+| P0-2 | **Fix threads "Auto" mapping.** `threads==0` → bare `-j` (auto-detect, 8 threads). `threads==-1` → no flag (gifsicle default, 1 thread). Update `Validate.h`. Tri-state, per the S14 intake: `<0` emits nothing, `0` bare `-j`, `>0` `-jN`. Unit test 28 currently pins the wrong mapping and must move with it, as must the settings comment. | **U-03, DS-06** | **B highest** |
 | P0-3 | **Make packaging fail closed.** Fresh staging dir, required-binary manifest, `windeployqt` failure is fatal, license set asserted, package E2E test. | **U-02** | **A highest** |
 | P0-4 | **Re-cut release evidence.** Artifacts from exact tagged SHA, notes pinning that SHA, then run C4/D3/D4 against them. | **U-09** | **A highest** |
+| P0-5 | **Refuse `--run` with Batch and no `output`.** CLI **Batch** maps to the engine's in-place `-b`, so with no `output` key the output planner is skipped and `--run` can rewrite the source GIFs. Stop-loss: exit 2 with a named reason before any process starts (**OD-02 = a**). | **GS-201** | **A highest (S15 triage)** |
+| P0-6 | **Contain web upload names, then assert every target.** `/run` derives output paths and the explode prefix from client upload names, so `../` escapes the request temp dir and collisions are compared case-sensitively. Reject names containing path separators, then assert every resolved target stays under the request temp dir. | **GS-202** | **A highest (S15 triage)** |
 
 ### P1 — Repair CLI and execution contracts
 
@@ -1742,7 +1745,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P1-10 | **Preview invalidation + cleanup.** Invalidate `previewSeq_` immediately on selection/settings change, queue clear, and cancellation. Remove all `preview_*.gif` at the start of each preview, not just the predecessor. | **U-34, U-47** | **B/D** |
 | P1-11 | **Browser object URL cleanup.** Track `beforeUrl` alongside `afterUrl`; revoke previous Before URL on replacement. | **U-51** | **D** |
 | P1-12 | **Web header-safe command encoding.** Return command metadata as JSON body or use ASCII-safe encoding; never put raw shell-quoted command in HTTP headers. | **U-50** | **D** |
-| P1-13 | **Settings string escaping.** Define backward-compatible escaping/quoting for `save_settings`/`load_settings` to handle newlines, CR, whitespace, `=` signs, and Unicode in string values. Or reject unrepresentable values before saving. | **U-51** | **D** |
+| P1-13 | **Settings string escaping.** Define backward-compatible escaping/quoting for `save_settings`/`load_settings` to handle newlines, CR, whitespace, `=` signs, and Unicode in string values. Or reject unrepresentable values before saving. The S14 intake restated the same defect as leading/trailing whitespace in values being silently lost — same fix, needs the JS mirror in either branch. | **U-51, DS-12** | **D** |
 | P1-14 | **Web scale default.** Change `web/index.html:81` `value="50"` to `value="100"`. | **U-25** | **B** |
 | P1-15 | **Web Touch resize option.** Add `<option value="touch">` to `web/index.html:70-77`. | **U-29** | **B** |
 | P1-16 | **Windows template sanitisation.** Strip `<>:"\|?*`, trim trailing dots/spaces, guard reserved names. | **U-21** | **C** |
@@ -1754,6 +1757,14 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P1-22 | **`setBusy(false)` engine re-check.** Use `ensureEngine()` pattern when re-enabling Run. | **U-35** | **B** |
 | P1-23 | **Batch output group locking.** Disable entire output group (including Browse buttons) while busy; guard chooser slots. Snapshot complete validated job plan before starting. | **U-45** | **D** |
 | P1-24 | **Async run/cancel state machine (scoped S11; deliberately NOT yet implemented).** Five UI-thread waits remain: `waitForStarted(5000)` ×2 in `runCommand` (batch start `MainWindow.cpp:842`, single start `:904`), `waitForFinished(3000)` in `cancelRun` (`:919`), `waitForFinished(2000)` in `~MainWindow` (`:171`), `waitForFinished(1000)` in `killPreview` (`:1086`). Fix: drive run start from `started`/`errorOccurred` + a `QTimer` start deadline, and cancel from `kill()` + the `finished` signal (terminate→kill escalation via timer, never a wait); the two teardown waits (`~MainWindow`, `killPreview`) are destructor-inherent — keep them bounded and documented, and invalidate the preview seq when killing so stale completions cannot repaint. S11 scoping decision: the harm (a frozen UI) needs a SLOW process start, which the offscreen harness cannot reproduce — `waitForStarted` returns as soon as the OS exec succeeds, so a sleeping fake engine proves nothing; refactoring the cancel path would rewire semantics that T2/T9/T10 pin, with no executable way to show the freeze is gone. Scoped-OPEN beats an untestable refactor. | **U-12** | **A** |
+| P1-25 | **One shared output verifier.** Ordinary runs report success on exit 0 with no output verification — the CLI verifies Explode only, while GUI and web check existence + size. Non-empty + GIF87a/89a magic + changed-since-snapshot, used by CLI, GUI and web alike. | **GS-203** | **A (S15 triage)** |
+| P1-26 | **Close the packaging fail-open paths.** The system packager never clears its destination and always prints success; portable skips Qt deployment when the deployer is absent; negative tests cover portable only. Manifest-driven stager per platform and package type, negative tests for both. Release-gated. | **GS-204** | **A (S15 triage)** |
+| P1-27 | **One `admitInputs()`.** The picker offers `All files`, `appendInputs` validates nothing, and drop checks existence not `isFile()`. Existing readable regular file + GIF magic, shared by picker and drop, with rejected-item feedback. | **GS-205** | **A (S15 triage)** |
+| P1-28 | **Parse into the destination width; add the missing domains.** `long`→`int` narrowing without range checks, and validation has no rules for loopcount, threads, gamma or method-name enums. `std::from_chars` into the destination type; add the domains in C++ and the JS mirror. | **GS-206** | **A (S15 triage)** |
+| P1-29 | **Strict engine override.** An unusable `GS_ENGINE` is silently skipped and another engine runs (CLI and web). Typed engine resolution, stop and name an unusable override, log the chosen source at startup. | **GS-207** | **A (S15 triage)** |
+| P1-30 | **Let the GUI Threads spinner say "unchanged".** It spans 0..64 and always writes a value, so the no-flag/unchanged state is unrepresentable. Map the minimum to -1 'Unchanged', or document GUI-always-explicit — it must agree with **P0-2**. | **DS-07** | **B (S15 triage)** |
+| P1-31 | **Warn on `threads < -1`.** Accepted with no warning and silently re-interpreted as auto. Warn in C++ and the JS mirror; unit assertion for -7. Pairs with **P0-2** and **P1-28**. | **DS-09** | **B (S15 triage)** |
+| P1-32 | **GIF-magic check on `/optimize` before 200.** It checks only that the output is non-empty, so non-GIF bytes are served as `200 image/gif`. Reuse `isGifMagic()` on the returned buffer and add a transport regression. | **DS-13** | **B (S15 triage)** |
 
 ### P2 — Turn fixes into gates (CI hardening)
 
@@ -1766,11 +1777,14 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P2-5 | **Independent X/Y scale in the web UI.** Replace the single shared Scale % input with Scale X % / Scale Y % feeding `scale_x`/`scale_y` like the desktop; pin with an asymmetric command-parity fixture and a live transport case (executed S10). | **U-42** | **B** |
 | P2-5 | **Add web server validation layer.** Port `Validate.h` checks to JS; return 422 with user-friendly issues. | **U-30** | **B** |
 | P2-6 | **Fix `verify_audit.sh` C6 guard.** Wrap in `if command -v cmake ...; else skip; fi`. | **U-38** | **C** |
-| P2-7 | **Delete or CI-enforce `build.yml.proposed`.** | **U-39** | **C** |
+| P2-7 | **Delete or CI-enforce `build.yml.proposed`.** Apply `docs/ci/build.yml.proposed` and delete `docs/ci/PENDING_WORKFLOW_CHANGE.md` in one commit (needs a `workflows`-scoped token) — the last piece of the S14 intake's release-red finding (**OD-08 = a**). | **U-39, GS-208** | **C** |
 | P2-8 | **Web transport round-trip tests.** Test `%`, `%20`, `%22`, plus signs, Unicode, malformed JSON through `searchParams.get()` path. | **U-49** | **D** |
 | P2-9 | **Settings string round-trip tests.** Test newline, CR, whitespace, equals signs, Unicode in `save_settings`/`load_settings`. | **U-51** | **D** |
 | P2-10 | **HTTP header safety tests.** Test CJK comments, newlines, Unicode engine path in `X-Gifscythe-Command` path. | **U-50** | **D** |
 | P2-11 | **Web batch/merge/explode parity (scoped S11).** Mode selector + per-mode settings in the web UI, and a JSON multi-file endpoint (`POST /run`) that mirrors desktop semantics: batch runs a per-file Auto command with derived `<stem>_opt.gif` targets and REFUSES target collisions like the desktop planner; merge runs one `-m` command over all inputs in upload order; explode runs `-e`/`-E` against a `<stem>_frame` prefix and refuses rc=0-with-zero-frames exactly like the P1-19 desktop verification; every mode's output is existence+GIF-magic verified before success is claimed. Pin with fixtures in all three web suites. | **U-41** | **B** |
+| P2-12 | **Generate the native engine config per target.** `config.native.h` is one fixed Linux/glibc config (headers, `random()`, type sizes, SIMD, gettimeofday) used for linux and mac builds. Feature checks per target, or narrow the advertised targets to x86_64 glibc. | **GS-209** | **A (S15 triage)** |
+| P2-13 | **Strict option parsing in the build entry points.** `build.sh` accepts mistyped options, GUI dispatch tries qmake before CMake, and the qmake project hardcodes the version. Exit 2 on unknown options; CMake-first or CMake-only GUI path. | **GS-210** | **A (S15 triage)** |
+| P2-14 | **Gate the narrative-vs-register contradiction.** §3/§4 narrative claimed OPEN for items the §5 register marked fixed. S14 reconciled the narrative status lines to cite their §5 row, but the mechanical check is still missing: add a `check_docs.sh` gate that fails when a narrative row claims OPEN while its register row says FIXED. | **DS-11** | **C (S15 triage)** |
 
 ### P3 — Docs and polish
 
@@ -1780,12 +1794,13 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P3-2 | **Sync stale status lines.** Update WORKLIST/SESSION_HANDOFF with current CI status. | **U-27** | **A** |
 | P3-3 | **Move dated review snapshots to `docs/archive/`.** | **U-44** | **C** |
 | P3-4 | **Fix summary label for single-file batch.** Add `inputs_.size() == 1` case. | **U-43** | **C** |
-| P3-5 | **Document CLI warning policy.** Add `--strict` flag or document the behavior. | **U-40** | **B** |
+| P3-5 | **Document CLI warning policy.** `--strict` already exists (`src/cli/main.cpp:216-222`), so the remaining work is the advisory contract: non-strict print mode returns 0 even when validation warned, so scripts cannot tell valid from warned. Document it, and optionally emit a greppable warning summary line. | **U-40, DS-08** | **B** |
 | P3-6 | **Position half-spec fix.** Only set `has_position` when both coordinates are provided. | **U-33** | **B** |
 | P3-7 | **Third-parser consolidation.** Have `SettingsIO::load_settings` collect unrecognized keys; let GUI read `batch_dir`/`name_template` from that map. | **U-36** | **C** |
 | P3-8 | **"Persistence unavailable" status note.** Add a one-time status-bar note when `sessionFilePath()` is empty. | **U-37** | **C** |
 | P3-9 | **POSIX signal convention.** Return `128 + WTERMSIG(status)` instead of 1. | **U-32** | **B** |
 | P3-10 | **`build.sh` `-lstdc++fs` autodetect.** | **U-31** | **B** |
+| P3-11 | **Disposal 4..7 in the desktop picker, or document the cap.** The engine and the web validator allow 0..7; the picker offers fewer. Add 4..7, or state the cap in the UI tooltip. | **DS-10** | **B (S15 triage)** |
 
 ---
 
@@ -1804,7 +1819,8 @@ B and C findings are merged in where they add coverage or contradict A/D.
 - [ ] **A9** prvalue `GifsicleCommand(Settings{...})` (unit test 11)
 - [ ] **A10** `release/0.1.0/gifsicle --version` → `LCDF Gifsicle 1.96`
 - [ ] **A11** `./scripts/test_engine.sh` → 5/5
-- [ ] **A12** `./scripts/smoke_cli.sh` → 19/19
+- [ ] **A12** `./scripts/smoke_cli.sh` → 21/21
+- [ ] **A18** **NEW (S16):** Batch with no `output` is refused by `--run` — exit 2, named reason (`Batch with no output` / `in-place -b`), source GIF `cmp`-identical; print mode still emits `-b` (GS-201 / P0-5; smoke cases 17–18)
 - [ ] **A13** **NEW:** threads=0 emits bare `-j` (not nothing)
 - [ ] **A14** **NEW:** empty comment in conf does NOT emit `--comment` with no argument
 - [ ] **A15** **NEW:** unknown CLI arg (`--rnu`) returns exit 2, not 0
@@ -1955,12 +1971,13 @@ B and C findings are merged in where they add coverage or contradict A/D.
 
 ---
 
-## 13. External review intake — 2026-09-12 (S14) — **NOT YET TRIAGED**
+## 13. External review intake — 2026-09-12 (S14) — **triaged S15; GS-201 closed S16**
 
-> **Read this as an inbox, not a register.** Three external reviews were compiled on
+> **Read this as the intake record, not a second register.** Three external reviews were compiled on
 > 2026-09-12 into `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`. The items below are
-> **not** `U-nn` rows: they have not been triaged, scoped, or fixed, and **no §5 row above was
-> changed** by compiling them. Nothing in this repository was remediated in that intake.
+> **not** `U-nn` rows: they keep the reviewers' own ids. **S15 triaged all 18 into §6
+> fix-order ids** (`OD-01 = a`). **S16 closed GS-201 (P0-5)** with executed proof. The other
+> 17 stay OPEN. **No §5 row above was changed** by compiling them.
 
 **Sources.** Max via OpenAI (highest tier; 10 findings, `GS-201…GS-210`) · DeepSeek (8 findings —
 DeepSeek labels them `N-06…N-13`; **renamed `DS-06…DS-13` here**, because `N-01…N-06` are already
@@ -1971,7 +1988,7 @@ proposed solution and the verification limits.
 
 | ID | Severity | Finding (short) | Evidence location | Re-check |
 |---|---|---|---|---|
-| **GS-201** | Critical | CLI Batch maps to engine `-b` (in-place edit); the output planner is skipped when `output` is empty, so `--run` can rewrite the source GIFs | `working_code/gifscythe/src/cli/main.cpp`, `working_code/gifscythe/src/core/GifsicleCommand.h` | code-confirmed |
+| **GS-201** | Critical | CLI Batch maps to engine `-b` (in-place edit); the output planner is skipped when `output` is empty, so `--run` can rewrite the source GIFs | `working_code/gifscythe/src/cli/main.cpp`, `working_code/gifscythe/src/core/GifsicleCommand.h` | **CLOSED S16 (P0-5)** — CLI `--run` refuses Batch with no `output` (rc=2, named reason) before the engine starts; smoke 21/21; engine `-b` rewrite confirmed 8703→8637 B, CLI left the source `cmp`-identical |
 | **GS-202** | High | Web `/run` builds output paths and the explode prefix from client-supplied upload names; `../` escapes the request temp dir, collisions compared case-sensitively | `web/server.mjs` | code-confirmed |
 | **GS-203** | High | Ordinary runs (Auto/Merge/Batch) claim success on exit 0 with no output verification; GUI and web accept stale/non-GIF files | `src/cli/main.cpp`, `src/qtui/MainWindow.cpp`, `web/server.mjs` | code-confirmed |
 | **GS-204** | High | System packager never clears its destination, copies conditionally, always prints success; portable packager skips Qt deployment when the deployer is absent; negative tests cover portable only | `working_code/gifscythe/scripts/package_system.sh`, `working_code/gifscythe/scripts/package_portable.sh` | code-confirmed |
@@ -2008,22 +2025,31 @@ claim a decision reversed (**S4**), and a narrative status block that disagrees 
 (**S5** — the rule that caught **U-06**/**U-08**). `working_code/gifscythe/scripts/pr_preflight.sh`
 is the PR/merge companion. The 15 owner questions this intake raises — triage first — are collected
 in `docs/planning/OWNER_DECISIONS.md`; the SkillOpt request is
-`docs/planning/SKILLOPT_INTEGRATION_QUERY.md`. Until `OD-01` maps the 18 rows above into §6
-fix-order ids they stay `UNTRIAGED`, and gate **G12** therefore also blocks a newer `## S<n>` entry
-in `IMPROVEMENT_LOG.md`, because an UNTRIAGED row may not outlive the session that found it.
+`docs/planning/SKILLOPT_INTEGRATION_QUERY.md`. **`OD-01 = a` was executed in S15 (2026-09-13): all
+18 rows are now mapped into §6 fix-order ids** — 14 got new ids (**P0-5, P0-6, P1-25…P1-32,
+P2-12…P2-14, P3-11**) and 4 folded into actions that already covered them (**DS-06**→P0-2,
+**DS-12**→P1-13, **GS-208**→P2-7, **DS-08**→P3-5). Their `STATUS.md` state is therefore `OPEN`,
+not `UNTRIAGED`, so gate **G12** no longer blocks a newer `## S<n>` entry in `IMPROVEMENT_LOG.md`.
 
-**Task registration (S14 follow-up).** These 18 findings are now recorded row-by-row in
-`STATUS.md` (state `UNTRIAGED`, under the reviewers' own ids) with one pending line each in
-`WORKLIST.md`, and their release-blocking subset is listed in
-`docs/release/RELEASE_PROCEDURE.md`. Proposed sequencing lives in `web/WEB_PLAN_TEMPLATE.md` (the web-surface
-plan template the owner drafts are refitted into; its §1 records the owner's S14 decision that the
-web build is a supported product surface, and its state line - `SKELETON` until the refit, then
-`WORKING PLAN` - is mirrored in `SESSION_HANDOFF.md` and checked by gate G16).
-**They are still not in the §6 fix order**: triage (which maps accepted items into `U-nn`) has not
-happened, so nothing here is scheduled for implementation yet.
+**Task registration (S14 follow-up, triaged S15; GS-201 closed S16).** These 18 findings are recorded
+row-by-row in `STATUS.md` under the reviewers' own ids, each naming its §6 fix-order id, with one
+pending line each in `WORKLIST.md` (GS-201 ticked S16), and their remaining release-blocking subset
+in `docs/release/RELEASE_PROCEDURE.md`. Proposed sequencing lives in `web/WEB_PLAN_TEMPLATE.md` (the
+web-surface plan template the owner drafts are refitted into; its §1 records the owner's S14
+decision that the web build is a supported product surface, and its state line - `SKELETON` until
+the refit, then `WORKING PLAN` - is mirrored in `SESSION_HANDOFF.md` and checked by gate G16).
+**They are in the §6 fix order (S15).** 14 got new ids and 4 folded into actions that already
+covered them. **GS-201 / P0-5 closed S16**; the other 17 remain OPEN. They were never mapped into
+`U-nn` rows — the reviewers' ids are the register keys.
 
 **Cross-references inside this file.** GS-201 extends U-01's coverage gap (the planner is correct
 but unreachable without an `output` key). GS-203 and DS-13 are one workstream (postcondition
+verification: size + magic + changed-since-snapshot). DS-06/DS-07/DS-09/GS-206 are one workstream
+(numeric sentinels and domains: decide the tri-state once). GS-208 and DS-11 are the same
+stale-status failure mode in two files.
+
+*End of compiled audit v2.*
+condition
 verification: size + magic + changed-since-snapshot). DS-06/DS-07/DS-09/GS-206 are one workstream
 (numeric sentinels and domains: decide the tri-state once). GS-208 and DS-11 are the same
 stale-status failure mode in two files.
