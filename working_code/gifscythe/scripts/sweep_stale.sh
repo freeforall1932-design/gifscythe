@@ -123,8 +123,48 @@ else
       fi
     done < <(grep -oE "$s2_re" <<<"$flat")
   done
+  # N-07 / P2-15: a standalone count is a claim too; it need not carry
+  # DONE/PARTIAL/OPEN beside it. Strip inline Markdown emphasis/code markers,
+  # allow line wrapping but never join paragraphs, and report the source line.
+  # Like the full-tally check, dates do NOT exempt counts in current-state docs.
+  # Historical tallies belong in the excluded snapshots / append-only log.
+  if [[ ! "$ref_untri" =~ ^[0-9]+$ ]]; then
+    s2_bad+="STATUS.md has no valid UNTRIAGED count; "
+  else
+    for f in "${CURRENT_DOCS[@]}"; do
+      [[ -f "$f" ]] || continue
+      standalone="$(awk -v ref="$ref_untri" '
+        function check(  text, prefix, hit, n, line, pos) {
+          text = paragraph
+          gsub(/[`*]/, "", text)
+          line = first
+          while (match(text, /(^|[^[:alnum:]_])[0-9]+[[:space:]]+UNTRIAGED([^[:alnum:]_]|$)/)) {
+            pos = RSTART
+            hit = substr(text, RSTART, RLENGTH)
+            prefix = substr(text, 1, pos - 1)
+            line += gsub(/\n/, "", prefix)
+            # The leading boundary may itself be the preceding line break.
+            if (substr(hit, 1, 1) == "\n") line++
+            n = hit
+            sub(/^[^0-9]*/, "", n)
+            sub(/[^0-9].*$/, "", n)
+            if (n + 0 != ref + 0)
+              printf "%s:%d quotes %s UNTRIAGED (register says %s); ", FILENAME, line, n, ref
+            if (substr(hit, 1, 1) == "\n") line--
+            line += gsub(/\n/, "", hit)
+            text = substr(text, pos + RLENGTH)
+          }
+          paragraph = ""
+        }
+        /^[[:space:]]*$/ { check(); next }
+        { if (paragraph == "") first = FNR; else paragraph = paragraph "\n"; paragraph = paragraph $0 }
+        END { check() }
+      ' "$f")"
+      s2_bad+="$standalone"
+    done
+  fi
   if [[ -z "$s2_bad" ]]; then
-    ok "S2" "every quoted register tally matches STATUS.md's counts line (wrapped tallies and the total cell included)"
+    ok "S2" "every quoted register tally matches STATUS.md's counts line (standalone UNTRIAGED counts, wrapped tallies and total included)"
   else
     bad "S2" "$s2_bad action: update the stale quote or re-run check_docs.sh --emit"
   fi
@@ -195,9 +235,10 @@ fi
 
 # ---------------------------------------------------------------------------
 # S5. NARRATIVE vs REGISTER - a COMPILED_AUDIT.md narrative "**Status:**" block
-#     that claims a finding FIXED/CORRECTED/DONE/RESOLVED while that finding's
-#     §5 register row is not ✅/☑ is a lie waiting to be read. (This rule is
-#     what caught U-06 and U-08 saying "FIXED (S8)" while §5 said PARTIAL.)
+#     must not claim FIXED/CORRECTED/DONE/RESOLVED against a non-closed §5 row,
+#     or OPEN against ✅/☑ (DS-11). Read the leading CURRENT state and its
+#     explicit register reference; exclude Original report: historical tails.
+#     Uncheckable status references and Python failures are failures, not PASS.
 #     python3 heredoc; falls back to a note if COMPILED_AUDIT.md is absent.
 # ---------------------------------------------------------------------------
 if [[ ! -f "$AUDIT_MD" ]]; then
@@ -205,6 +246,7 @@ if [[ ! -f "$AUDIT_MD" ]]; then
 elif ! command -v python3 >/dev/null 2>&1; then
   skip "S5" "python3 not available - narrative-vs-register cross-check skipped"
 else
+  s5_status=0
   s5_findings="$(python3 - "$AUDIT_MD" <<'PY'
 import re, sys
 lines = open(sys.argv[1], encoding='utf-8', errors='replace').read().splitlines()
@@ -233,36 +275,32 @@ for ln in lines:
     if glyph:
         reg[m.group(1)] = glyph
 
-# narrative blocks: "**Status:**" ... blank line / ---
-word = re.compile(r'\b(FIXED|CORRECTED|DONE|RESOLVED)\b')
-blocks, cur = [], None
-for ln in lines:
-    if ln.startswith('**Status:**'):
-        cur = [ln]
-    elif cur is not None:
-        if ln.strip() == '' or ln.strip().startswith('---'):
-            blocks.append('\n'.join(cur)); cur = None
-        else:
-            cur.append(ln)
-if cur is not None:
-    blocks.append('\n'.join(cur))
+# Current claim is the LEADING status, not any later word in the paragraph.
+# Explicit "Original report:" tails are historical, including their U-nn refs.
+blocks = list(re.finditer(r'^\*\*Status:\*\*.*?(?=\n\s*\n|\n---|\Z)',
+                          '\n'.join(lines), re.M | re.S))
+closed_words = {'FIXED', 'CORRECTED', 'DONE', 'RESOLVED'}
+for match in blocks:
+    blk = re.split(r'Original report:', match[0], maxsplit=1, flags=re.I)[0]
+    plain = blk.replace('*', '').replace('`', '')
+    claim = re.match(r'^Status:\s*[' + ''.join(glyphs) + r']?\s*(FIXED|CORRECTED|DONE|RESOLVED|OPEN|PARTIAL)\b', plain)
+    explicit = re.search(r'register\s+§5\s+`?(U-\d+)\b', blk, re.I)
+    ids = re.findall(r'\bU-\d+\b', blk)
+    uid = explicit[1] if explicit else (ids[0] if ids else None)
+    line = '\n'.join(lines).count('\n', 0, match.start()) + 1
+    if not claim or uid not in reg:
+        print(f'COMPILED_AUDIT.md:{line}: uncheckable current status; name a leading state and register §5 U-nn')
+        continue
+    state = claim[1]
+    if (state in closed_words and reg[uid] not in fixed) or (state == 'OPEN' and reg[uid] in fixed):
+        print(f'COMPILED_AUDIT.md:{line}: {uid} narrative {state} contradicts register {reg[uid]}')
 
-out = []
-for blk in blocks:
-    if not any(g in blk for g in fixed):
-        continue
-    if not word.search(blk):
-        continue
-    for uid in sorted(set(re.findall(r'\bU-\d+\b', blk))):
-        g = reg.get(uid)
-        if g is not None and g not in fixed:
-            out.append(uid)
-for uid in out:
-    print(uid)
 PY
-)"
-  if [[ -z "$s5_findings" ]]; then
-    ok "S5" "no narrative claims FIXED/CORRECTED/DONE/RESOLVED while its §5 register row is not ✅/☑"
+)" || s5_status=$?
+  if [[ "$s5_status" -ne 0 ]]; then
+    bad "S5" "narrative checker could not run (exit $s5_status)"
+  elif [[ -z "$s5_findings" ]]; then
+    ok "S5" "current narrative states agree with §5 on OPEN vs closed (historical tails excluded)"
   else
     bad "S5" "narrative-vs-register mismatch: $(tr '\n' ' ' <<<"$s5_findings") - action: correct the narrative **Status:** line(s) to match §5 (see COMPILED_AUDIT.md)"
   fi

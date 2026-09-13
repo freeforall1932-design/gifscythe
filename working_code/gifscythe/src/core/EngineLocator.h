@@ -1,6 +1,6 @@
 // EngineLocator.h - Find the bundled gifsicle engine regardless of CWD.
 // Search order:
-//   1. GS_ENGINE environment variable (exact path)
+//   1. Non-empty GS_ENGINE (exact path; invalid overrides STOP, never fall back)
 //   2. Beside the running executable (packaged layout)
 //   3. ../release/<GS_VERSION>/gifsicle[.exe] relative to the executable (dev)
 //   4. release/<GS_VERSION>/gifsicle[.exe] relative to CWD (dev from product dir)
@@ -19,6 +19,9 @@
 #include <filesystem>
 #include <string>
 #include <vector>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 namespace gs {
 namespace fs = std::filesystem;
@@ -39,10 +42,7 @@ inline bool path_is_executable(const fs::path& p) {
   std::error_code ec;
   if (!fs::is_regular_file(p, ec)) return false;
 #ifndef _WIN32
-  auto perms = fs::status(p, ec).permissions();
-  if (ec) return false;
-  using std::filesystem::perms;
-  return (perms & (perms::owner_exec | perms::group_exec | perms::others_exec)) != perms::none;
+  return ::access(p.c_str(), X_OK) == 0;
 #else
   return true;  // existence is enough on Windows
 #endif
@@ -92,16 +92,41 @@ inline std::string find_on_path(const std::string& name) {
   return std::string();
 }
 
-// exe_path: argv[0] or QCoreApplication::applicationFilePath().toStdString()
-// Returns an absolute path to the engine, or an EMPTY STRING if it is not
-// found anywhere (callers must treat "" as "not found" — it used to return the
-// bare basename, which then failed the caller's own executability probe with a
-// confusing message).
-inline std::string locate_engine(const std::string& exe_path = {}) {
-  std::vector<fs::path> candidates;
+enum class EngineSource { None, Environment, Bundled, Path };
 
+inline const char* engine_source_name(EngineSource source) {
+  switch (source) {
+    case EngineSource::Environment: return "GS_ENGINE";
+    case EngineSource::Bundled: return "bundled/release";
+    case EngineSource::Path: return "PATH";
+    default: return "none";
+  }
+}
+
+// An invalid explicit override is distinct from failed automatic discovery.
+// The latter may still be printed as a prospective command by CLI print mode.
+struct EngineResolution {
+  std::string path;
+  EngineSource source = EngineSource::None;
+  std::string error;  // non-empty only for an invalid GS_ENGINE override
+};
+
+// exe_path: argv[0] or QCoreApplication::applicationFilePath().toStdString().
+// Non-empty GS_ENGINE is an exact path relative to CWD, NOT a PATH search.
+// Empty/unset preserves automatic discovery. File format/architecture is left
+// to process launch; a spawn failure never triggers a second engine selection.
+inline EngineResolution resolve_engine(const std::string& exe_path = {}) {
   const std::string gs_engine = env_utf8("GS_ENGINE");
-  if (!gs_engine.empty()) candidates.emplace_back(u8path_compat(gs_engine));
+  if (!gs_engine.empty()) {
+    std::error_code ec;
+    fs::path abs = fs::absolute(u8path_compat(gs_engine), ec);
+    if (!ec && path_is_executable(abs))
+      return {path_u8string(abs), EngineSource::Environment, {}};
+    return {{}, EngineSource::Environment,
+            "GS_ENGINE override is not an executable regular file: " + gs_engine
+              + "; refusing automatic fallback"};
+  }
+  std::vector<fs::path> candidates;
 
   fs::path exe_dir;
   if (!exe_path.empty()) {
@@ -131,11 +156,18 @@ inline std::string locate_engine(const std::string& exe_path = {}) {
     fs::path abs = fs::weakly_canonical(c, ec);
     if (ec) abs = fs::absolute(c, ec);
     if (ec) continue;
-    if (path_is_executable(abs)) return path_u8string(abs);
+    if (path_is_executable(abs)) return {path_u8string(abs), EngineSource::Bundled, {}};
   }
 
   // Step 5: PATH. Now an actual PATH search (see find_on_path above).
-  return find_on_path(base);
+  const auto from_path = find_on_path(base);
+  return {from_path, from_path.empty() ? EngineSource::None : EngineSource::Path, {}};
+}
+
+// Compatibility for the GUI: failure is still an empty path. In particular,
+// an invalid GS_ENGINE must not cause the GUI to select a different engine.
+inline std::string locate_engine(const std::string& exe_path = {}) {
+  return resolve_engine(exe_path).path;
 }
 
 }  // namespace gs

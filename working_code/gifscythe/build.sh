@@ -16,22 +16,29 @@
 set -euo pipefail
 self="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="$self/build"
-mkdir -p "$BUILD_DIR"
 LOG="$BUILD_DIR/build.log"
-: > "$LOG"
 
-version="$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' "$self/VERSION.md" \
-  | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
-version="${version:-0.1.0}"
-
+# Parse before touching logs, generated headers, hooks or build outputs.
 want_gui=0
 engine_arg=""
+want_help=0
 for arg in "$@"; do
   case "$arg" in
     --gui|--all) want_gui=1 ;;
-    --windows)   engine_arg="--windows" ;;
+    --windows) engine_arg="--windows" ;;
+    -h|--help) want_help=1 ;;
+    *) echo "ERROR: unknown argument '$arg'" >&2; exit 2 ;;
   esac
 done
+if [[ "$want_help" == 1 ]]; then
+  echo "usage: build.sh [--gui|--all] [--windows]"
+  exit 0
+fi
+mkdir -p "$BUILD_DIR"
+: > "$LOG"
+version="$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' "$self/VERSION.md" \
+  | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+version="${version:-0.1.0}"
 
 fail() { echo "ERROR: $*" >&2; exit 1; }
 

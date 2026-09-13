@@ -35,12 +35,14 @@ import { spawn } from "node:child_process";
 import {
   readFile, writeFile, mkdtemp, rm, readdir, access, stat, open,
 } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, extname, normalize, resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildArgs, shellQuote } from "./command.mjs";
 import { validate } from "./validate.mjs";
+import { hasGifMagic, snapshotOutput, verifyOutput } from "./output-verify.mjs";
+import { uploadNameError, outputNameKey, requestPath } from "./run-paths.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url)); // web/
 const PRODUCT = resolve(ROOT, "..", "working_code", "gifscythe");
@@ -64,9 +66,24 @@ const MIME = {
   ".json": "application/json",
 };
 
+async function isExecutableFile(file) {
+  try {
+    if (!(await stat(file)).isFile()) return false;
+    await access(file, process.platform === "win32" ? constants.F_OK : constants.X_OK);
+    return true;
+  } catch { return false; }
+}
+
+// Structured resolution distinguishes an invalid explicit override from absent
+// automatic discovery. A non-empty GS_ENGINE is exact (relative to CWD), never
+// a PATH lookup. Empty/unset keeps discovery. Launch errors never cause fallback.
 async function findEngine() {
   if (process.env.GS_ENGINE) {
-    try { await access(process.env.GS_ENGINE); return process.env.GS_ENGINE; } catch {}
+    const override = process.env.GS_ENGINE;
+    const file = resolve(override);
+    if (await isExecutableFile(file)) return { path: file, source: "GS_ENGINE", error: null };
+    return { path: null, source: "GS_ENGINE", error:
+      `GS_ENGINE override is not an executable regular file: ${JSON.stringify(override)}; refusing automatic fallback` };
   }
   const rel = join(PRODUCT, "release");
   let versions = [];
@@ -86,10 +103,11 @@ async function findEngine() {
   for (const v of versions) {
     for (const name of ["gifsicle", "gifsicle.exe"]) {
       const p = join(rel, v, name);
-      if (existsSync(p)) return p;
+      if (await isExecutableFile(p)) return { path: p, source: "release", error: null };
     }
   }
-  return null;
+  return { path: null, source: "none", error:
+    "Gifscythe engine (gifsicle) not found. Run ./build.sh first or set GS_ENGINE." };
 }
 
 function run(argv) {
@@ -186,16 +204,16 @@ async function handleOptimize(req, res, url) {
     return;
   }
 
-  const engine = await findEngine();
-  if (!engine) {
+  const resolution = await findEngine();
+  if (!resolution.path) {
     res.writeHead(503, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
-      ok: false, error:
-        "Gifscythe engine (gifsicle) not found. Run ./build.sh first or set GS_ENGINE.",
+      ok: false, error: resolution.error,
     }));
     return;
   }
 
+  const engine = resolution.path;
   const dir = await mkdtemp(join(tmpdir(), "gsweb-"));
   try {
     const body = await readBody(req, MAX_BODY);
@@ -210,6 +228,8 @@ async function handleOptimize(req, res, url) {
 
     const s = { ...settings, inputs: [inFile], output: outFile };
     const argv = [engine, ...buildArgs(s)];
+    const before = await snapshotOutput(outFile);
+    if (before.error) { sendJson(res, 422, { ok: false, error: before.error }); return; }
     const result = await run(argv);
 
     if (result.code !== 0) {
@@ -221,25 +241,13 @@ async function handleOptimize(req, res, url) {
       return;
     }
 
-    // U-24: rc=0 does not prove a GIF was written. Reading a missing file used
-    // to throw ENOENT into the generic catch and surface as a 500; the desktop
-    // app has verified its output before claiming success since S4, and the
-    // demo has to be just as honest.
-    let outBytes;
-    try {
-      outBytes = await readFile(outFile);
-    } catch {
-      outBytes = null;
-    }
-    if (!outBytes || outBytes.length === 0) {
-      res.writeHead(422, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({
-        ok: false, exitCode: 0,
-        stderr: "the engine exited 0 but produced no output file",
-        command: argv.map(shellQuote).join(" "),
-      }));
+    const verified = await verifyOutput(outFile, before);
+    if (verified.error) {
+      sendJson(res, 422, { ok: false, exitCode: 0, stderr: verified.error,
+        command: argv.map(shellQuote).join(" ") });
       return;
     }
+    const outBytes = verified.data;  // serve the exact verified buffer
     res.writeHead(200, {
       "Content-Type": "image/gif",
       "Content-Disposition": 'attachment; filename="gifscythe-opt.gif"',
@@ -293,8 +301,7 @@ const isGifMagic = async (path) => {
     fh = await open(path, "r");
     const buf = Buffer.alloc(6);
     const { bytesRead } = await fh.read(buf, 0, 6, 0);
-    return bytesRead === 6 && buf.toString("latin1", 0, 4) === "GIF8"
-      && (buf[4] === 0x37 || buf[4] === 0x39) && buf[5] === 0x61; // '7'|'9', 'a'
+    return bytesRead === 6 && hasGifMagic(buf);
   } catch {
     return false;
   } finally {
@@ -314,7 +321,7 @@ async function snapshotPrefix(dir, prefixName) {
     if (!ent.isFile()) continue;
     if (!ent.name.startsWith(prefixName + ".") || ent.name.length <= prefixName.length + 1) continue;
     try {
-      const st = await stat(join(dir, ent.name));
+      const st = await stat(requestPath(dir, ent.name));
       snap.set(ent.name, { size: st.size, mtimeMs: st.mtimeMs });
     } catch { /* vanished mid-snapshot; treat as absent */ }
   }
@@ -330,10 +337,10 @@ async function listWrittenFrames(dir, prefixName, before) {
     if (!ent.isFile()) continue;
     if (!ent.name.startsWith(prefixName + ".") || ent.name.length <= prefixName.length + 1) continue;
     let st;
-    try { st = await stat(join(dir, ent.name)); } catch { continue; }
+    try { st = await stat(requestPath(dir, ent.name)); } catch { continue; }
     const prev = before.get(ent.name);
     if (prev && prev.size === st.size && prev.mtimeMs === st.mtimeMs) continue; // stale leftover
-    if (await isGifMagic(join(dir, ent.name))) frames.push(ent.name);
+    if (await isGifMagic(requestPath(dir, ent.name))) frames.push(ent.name);
     else suspicious.push(ent.name);
   }
   return { frames, suspicious };
@@ -366,6 +373,11 @@ async function handleRun(req, res) {
       sendJson(res, 400, { ok: false, error: "every file needs a non-empty name and base64 data" });
       return;
     }
+    const problem = uploadNameError(f.name);
+    if (problem) {
+      sendJson(res, 400, { ok: false, error: `invalid upload name: ${problem}`, file: f.name });
+      return;
+    }
   }
   // Mode usage rules, mirroring what the desktop enforces in MainWindow:
   if (mode === "auto" && files.length !== 1) {
@@ -392,50 +404,46 @@ async function handleRun(req, res) {
     return;
   }
 
-  const engine = await findEngine();
-  if (!engine) {
+  const resolution = await findEngine();
+  if (!resolution.path) {
     sendJson(res, 503, {
       ok: false,
-      error: "Gifscythe engine (gifsicle) not found. Run ./build.sh first or set GS_ENGINE.",
+      error: resolution.error,
     });
     return;
   }
 
+  const engine = resolution.path;
   const dir = await mkdtemp(join(tmpdir(), "gsweb-"));
   try {
-    // Decode uploads to neutral on-disk names; the user-facing names stay in
-    // the response (nothing from the request ever becomes a path here).
-    const paths = [];
-    let inBytes = 0;
-    for (let i = 0; i < files.length; i += 1) {
-      const buf = Buffer.from(files[i].data, "base64");
-      if (!buf.length) {
-        sendJson(res, 400, { ok: false, error: `file "${files[i].name}" has empty data` });
-        return;
-      }
-      inBytes += buf.length;
-      const p = join(dir, `in${i}.gif`);
-      await writeFile(p, buf);
-      paths.push(p);
-    }
-    const quote = (argv) => argv.map(shellQuote).join(" ");
-
     // ---- plan + refuse BEFORE anything runs (desktop batch parity, U-01) ----
-    let targets = [];
+    const targets = mode === "merge" ? ["merged.gif"]
+      : mode === "explode" ? [`${stemOf(files[0].name)}_frame`]
+      : files.map((f) => `${stemOf(f.name)}_opt.gif`);
+    // Contain ALL targets (including the explode prefix) before writing uploads
+    // or starting the first subprocess. Never rely on admission alone.
+    let targetPaths;
+    try {
+      targetPaths = targets.map((name) => requestPath(dir, name));
+    } catch (err) {
+      sendJson(res, 422, { ok: false, error: err.message });
+      return;
+    }
     if (mode === "batch") {
-      targets = files.map((f) => `${stemOf(f.name)}_opt.gif`);
       const names = files.map((f) => f.name);
+      const sourceKeys = new Set(names.map(outputNameKey));
       const seen = new Map();
       for (let i = 0; i < targets.length; i += 1) {
-        if (seen.has(targets[i])) {
+        const key = outputNameKey(targets[i]);
+        if (seen.has(key)) {
           sendJson(res, 422, {
             ok: false,
-            error: `refusing to run: "${names[seen.get(targets[i])]}" and "${names[i]}" would both write ${targets[i]}, destroying one result`,
+            error: `refusing to run: "${names[seen.get(key)]}" and "${names[i]}" would both write ${targets[i]}, destroying one result`,
           });
           return;
         }
-        seen.set(targets[i], i);
-        if (names.includes(targets[i])) {
+        seen.set(key, i);
+        if (sourceKeys.has(key)) {
           sendJson(res, 422, {
             ok: false,
             error: `refusing to run: the planned output ${targets[i]} would overwrite the uploaded file of the same name`,
@@ -445,11 +453,33 @@ async function handleRun(req, res) {
       }
     }
 
+    // Decode uploads to neutral on-disk names; the user-facing names stay in
+    // the response (only validated names enter the separately contained output plan).
+    const paths = [];
+    let inBytes = 0;
+    for (let i = 0; i < files.length; i += 1) {
+      const buf = Buffer.from(files[i].data, "base64");
+      if (!buf.length) {
+        sendJson(res, 400, { ok: false, error: `file "${files[i].name}" has empty data` });
+        return;
+      }
+      inBytes += buf.length;
+      const p = requestPath(dir, `in${i}.gif`);
+      await writeFile(p, buf);
+      paths.push(p);
+    }
+    const quote = (argv) => argv.map(shellQuote).join(" ");
+
     const outputs = [];   // { name, path }
     const commands = [];  // quoted command lines, in run order
     let outBytes = 0;
 
     const runOne = async (s, outPath, label) => {
+      const before = await snapshotOutput(outPath);
+      if (before.error) {
+        sendJson(res, 422, { ok: false, error: before.error, file: label });
+        return false;
+      }
       const argv = [engine, ...buildArgs(s)];
       commands.push(quote(argv));
       const result = await run(argv);
@@ -460,25 +490,21 @@ async function handleRun(req, res) {
         });
         return false;
       }
-      // rc=0 does not prove output (audit U-24, desktop parity).
-      let st = null;
-      try { st = await stat(outPath); } catch { st = null; }
-      if (!st || st.size === 0) {
-        sendJson(res, 422, {
-          ok: false, exitCode: 0, file: label, command: quote(argv),
-          stderr: "the engine exited 0 but produced no output file",
-        });
+      const verified = await verifyOutput(outPath, before);
+      if (verified.error) {
+        sendJson(res, 422, { ok: false, exitCode: 0, file: label,
+          command: quote(argv), stderr: verified.error });
         return false;
       }
-      outputs.push({ name: basename(outPath), path: outPath });
-      outBytes += st.size;
+      outputs.push({ name: basename(outPath), path: outPath, data: verified.data });
+      outBytes += verified.data.length;
       return true;
     };
 
     let done = true;
     if (mode === "batch") {
       for (let i = 0; i < files.length && done; i += 1) {
-        const outPath = join(dir, targets[i]);
+        const outPath = targetPaths[i];
         // The desktop batch runs one Auto command PER FILE (never one -b run);
         // mirror that exactly so the commands list matches the desktop pane.
         done = await runOne(
@@ -486,12 +512,12 @@ async function handleRun(req, res) {
           outPath, files[i].name);
       }
     } else if (mode === "merge") {
-      const outPath = join(dir, "merged.gif");
+      const outPath = targetPaths[0];
       done = await runOne({ ...settings, mode, inputs: paths, output: outPath },
                           outPath, "merged.gif");
     } else if (mode === "explode") {
-      const prefixName = `${stemOf(files[0].name)}_frame`;
-      const outPath = join(dir, prefixName);
+      const prefixName = targets[0];
+      const outPath = targetPaths[0];
       const before = await snapshotPrefix(dir, prefixName);
       const argv = [engine, ...buildArgs({ ...settings, mode, inputs: paths, output: outPath })];
       commands.push(quote(argv));
@@ -514,13 +540,13 @@ async function handleRun(req, res) {
         return;
       }
       for (const name of frames) {
-        const p = join(dir, name);
+        const p = requestPath(dir, name);
         const st = await stat(p);
         outputs.push({ name, path: p });
         outBytes += st.size;
       }
     } else { // auto
-      const outPath = join(dir, `${stemOf(files[0].name)}_opt.gif`);
+      const outPath = targetPaths[0];
       done = await runOne({ ...settings, mode: "auto", inputs: paths, output: outPath },
                           outPath, files[0].name);
     }
@@ -528,7 +554,7 @@ async function handleRun(req, res) {
 
     const out = [];
     for (const o of outputs) {
-      const data = await readFile(o.path);
+      const data = o.data ?? await readFile(o.path);
       out.push({ name: o.name, bytes: data.length, data: data.toString("base64") });
     }
     sendJson(res, 200, { ok: true, mode, outputs: out, commands, inBytes, outBytes });
@@ -562,11 +588,11 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-const enginePath = await findEngine();
+const engineResolution = await findEngine();
 server.listen(PORT, HOST, () => {
   console.log(`Gifscythe web server on http://${HOST}:${PORT}`);
   if (HOST === "127.0.0.1") {
     console.log("  (loopback only — set GS_WEB_HOST=0.0.0.0 to expose it on the network)");
   }
-  console.log(`Engine: ${enginePath || "NOT FOUND (build with ./build.sh or set GS_ENGINE)"}`);
+  console.log(`Engine [${engineResolution.source}]: ${engineResolution.path || `ERROR: ${engineResolution.error}`}`);
 });

@@ -13,6 +13,7 @@
 #include "../core/SettingsIO.h"
 #include "../core/GifsicleCommand.h"
 #include "../core/EngineLocator.h"
+#include "../core/OutputVerify.h"
 #include "../core/ProcessRunner.h"
 #include "../core/Validate.h"
 #include "../core/OutputPlan.h"
@@ -53,7 +54,7 @@ void print_usage(const char* argv0, std::FILE* to) {
   std::fprintf(to, "                -b would rewrite the source GIF). Exit codes: 0 ok, 1\n");
   std::fprintf(to, "                engine/path/output verification failure, 2 usage or\n");
   std::fprintf(to, "                unsafe target, 3 --strict refusal.\n");
-  std::fprintf(to, "  GS_ENGINE env: override default engine path.\n");
+  std::fprintf(to, "  GS_ENGINE env: exact engine path; invalid non-empty values fail (no fallback).\n");
   std::fprintf(to, "  Gifscythe %s\n", GS_VERSION);
 }
 
@@ -255,10 +256,17 @@ int main(int argc, char** argv) {
 
   // Locate engine.
   std::string engine_path;
+  const char* engine_source = "--engine";
   if (!engine_override.empty()) {
     engine_path = resolve_path(engine_override, fs::current_path(ec));
   } else {
-    engine_path = gs::locate_engine(gs::path_u8string(exe_path_of(argv[0])));
+    const auto resolution = gs::resolve_engine(gs::path_u8string(exe_path_of(argv[0])));
+    if (!resolution.error.empty()) {
+      std::fprintf(stderr, "ERROR: %s\n", resolution.error.c_str());
+      return 1;  // invalid environment override is an error in print AND run mode
+    }
+    engine_path = resolution.path;
+    engine_source = gs::engine_source_name(resolution.source);
   }
 
   // ---- stdout purity (audit U-04) ----
@@ -318,6 +326,8 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  std::fprintf(stderr, "# Engine source: %s\n", engine_source);
+
   // Build argv: engine + command args. NEVER concatenate into a shell string.
   std::vector<std::string> full_argv;
   full_argv.push_back(engine_path);
@@ -328,6 +338,17 @@ int main(int argc, char** argv) {
   // rc=0 alone used to mean success even when NOT A SINGLE frame was written.
   // Snapshot the prefix candidates BEFORE the run so leftovers from an earlier
   // run cannot fake it, then require at least one new/changed real GIF after.
+  // Streaming stdout and --info deliberately keep their existing contracts.
+  const bool verify_file = !s.output.empty() && s.mode != gs::Mode::Explode && !s.info;
+  gs::OutputSnapshot output_before;
+  if (verify_file) {
+    output_before = gs::snapshot_output(s.output);
+    if (!output_before.error.empty()) {
+      std::fprintf(stderr, "ERROR: output verification preflight: %s: %s\n",
+                   s.output.c_str(), output_before.error.c_str());
+      return 1;
+    }
+  }
   std::vector<gs::ExplodeFileState> explode_before;
   std::string explode_prefix;
   if (s.mode == gs::Mode::Explode) {
@@ -351,6 +372,13 @@ int main(int argc, char** argv) {
       std::fprintf(stderr, "ERROR: engine exited 0 but wrote no frames — %s\n",
                    vr.describe().c_str());
       rc = 1;  // honest: the run did NOT produce what explode promises
+    }
+  }
+  if (rc == 0 && verify_file) {
+    const auto error = gs::verify_output(s.output, output_before);
+    if (!error.empty()) {
+      std::fprintf(stderr, "ERROR: output verification failed: %s: %s\n", s.output.c_str(), error.c_str());
+      rc = 1;
     }
   }
   note("# -> exit code %d\n", rc);
