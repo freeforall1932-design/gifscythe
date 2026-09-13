@@ -4,7 +4,12 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
-## S14 continuation — stale-claim sweep, PR preflight, owner-decision register (docs + two scripts)  (2026-09-12)
+## S14 continuation — stale-claim sweep, PR preflight, owner-decision register, gate repairs  (2026-09-13)
+
+*(This entry spans 2026-09-12 → 2026-09-13 and is deliberately **not** filed as `## S15`: gate
+**G12** fails on a session heading newer than any `UNTRIAGED` row, and the 18 intake findings are
+still `UNTRIAGED` since S14. The date is the newest so that **G11** can see the log is current with
+the code changed on 2026-09-13 — `check_docs.sh`, `sweep_stale.sh` and `pr_preflight.sh`.)*
 
 **Changed:**
 
@@ -58,6 +63,136 @@ Chronological log of decisions and changes. **Newest at the top.**
 **Merged:** PR #18 (`arena/01a096ec-gifscythe` → `main`) merged as `e32ed28`; **`main` run
 `34713398377` is green on linux + windows** (the branch's PR run `34713246313` was green on both
 jobs first).
+
+**Post-merge sync (branch `arena/01a09712-gifscythe`, pushed as PR #20, tip `4c6311e`).** PR #19
+recorded PR #18's merge but could not record its own, so the handoff header was one merge stale;
+it now names **PR #19 merged as `43e3f96`** and **`main` run `34713800552` on `43e3f96`, `success`
+on linux + windows** (both re-read from the GitHub API, not from memory). Two stale claims found
+while re-running the previous session's verification script are corrected here: the
+`SESSION_HANDOFF.md` TL;DR still quoted the S13 tally (`80/3/17/0`, `100 total`) while
+`STATUS.md`'s generated counts line reads `80/5/17/18`, `120 total` — it is corrected and put on
+one line so sweep rule **S2** (which only matches single-line four-cell tallies) now covers it; and
+`COMPILED_AUDIT.md` §13 gained the automation note it was missing. This entry is filed inside the
+S14-continuation entry rather than as `## S15` because gate **G12** fails on any new session
+heading while the 18 intake rows are still `UNTRIAGED` since S14 — measured, not assumed: a
+temporary `## S15` heading produced `20 passed, 2 failed` before being reverted.
+
+**Owner's pre-rebuild patch, adjudicated hunk by hunk (not applied wholesale).** The owner supplied
+the patch S14-continuation was *supposed* to produce, from the session that closed before pushing.
+It is **not self-contained**: its prose documents creating five artefacts — `sweep_stale.sh`,
+`pr_preflight.sh`, `OWNER_DECISIONS.md`, `SKILLOPT_INTEGRATION_QUERY.md`, `NEXT_SESSION_PROMPT.md`
+(10/9/8/8/2 mentions) — and it contains **no `diff --git` header for any of them**. Its
+`check_docs.sh` hunk adds a gate whose first act is `bad "G17" "scripts/sweep_stale.sh missing or
+not executable"`, so applying the patch alone installs a gate that fails at once on a script the
+patch never ships. It was therefore never the byte-exact fallback its covering note claimed.
+Separately, `git apply --check` rejects it on 5 of its 9 files (`COMPILED_AUDIT.md`, `README.md`,
+`SESSION_HANDOFF.md`, `STATUS.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`) — though that is a
+strict-apply result: GNU `patch` accepts three more hunks *with fuzz*, including the
+`README.md` duplicate-numbering bug and the obsolete ⚠️ block, so the per-hunk reasoning below is
+what carries the decision, not the file-level reject. All 4 files where it *does* apply were also
+left unapplied — 3 because applying them would reintroduce falsehoods or duplicates, and
+`docs/ci/README.md` because the merged text already covers G16/G17 more precisely (it names the
+three run sites and the one-line workflow drift). Its `IMPROVEMENT_LOG.md` and
+`WORKLIST.md` hunks both describe the work as *"local commits, not pushed"* / *"a fresh session
+must push them"* (it was pushed as PR #18 and merged); and its `check_docs.sh` hunk inserts a
+**second gate G17** immediately after the existing one — verified by applying it to a scratch copy:
+`G17` occurrences 3 → 6, with two `ok "G17"` lines at 1029 and 1051, so the sweep would run twice
+per gate and the pass total would stop meaning anything. Adopted instead:
+the patch's *placement* for the §13 automation note (before **Task registration**, where it belongs
+in the reading order) merged with the corrected wording; its OD/SkillOpt pointer sentence; its
+"Do not vendor anything before that answer" guardrail on `OD-15`; and its naming of what
+`OD-01`/`OD-02` actually are, which the merged handoff only called "release blockers".
+Rejected as buggy: its `README.md`
+hunk numbers two list items `6.`; its `WORKLIST.md` hunk points at SkillOpt query "§6" for the
+ordered task list when §6 is the constraints list and §7 is the task list; and its handoff line
+claims "all 35 narrative status lines match the 52 register rows" — this file has **44** narrative
+`**Status:**` lines and 52 register rows, so the count was already wrong when written. One real
+defect the patch exposed and this sync fixes: the answer format was recorded as `OD-nn = a|b` in
+three places while `OD-15` has four options `a`–`d`, so no literal `a|b` reply could answer it —
+now `OD-nn = <letter>` in `SESSION_HANDOFF.md`, `WORKLIST.md` and
+`docs/planning/OWNER_DECISIONS.md`.
+
+**Two dead gate checks repaired (owner-authorized).** Neither was working:
+
+* **G10 was matching nothing.** Its regex recognised `based on|base commit|base of|branched from|
+  merge of PR #n` but not the handoff's `**Base:**` header form. Run over every tracked `.md`, the
+  old regex hit **0 files** — the gate had passed vacuously since PR #16 rewrote the header from
+  "based on `main` commit …" to `**Base:** \`main\` …`, i.e. through PRs #16–#20. The alternation
+  now also matches `**Base:**` / `**Based on …:**` and is case-insensitive. Mutation-tested:
+  injecting base `2176573` now gives `FAIL [G10] stale base commit - SESSION_HANDOFF.md names base
+  2176573`; before the fix the same injection passed.
+* **S2 exempted wrapped tallies "by design".** The exemption is how `SESSION_HANDOFF.md` kept
+  quoting `80/3/17/0, 100 total` through PRs #16–#19. Each doc is now flattened before matching
+  with a **bounded** gap (`<=40` non-digit chars) between cells, so a tally split over two lines is
+  caught but a match cannot pair unrelated numbers across paragraphs; the trailing `<n> total` cell
+  is checked too. Mutation-tested three ways: wrapped stale tally → FAIL; correct cells with a wrong
+  total → FAIL; four correct-looking cells placed >40 chars apart → still PASS (no false positive).
+
+**Owner decisions `OD-01 = a` and `OD-02 = a` recorded** in
+`docs/planning/OWNER_DECISIONS.md`, with the count error corrected on the way: the option text said
+"the 5 release-blockers" and the old recommendation named `GS-201`…`GS-204`, but
+`docs/release/RELEASE_PROCEDURE.md` lists **6** open blockers of which only **4** are untriaged
+intake (`GS-201`, `GS-204`, `GS-208`, `DS-06`). `OD-01`'s recommended **(b) was also mechanically
+impossible** — G12 fails if *any* UNTRIAGED row outlives its session, so triaging only the blockers
+would still block a new session entry. Both answers are recorded, **not executed**; the 18-row
+triage and the `GS-201` code fix are the next session's first two tasks.
+
+**Handoff sync is now a check, not a promise (`pr_preflight.sh` step P6).** The header gained a
+machine-readable `**Docs synced through:** PR #n · branch X · merged as Y` line, and **P6**
+(`--online`) compares it against the newest *merged* PR. If a merge landed after the last doc sync
+it fails, names every unreviewed PR with its branch and title, and tells the session to read
+`gh pr diff <n>` and write up what changed / what was fixed / what was implemented *before* moving
+the line. Mutation-tested: with the line at #18 while #19 is merged it fails with exit 1 and lists
+`unreviewed: PR #19`; with a wrong branch label but the right PR number it passes and prints a
+mismatch note. The **PR number is the key and the branch only a cross-check** — measured, not
+assumed: `arena/01a0968e-gifscythe` produced both #16 and #17, and `arena/01a096ec-gifscythe`
+produced both #18 and #19, so a branch-name-only comparison would have passed through both skipped
+syncs.
+
+**Added `scripts/review_change.sh` — review a change instead of accepting it (owner request).**
+The sweep checks whether docs still describe reality; nothing checked whether a *change* is any
+good. `review_change.sh` (`--commit`/`--range`/`--patch`/`--pr`) reports five evidence-backed
+checks and never edits: **R1** check-logic lines added/removed/edited (a check that is edited must
+be re-proven), **R2** a matcher that matches *nothing* in the corpus, so its gate passes without
+reading anything, **R3** an added line stating a count that can be measured here and disagrees,
+**R4** a lost executable bit or file-mode change, **R5** the docs the change obliges you to update
+(derived from what the diff touched and which docs name it). Rule: a flag with no measurement is
+not printed.
+
+Both R2 and R3 exist because of things that actually got through: PR #16 reworded the handoff
+header and switched the base claim out of G10's reach, and G10 then passed vacuously for five PRs;
+and a patch arrived asserting "all 35 narrative status lines match the 52 register rows" when the
+file had 44. Verified against both:
+
+* **R2 catches the G10 regression.** With the pre-fix alternation restored (case-sensitive, no
+  `**Base:**` branch) the reviewer reports `FAIL [R2] vacuous matcher(s): G10 base-commit matcher
+  (-E, as the gate invokes it) (0 matches across 21 docs)` — **while `check_docs.sh` itself still
+  prints `PASS [G10]` and totals 22/0/3.** That divergence is the whole point.
+* **R3 catches the false count.** A patch claiming 35 (and 99) narrative status lines yields
+  `FAIL [R3] claims 35 narrative status lines, measured 44; claims 99 …, measured 44`.
+* **R3 does not flag a count the line is correcting.** `IMPROVEMENT_LOG.md` quotes that same
+  false claim in order to refute it, so R3 skips a line carrying a correction marker
+  (`claim`, `assert`, `quote`, `refut`, `not true`, `incorrect`, `correcting`, `wrong`, …).
+  **Known limitation:** a genuinely false claim that happens to contain one of those words is
+  missed. The trade is deliberate — a reviewer that flags corrections gets ignored, and the
+  bare-assertion case is the one that ships.
+
+Two bugs in the reviewer were found by running it, and are fixed: the matcher was extracted with
+"first `grep -oE '…' <<<"$content"` line", but `check_docs.sh` has three such lines, so it silently
+probed the wrong regex and reported 1827 hits for a pattern that really has 1 — extraction is now
+anchored on distinctive content and sanity-checked, degrading to "probe skipped" rather than
+measuring something else; and the probe hardcoded `-iE` while the gate invokes `grep -oE`, which
+made it report 1 hit for a matcher the gate could not use at all — it now reads the flag from the
+gate line and prints it (`-E, as the gate invokes it`).
+
+**Handoff header re-based on what a session can actually know.** It no longer asserts its own
+merge sha, its own run ids, or "not yet pushed" — all of which are unknowable at write time and
+went stale within one commit (the previous version cited runs `34717833397`/`34717874740` for
+`4c6311e` while the tip was already `7f8ce8d`). It now carries the session, the branch, the PR
+number once `gh pr create` returns it, the last merge, and one base sha that G10 checks. A new
+**append-only PR ledger** replaces the prose "PR #17 was the previous merge" sentences: one row per
+PR with its branch, merge sha and one-line summary, so a skipped or closed PR is visible (**#3** and
+**#9** were closed without merging) and "what did PR #12 do" has an answer without `gh`.
 
 **Not verifiable here:**
 
