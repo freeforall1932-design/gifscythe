@@ -22,6 +22,9 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S17.
 2. S17 closed N-07/P2-15 via sweep S2 standalone numeric UNTRIAGED counts.
    Regression: python3 working_code/gifscythe/tests/test_sweep_stale.py
    S4 is still a five-phrase list; unnumbered prose needs human review.
+   S17 continuation closed GS-202/P0-6: upload names rejected if unsafe, all
+   output targets contained, case/NFC collisions refused. Transport 42/42.
+   GS-203/DS-13/U-06 and pending owner decisions remain unresolved.
 
    START HERE: STATUS.md (the single status register). COMPILED_AUDIT.md §5 is
    the detail. Never hand-edit STATUS.md's generated block — run check_docs.sh --emit.

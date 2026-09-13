@@ -4,6 +4,54 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S17 continuation — GS-202 / P0-6 web path containment (2026-09-13)
+
+**Authorization:** owner said "Do that" to the recommended GS-202 security fix.
+No other product decision or finding was included.
+
+**Changed:** `web/run-paths.mjs` defines portable name admission (reject, not
+sanitize), independent resolved-path containment, and conservative case/NFC
+collision keys. `/run` validates every upload name before engine lookup, resolves
+all output targets/prefixes before upload writes or engine launch, then executes
+the locked plan. Batch target/target and target/source comparisons are no longer
+case-sensitive. Neutral input paths and returned explode-frame paths also use the
+guard. Spaces, Unicode, emoji and literal percent sequences remain supported;
+client settings cannot replace server-owned input/output paths.
+
+**Regression evidence:** expanded the existing CI-gated transport suite from 30 to
+42 check groups, including 100 invalid-name requests across all modes, a Node preload
+logging actual subprocess launches, two outside-request sentinel files, case/NFC
+collision cases, valid-name runs and direct POSIX/Windows-drive/UNC guard assertions.
+Tests isolate TMPDIR/TMP/TEMP in a disposable test root, so baseline escape attempts
+cannot touch unrelated files. Cleanup assertions wait for asynchronous server cleanup.
+
+The unmodified pre-fix server fails **7 security groups**: it launches the engine for
+unsafe requests, overwrites the Auto/Batch and Explode sentinels outside its request
+directory, and accepts case/NFC collisions. The fixed server passes **42/42** and
+preserves both sentinels. Independently disabling the containment predicate fails
+its direct guard group (the other 41 remain passing). Scratch mutations were removed.
+
+**Other executed checks:** build + C++ unit 296 checks / 0 failures; engine 5/5;
+CLI smoke 21/21; package negatives 9/9; web command 17, validation 23; N-07 sweep
+regressions 14 tests; Node syntax checks and `git diff --check` pass. Windows path
+semantics tested with Node path.win32 on Linux, not a real Windows GUI/runtime run.
+
+**Final gates (executed after the local commit):** `verify_audit.sh` **25 passed,
+0 failed, 6 skipped** in this non-Qt/non-CMake sandbox (C6/C9/B, pending E9,
+remote CI and clean-Windows smoke skipped). `check_docs.sh` **23 passed,
+0 failed, 2 skipped** (G6 full-toolchain measurement and pending G7).
+`review_change.sh --report`: **4 passed, 0 failed, 1 skipped** (no gate script edit).
+
+**Scope and docs:** GS-202 marked DONE; register header regenerated. Audit §6/§13,
+worklist, handoff, next-session prompt, root/web README and template current-state
+facts updated; template still SKELETON. Remaining GS-203/DS-13 output verification,
+U-06 resource limits, licensing/release work and owner decisions are unchanged.
+The containment guarantee assumes a trusted engine and private temp directory; it
+is not a sandbox against arbitrary engine code or hostile local symlink writers.
+No workflow edit, version bump, push, PR, or merge.
+
+---
+
 ## S17 — N-07 / P2-15: standalone UNTRIAGED count check (2026-09-13)
 
 **Selected work:** the owner asked to choose and immediately execute a job within current

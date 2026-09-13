@@ -24,9 +24,15 @@
 // Run:  node web/test/transport.test.mjs   (after ./build.sh)
 
 import { spawn } from "node:child_process";
+import assert from "node:assert/strict";
+import { once } from "node:events";
+import { mkdtemp, mkdir, readFile, writeFile, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { assertContainedPath, requestPath, uploadNameError } from "../run-paths.mjs";
 import { createServer } from "node:net";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SERVER = join(__dirname, "..", "server.mjs");
@@ -165,9 +171,44 @@ const cases = [
     expect: { status: 200 } },
 ];
 
+// Isolate even the PRE-FIX traversal reproduction inside this test's temp root.
+// Instrument actual spawn calls using a Node preload (no shell wrapper, no fake
+// engine): refusals must happen before ANY engine launch, including batch item 1.
+const testRoot = await mkdtemp(join(tmpdir(), "gsweb-security-test-"));
+const requestRoot = join(testRoot, "requests");
+await mkdir(requestRoot);
+const launchLog = join(testRoot, "launches.jsonl");
+await writeFile(launchLog, "");
+const preload = join(testRoot, "record-spawn.mjs");
+await writeFile(preload, `
+import cp from "node:child_process";
+import { appendFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+const spawn = cp.spawn;
+cp.spawn = (...args) => {
+  appendFileSync(process.env.GS_TEST_SPAWN_LOG, JSON.stringify(args.slice(0, 2)) + "\\n");
+  return spawn(...args);
+};
+syncBuiltinESMExports();
+`);
+const launches = () => readFile(launchLog, "utf8");
+// res.end precedes the server's asynchronous finally/rm. Wait for that cleanup,
+// rather than racing it and treating a transient request directory as a leak.
+async function leftoversExcept(allowed) {
+  const deadline = Date.now() + 3000;
+  let extra;
+  do {
+    extra = (await readdir(requestRoot)).filter((name) => !allowed.includes(name));
+    if (!extra.length) return extra;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  } while (Date.now() < deadline);
+  return extra;
+}
 const port = await freePort();
-const child = spawn(process.execPath, [SERVER, String(port)], {
+const child = spawn(process.execPath, ["--import", pathToFileURL(preload).href, SERVER, String(port)], {
   stdio: ["ignore", "pipe", "pipe"],
+  env: { ...process.env, GS_WEB_HOST: "127.0.0.1", GS_TEST_SPAWN_LOG: launchLog,
+         TMPDIR: requestRoot, TMP: requestRoot, TEMP: requestRoot },
 });
 let serverLog = "";
 child.stdout.on("data", (d) => { serverLog += d; });
@@ -230,6 +271,112 @@ try {
       } else console.log(`PASS ${name}`);
     };
     const decode = (b64) => Buffer.from(b64, "base64");
+
+    // GS-202 / P0-6: independently exercise the final containment guard, even
+    // though name admission makes these escapes unreachable through the API.
+    {
+      const p = [];
+      try {
+        for (const [paths, root, childName, escapes] of [
+          [path.posix, "/tmp/gsweb-private", "/tmp/gsweb-private/out.gif",
+            ["/tmp/gsweb-private", "/tmp/gsweb-private-other/out.gif", "/tmp/out.gif",
+             "/tmp/gsweb-private/../out.gif"]],
+          [path.win32, "C:\\Temp\\gsweb-private", "C:\\Temp\\gsweb-private\\out.gif",
+            ["C:\\Temp\\gsweb-private", "C:\\Temp\\gsweb-private-other\\out.gif",
+             "C:\\Temp\\gsweb-private\\..\\out.gif", "D:\\out.gif", "\\\\server\\share\\out.gif"]],
+          [path.win32, "\\\\server\\share\\gsweb-private", "\\\\server\\share\\gsweb-private\\out.gif",
+            ["\\\\server\\other\\out.gif", "\\\\server\\share\\gsweb-private-other\\out.gif"]],
+        ]) {
+          assert.equal(assertContainedPath(root, childName, paths), paths.resolve(childName));
+          for (const target of escapes) assert.throws(() => assertContainedPath(root, target, paths));
+        }
+        assert.equal(uploadNameError("作品 café.gif"), null);
+        assert.equal(requestPath(requestRoot, "作品 café_opt.gif"), join(requestRoot, "作品 café_opt.gif"));
+        for (const name of ["../escape.gif", "..\\escape.gif", "C:escape.gif", "a\0.gif", ".", ".."]) {
+          assert.throws(() => requestPath(requestRoot, name));
+        }
+      } catch (err) { p.push(String(err)); }
+      t("GS-202 final containment guard (POSIX, Windows drives and UNC)", p);
+    }
+
+    // Sentinels are OUTSIDE every gsweb-* request dir, but inside testRoot.
+    // The old server overwrites the first two with Auto/Batch or Explode.
+    const sentinels = ["gs202-victim_opt.gif", "gs202-victim_frame.000"];
+    const sentinelBytes = Buffer.from("DO NOT OVERWRITE: GS-202 outside request directory");
+    for (const name of sentinels) await writeFile(join(requestRoot, name), sentinelBytes);
+    const unsafeNames = [
+      "../gs202-victim.gif", "..\\gs202-victim.gif", "nested/clip.gif", "nested\\clip.gif",
+      join(requestRoot, "absolute.gif"), "C:\\Temp\\clip.gif", "C:clip.gif", "\\\\server\\share\\clip.gif",
+      ".", "..", "clip\0.gif", "clip\n.gif", "clip.gif:stream", "clip.gif.", "clip.gif ",
+      "CON.gif", "LPT1.gif", "COM¹.gif", "clip<1>.gif", "clip?.gif", "clip*.gif",
+      "clip|x.gif", 'clip"x.gif', "clip\u007f.gif", "clip\ud800.gif",
+    ];
+    for (const mode of ["auto", "batch", "merge", "explode"]) {
+      for (const name of sentinels) await writeFile(join(requestRoot, name), sentinelBytes);
+      const p = [];
+      const beforeLaunches = await launches();
+      for (const name of unsafeNames) {
+        // Put the malicious item LAST: the entire batch must be refused before
+        // even the first, valid item's engine can run.
+        const files = mode === "batch" || mode === "merge"
+          ? [gifFile("safe.gif"), gifFile(name)] : [gifFile(name)];
+        const r = await postRun(port, { mode }, files);
+        if (r.status !== 400 || !String(r.json?.error || "").includes("invalid upload name")) {
+          p.push(`${JSON.stringify(name)}: expected named 400, got ${r.status} ${JSON.stringify(r.json)}`);
+        }
+      }
+      if (await launches() !== beforeLaunches) p.push("invalid request launched the engine");
+      for (const name of sentinels) {
+        if (!(await readFile(join(requestRoot, name))).equals(sentinelBytes)) p.push(`outside sentinel changed: ${name}`);
+      }
+      const leftovers = await leftoversExcept(sentinels);
+      if (leftovers.length) p.push(`uncontained writes / leaked temp directories: ${leftovers.join(", ")}`);
+      t(`GS-202 ${mode}: unsafe names refused before engine, no outside writes`, p);
+      // Keep mutations independent when running this net against the old server.
+      for (const name of leftovers) await rm(join(requestRoot, name), { recursive: true, force: true });
+    }
+
+    for (const [label, names, error] of [
+      ["case-only target collision", ["Clip.gif", "clip.GIF"], "would both write"],
+      ["case-only source collision", ["Clip.gif", "CLIP_OPT.GIF"], "overwrite the uploaded file"],
+      ["Unicode normalized target collision", ["café.gif", "cafe\u0301.gif"], "would both write"],
+    ]) {
+      const beforeLaunches = await launches();
+      const r = await postRun(port, { mode: "batch" }, names.map(gifFile));
+      const p = [];
+      if (r.status !== 422 || !String(r.json?.error || "").includes(error)) p.push(`response ${r.status}: ${JSON.stringify(r.json)}`);
+      if (await launches() !== beforeLaunches) p.push("collision launched the engine");
+      t(`GS-202 batch: ${label} refused before any run`, p);
+    }
+
+    // Valid names (spaces, Unicode, multiple dots, literal percent encoding,
+    // leading dash) stay usable; settings cannot replace server-owned paths.
+    for (const mode of ["auto", "batch", "merge", "explode"]) {
+      const beforeLaunches = await launches();
+      const files = mode === "batch"
+        ? ["作品 café.v2.gif", "%2e%2e%2fclip.gif", "-clip.gif", "🎉.gif"].map(gifFile)
+        : [gifFile("作品 café.v2.gif")];
+      const r = await postRun(port, { mode, output: "../forbidden.gif", inputs: ["../forbidden.gif"] }, files);
+      const expected = mode === "merge" ? ["merged.gif"]
+        : mode === "explode" ? ["作品 café.v2_frame.000"]
+        : files.map((f) => f.name.slice(0, -4) + "_opt.gif");
+      const p = [];
+      if (r.status !== 200 || JSON.stringify(r.json?.outputs?.map((o) => o.name)) !== JSON.stringify(expected)) {
+        p.push(`response ${r.status}: ${JSON.stringify(r.json)}`);
+      }
+      const log = (await launches()).slice(beforeLaunches.length).trim().split("\n").filter(Boolean);
+      if (log.length !== (mode === "batch" ? files.length : 1)) p.push("unexpected engine invocation count");
+      for (const line of log) {
+        const [, argv] = JSON.parse(line);
+        const target = argv[argv.indexOf("-o") + 1];
+        const rel = path.relative(requestRoot, target);
+        if (path.isAbsolute(rel) || rel.startsWith("..") || !rel.startsWith("gsweb-") || rel.split(path.sep).length !== 2) {
+          p.push(`uncontained engine output/prefix: ${target}`);
+        }
+      }
+      if ((await leftoversExcept(sentinels)).length) p.push("request files not cleaned up");
+      t(`GS-202 ${mode}: valid names preserved and engine target contained`, p);
+    }
 
     // auto: exactly one file -> one <stem>_opt.gif output
     let r = await postRun(port, { mode: "auto", optimize_level: 2 }, [gifFile("in.gif")]);
@@ -342,7 +489,10 @@ try {
   failures++;
   console.log(`FAIL harness error: ${err}\n--- server log ---\n${serverLog}`);
 } finally {
+  const closed = once(child, "close");
   child.kill("SIGKILL");
+  if (child.exitCode === null && child.signalCode === null) await closed;
+  await rm(testRoot, { recursive: true, force: true });
 }
 
 if (failures === 0) {

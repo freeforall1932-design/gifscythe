@@ -41,6 +41,7 @@ import { join, extname, normalize, resolve, dirname, basename } from "node:path"
 import { fileURLToPath } from "node:url";
 import { buildArgs, shellQuote } from "./command.mjs";
 import { validate } from "./validate.mjs";
+import { uploadNameError, outputNameKey, requestPath } from "./run-paths.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url)); // web/
 const PRODUCT = resolve(ROOT, "..", "working_code", "gifscythe");
@@ -314,7 +315,7 @@ async function snapshotPrefix(dir, prefixName) {
     if (!ent.isFile()) continue;
     if (!ent.name.startsWith(prefixName + ".") || ent.name.length <= prefixName.length + 1) continue;
     try {
-      const st = await stat(join(dir, ent.name));
+      const st = await stat(requestPath(dir, ent.name));
       snap.set(ent.name, { size: st.size, mtimeMs: st.mtimeMs });
     } catch { /* vanished mid-snapshot; treat as absent */ }
   }
@@ -330,10 +331,10 @@ async function listWrittenFrames(dir, prefixName, before) {
     if (!ent.isFile()) continue;
     if (!ent.name.startsWith(prefixName + ".") || ent.name.length <= prefixName.length + 1) continue;
     let st;
-    try { st = await stat(join(dir, ent.name)); } catch { continue; }
+    try { st = await stat(requestPath(dir, ent.name)); } catch { continue; }
     const prev = before.get(ent.name);
     if (prev && prev.size === st.size && prev.mtimeMs === st.mtimeMs) continue; // stale leftover
-    if (await isGifMagic(join(dir, ent.name))) frames.push(ent.name);
+    if (await isGifMagic(requestPath(dir, ent.name))) frames.push(ent.name);
     else suspicious.push(ent.name);
   }
   return { frames, suspicious };
@@ -364,6 +365,11 @@ async function handleRun(req, res) {
   for (const f of files) {
     if (!f || typeof f.name !== "string" || !f.name.trim() || typeof f.data !== "string") {
       sendJson(res, 400, { ok: false, error: "every file needs a non-empty name and base64 data" });
+      return;
+    }
+    const problem = uploadNameError(f.name);
+    if (problem) {
+      sendJson(res, 400, { ok: false, error: `invalid upload name: ${problem}`, file: f.name });
       return;
     }
   }
@@ -403,8 +409,45 @@ async function handleRun(req, res) {
 
   const dir = await mkdtemp(join(tmpdir(), "gsweb-"));
   try {
+    // ---- plan + refuse BEFORE anything runs (desktop batch parity, U-01) ----
+    const targets = mode === "merge" ? ["merged.gif"]
+      : mode === "explode" ? [`${stemOf(files[0].name)}_frame`]
+      : files.map((f) => `${stemOf(f.name)}_opt.gif`);
+    // Contain ALL targets (including the explode prefix) before writing uploads
+    // or starting the first subprocess. Never rely on admission alone.
+    let targetPaths;
+    try {
+      targetPaths = targets.map((name) => requestPath(dir, name));
+    } catch (err) {
+      sendJson(res, 422, { ok: false, error: err.message });
+      return;
+    }
+    if (mode === "batch") {
+      const names = files.map((f) => f.name);
+      const sourceKeys = new Set(names.map(outputNameKey));
+      const seen = new Map();
+      for (let i = 0; i < targets.length; i += 1) {
+        const key = outputNameKey(targets[i]);
+        if (seen.has(key)) {
+          sendJson(res, 422, {
+            ok: false,
+            error: `refusing to run: "${names[seen.get(key)]}" and "${names[i]}" would both write ${targets[i]}, destroying one result`,
+          });
+          return;
+        }
+        seen.set(key, i);
+        if (sourceKeys.has(key)) {
+          sendJson(res, 422, {
+            ok: false,
+            error: `refusing to run: the planned output ${targets[i]} would overwrite the uploaded file of the same name`,
+          });
+          return;
+        }
+      }
+    }
+
     // Decode uploads to neutral on-disk names; the user-facing names stay in
-    // the response (nothing from the request ever becomes a path here).
+    // the response (only validated names enter the separately contained output plan).
     const paths = [];
     let inBytes = 0;
     for (let i = 0; i < files.length; i += 1) {
@@ -414,36 +457,11 @@ async function handleRun(req, res) {
         return;
       }
       inBytes += buf.length;
-      const p = join(dir, `in${i}.gif`);
+      const p = requestPath(dir, `in${i}.gif`);
       await writeFile(p, buf);
       paths.push(p);
     }
     const quote = (argv) => argv.map(shellQuote).join(" ");
-
-    // ---- plan + refuse BEFORE anything runs (desktop batch parity, U-01) ----
-    let targets = [];
-    if (mode === "batch") {
-      targets = files.map((f) => `${stemOf(f.name)}_opt.gif`);
-      const names = files.map((f) => f.name);
-      const seen = new Map();
-      for (let i = 0; i < targets.length; i += 1) {
-        if (seen.has(targets[i])) {
-          sendJson(res, 422, {
-            ok: false,
-            error: `refusing to run: "${names[seen.get(targets[i])]}" and "${names[i]}" would both write ${targets[i]}, destroying one result`,
-          });
-          return;
-        }
-        seen.set(targets[i], i);
-        if (names.includes(targets[i])) {
-          sendJson(res, 422, {
-            ok: false,
-            error: `refusing to run: the planned output ${targets[i]} would overwrite the uploaded file of the same name`,
-          });
-          return;
-        }
-      }
-    }
 
     const outputs = [];   // { name, path }
     const commands = [];  // quoted command lines, in run order
@@ -478,7 +496,7 @@ async function handleRun(req, res) {
     let done = true;
     if (mode === "batch") {
       for (let i = 0; i < files.length && done; i += 1) {
-        const outPath = join(dir, targets[i]);
+        const outPath = targetPaths[i];
         // The desktop batch runs one Auto command PER FILE (never one -b run);
         // mirror that exactly so the commands list matches the desktop pane.
         done = await runOne(
@@ -486,12 +504,12 @@ async function handleRun(req, res) {
           outPath, files[i].name);
       }
     } else if (mode === "merge") {
-      const outPath = join(dir, "merged.gif");
+      const outPath = targetPaths[0];
       done = await runOne({ ...settings, mode, inputs: paths, output: outPath },
                           outPath, "merged.gif");
     } else if (mode === "explode") {
-      const prefixName = `${stemOf(files[0].name)}_frame`;
-      const outPath = join(dir, prefixName);
+      const prefixName = targets[0];
+      const outPath = targetPaths[0];
       const before = await snapshotPrefix(dir, prefixName);
       const argv = [engine, ...buildArgs({ ...settings, mode, inputs: paths, output: outPath })];
       commands.push(quote(argv));
@@ -514,13 +532,13 @@ async function handleRun(req, res) {
         return;
       }
       for (const name of frames) {
-        const p = join(dir, name);
+        const p = requestPath(dir, name);
         const st = await stat(p);
         outputs.push({ name, path: p });
         outBytes += st.size;
       }
     } else { // auto
-      const outPath = join(dir, `${stemOf(files[0].name)}_opt.gif`);
+      const outPath = targetPaths[0];
       done = await runOne({ ...settings, mode: "auto", inputs: paths, output: outPath },
                           outPath, files[0].name);
     }

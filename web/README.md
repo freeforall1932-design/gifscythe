@@ -25,7 +25,7 @@ browser (index.html + app.js)          Node (server.mjs)          gifsicle engin
 `OutputPlan` semantics), Merge (one `-m` run over the whole queue) and Explode
 (`-e`/`-E` against a `<stem>_frame` prefix, with the desktop's frame
 verification: rc=0 and zero new GIF frames is a **422**, never a success).
-The demo derives output names itself; the desktop's Save-as / batch folder /
+The server derives output names itself; the desktop's Save-as / batch folder /
 name-template controls stay desktop-only.
 
 - `command.mjs` is a line-by-line JS mirror of `src/core/GifsicleCommand.h`.
@@ -58,7 +58,7 @@ auth, so do not expose it to the public internet.
 ```bash
 node web/test/command.test.mjs     # command builder  — 17 PASS
 node web/test/validate.test.mjs    # validation rules — 23 PASS
-node web/test/transport.test.mjs   # live-server transport net — 30 PASS
+node web/test/transport.test.mjs   # live-server transport net — 42 PASS (S17)
 ```
 
 Both run the **real** C++ `gifscythe-cli` in print mode and compare against the
@@ -84,6 +84,12 @@ JS side, so the two clients cannot drift silently:
   `validate()` fails 3. The U-41 block then drives `POST /run` for all four
   modes against the real engine: auto/merge/batch/explode happy paths, batch
   collision + target-equals-source refusals, explode `-E`, and the usage 400s.
+  S17 adds GS-202: 100 unsafe-name requests across all four modes, a preload that
+  logs actual engine spawns (refusals must launch none), outside-request sentinel
+  files, case/NFC collisions, legitimate Unicode/space/percent-name successes,
+  and direct POSIX/Windows-drive/UNC containment probes. All artifacts, including
+  intentional pre-fix escapes, stay in a disposable test root. The original server
+  fails seven security groups; disabling the final containment guard fails its probe.
 
 All three are run by the CI linux job and by `scripts/verify_audit.sh`
 (gates W1/W2/W3).
@@ -94,11 +100,25 @@ All three are run by the CI linux job and by `scripts/verify_audit.sh`
 
 JSON body `{ settings, files: [{ name, data(base64) }] }`.
 
+**Upload name contract (GS-202, S17).** `name` must be one portable filename, not
+an absolute/relative path. Both slash styles, drive/ADS colons, control characters,
+unpaired Unicode surrogates, Windows-special characters, dot components, trailing
+dots/spaces and reserved Windows devices are rejected (400), not silently sanitized.
+Spaces inside names, Unicode, emoji and literal percent sequences remain valid; JSON
+names are not URL-decoded. Batch target/target and target/source collisions use
+NFC-normalized, case-insensitive keys on every host (422), preserving original spelling.
+
+Every resolved output target, including the explode prefix, is checked for containment
+in the private request directory before the first engine run. Client `settings.inputs`
+and `settings.output` cannot override that plan. This is lexical path containment with
+a trusted engine, **not** isolation from a malicious engine or hostile local symlink
+writer; the existing single-user/no-public-exposure limitations still apply.
+
 - `200 application/json` → `{ ok:true, mode, outputs:[{ name, bytes,
   data(base64) }], commands:[...], inBytes, outBytes }` — one output per
   result file, one quoted command line per engine run.
 - `400` → usage errors: bad JSON, unknown mode, wrong file count for the
-  mode, empty file data.
+  mode, empty file data, unsafe upload names (`invalid upload name` and `file`).
 - `422` → settings validation issues (`issues[]`, same layer as `/optimize`),
   batch target collisions / target-equals-source refusals, engine failure
   (`exitCode`, `stderr`, `command`), rc=0-with-no-output, and explode
