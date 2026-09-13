@@ -58,6 +58,14 @@ the proposed copy. When editing the workflow, **edit both files in the same
 commit** (a maintainer or a token with the `workflows` scope must push the
 `.github/` change).
 
+**Reviewing a change is a separate step (`scripts/review_change.sh`).** The gates above check the
+repo's *state*; the reviewer checks a *diff* before it is accepted (`--commit`, `--range`,
+`--patch`, `--pr N`). It is not wired into CI — it is run by a human at review time, because its
+output is a list of things to look at, not a pass/fail for a machine. Its **R2** check is the one
+CI cannot substitute for: it re-runs each gate's matcher against the corpus and fails when one
+matches nothing, which is how gate **G10** stayed green for five PRs while inspecting no document
+at all.
+
 **S8 made drift a gate** (`verify_audit.sh` **E9**), and **S9 mirrored it in
 `check_docs.sh` as gate G7**, so this cannot silently recur. Both have exactly
 one tolerated exception: while

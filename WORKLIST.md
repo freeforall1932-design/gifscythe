@@ -400,6 +400,11 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       rules). On that commit do the **one-time flip** — `Template state:` here and the mirror line
       in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it) — then triage the 18 intake rows
       into `COMPILED_AUDIT.md` §6 fix-order ids.
+- [ ] **Review, don't accept:** run `scripts/review_change.sh --pr <n>` (or `--commit`/`--patch`)
+      on any change before merging it. R1 flags edited check logic, R2 flags a matcher that
+      matches nothing (how G10 stayed dead for five PRs), R3 flags prose counts that disagree
+      with a live measurement, R4 flags lost `+x`, R5 lists the docs the change obliges you to
+      update. Then write the outcome into the docs R5 named.
 - [ ] **Owner answers** — `docs/planning/OWNER_DECISIONS.md` `OD-01`…`OD-15` (reply `OD-nn = <letter>`,
       from that row's own options; `OD-15` runs `a`–`d`).
       **`OD-01 = a` and `OD-02 = a` are answered** (2026-09-12); the other 13 are direction

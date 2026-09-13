@@ -149,6 +149,42 @@ assumed: `arena/01a0968e-gifscythe` produced both #16 and #17, and `arena/01a096
 produced both #18 and #19, so a branch-name-only comparison would have passed through both skipped
 syncs.
 
+**Added `scripts/review_change.sh` — review a change instead of accepting it (owner request).**
+The sweep checks whether docs still describe reality; nothing checked whether a *change* is any
+good. `review_change.sh` (`--commit`/`--range`/`--patch`/`--pr`) reports five evidence-backed
+checks and never edits: **R1** check-logic lines added/removed/edited (a check that is edited must
+be re-proven), **R2** a matcher that matches *nothing* in the corpus, so its gate passes without
+reading anything, **R3** an added line stating a count that can be measured here and disagrees,
+**R4** a lost executable bit or file-mode change, **R5** the docs the change obliges you to update
+(derived from what the diff touched and which docs name it). Rule: a flag with no measurement is
+not printed.
+
+Both R2 and R3 exist because of things that actually got through: PR #16 reworded the handoff
+header and switched the base claim out of G10's reach, and G10 then passed vacuously for five PRs;
+and a patch arrived asserting "all 35 narrative status lines match the 52 register rows" when the
+file had 44. Verified against both:
+
+* **R2 catches the G10 regression.** With the pre-fix alternation restored (case-sensitive, no
+  `**Base:**` branch) the reviewer reports `FAIL [R2] vacuous matcher(s): G10 base-commit matcher
+  (-E, as the gate invokes it) (0 matches across 21 docs)` — **while `check_docs.sh` itself still
+  prints `PASS [G10]` and totals 22/0/3.** That divergence is the whole point.
+* **R3 catches the false count.** A patch claiming 35 (and 99) narrative status lines yields
+  `FAIL [R3] claims 35 narrative status lines, measured 44; claims 99 …, measured 44`.
+* **R3 does not flag a count the line is correcting.** `IMPROVEMENT_LOG.md` quotes that same
+  false claim in order to refute it, so R3 skips a line carrying a correction marker
+  (`claim`, `assert`, `quote`, `refut`, `not true`, `incorrect`, `correcting`, `wrong`, …).
+  **Known limitation:** a genuinely false claim that happens to contain one of those words is
+  missed. The trade is deliberate — a reviewer that flags corrections gets ignored, and the
+  bare-assertion case is the one that ships.
+
+Two bugs in the reviewer were found by running it, and are fixed: the matcher was extracted with
+"first `grep -oE '…' <<<"$content"` line", but `check_docs.sh` has three such lines, so it silently
+probed the wrong regex and reported 1827 hits for a pattern that really has 1 — extraction is now
+anchored on distinctive content and sanity-checked, degrading to "probe skipped" rather than
+measuring something else; and the probe hardcoded `-iE` while the gate invokes `grep -oE`, which
+made it report 1 hit for a matcher the gate could not use at all — it now reads the flag from the
+gate line and prints it (`-E, as the gate invokes it`).
+
 **Handoff header re-based on what a session can actually know.** It no longer asserts its own
 merge sha, its own run ids, or "not yet pushed" — all of which are unknowable at write time and
 went stale within one commit (the previous version cited runs `34717833397`/`34717874740` for

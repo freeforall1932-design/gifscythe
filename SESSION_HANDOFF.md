@@ -20,6 +20,13 @@ owner's draft is refitted into that template's slots — move both lines in the 
 
 ## Next session — fast hand-off (S14 continuation)
 
+- **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
+  (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
+  diff blindly: it flags check-logic edits (**R1**), matchers that match nothing
+  so a gate passes vacuously (**R2**), prose counts that disagree with a
+  measurement taken now (**R3**), lost executable bits (**R4**), and lists the
+  docs the change obliges you to update (**R5**). Every flag carries its
+  evidence; it never edits anything.
 - **Branch naming:** push session work to **`arena/sNN-gifscythe`** (the S7/S10/S11 convention),
   not to an opaque platform id — a session number stays meaningful after the session ends, an id
   like `arena/01a09712-gifscythe` does not. When a platform assigns its own branch name anyway,
