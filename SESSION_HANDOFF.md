@@ -6,7 +6,11 @@ own generated id `arena/01a09712-gifscythe`
 **This session's PR:** #20 — **open**. Its merge sha and post-merge `main` run are *not* written
 here: a session cannot know them at write time, and guessing them is how stale claims get born.
 Whoever merges fills that row in the ledger below.
-**Last merged:** PR #19 as `43e3f96`; `main` run `34713800552` green on linux + windows
+**Docs synced through:** PR #19 · branch `arena/01a096ec-gifscythe` · merged as `43e3f96`
+*(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares
+this against the newest merged PR and fails when a merge landed with no doc sync — that is the
+"we jumped a merge without updating any docs" case. Move this line as part of the sync, never
+before the writing is done.)*
 Based on `main` commit `43e3f96` ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
 **Web plan template:** SKELETON
@@ -67,12 +71,20 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #19 | S14 continuation | `arena/01a096ec-gifscythe` | `43e3f96` | docs: re-sync handoff to PR #18 merge + main run 34713398377 |
 | #20 | — | `arena/01a09712-gifscythe` | **open** | docs: post-merge sync for PR #19 + owner patch adjudicated + OD answer-format fix |
 
-**Maintenance rule (one line per PR, two touches):**
+**Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
    `**open**` in the *Merged as* cell. Never guess the number beforehand — it does
    not exist until the call returns.
-2. Whoever merges edits that one cell to the merge sha. Nothing else in the file
-   needs to change, and no separate post-merge doc-sync PR is required.
+2. Whoever merges edits that one cell to the merge sha.
+3. The next session moves the header's **`Docs synced through:`** line to the newest
+   merged PR — but only *after* writing up what that PR changed. Step **P6** of
+   `pr_preflight.sh --online` fails until the writing and the line agree, and names
+   every PR that has not been reviewed yet.
+
+**Why the PR number is the key and the branch only a cross-check:** two branches here
+each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, and
+`arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
+alone would have passed straight through both skipped syncs.
 
 ## S14 — External reviews compiled for review; stale status claims corrected (docs only)
 
