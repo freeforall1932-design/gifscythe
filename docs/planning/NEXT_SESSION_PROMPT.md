@@ -12,6 +12,7 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), S14 continuation.
    working_code/gifscythe/scripts/bootstrap_hooks.sh      # if G15 says core.hooksPath != .githooks
    working_code/gifscythe/scripts/check_docs.sh           # must be 22 passed, 0 failed, 3 skipped
    working_code/gifscythe/scripts/sweep_stale.sh          # must be 5 passed, 0 failed, 0 skipped
+   working_code/gifscythe/scripts/review_change.sh --pr N  # review the change; every flag has evidence
    working_code/gifscythe/scripts/pr_preflight.sh --online --body /tmp/pr_body.md
    #  before gh pr create, and again before merge.
 
