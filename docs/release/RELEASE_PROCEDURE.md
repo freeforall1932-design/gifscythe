@@ -12,21 +12,24 @@ anything done without evidence).
 ---
 
 
-## Open release-blocking items (as of 2026-09-12, session S14)
+## Open release-blocking items (as of 2026-09-13, session S15)
 
-**`main` is green again** — run `34709202307` on merge commit `629135a` passes both jobs (the
-Linux documentation gate that failed in run `34705247115` is fixed). Release is still **blocked by
-the items below**, not by CI. Do not cut a release until they are closed or explicitly waived by
-the owner.
+**`main` is green** — run `34735692932` on merge commit `2542f1b` (PR #20) passes both jobs. Release
+is still **blocked by the items below**, not by CI. Do not cut a release until they are closed or
+explicitly waived by the owner.
+
+**S15 triaged the whole intake** (`OD-01 = a`): every row below now names its `COMPILED_AUDIT.md`
+§6 fix-order id, and none of them is `UNTRIAGED` any more. Two of the six are now scheduled as
+**P0** (`GS-201`→**P0-5**, `DS-06`→**P0-2**).
 
 | Item | Why it blocks | Where the task lives |
 |---|---|---|
-| `GS-201` CLI Batch in-place overwrite | a documented path can destroy user source GIFs | `STATUS.md` (UNTRIAGED) · `COMPILED_AUDIT.md` §13 |
-| `GS-204` packaging fail-open | a "successful" package can be incomplete or mixed-platform | `STATUS.md` · §13 · `working_code/gifscythe/scripts/test_package.sh` scope |
-| `GS-208` red main / stale status docs | release evidence must come from a green exact SHA | `docs/ci/PENDING_WORKFLOW_CHANGE.md` + this file's gate below |
+| `GS-201` CLI Batch in-place overwrite | a documented path can destroy user source GIFs | **P0-5** · `STATUS.md` (OPEN) · `COMPILED_AUDIT.md` §13 |
+| `GS-204` packaging fail-open | a "successful" package can be incomplete or mixed-platform | **P1-26** · `STATUS.md` · §13 · `working_code/gifscythe/scripts/test_package.sh` scope |
+| `GS-208` red main / stale status docs | release evidence must come from a green exact SHA | **P2-7** · `docs/ci/PENDING_WORKFLOW_CHANGE.md` + this file's gate below |
 | `U-08` licence set incomplete | GPLv3 text and Qt notices are not staged | `STATUS.md` row (PARTIAL) · `LICENSE` |
 | `U-09` release re-cut | banked artifact SHA does not match the claimed source | `STATUS.md` row (OPEN) · `docs/ci/CLEAN_WINDOWS_SMOKE.md` |
-| `DS-06` threads sentinel | default conf silently runs 8-way parallel against the documented contract | `STATUS.md` · §13 |
+| `DS-06` threads sentinel | default conf silently runs 8-way parallel against the documented contract | **P0-2** · `STATUS.md` · §13 |
 
 The per-finding evidence, proposed fix and verification limits for every `GS-`/`DS-` row are in
 `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`.
