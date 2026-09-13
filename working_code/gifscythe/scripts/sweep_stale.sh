@@ -123,8 +123,48 @@ else
       fi
     done < <(grep -oE "$s2_re" <<<"$flat")
   done
+  # N-07 / P2-15: a standalone count is a claim too; it need not carry
+  # DONE/PARTIAL/OPEN beside it. Strip inline Markdown emphasis/code markers,
+  # allow line wrapping but never join paragraphs, and report the source line.
+  # Like the full-tally check, dates do NOT exempt counts in current-state docs.
+  # Historical tallies belong in the excluded snapshots / append-only log.
+  if [[ ! "$ref_untri" =~ ^[0-9]+$ ]]; then
+    s2_bad+="STATUS.md has no valid UNTRIAGED count; "
+  else
+    for f in "${CURRENT_DOCS[@]}"; do
+      [[ -f "$f" ]] || continue
+      standalone="$(awk -v ref="$ref_untri" '
+        function check(  text, prefix, hit, n, line, pos) {
+          text = paragraph
+          gsub(/[`*]/, "", text)
+          line = first
+          while (match(text, /(^|[^[:alnum:]_])[0-9]+[[:space:]]+UNTRIAGED([^[:alnum:]_]|$)/)) {
+            pos = RSTART
+            hit = substr(text, RSTART, RLENGTH)
+            prefix = substr(text, 1, pos - 1)
+            line += gsub(/\n/, "", prefix)
+            # The leading boundary may itself be the preceding line break.
+            if (substr(hit, 1, 1) == "\n") line++
+            n = hit
+            sub(/^[^0-9]*/, "", n)
+            sub(/[^0-9].*$/, "", n)
+            if (n + 0 != ref + 0)
+              printf "%s:%d quotes %s UNTRIAGED (register says %s); ", FILENAME, line, n, ref
+            if (substr(hit, 1, 1) == "\n") line--
+            line += gsub(/\n/, "", hit)
+            text = substr(text, pos + RLENGTH)
+          }
+          paragraph = ""
+        }
+        /^[[:space:]]*$/ { check(); next }
+        { if (paragraph == "") first = FNR; else paragraph = paragraph "\n"; paragraph = paragraph $0 }
+        END { check() }
+      ' "$f")"
+      s2_bad+="$standalone"
+    done
+  fi
   if [[ -z "$s2_bad" ]]; then
-    ok "S2" "every quoted register tally matches STATUS.md's counts line (wrapped tallies and the total cell included)"
+    ok "S2" "every quoted register tally matches STATUS.md's counts line (standalone UNTRIAGED counts, wrapped tallies and total included)"
   else
     bad "S2" "$s2_bad action: update the stale quote or re-run check_docs.sh --emit"
   fi

@@ -1,12 +1,12 @@
 # Next-session prompt (copy-paste hand-off)
 
-Paste the block below into a fresh session to pick up S16-continuation work
+Paste the block below into a fresh session to pick up post-S17 work
 fast. Everything it references lives in this repo.
 
 ---
 
 ```
-CONTINUATION — gifscythe (freeforall1932-design/gifscythe), S16 continuation.
+CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S17.
 
 1. RECOVERY (run these, in order, from the repo root):
    working_code/gifscythe/scripts/bootstrap_hooks.sh      # if G15 says core.hooksPath != .githooks
@@ -19,7 +19,11 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), S16 continuation.
    working_code/gifscythe/scripts/pr_preflight.sh --online --body /tmp/pr_body.md
    #  before gh pr create, AND AGAIN BEFORE MERGE (not after). P3 dirty / P3b unpushed FAIL.
 
-2. START HERE: STATUS.md (the single status register). COMPILED_AUDIT.md §5 is
+2. S17 closed N-07/P2-15 via sweep S2 standalone numeric UNTRIAGED counts.
+   Regression: python3 working_code/gifscythe/tests/test_sweep_stale.py
+   S4 is still a five-phrase list; unnumbered prose needs human review.
+
+   START HERE: STATUS.md (the single status register). COMPILED_AUDIT.md §5 is
    the detail. Never hand-edit STATUS.md's generated block — run check_docs.sh --emit.
 
 3. SKILLOPT ASK (owner): incorporate microsoft/SkillOpt INTO THIS REPO so any
