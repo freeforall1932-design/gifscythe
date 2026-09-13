@@ -90,6 +90,10 @@ collisions before any engine starts. Web transport: **42 passing check groups**;
 pre-fix server fails seven security groups, including outside-request sentinel
 writes. The N-07 documentation count check also closed in S17. Other release
 blockers and owner decisions remain open; see `STATUS.md`.
+**S17 continuation closed DS-13 / P1-32:** `/optimize` now rejects output without
+an exact GIF87a/GIF89a signature before sending success. Transport **53/53**;
+the old server fails six invalid-signature tests. This is signature-only,
+not full GIF decoding; GS-203 remains open.
 **Direction (2026-09-09): offline-only, language stays C++17/Qt6 through 1.0.0**
 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`.
 

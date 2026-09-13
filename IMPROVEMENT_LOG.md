@@ -4,6 +4,38 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S17 continuation — DS-13 / P1-32 optimize output signature (2026-09-13)
+
+**Authorization:** owner approved proceeding with the recommended DS-13 fix.
+`/optimize` checks the exact response buffer for GIF87a or GIF89a before sending
+200. A non-empty buffer with an invalid signature gets JSON 422, exitCode 0,
+named diagnostic stderr and the command. Factored the signature predicate so
+explode-file verification uses the same rule; no second file read for optimize.
+Missing/empty output and nonzero engine exits retain their prior diagnostics.
+This is signature-only, not a full GIF decoder; GS-203 remains OPEN.
+
+**Executed proof:** transport **53/53**, up from 42. Eleven new cases run a real
+Node child that writes controlled output: text, PNG, truncated signature, wrong
+version/suffix/case, valid GIF87a/GIF89a, missing/empty output and nonzero exit.
+A test-only preload redirects marked spawns; production has no test hook. Existing
+cases still run gifsicle. The pre-fix server fails exactly **6 invalid-signature
+cases**, returning success where 422 is required. Temporary baseline files were
+removed. Web command parity **17**, validation parity **23** remain passing.
+Node syntax checks and `git diff --check` pass.
+
+**Final gates:** `verify_audit.sh` **25 passed, 0 failed, 6 skipped** (C6/C9/B
+require CMake/Qt; E9 pending workflow; remote CI and clean-Windows smoke not run).
+`check_docs.sh` **23 passed, 0 failed, 2 skipped**; change review **4/0/1**.
+The audit also reran the engine/CLI/unit build, engine 5/5, smoke 21/21,
+packaging negatives and all three web suites successfully.
+
+**Docs:** DS-13 marked DONE; STATUS header regenerated; worklist, audit §6/§13,
+handoff, next-session prompt, root/web READMEs and template facts updated. Earlier
+GS-202 proof counts remain historical; the live suite is now 53 check groups.
+Template stays SKELETON. No workflow, version, release, push, PR or merge changes.
+
+---
+
 ## S17 continuation — GS-202 / P0-6 web path containment (2026-09-13)
 
 **Authorization:** owner said "Do that" to the recommended GS-202 security fix.

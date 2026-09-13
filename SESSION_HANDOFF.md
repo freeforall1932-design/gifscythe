@@ -94,6 +94,23 @@ each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, an
 `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
 alone would have passed straight through both skipped syncs.
 
+## S17 continuation — DS-13 / P1-32 (2026-09-13)
+
+Owner approved the next recommended fix. `/optimize` now checks the exact output
+buffer for GIF87a/GIF89a magic before success; invalid signatures get JSON 422
+with exitCode 0, diagnostic stderr and command. Explode verification shares the
+same predicate. Missing/empty-output and nonzero-exit diagnostics are unchanged.
+This is a signature check, not full GIF decoding; broader GS-203 remains OPEN.
+
+Transport **53/53**: 11 new real-child output-fixture cases, including 6 invalid
+signatures, valid GIF87a/GIF89a, missing/empty output and nonzero exit. The pre-fix
+server fails exactly those 6 invalid-signature cases. Existing real-engine and
+GS-202 security checks still pass. Command parity **17**, validation parity **23**.
+Test-only preload redirects marked engine calls; production contains no test hook.
+Final audit: **25 passed / 0 failed / 6 skipped** (no CMake/Qt, pending workflow,
+remote CI and clean-Windows checks not run). Docs gate: **23/0/2**.
+No push, PR, merge, workflow edit, version bump or other owner decision changed.
+
 ## S17 continuation — GS-202 / P0-6 (2026-09-13)
 
 Owner approved the recommended security fix with "Do that". Web `/run` now rejects
@@ -113,7 +130,7 @@ No workflow, version, owner decision or release changed. No push/PR/merge perfor
 Final local gates: `verify_audit.sh` **25 passed / 0 failed / 6 skipped** (no
 Qt/CMake, pending workflow, remote CI and clean-Windows checks not exercised);
 `check_docs.sh` **23 passed / 0 failed / 2 skipped**. Change review: **4/0/1**.
-GS-203, DS-13 and the U-06 resource-limit remainder stay open; this is not public-hosting
+At that checkpoint GS-203, DS-13 and the U-06 remainder were open; DS-13 closed below; this is not public-hosting
 approval. Existing CI/verify_audit W3 already runs the expanded transport suite.
 
 ## S17 — N-07 / P2-15 standalone-count sweep (2026-09-13)
@@ -136,7 +153,7 @@ S15 triage landed on this branch as cherry-pick `0e6e1a7` (of `5677612`). Then
 **`OD-02 = a`**: CLI `--run` with Batch and no `output` exits 2 with a named
 reason before the engine starts. Print still prints `-b`. Smoke **21/21** (source
 GIF `cmp`-identical). Engine `-b -O3` rewrite confirmed 8703→8637 B.
-**`N-07` triaged to P2-15** (OPEN at S16; closed by the S17 count check). Current register after the S17 count-check follow-up: **84 DONE · 5 PARTIAL · 33 OPEN · 0 UNTRIAGED · 122 total.**
+**`N-07` triaged to P2-15** (OPEN at S16; closed by the S17 count check). Current register after the S17 count-check follow-up: **85 DONE · 5 PARTIAL · 32 OPEN · 0 UNTRIAGED · 122 total.**
 No PR until yes.
 
 ## S16 continuation — uncommitted-work hard rule (G18) + template content check (G16)
@@ -253,7 +270,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S17: **84 DONE · 5 PARTIAL · 33 OPEN · 0 UNTRIAGED · 122 total.**
+   `U-nn` row; neither replaces the other. As of S17: **85 DONE · 5 PARTIAL · 32 OPEN · 0 UNTRIAGED · 122 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —

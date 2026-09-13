@@ -29,7 +29,7 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 84 DONE · 5 PARTIAL · 33 OPEN · 0 UNTRIAGED · 122 total
+**Counts (generated - do not edit by hand):** 85 DONE · 5 PARTIAL · 32 OPEN · 0 UNTRIAGED · 122 total
 **Last regenerated:** S17 · 2026-09-13 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
@@ -161,7 +161,7 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 `OD-01 = a` and S15 mapped every row into a `§6` fix-order id, named in each Next action below —
 14 new ids (**P0-5, P0-6, P1-25…P1-32, P2-12…P2-14, P3-11**) and 4 folded into actions that already
 covered the same defect (**DS-06**→P0-2, **DS-12**→P1-13, **GS-208**→P2-7, **DS-08**→P3-5).
-Triage scoped them; it did not fix them. **S16 closed `GS-201` (P0-5); S17 closed `GS-202` (P0-6)** with executed proof; the other 16 remain OPEN.
+Triage scoped them; it did not fix them. **S16 closed `GS-201` (P0-5); S17 closed `GS-202` (P0-6) and `DS-13` (P1-32)** with executed proof; the other 15 remain OPEN.
 
 | ID | Item | State | Session | Proof / Blocker | Next action |
 |----|-------|-------|---------|-----------------|-------------|
@@ -182,7 +182,7 @@ Triage scoped them; it did not fix them. **S16 closed `GS-201` (P0-5); S17 close
 | DS-10 | Disposal 4..7 are unreachable from the desktop picker although the engine and web validator allow 0..7 | OPEN | S15 | `src/qtui/SettingsPanel.cpp:329-339`; `web/validate.mjs:22-25` (intake B.5) | **P3-11** — Add 4..7 to the picker, or document the cap in the UI tooltip |
 | DS-11 | The audit's own §3/§4 narrative contradicted its §5 register (OPEN for items marked fixed) | OPEN | S15 | 35 status lines reconciled in S14 (`ddc4194`) now cite their §5 row; the proposed mechanical gate check is not implemented | **P2-14** — Add a `check_docs.sh` check that fails when a narrative row claims OPEN while its register row says FIXED |
 | DS-12 | The line-based settings format silently loses leading and trailing whitespace in values | OPEN | S15 | `src/core/SettingsIO.h:82-92,282-283` (intake B.7) | **P1-13** — Reject unrepresentable values at save, or add quoted values with a format bump and JS mirror update |
-| DS-13 | Web `/optimize` checks only that output is non-empty; no GIF magic check, so non-GIF bytes are served as `200 image/gif` | OPEN | S15 | `web/server.mjs:229-234` vs `isGifMagic()` at `:290` used only for explode (intake B.8) | **P1-32** — Reuse `isGifMagic()` on the returned buffer before 200; add a transport regression |
+| DS-13 | Web `/optimize` served non-GIF output as `200 image/gif` | DONE | S17 | P1-32: shared exact GIF87a/GIF89a signature predicate checks the response buffer before 200; transport 53/53, including 11 output-fixture cases; pre-fix server fails all 6 invalid-signature cases | - |
 <!-- END HAND-MAINTAINED -->
 
 ## How to add a row

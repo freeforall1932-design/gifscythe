@@ -89,7 +89,9 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       - [ ] **DS-11** → **P2-14** — (Med, PARTIAL-fixed) audit narrative reconciled in S14; the mechanical gate
             check that keeps it reconciled is still missing.
       - [ ] **DS-12** → **P1-13** — (Low) settings values lose leading/trailing whitespace on round trip.
-      - [ ] **DS-13** → **P1-32** — (Med) web `/optimize` serves non-GIF output as `200 image/gif`.
+      - [x] **DS-13** → **P1-32** — **closed S17:** `/optimize` checks the response buffer
+            for GIF87a/GIF89a before success; invalid signatures get JSON 422. Transport 53/53;
+            the pre-fix server fails all 6 invalid-signature cases. Not full GIF decoding.
 - [ ] **CI/infra (S14):** apply `docs/ci/build.yml.proposed` and delete
       `docs/ci/PENDING_WORKFLOW_CHANGE.md` in one commit — both copies then enforce
       byte-equality again (E9/G7). Needs a token with the `workflows` scope.
@@ -519,7 +521,7 @@ cd working_code/gifscythe
 node web/server.mjs 8000           # from the repo root; binds 127.0.0.1
 node web/test/command.test.mjs     # JS ⇄ C++ command parity (17 checks)
 node web/test/validate.test.mjs    # JS ⇄ C++ validation parity (21 checks)
-node web/test/transport.test.mjs   # live-server transport net (42 check groups, S17)
+node web/test/transport.test.mjs   # live-server transport net (53 check groups, S17)
 ```
 
 ## Do not

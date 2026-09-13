@@ -58,7 +58,7 @@ auth, so do not expose it to the public internet.
 ```bash
 node web/test/command.test.mjs     # command builder  — 17 PASS
 node web/test/validate.test.mjs    # validation rules — 23 PASS
-node web/test/transport.test.mjs   # live-server transport net — 42 PASS (S17)
+node web/test/transport.test.mjs   # live-server transport net — 53 PASS (S17)
 ```
 
 Both run the **real** C++ `gifscythe-cli` in print mode and compare against the
@@ -90,6 +90,11 @@ JS side, so the two clients cannot drift silently:
   and direct POSIX/Windows-drive/UNC containment probes. All artifacts, including
   intentional pre-fix escapes, stay in a disposable test root. The original server
   fails seven security groups; disabling the final containment guard fails its probe.
+  DS-13 adds 11 output-fixture cases: a test-only preload redirects marked calls
+  to a real Node child that writes text/PNG/malformed signatures, valid GIF87a/89a,
+  missing/empty output, or exits nonzero. Production has no test hook; existing
+  cases still run the real gifsicle engine. The pre-fix server fails all six
+  invalid-signature cases; the fixed suite passes all 53 check groups.
 
 All three are run by the CI linux job and by `scripts/verify_audit.sh`
 (gates W1/W2/W3).
@@ -133,6 +138,11 @@ pinned by the transport suite's U-49/U-50 cases).
 - `200 image/gif` → optimized GIF; metadata headers:
   `X-Gifscythe-Command`, `X-Gifscythe-In-Bytes`, `X-Gifscythe-Out-Bytes`.
 - `422 application/json` → `{ ok:false, exitCode, stderr, command }`.
+  Since DS-13 (S17), non-empty output without an exact GIF87a/GIF89a signature
+  returns 422 with `exitCode: 0` and an `invalid GIF output` diagnostic instead
+  of `200 image/gif`. The signature is checked on the exact response buffer;
+  this is not full decoding or a guarantee that all GIF frames are intact.
+  Missing/empty output and engine failure retain their existing diagnostics.
 - `400/503` → malformed settings / engine missing.
 
 The `settings` object mirrors `gs::Settings` (see `command.mjs`): `mode`,
