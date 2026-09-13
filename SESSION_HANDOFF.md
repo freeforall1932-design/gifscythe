@@ -1,17 +1,17 @@
 # Session Handoff
 
-**Session:** S14 continuation · **Date:** 2026-09-12
-**Branch:** `arena/s14-gifscythe` by convention — this session was pushed by the platform under its
+**Session:** S15 · **Date:** 2026-09-13
+**Branch:** `arena/s15-gifscythe` by convention — this session was pushed by the platform under its
 own generated id `arena/01a09712-gifscythe`
-**This session's PR:** #20 — **open**. Its merge sha and post-merge `main` run are *not* written
-here: a session cannot know them at write time, and guessing them is how stale claims get born.
-Whoever merges fills that row in the ledger below.
-**Docs synced through:** PR #19 · branch `arena/01a096ec-gifscythe` · merged as `43e3f96`
+**PR #20 merged as `2542f1b`** (2026-09-13); post-merge `main` run `34735692932` is green on both
+jobs. This session's own PR number is *not* written here: a session cannot know it at write time,
+and guessing it is how stale claims get born.
+**Docs synced through:** PR #20 · branch `arena/01a09712-gifscythe` · merged as `2542f1b`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares
 this against the newest merged PR and fails when a merge landed with no doc sync — that is the
 "we jumped a merge without updating any docs" case. Move this line as part of the sync, never
 before the writing is done.)*
-Based on `main` commit `43e3f96` ·
+Based on `main` commit `2542f1b` ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
@@ -76,7 +76,7 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #17 | S14 | `arena/01a0968e-gifscythe` | `75b73a5` | docs: post-merge sync — record PR #16 and the green main (run 34709202307) |
 | #18 | S14 | `arena/01a096ec-gifscythe` | `e32ed28` | S14 continuation: stale-claim sweep + PR preflight + owner-decision register |
 | #19 | S14 continuation | `arena/01a096ec-gifscythe` | `43e3f96` | docs: re-sync handoff to PR #18 merge + main run 34713398377 |
-| #20 | — | `arena/01a09712-gifscythe` | **open** | docs: post-merge sync for PR #19 + owner patch adjudicated + OD answer-format fix |
+| #20 | S14 continuation | `arena/01a09712-gifscythe` | `2542f1b` | docs: post-merge sync for PR #19 + owner patch adjudicated + OD answer-format fix |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
@@ -118,8 +118,9 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
   run `34705247115` and every Linux step that failure had skipped. **PR #16 merged as `629135a`;
   `main` run `34709202307` is GREEN on linux + windows** — the documentation gate now passes on
   the merged tip.
-- **Tasks placed in their documents:** the 18 findings are now `UNTRIAGED` rows in `STATUS.md`
-  (reviewers' ids), one pending line each in `WORKLIST.md`, release-blocking pointers in
+- **Tasks placed in their documents:** the 18 findings were registered as `UNTRIAGED` rows in
+  `STATUS.md` (reviewers' ids) and **triaged into `§6` fix-order ids in S15** (`OD-01 = a`), one
+  pending line each in `WORKLIST.md`, release-blocking pointers in
   `docs/release/RELEASE_PROCEDURE.md`, detail in `COMPILED_AUDIT.md` §13, and the sequencing +
   split rules in `web/WEB_PLAN_TEMPLATE.md` (parked in `web/` as a template so the owner's draft
   can be refitted into it).
@@ -194,7 +195,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S14: **80 DONE · 5 PARTIAL · 17 OPEN · 18 UNTRIAGED · 120 total.**
+   `U-nn` row; neither replaces the other. As of S15: **80 DONE · 5 PARTIAL · 35 OPEN · 1 UNTRIAGED · 121 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —

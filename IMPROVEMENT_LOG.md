@@ -4,12 +4,81 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S15 — PR #20 merged; `OD-01 = a` executed, all 18 intake findings triaged  (2026-09-13)
+
+**Changed:**
+
+- **PR #20 merged as `2542f1b`** (2026-09-13); post-merge `main` run **`34735692932`** is green on
+  both jobs. That PR carried the `G10` and `S2` gate repairs, `pr_preflight.sh` step **P6**, the
+  append-only PR ledger and `scripts/review_change.sh`. Per the ledger's maintenance rule the merge
+  sha went into the ledger row and the header's **Docs synced through** line moved to PR #20 — and
+  only after this write-up, which is the order **P6** enforces.
+
+- **`OD-01 = a` executed: the 18-finding triage.** Every `UNTRIAGED` intake row now names a
+  `COMPILED_AUDIT.md` §6 fix-order id and is `OPEN` in `STATUS.md`. At the moment of triage the
+  register went `80 · 5 · 17 · 18 · 120` → **`80 · 5 · 35 · 0 · 120`** (emitted by
+  `check_docs.sh --emit`, not edited by hand) — total unchanged at 120, so the triage moved rows
+  and added none. It reads `80 · 5 · 35 · 1 · 121` now because S15 registered one finding of its
+  own (**N-07**, below).
+
+  **Four rows folded into actions that already specified the same fix.** Inventing a new id for
+  each would have hidden that the work was already scoped, and left two places to update forever:
+
+  | Finding | §6 id | Why it is the same work |
+  |---|---|---|
+  | `DS-06` | **P0-2** | P0-2 already prescribes `0` → bare `-j`, `-1` → no flag; the intake restated it as "`-1` now means 8 threads". Added the tri-state wording, unit test 28 and the settings comment. |
+  | `DS-12` | **P1-13** | P1-13 is "settings string escaping … or reject unrepresentable values" — the whitespace loss is the same defect. |
+  | `GS-208` | **P2-7** | P2-7 is "delete or CI-enforce `build.yml.proposed`"; the intake's remaining half of the release-red finding is exactly that commit. |
+  | `DS-08` | **P3-5** | P3-5 is the CLI warning-policy doc task. Corrected while triaging: it says "add `--strict`", but `--strict` already exists at `src/cli/main.cpp:216-222`, so the row now describes the real remainder — the advisory exit-code contract. |
+
+  **Fourteen got new ids**, tiered by the harm rather than by reviewer severity:
+
+  | §6 id | Finding | Tier rationale |
+  |---|---|---|
+  | **P0-5** | `GS-201` | destroys user source GIFs; row says P0 candidate; `OD-02 = a` authorises the ~10-line stop-loss |
+  | **P0-6** | `GS-202` | `../` escapes the web request temp dir; row says P0 candidate |
+  | **P1-25** | `GS-203` | success claimed on exit 0 with no output check — P1-6/P1-19 cover web and Explode only |
+  | **P1-26** | `GS-204` | packaging fail-open; P0-3 fixed the manifest path, these are the paths still open |
+  | **P1-27** | `GS-205` | non-GIF inputs admitted; P1-9 fixes only the drop `||`→`&&` |
+  | **P1-28** | `GS-206` | `long`→`int` narrowing plus four missing validation domains |
+  | **P1-29** | `GS-207` | unusable `GS_ENGINE` silently falls back; P1-3 is PATH resolution only |
+  | **P1-30** | `DS-07` | GUI spinner cannot express "unchanged"; must agree with P0-2 |
+  | **P1-31** | `DS-09` | `threads < -1` accepted silently; pairs with P0-2 and P1-28 |
+  | **P1-32** | `DS-13` | `/optimize` serves non-GIF bytes as `200 image/gif` |
+  | **P2-12** | `GS-209` | one fixed glibc config for linux *and* mac engine builds |
+  | **P2-13** | `GS-210` | build entry points accept mistyped options |
+  | **P2-14** | `DS-11` | the mechanical narrative-vs-register gate S14 proposed but never built |
+  | **P3-11** | `DS-10` | disposal 4..7 unreachable from the picker |
+
+  **Triage scoped them; it fixed none of them.** Every one of the 18 stays an unchecked line in
+  `WORKLIST.md`, now naming its §6 id.
+
+- **Gate consequence:** with zero `UNTRIAGED` rows, **G12** no longer blocks a newer `## S<n>`
+  heading — which is what allows this entry to exist at all. The S14-continuation entry above
+  keeps its note explaining why it could not be filed as `## S15` at the time.
+
+- **Registered `N-07` (new, `UNTRIAGED`, S15):** sweep **S4** matches only 5 hardcoded retired
+  phrases (`demo only`, `not the product path`, `is a demo`, `demo/parity harness`,
+  `not the product`), so it cannot catch a current-state doc that still says findings "stay
+  `UNTRIAGED`" after a triage empties the register. Measured, not suspected: the triage left
+  **4** such live claims (`SESSION_HANDOFF.md:121`, `WORKLIST.md:411`,
+  `docs/planning/OWNER_DECISIONS.md:53`, `web/WEB_PLAN_TEMPLATE.md:98`) and the sweep reported
+  `5 passed, 0 failed` both before and after they were corrected by hand. All four are fixed;
+  the detector gap is the finding. This is also a correction to how S4 has been described in
+  these docs — "a retired claim a decision reversed" overstates a fixed 5-phrase list.
+
+**Found while triaging (not fixed):** `COMPILED_AUDIT.md` §6 has two rows numbered **`P2-5`**
+(independent X/Y scale, and the web validation layer). Left alone — renumbering a tier that other
+documents cite by id would break every existing reference for a cosmetic defect. New ids therefore
+start at **P2-12**, not P2-5.
+
 ## S14 continuation — stale-claim sweep, PR preflight, owner-decision register, gate repairs  (2026-09-13)
 
-*(This entry spans 2026-09-12 → 2026-09-13 and is deliberately **not** filed as `## S15`: gate
-**G12** fails on a session heading newer than any `UNTRIAGED` row, and the 18 intake findings are
-still `UNTRIAGED` since S14. The date is the newest so that **G11** can see the log is current with
-the code changed on 2026-09-13 — `check_docs.sh`, `sweep_stale.sh` and `pr_preflight.sh`.)*
+*(This entry spans 2026-09-12 → 2026-09-13 and was deliberately **not** filed as `## S15` at the
+time: gate **G12** fails on a session heading newer than any `UNTRIAGED` row, and the 18 intake
+findings were still `UNTRIAGED` since S14. **S15 resolved that** by executing `OD-01 = a` — see the
+entry above. The date is the newest of its day so that **G11** can see the log is current with the
+code changed on 2026-09-13 — `check_docs.sh`, `sweep_stale.sh` and `pr_preflight.sh`.)*
 
 **Changed:**
 

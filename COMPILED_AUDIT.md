@@ -1722,9 +1722,11 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | # | Action | Closes | Priority |
 |---|---|---|---|
 | P0-1 | **Plan all batch outputs before the first process starts.** Compute every source/target pair, compare for duplicates **and** target==source, refuse or auto-suffix on collision. Lock the plan. | **U-01, U-45, U-21** | **A/D highest** |
-| P0-2 | **Fix threads "Auto" mapping.** `threads==0` → bare `-j` (auto-detect, 8 threads). `threads==-1` → no flag (gifsicle default, 1 thread). Update `Validate.h`. | **U-03** | **B highest** |
+| P0-2 | **Fix threads "Auto" mapping.** `threads==0` → bare `-j` (auto-detect, 8 threads). `threads==-1` → no flag (gifsicle default, 1 thread). Update `Validate.h`. Tri-state, per the S14 intake: `<0` emits nothing, `0` bare `-j`, `>0` `-jN`. Unit test 28 currently pins the wrong mapping and must move with it, as must the settings comment. | **U-03, DS-06** | **B highest** |
 | P0-3 | **Make packaging fail closed.** Fresh staging dir, required-binary manifest, `windeployqt` failure is fatal, license set asserted, package E2E test. | **U-02** | **A highest** |
 | P0-4 | **Re-cut release evidence.** Artifacts from exact tagged SHA, notes pinning that SHA, then run C4/D3/D4 against them. | **U-09** | **A highest** |
+| P0-5 | **Refuse `--run` with Batch and no `output`.** CLI **Batch** maps to the engine's in-place `-b`, so with no `output` key the output planner is skipped and `--run` can rewrite the source GIFs. Stop-loss: exit 2 with a named reason before any process starts (**OD-02 = a**). | **GS-201** | **A highest (S15 triage)** |
+| P0-6 | **Contain web upload names, then assert every target.** `/run` derives output paths and the explode prefix from client upload names, so `../` escapes the request temp dir and collisions are compared case-sensitively. Reject names containing path separators, then assert every resolved target stays under the request temp dir. | **GS-202** | **A highest (S15 triage)** |
 
 ### P1 — Repair CLI and execution contracts
 
@@ -1742,7 +1744,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P1-10 | **Preview invalidation + cleanup.** Invalidate `previewSeq_` immediately on selection/settings change, queue clear, and cancellation. Remove all `preview_*.gif` at the start of each preview, not just the predecessor. | **U-34, U-47** | **B/D** |
 | P1-11 | **Browser object URL cleanup.** Track `beforeUrl` alongside `afterUrl`; revoke previous Before URL on replacement. | **U-51** | **D** |
 | P1-12 | **Web header-safe command encoding.** Return command metadata as JSON body or use ASCII-safe encoding; never put raw shell-quoted command in HTTP headers. | **U-50** | **D** |
-| P1-13 | **Settings string escaping.** Define backward-compatible escaping/quoting for `save_settings`/`load_settings` to handle newlines, CR, whitespace, `=` signs, and Unicode in string values. Or reject unrepresentable values before saving. | **U-51** | **D** |
+| P1-13 | **Settings string escaping.** Define backward-compatible escaping/quoting for `save_settings`/`load_settings` to handle newlines, CR, whitespace, `=` signs, and Unicode in string values. Or reject unrepresentable values before saving. The S14 intake restated the same defect as leading/trailing whitespace in values being silently lost — same fix, needs the JS mirror in either branch. | **U-51, DS-12** | **D** |
 | P1-14 | **Web scale default.** Change `web/index.html:81` `value="50"` to `value="100"`. | **U-25** | **B** |
 | P1-15 | **Web Touch resize option.** Add `<option value="touch">` to `web/index.html:70-77`. | **U-29** | **B** |
 | P1-16 | **Windows template sanitisation.** Strip `<>:"\|?*`, trim trailing dots/spaces, guard reserved names. | **U-21** | **C** |
@@ -1754,6 +1756,14 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P1-22 | **`setBusy(false)` engine re-check.** Use `ensureEngine()` pattern when re-enabling Run. | **U-35** | **B** |
 | P1-23 | **Batch output group locking.** Disable entire output group (including Browse buttons) while busy; guard chooser slots. Snapshot complete validated job plan before starting. | **U-45** | **D** |
 | P1-24 | **Async run/cancel state machine (scoped S11; deliberately NOT yet implemented).** Five UI-thread waits remain: `waitForStarted(5000)` ×2 in `runCommand` (batch start `MainWindow.cpp:842`, single start `:904`), `waitForFinished(3000)` in `cancelRun` (`:919`), `waitForFinished(2000)` in `~MainWindow` (`:171`), `waitForFinished(1000)` in `killPreview` (`:1086`). Fix: drive run start from `started`/`errorOccurred` + a `QTimer` start deadline, and cancel from `kill()` + the `finished` signal (terminate→kill escalation via timer, never a wait); the two teardown waits (`~MainWindow`, `killPreview`) are destructor-inherent — keep them bounded and documented, and invalidate the preview seq when killing so stale completions cannot repaint. S11 scoping decision: the harm (a frozen UI) needs a SLOW process start, which the offscreen harness cannot reproduce — `waitForStarted` returns as soon as the OS exec succeeds, so a sleeping fake engine proves nothing; refactoring the cancel path would rewire semantics that T2/T9/T10 pin, with no executable way to show the freeze is gone. Scoped-OPEN beats an untestable refactor. | **U-12** | **A** |
+| P1-25 | **One shared output verifier.** Ordinary runs report success on exit 0 with no output verification — the CLI verifies Explode only, while GUI and web check existence + size. Non-empty + GIF87a/89a magic + changed-since-snapshot, used by CLI, GUI and web alike. | **GS-203** | **A (S15 triage)** |
+| P1-26 | **Close the packaging fail-open paths.** The system packager never clears its destination and always prints success; portable skips Qt deployment when the deployer is absent; negative tests cover portable only. Manifest-driven stager per platform and package type, negative tests for both. Release-gated. | **GS-204** | **A (S15 triage)** |
+| P1-27 | **One `admitInputs()`.** The picker offers `All files`, `appendInputs` validates nothing, and drop checks existence not `isFile()`. Existing readable regular file + GIF magic, shared by picker and drop, with rejected-item feedback. | **GS-205** | **A (S15 triage)** |
+| P1-28 | **Parse into the destination width; add the missing domains.** `long`→`int` narrowing without range checks, and validation has no rules for loopcount, threads, gamma or method-name enums. `std::from_chars` into the destination type; add the domains in C++ and the JS mirror. | **GS-206** | **A (S15 triage)** |
+| P1-29 | **Strict engine override.** An unusable `GS_ENGINE` is silently skipped and another engine runs (CLI and web). Typed engine resolution, stop and name an unusable override, log the chosen source at startup. | **GS-207** | **A (S15 triage)** |
+| P1-30 | **Let the GUI Threads spinner say "unchanged".** It spans 0..64 and always writes a value, so the no-flag/unchanged state is unrepresentable. Map the minimum to -1 'Unchanged', or document GUI-always-explicit — it must agree with **P0-2**. | **DS-07** | **B (S15 triage)** |
+| P1-31 | **Warn on `threads < -1`.** Accepted with no warning and silently re-interpreted as auto. Warn in C++ and the JS mirror; unit assertion for -7. Pairs with **P0-2** and **P1-28**. | **DS-09** | **B (S15 triage)** |
+| P1-32 | **GIF-magic check on `/optimize` before 200.** It checks only that the output is non-empty, so non-GIF bytes are served as `200 image/gif`. Reuse `isGifMagic()` on the returned buffer and add a transport regression. | **DS-13** | **B (S15 triage)** |
 
 ### P2 — Turn fixes into gates (CI hardening)
 
@@ -1766,11 +1776,14 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P2-5 | **Independent X/Y scale in the web UI.** Replace the single shared Scale % input with Scale X % / Scale Y % feeding `scale_x`/`scale_y` like the desktop; pin with an asymmetric command-parity fixture and a live transport case (executed S10). | **U-42** | **B** |
 | P2-5 | **Add web server validation layer.** Port `Validate.h` checks to JS; return 422 with user-friendly issues. | **U-30** | **B** |
 | P2-6 | **Fix `verify_audit.sh` C6 guard.** Wrap in `if command -v cmake ...; else skip; fi`. | **U-38** | **C** |
-| P2-7 | **Delete or CI-enforce `build.yml.proposed`.** | **U-39** | **C** |
+| P2-7 | **Delete or CI-enforce `build.yml.proposed`.** Apply `docs/ci/build.yml.proposed` and delete `docs/ci/PENDING_WORKFLOW_CHANGE.md` in one commit (needs a `workflows`-scoped token) — the last piece of the S14 intake's release-red finding (**OD-08 = a**). | **U-39, GS-208** | **C** |
 | P2-8 | **Web transport round-trip tests.** Test `%`, `%20`, `%22`, plus signs, Unicode, malformed JSON through `searchParams.get()` path. | **U-49** | **D** |
 | P2-9 | **Settings string round-trip tests.** Test newline, CR, whitespace, equals signs, Unicode in `save_settings`/`load_settings`. | **U-51** | **D** |
 | P2-10 | **HTTP header safety tests.** Test CJK comments, newlines, Unicode engine path in `X-Gifscythe-Command` path. | **U-50** | **D** |
 | P2-11 | **Web batch/merge/explode parity (scoped S11).** Mode selector + per-mode settings in the web UI, and a JSON multi-file endpoint (`POST /run`) that mirrors desktop semantics: batch runs a per-file Auto command with derived `<stem>_opt.gif` targets and REFUSES target collisions like the desktop planner; merge runs one `-m` command over all inputs in upload order; explode runs `-e`/`-E` against a `<stem>_frame` prefix and refuses rc=0-with-zero-frames exactly like the P1-19 desktop verification; every mode's output is existence+GIF-magic verified before success is claimed. Pin with fixtures in all three web suites. | **U-41** | **B** |
+| P2-12 | **Generate the native engine config per target.** `config.native.h` is one fixed Linux/glibc config (headers, `random()`, type sizes, SIMD, gettimeofday) used for linux and mac builds. Feature checks per target, or narrow the advertised targets to x86_64 glibc. | **GS-209** | **A (S15 triage)** |
+| P2-13 | **Strict option parsing in the build entry points.** `build.sh` accepts mistyped options, GUI dispatch tries qmake before CMake, and the qmake project hardcodes the version. Exit 2 on unknown options; CMake-first or CMake-only GUI path. | **GS-210** | **A (S15 triage)** |
+| P2-14 | **Gate the narrative-vs-register contradiction.** §3/§4 narrative claimed OPEN for items the §5 register marked fixed. S14 reconciled the narrative status lines to cite their §5 row, but the mechanical check is still missing: add a `check_docs.sh` gate that fails when a narrative row claims OPEN while its register row says FIXED. | **DS-11** | **C (S15 triage)** |
 
 ### P3 — Docs and polish
 
@@ -1780,12 +1793,13 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P3-2 | **Sync stale status lines.** Update WORKLIST/SESSION_HANDOFF with current CI status. | **U-27** | **A** |
 | P3-3 | **Move dated review snapshots to `docs/archive/`.** | **U-44** | **C** |
 | P3-4 | **Fix summary label for single-file batch.** Add `inputs_.size() == 1` case. | **U-43** | **C** |
-| P3-5 | **Document CLI warning policy.** Add `--strict` flag or document the behavior. | **U-40** | **B** |
+| P3-5 | **Document CLI warning policy.** `--strict` already exists (`src/cli/main.cpp:216-222`), so the remaining work is the advisory contract: non-strict print mode returns 0 even when validation warned, so scripts cannot tell valid from warned. Document it, and optionally emit a greppable warning summary line. | **U-40, DS-08** | **B** |
 | P3-6 | **Position half-spec fix.** Only set `has_position` when both coordinates are provided. | **U-33** | **B** |
 | P3-7 | **Third-parser consolidation.** Have `SettingsIO::load_settings` collect unrecognized keys; let GUI read `batch_dir`/`name_template` from that map. | **U-36** | **C** |
 | P3-8 | **"Persistence unavailable" status note.** Add a one-time status-bar note when `sessionFilePath()` is empty. | **U-37** | **C** |
 | P3-9 | **POSIX signal convention.** Return `128 + WTERMSIG(status)` instead of 1. | **U-32** | **B** |
 | P3-10 | **`build.sh` `-lstdc++fs` autodetect.** | **U-31** | **B** |
+| P3-11 | **Disposal 4..7 in the desktop picker, or document the cap.** The engine and the web validator allow 0..7; the picker offers fewer. Add 4..7, or state the cap in the UI tooltip. | **DS-10** | **B (S15 triage)** |
 
 ---
 
@@ -2008,12 +2022,15 @@ claim a decision reversed (**S4**), and a narrative status block that disagrees 
 (**S5** — the rule that caught **U-06**/**U-08**). `working_code/gifscythe/scripts/pr_preflight.sh`
 is the PR/merge companion. The 15 owner questions this intake raises — triage first — are collected
 in `docs/planning/OWNER_DECISIONS.md`; the SkillOpt request is
-`docs/planning/SKILLOPT_INTEGRATION_QUERY.md`. Until `OD-01` maps the 18 rows above into §6
-fix-order ids they stay `UNTRIAGED`, and gate **G12** therefore also blocks a newer `## S<n>` entry
-in `IMPROVEMENT_LOG.md`, because an UNTRIAGED row may not outlive the session that found it.
+`docs/planning/SKILLOPT_INTEGRATION_QUERY.md`. **`OD-01 = a` was executed in S15 (2026-09-13): all
+18 rows are now mapped into §6 fix-order ids** — 14 got new ids (**P0-5, P0-6, P1-25…P1-32,
+P2-12…P2-14, P3-11**) and 4 folded into actions that already covered them (**DS-06**→P0-2,
+**DS-12**→P1-13, **GS-208**→P2-7, **DS-08**→P3-5). Their `STATUS.md` state is therefore `OPEN`,
+not `UNTRIAGED`, so gate **G12** no longer blocks a newer `## S<n>` entry in `IMPROVEMENT_LOG.md`.
 
-**Task registration (S14 follow-up).** These 18 findings are now recorded row-by-row in
-`STATUS.md` (state `UNTRIAGED`, under the reviewers' own ids) with one pending line each in
+**Task registration (S14 follow-up, triaged S15).** These 18 findings are recorded row-by-row in
+`STATUS.md` (state `OPEN` under the reviewers' own ids, each naming its §6 fix-order id) with one
+pending line each in
 `WORKLIST.md`, and their release-blocking subset is listed in
 `docs/release/RELEASE_PROCEDURE.md`. Proposed sequencing lives in `web/WEB_PLAN_TEMPLATE.md` (the web-surface
 plan template the owner drafts are refitted into; its §1 records the owner's S14 decision that the

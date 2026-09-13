@@ -46,37 +46,37 @@ reads them in a file, not in a conversation.
 
 Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
-- [ ] **External review intake (S14) — registered `UNTRIAGED`, triage waits on the owner.**
+- [x] **External review intake (S14) — triaged in S15 (`OD-01 = a`).**
       18 findings (Max/GPT-class `GS-201…GS-210`, DeepSeek `DS-06…DS-13`) are compiled in
       `COMPILED_AUDIT.md` §13 + `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`, and recorded
-      row-by-row in `STATUS.md` under the reviewers' ids. Proposed sequencing lives in
-      `web/WEB_PLAN_TEMPLATE.md` (template; the owner's draft is refitted into it).
-      Triage = map accepted items into `COMPILED_AUDIT.md` §6 fix-order ids. One pending line per
-      finding, as rule 2 requires:
-      - [ ] **GS-201** (Critical) CLI Batch → engine `-b` can rewrite the source GIFs; cheap
+      row-by-row in `STATUS.md` under the reviewers' ids. **Triage is done**: the owner chose
+      (a) all 18, and every row is now mapped to a `COMPILED_AUDIT.md` §6 fix-order id — 14 new
+      ids and 4 folded into actions that already covered them. The lines below stay unchecked:
+      they are the remediation work, one line per finding, each now naming its §6 id.
+      - [ ] **GS-201** → **P0-5** — (Critical) CLI Batch → engine `-b` can rewrite the source GIFs; cheap
             stop-loss = refuse `--run` with Batch and no `output` key.
-      - [ ] **GS-202** (High) web `/run` builds output paths from upload names; `../` escapes the
+      - [ ] **GS-202** → **P0-6** — (High) web `/run` builds output paths from upload names; `../` escapes the
             request temp dir.
-      - [ ] **GS-203** (High) ordinary runs claim success on exit 0 with no output verification
+      - [ ] **GS-203** → **P1-25** — (High) ordinary runs claim success on exit 0 with no output verification
             (CLI Explode-only, GUI/web existence+size).
-      - [ ] **GS-204** (High) packaging fail-open outside the portable happy path; negative tests
+      - [ ] **GS-204** → **P1-26** — (High) packaging fail-open outside the portable happy path; negative tests
             cover portable only.
-      - [ ] **GS-205** (Med) non-GIF inputs still admitted via the picker and drop.
-      - [ ] **GS-206** (Med) `long`→`int` narrowing; no validation for loopcount/threads/gamma/enums.
-      - [ ] **GS-207** (Med) unusable `GS_ENGINE` silently falls back to another engine.
-      - [ ] **GS-208** (High, PARTIAL-fixed) main release-red; docs corrected in S14, workflow-copy
+      - [ ] **GS-205** → **P1-27** — (Med) non-GIF inputs still admitted via the picker and drop.
+      - [ ] **GS-206** → **P1-28** — (Med) `long`→`int` narrowing; no validation for loopcount/threads/gamma/enums.
+      - [ ] **GS-207** → **P1-29** — (Med) unusable `GS_ENGINE` silently falls back to another engine.
+      - [ ] **GS-208** → **P2-7** — (High, PARTIAL-fixed) main release-red; docs corrected in S14, workflow-copy
             sync + marker deletion still open (needs a `workflows`-scoped token).
-      - [ ] **GS-209** (Med) native linux/mac build uses a fixed glibc config.
-      - [ ] **GS-210** (Low) build entry points ignore mistyped options; qmake tried before CMake.
-      - [ ] **DS-06** (High) `threads <= 0` → bare `-j`; the `-1` sentinel now means 8 threads.
-      - [ ] **DS-07** (Med) GUI threads spinner cannot express "no flag".
-      - [ ] **DS-08** (Low) non-strict print mode exits 0 after warnings.
-      - [ ] **DS-09** (Info) `threads < -1` accepted silently.
-      - [ ] **DS-10** (Info) disposal 4..7 unreachable from the desktop picker.
-      - [ ] **DS-11** (Med, PARTIAL-fixed) audit narrative reconciled in S14; the mechanical gate
+      - [ ] **GS-209** → **P2-12** — (Med) native linux/mac build uses a fixed glibc config.
+      - [ ] **GS-210** → **P2-13** — (Low) build entry points ignore mistyped options; qmake tried before CMake.
+      - [ ] **DS-06** → **P0-2** — (High) `threads <= 0` → bare `-j`; the `-1` sentinel now means 8 threads.
+      - [ ] **DS-07** → **P1-30** — (Med) GUI threads spinner cannot express "no flag".
+      - [ ] **DS-08** → **P3-5** — (Low) non-strict print mode exits 0 after warnings.
+      - [ ] **DS-09** → **P1-31** — (Info) `threads < -1` accepted silently.
+      - [ ] **DS-10** → **P3-11** — (Info) disposal 4..7 unreachable from the desktop picker.
+      - [ ] **DS-11** → **P2-14** — (Med, PARTIAL-fixed) audit narrative reconciled in S14; the mechanical gate
             check that keeps it reconciled is still missing.
-      - [ ] **DS-12** (Low) settings values lose leading/trailing whitespace on round trip.
-      - [ ] **DS-13** (Med) web `/optimize` serves non-GIF output as `200 image/gif`.
+      - [ ] **DS-12** → **P1-13** — (Low) settings values lose leading/trailing whitespace on round trip.
+      - [ ] **DS-13** → **P1-32** — (Med) web `/optimize` serves non-GIF output as `200 image/gif`.
 - [ ] **CI/infra (S14):** apply `docs/ci/build.yml.proposed` and delete
       `docs/ci/PENDING_WORKFLOW_CHANGE.md` in one commit — both copies then enforce
       byte-equality again (E9/G7). Needs a token with the `workflows` scope.
@@ -409,9 +409,17 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       from that row's own options; `OD-15` runs `a`–`d`).
       **`OD-01 = a` and `OD-02 = a` are answered** (2026-09-12); the other 13 are direction
       choices the plan can proceed without.
-- [ ] **Execute `OD-01 = a`:** triage all 18 intake findings into `COMPILED_AUDIT.md` §6 fix-order
-      ids. This is what unblocks gate **G12** — until every `UNTRIAGED` row is scoped, no new
-      `## S<n>` entry can be added to `IMPROVEMENT_LOG.md`.
+- [ ] **`N-07` (found S15):** sweep **S4** matches 5 hardcoded retired phrases, so it cannot catch a
+      current-state doc that still says findings "stay `UNTRIAGED`" after a triage empties the
+      register. Measured: the S15 triage left 4 such claims and the sweep stayed
+      `5 passed, 0 failed` before *and* after correcting them by hand. Add a rule that compares a
+      doc's stated `UNTRIAGED` count against the register's generated counts line, or restate S4's
+      scope honestly.
+- [x] **Execute `OD-01 = a` — done S15 (2026-09-13):** all 18 intake findings now carry a
+      `COMPILED_AUDIT.md` §6 fix-order id (14 new, 4 folded into existing actions) and are `OPEN`
+      in `STATUS.md`. Gate **G12** is unblocked: with no `UNTRIAGED` row left, the `## S15` entry
+      in `IMPROVEMENT_LOG.md` now passes it. Triage scoped the work; it fixed none of it — the
+      remediation lines above stay open.
 - [ ] **Execute `OD-02 = a`:** the ~10-line `GS-201` stop-loss (CLI `--run` refuses Batch with no
       `output`, exit 2) plus a regression test. The only code change the current decisions
       authorize.
