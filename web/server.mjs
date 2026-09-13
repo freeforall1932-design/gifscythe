@@ -241,6 +241,16 @@ async function handleOptimize(req, res, url) {
       }));
       return;
     }
+    // DS-13: inspect the exact buffer we will serve, not a second file read.
+    // This is a signature check, not a full GIF decoder/integrity validator.
+    if (!hasGifMagic(outBytes)) {
+      sendJson(res, 422, {
+        ok: false, exitCode: 0,
+        stderr: "the engine exited 0 but produced invalid GIF output (expected GIF87a or GIF89a signature)",
+        command: argv.map(shellQuote).join(" "),
+      });
+      return;
+    }
     res.writeHead(200, {
       "Content-Type": "image/gif",
       "Content-Disposition": 'attachment; filename="gifscythe-opt.gif"',
@@ -288,14 +298,18 @@ const stemOf = (name) => {
   return i > 0 ? String(name).slice(0, i) : String(name);
 };
 
+// Shared signature rule for response buffers and explode frame files.
+const hasGifMagic = (buf) => buf.length >= 6
+  && (buf.subarray(0, 6).equals(Buffer.from("GIF87a"))
+      || buf.subarray(0, 6).equals(Buffer.from("GIF89a")));
+
 const isGifMagic = async (path) => {
   let fh;
   try {
     fh = await open(path, "r");
     const buf = Buffer.alloc(6);
     const { bytesRead } = await fh.read(buf, 0, 6, 0);
-    return bytesRead === 6 && buf.toString("latin1", 0, 4) === "GIF8"
-      && (buf[4] === 0x37 || buf[4] === 0x39) && buf[5] === 0x61; // '7'|'9', 'a'
+    return bytesRead === 6 && hasGifMagic(buf);
   } catch {
     return false;
   } finally {

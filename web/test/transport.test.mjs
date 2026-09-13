@@ -173,12 +173,39 @@ const cases = [
 
 // Isolate even the PRE-FIX traversal reproduction inside this test's temp root.
 // Instrument actual spawn calls using a Node preload (no shell wrapper, no fake
-// engine): refusals must happen before ANY engine launch, including batch item 1.
+// engine for GS-202): refusals must precede ANY engine launch, including batch item 1.
 const testRoot = await mkdtemp(join(tmpdir(), "gsweb-security-test-"));
 const requestRoot = join(testRoot, "requests");
 await mkdir(requestRoot);
 const launchLog = join(testRoot, "launches.jsonl");
 await writeFile(launchLog, "");
+// DS-13 fixture is a REAL child process writing controlled output. Only the
+// test preload redirects marked requests to it; production has no test hook.
+const gif87 = Buffer.concat([GIF.subarray(0, 19), GIF.subarray(27)]);
+gif87.write("GIF87a", 0, "ascii");
+const outputCases = [
+  { name: "text", bytes: Buffer.from("not a GIF"), status: 422 },
+  { name: "PNG", bytes: Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), status: 422 },
+  { name: "truncated signature", bytes: Buffer.from("GIF89"), status: 422 },
+  { name: "wrong version", bytes: Buffer.from("GIF88a..."), status: 422 },
+  { name: "wrong signature suffix", bytes: Buffer.from("GIF89b..."), status: 422 },
+  { name: "lowercase signature", bytes: Buffer.from("gif89a..."), status: 422 },
+  { name: "valid GIF87a", bytes: gif87, status: 200 },
+  { name: "valid GIF89a", bytes: GIF, status: 200 },
+  { name: "missing output", bytes: null, status: 422, noOutput: true },
+  { name: "empty output", bytes: Buffer.alloc(0), status: 422, noOutput: true },
+  { name: "nonzero exit with valid GIF", bytes: GIF, status: 422, exitCode: 7 },
+];
+const outputFixture = join(testRoot, "output-engine.mjs");
+await writeFile(outputFixture, `
+import { writeFile } from "node:fs/promises";
+const fixtures = ${JSON.stringify(outputCases.map((c) => ({ data: c.bytes?.toString("base64") ?? null, code: c.exitCode || 0 })))};
+const [outPath, index] = process.argv.slice(2);
+const fixture = fixtures[Number(index)];
+if (fixture.data !== null) await writeFile(outPath, Buffer.from(fixture.data, "base64"));
+if (fixture.code) process.stderr.write("fixture engine failed");
+process.exitCode = fixture.code;
+`);
 const preload = join(testRoot, "record-spawn.mjs");
 await writeFile(preload, `
 import cp from "node:child_process";
@@ -187,6 +214,12 @@ import { syncBuiltinESMExports } from "node:module";
 const spawn = cp.spawn;
 cp.spawn = (...args) => {
   appendFileSync(process.env.GS_TEST_SPAWN_LOG, JSON.stringify(args.slice(0, 2)) + "\\n");
+  const argv = args[1] || [];
+  const comment = argv[argv.indexOf("--comment") + 1];
+  if (argv.includes("--comment") && /^DS13-output:[0-9]+$/.test(comment)) {
+    return spawn(process.execPath, [process.env.GS_TEST_OUTPUT_FIXTURE,
+      argv[argv.indexOf("-o") + 1], comment.slice("DS13-output:".length)], args[2]);
+  }
   return spawn(...args);
 };
 syncBuiltinESMExports();
@@ -207,7 +240,7 @@ async function leftoversExcept(allowed) {
 const port = await freePort();
 const child = spawn(process.execPath, ["--import", pathToFileURL(preload).href, SERVER, String(port)], {
   stdio: ["ignore", "pipe", "pipe"],
-  env: { ...process.env, GS_WEB_HOST: "127.0.0.1", GS_TEST_SPAWN_LOG: launchLog,
+  env: { ...process.env, GS_WEB_HOST: "127.0.0.1", GS_TEST_SPAWN_LOG: launchLog, GS_TEST_OUTPUT_FIXTURE: outputFixture,
          TMPDIR: requestRoot, TMP: requestRoot, TEMP: requestRoot },
 });
 let serverLog = "";
@@ -457,6 +490,32 @@ try {
     if (r.status !== 422) p.push(`status ${r.status}`);
     if (!(r.json?.issues || []).some((i) => i.field === "colors")) p.push(`issues ${JSON.stringify(r.json?.issues)}`);
     t("U-41 /run refuses out-of-range settings before any run", p);
+  }
+
+  // DS-13: test the actual HTTP response, not only a predicate. Invalid output
+  // must never carry successful GIF headers/body; missing/empty and exit failures
+  // keep their established diagnostics. The existing cases use the real engine.
+  for (const [index, c] of outputCases.entries()) {
+    const r = await post(port, { comments: [`DS13-output:${index}`] });
+    const problems = [];
+    if (r.status !== c.status) problems.push(`status ${r.status} != ${c.status}`);
+    if (c.status === 200) {
+      if (!r.type.startsWith("image/gif")) problems.push(`type ${r.type}`);
+      if (!r.body.equals(c.bytes)) problems.push("valid output buffer changed");
+      if (!r.command?.includes(`DS13-output:${index}`)) problems.push("missing success metadata");
+    } else {
+      if (!r.type.startsWith("application/json") || r.json?.ok !== false) problems.push("failure is not ok:false JSON");
+      if (r.json?.exitCode !== (c.exitCode || 0)) problems.push(`exitCode ${r.json?.exitCode}`);
+      const expected = c.exitCode ? "fixture engine failed"
+        : c.noOutput ? "produced no output file" : "invalid GIF output";
+      if (!String(r.json?.stderr || "").includes(expected)) problems.push(`stderr ${r.json?.stderr}`);
+      if (!r.json?.command?.includes(`DS13-output:${index}`)) problems.push("missing diagnostic command");
+      if (r.command) problems.push("failure exposes success command header");
+    }
+    if (problems.length) {
+      failures++;
+      console.log(`FAIL DS-13 ${c.name}\n       ${problems.join("; ")}`);
+    } else console.log(`PASS DS-13 ${c.name}`);
   }
 
   // Malformed JSON must stay a 400 and must NOT be swallowed into a 500.

@@ -101,9 +101,11 @@ producing nothing (`GS-203` class) or write anywhere the user did not choose (`G
 - **GS-202 / P0-6 closed S17:** portable upload-name rejection, contained output/prefix
   plan, case/NFC collision checks; transport 42/42. The template remains SKELETON.
 - **Open intake items hit the web directly** (each with its `COMPILED_AUDIT.md` §6 id;
-  evidence in §13): `GS-203` → **P1-25** (success without verification), `DS-13` →
-  **P1-32** (`/optimize` serves non-GIF bytes as `image/gif`), plus the `U-06` remainder
+  evidence in §13): `GS-203` → **P1-25** (broader output verification), plus the `U-06` remainder
   (concurrency cap / rate limit / engine-run bound).
+- **DS-13 / P1-32 closed S17:** `/optimize` verifies GIF87a/GIF89a magic on its
+  response buffer. Transport 53/53. This is signature-only, not full GIF decoding;
+  GS-203 remains open and the template remains SKELETON.
 - **The desktop side carries the release bar** until the owner says otherwise: `COMPILED_AUDIT.md`
   §9 defines 1.0.0 around the desktop artifact + clean-Windows evidence, and `U-09`'s re-cut is
   still open.

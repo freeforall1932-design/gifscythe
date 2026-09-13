@@ -15,12 +15,12 @@
 > file (gate **G10**); **PR #16 merged as `629135a` (2026-09-12); `main` run `34709202307` is GREEN on both jobs**. A newer merge on top of this branch keeps `main` red
 > only while a run is in flight; check the tip run before claiming green. The S8 banner above is a dated snapshot of that
 > session, **not** the current state. §13 is the external-review intake — **triaged
-> into §6 in S15**; **GS-201 closed S16** (P0-5), **GS-202 closed S17** (P0-6). The other 16 intake rows stay OPEN.
+> into §6 in S15**; **GS-201 closed S16** (P0-5), **GS-202 and DS-13 closed S17** (P0-6 / P1-32). The other 15 intake rows stay OPEN.
 > Narrative `**Status:**` lines in §2/§3/§4 now name their §5 register row; where the original
 > audit text disagreed with the register, the original wording is kept after *"Original report:"*
 > and is superseded by the register.
 
-**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), S14 (2026-09-12 — external-review intake and status-truth corrections), S15 (2026-09-13 — 18-row triage), **S16 (2026-09-13 — GS-201 / P0-5 stop-loss)**, **S17 (2026-09-13 — N-07 count check and GS-202 path containment)**
+**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), S14 (2026-09-12 — external-review intake and status-truth corrections), S15 (2026-09-13 — 18-row triage), **S16 (2026-09-13 — GS-201 / P0-5 stop-loss)**, **S17 (2026-09-13 — N-07 count check, GS-202 path containment and DS-13 signature check)**
 **Branch:** `main` at `2d51347817f5cdb39334415a03bb5f2b543119dd` (the PR #15 merge; re-confirm with
 `gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`;
 `check_docs.sh` gate **G10** fails if this line names anything else)
@@ -1764,7 +1764,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P1-29 | **Strict engine override.** An unusable `GS_ENGINE` is silently skipped and another engine runs (CLI and web). Typed engine resolution, stop and name an unusable override, log the chosen source at startup. | **GS-207** | **A (S15 triage)** |
 | P1-30 | **Let the GUI Threads spinner say "unchanged".** It spans 0..64 and always writes a value, so the no-flag/unchanged state is unrepresentable. Map the minimum to -1 'Unchanged', or document GUI-always-explicit — it must agree with **P0-2**. | **DS-07** | **B (S15 triage)** |
 | P1-31 | **Warn on `threads < -1`.** Accepted with no warning and silently re-interpreted as auto. Warn in C++ and the JS mirror; unit assertion for -7. Pairs with **P0-2** and **P1-28**. | **DS-09** | **B (S15 triage)** |
-| P1-32 | **GIF-magic check on `/optimize` before 200.** It checks only that the output is non-empty, so non-GIF bytes are served as `200 image/gif`. Reuse `isGifMagic()` on the returned buffer and add a transport regression. | **DS-13** | **B (S15 triage)** |
+| P1-32 | **GIF-magic check on `/optimize` before 200 — DONE S17.** Shared exact GIF87a/GIF89a predicate checks the buffer being served (no second file read); invalid signatures get JSON 422 with exitCode 0, stderr and command. Transport 53/53 includes 11 output fixtures; the original server fails 6 invalid-signature cases. Signature-only, not full decoding; GS-203 remains OPEN. | **DS-13** | **B (S15 triage; S17 closed)** |
 
 ### P2 — Turn fixes into gates (CI hardening)
 
@@ -1915,7 +1915,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | **P0 honesty** | §7.A all green on Linux; A2 never exits 0 on missing engine; **threads=0 emits `-j`**; **empty comments don't corrupt argv** |
 | **Windows path** | §7.C C2–C5 green with artifacts |
 | **GUI MVP trustworthy** | §7.B B10–B14 green (batch vs merge, no silent loss); **B15–B17 new tests green** |
-| **Web surface honest** (product alternative since S14) | Server binds loopback by default; validates GIF magic; verifies output; no double-decode; browser URLs cleaned. **GS-202 closed S17. Open before it is product-grade:** `GS-203`, `DS-13`, `U-06` remainder — see §13 |
+| **Web surface honest** (product alternative since S14) | Server binds loopback by default; validates GIF magic; verifies output; no double-decode; browser URLs cleaned. **GS-202 and DS-13 closed S17. Open before it is product-grade:** `GS-203`, `U-06` remainder — see §13 |
 | **1.0.0** | Tabs + major controls + preview + clean Windows portable (§7.D) + no open U-01…U-10 | then bump VERSION.md |
 | **2.x** | Only after 1.0.0: frame model → WebP/APNG |
 
@@ -2007,7 +2007,7 @@ proposed solution and the verification limits.
 | **DS-10** | Info | Disposal methods `4..7` (and the `-1` sentinel semantics) are unreachable from the desktop picker, though the engine and web validator allow them | `src/qtui/SettingsPanel.cpp`, `web/validate.mjs` | code-confirmed |
 | **DS-11** | Medium | This file's own §3/§4 narrative still marks U-04/U-23/U-03/U-32-era items OPEN while §5 marks them FIXED — following §3 sends a reviewer after closed work | `COMPILED_AUDIT.md` | code-confirmed |
 | **DS-12** | Low | The line-based settings format silently loses leading/trailing whitespace in values (documented, no rejection path) | `src/core/SettingsIO.h` | code-confirmed |
-| **DS-13** | Medium | Web `/optimize` checks only non-empty output; no GIF magic check, so non-GIF bytes are served as `200 image/gif` | `web/server.mjs` | code-confirmed |
+| **DS-13** | Medium | Original report: non-GIF output served as `200 image/gif`. **Closed S17:** response-buffer signature check before success | `web/server.mjs` | transport 53/53; old server fails 6 invalid-signature cases |
 
 **Post-correction CI evidence (2026-09-12, S14).** Branch runs `34707532582` (`ddc4194`) and later
 were green on both jobs, including the documentation status gate step that failed in run
@@ -2041,7 +2041,7 @@ web-surface plan template the owner drafts are refitted into; its §1 records th
 decision that the web build is a supported product surface, and its state line - `SKELETON` until
 the refit, then `WORKING PLAN` - is mirrored in `SESSION_HANDOFF.md` and checked by gate G16).
 **They are in the §6 fix order (S15).** 14 got new ids and 4 folded into actions that already
-covered them. **GS-201 / P0-5 closed S16, GS-202 / P0-6 closed S17**; the other 16 remain OPEN. They were never mapped into
+covered them. **GS-201 / P0-5 closed S16, GS-202 / P0-6 and DS-13 / P1-32 closed S17**; the other 15 remain OPEN. They were never mapped into
 `U-nn` rows — the reviewers' ids are the register keys.
 
 **Cross-references inside this file.** GS-201 extends U-01's coverage gap (the planner is correct
