@@ -1,12 +1,12 @@
 # Next-session prompt (copy-paste hand-off)
 
-Paste the block below into a fresh session to pick up post-S17 work
+Paste the block below into a fresh session to pick up post-S18 work
 fast. Everything it references lives in this repo.
 
 ---
 
 ```
-CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S17.
+CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S18.
 
 1. RECOVERY (run these, in order, from the repo root):
    working_code/gifscythe/scripts/bootstrap_hooks.sh      # if G15 says core.hooksPath != .githooks
@@ -32,16 +32,23 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S17.
    START HERE: STATUS.md (the single status register). COMPILED_AUDIT.md §5 is
    the detail. Never hand-edit STATUS.md's generated block — run check_docs.sh --emit.
 
-3. SKILLOPT ASK (owner): incorporate microsoft/SkillOpt INTO THIS REPO so any
-   session's agent has it. See docs/planning/SKILLOPT_INTEGRATION_QUERY.md for
-   the verified facts, the three non-negotiable conditions (quarantined /
-   optional-and-inert / MIT notice preserved), and the four shapes
-   (A submodule [recommended] / B vendored / C venv wrapper / D skip).
-   Await OD-15 first. Do not vendor, submodule or pip-install before that answer.
+3. SKILLOPT (landed S18, OD-15 = a): tools/skillopt/ carries microsoft/SkillOpt as a
+   pinned submodule + wrapper. It is available to read and run, and it is wired into
+   nothing that ships — never add a gate, build step or CI job that depends on it.
+     tools/skillopt/skillopt.sh status          # pin vs work tree vs venv, read-only
+     tools/skillopt/skillopt.sh init            # ~15 s; --offline installs from the wheelhouse
+     tools/skillopt/selfcheck.sh                # quarantine, pin, MIT, hygiene; passes with nothing fetched
+     tools/skillopt/skillopt.sh selftest        # upstream's own suite here (~30 s, no credentials)
+   The subtree is optional: a clone that never runs 'git submodule update --init' is
+   unaffected. Do not write inside tools/skillopt/upstream, and do not cite a path
+   inside it from a tracked doc (G8 fails on a fresh clone — cite microsoft/SkillOpt/<path>).
+   The doc-sweep experiment is SW-05: blocked on model credentials, contract in
+   docs/planning/SKILLOPT_INTEGRATION_QUERY.md §5.
 
 4. DECISION BACKLOG: docs/planning/OWNER_DECISIONS.md (OD-01..OD-15). Answer in
    the form "OD-nn = <letter>" from that row's own options (OD-15 is a–d).
-   OD-01 = a and OD-02 = a are already executed. Remaining: OD-03…OD-15.
+   OD-01 = a (S15), OD-02 = a (S16) and OD-15 = a (S18) are executed.
+   Remaining: OD-03…OD-14.
 
 5. STANDING CONSTRAINTS: HARD RULE — commit every edit/write/delete into the
    repo before merge AND before the session can close (G18 / P3 / P3b). Do not
@@ -56,5 +63,7 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S17.
 **Notes for the author of this file:** this prompt is a convenience only — it
 holds no state and may be regenerated. The authoritative hand-off is
 `SESSION_HANDOFF.md`; the register is `STATUS.md`; the decisions are
-`docs/planning/OWNER_DECISIONS.md`; the SkillOpt ask is
-`docs/planning/SKILLOPT_INTEGRATION_QUERY.md`.
+`docs/planning/OWNER_DECISIONS.md`; the SkillOpt record — the review that settled
+the shape and the contract the remaining experiment needs — is
+[`docs/planning/SKILLOPT_INTEGRATION_QUERY.md`](SKILLOPT_INTEGRATION_QUERY.md), and
+the operational half is [`tools/skillopt/README.md`](../../tools/skillopt/README.md).

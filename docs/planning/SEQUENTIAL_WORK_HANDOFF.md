@@ -38,7 +38,8 @@ variants. Python failure is a gate failure; absent Python is an explicit SKIP.
   real engine/CLI binaries are copied into disposable fixture trees for headless
   tests. Keep this isolation (CI asserts the GUI package after running the suite).
 - No changes to `reference_code/`, product 0.1.0, SKELETON template, pending
-  workflow proposal, or OD-03…OD-15. Do not turn these into collateral tasks.
+  workflow proposal, or OD-03…OD-14 (OD-15 = a was answered and executed in S18).
+  Do not turn these into collateral tasks.
 
 ## Repeatable local checks
 

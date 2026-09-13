@@ -30,3 +30,14 @@ reference_code/caesium-bin/
 .idea/
 .vscode/
 *.user
+
+# SkillOpt in-repo integration (docs/planning/SKILLOPT_INTEGRATION_QUERY.md). Everything
+# generated under tools/skillopt/ is disposable, large (a venv is ~173 MB), and must never
+# reach the tracked tree: a stray path there would trip the dirty-tree gate (check_docs.sh
+# G18 / pr_preflight P3) for every later session.
+/tools/skillopt/.venv/
+/tools/skillopt/wheelhouse/
+/tools/skillopt/state/
+/tools/skillopt/runs/
+/tools/skillopt/outputs/
+/tools/skillopt/.skillopt/

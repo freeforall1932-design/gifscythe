@@ -157,6 +157,13 @@ gifscythe/                        (repo root)
     caesium-source/               Caesium UI source GPLv3 (auto-fetched, gitignored)
     caesium-bin/                  Caesium Win bundle — portable Qt pattern only (gitignored)
 
+  tools/                          REPO WORKBENCH — read it, use it, ship none of it
+    skillopt/                     microsoft/SkillOpt (pinned submodule) + wrapper
+      README.md                   provenance, rules, how to install and self-check
+      skillopt.sh                 status | init [--offline] | wheelhouse | run | selftest
+      selfcheck.sh                proves the quarantine, the pin and the hygiene rules
+      upstream.pin                the pinned commit, version, licence, PyPI wheel hash
+
   working_code/                   THE PRODUCT — edit & ship this
     gifscythe/                    the app (v0.1.0)
 ```
@@ -167,6 +174,10 @@ gifscythe/                        (repo root)
 - **working_code/** — our actual product. All edits happen here.
 - Large auto-fetched trees (`gifsicle-upstream`, `caesium-source`, `caesium-bin`)
   are gitignored; re-fetch or see `reference_code/REFERENCE_MANIFEST.md`.
+- **tools/** — repo-workbench material for sessions, not product material. It is
+  outside the product tree on purpose: the packaging scripts stage an explicit
+  allow-list, so nothing here can reach a release, and no gate reads it (see
+  `tools/skillopt/README.md`).
 
 ## Docs for reviewers / next session
 0. **`STATUS.md`** — the single status register. Start here: one row per tracked
@@ -185,9 +196,14 @@ gifscythe/                        (repo root)
    release (gates, packaging, publishing, post-publish verification).
 7. **`docs/planning/OWNER_DECISIONS.md`** — the open owner questions
    (`OD-01`…`OD-15`), each with options + a recommendation and what it unblocks.
-8. **`docs/planning/SKILLOPT_INTEGRATION_QUERY.md`** — the ask to incorporate
-   microsoft/SkillOpt into this repo: verified facts, the three non-negotiable
-   conditions, and the four integration shapes.
+8. **`docs/planning/SKILLOPT_INTEGRATION_QUERY.md`** — the incorporation of
+   microsoft/SkillOpt: the review that settled the shape, the three non-negotiable
+   conditions, the measured rejections, and the §5 contract for the first experiment.
+   `OD-15 = a` was answered and executed in S18; `SW-05` (the doc-sweep skill) stays
+   open on model credentials.
+9. **`tools/skillopt/README.md`** — the SkillOpt workbench itself: what is pinned,
+   how a session installs and runs it offline, and the rules that keep it inert.
+   `tools/skillopt/selfcheck.sh` is the one command that proves those rules.
 
 ## Versions
 The *product* version lives in `working_code/gifscythe/VERSION.md`; `build.sh`

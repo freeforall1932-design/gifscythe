@@ -1,0 +1,19 @@
+# Machine-readable provenance for the pinned upstream. Read by skillopt.sh and
+# selfcheck.sh; never hand-edit the commit without re-running selfcheck.sh.
+# `commit` is authoritative only in conjunction with the gitlink recorded at
+# tools/skillopt/upstream in HEAD (selfcheck.sh compares the two and FAILS on drift).
+upstream=SkillOpt
+url=https://github.com/microsoft/SkillOpt
+commit=79124b37e9a6371e13b753f8bcd7adb1e493ade1
+commit_date=2026-09-06
+describe=v0.2.0-318-g79124b3
+version=0.2.0
+license=MIT
+license_file=upstream/LICENSE
+license_notice=Copyright (c) 2026 Microsoft Corporation (verbatim copy: LICENSE.SkillOpt)
+pypi=skillopt==0.2.0
+pypi_wheel_sha256=818db802507c6f82553fd24c75aa70c953ab0a712647f60e68e4595052c4b150
+pypi_release_of_tag=v0.2.0 (e4ea6a6771e797ef820cdd8bfea64c57e0481065, 2026-07-02)
+requires_python=>=3.10
+recorded_by=S18 / owner decision OD-15 = a
+recorded_on=2026-09-13

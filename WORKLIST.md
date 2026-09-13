@@ -119,6 +119,14 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       every core boundary on Windows. **Found and resolved in S11** under Wine
       while executing U-07: `u8path_compat`/`path_u8string` (`WinUnicode.h`)
       now sit at every string↔path boundary; Wine E2E cases B/C/D prove it.
+- [x] **N-08** — three SkillOpt-integration hazards, all found by measurement rather than
+      reading: a stray file inside a pinned submodule dirties the parent and fails **G18**;
+      `git submodule update --init --depth 1` cannot reach a pin that is not the fetched tip;
+      and a wheelhouse holding only the app wheel cannot install offline. **Found and closed
+      in S18** — `.gitmodules` carries `ignore = dirty` (measured against `ignore = all`, which
+      hides a drifted pin, and against no setting, which broke the gate), `skillopt.sh init`
+      fetches the recorded SHA explicitly, and `skillopt.sh wheelhouse` caches the pinned wheel
+      **with** its 33 dependencies for `init --offline`.
 
 ## Direction decisions (2026-09-09 — see `docs/planning/OFFLINE_BUILD_REVIEW.md`)
 
@@ -263,6 +271,32 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       decisions above, `STATUS.md` (D-07) and the template's §1 record it.
 - [x] **Release notes placed:** `docs/release/RELEASE_PROCEDURE.md` carries the open
       release-blocking pointers; `docs/ci/PENDING_WORKFLOW_CHANGE.md` carries the CI one.
+
+### Session S18 (2026-09-13) — SkillOpt in-repo (`OD-15 = a`)
+
+- [x] **Feasibility review first, verdict reported:** SkillOpt is not necessary for anything
+      that ships — no open blocker depends on it; its only claimed value is the trained
+      doc-sweep skill. Accepted as optional, inert infrastructure. Review recorded in
+      `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` §3–§4.
+- [x] **`tools/skillopt/` landed:** `upstream` submodule pinned at `79124b37`
+      (`v0.2.0-318-g79124b3`, MIT), `upstream.pin`, `LICENSE.SkillOpt`, `skillopt.sh`
+      (`status`/`init [--offline]`/`wheelhouse`/`run`/`selftest`) and `selfcheck.sh`
+      (15 checks, **0 failed**). Shape B (vendored) rejected on measurement: 9 broken **G8**
+      citations across 12 files plus 29 **S3** hits over the 105 upstream `.md` files.
+- [x] **Inertness proven:** in a fresh clone that never initializes the submodule, and again in
+      the fully provisioned state, `check_docs.sh`, `sweep_stale.sh` and `verify_audit.sh`
+      reproduce the pre-integration baseline (the uninitialized clone carries one extra `G10`
+      SKIP that any local clone has) and
+      `git ls-files '*.md'` saw 0 upstream markdown files either way. Nothing in
+      `build.sh`/`verify_audit.sh`/`check_docs.sh`/CI references SkillOpt — and that stays true
+      by rule: **no gate may be added for it**.
+- [ ] **Doc-sweep skill (`SW-05`)** — the first experiment, deliberately not part of the
+      integration task: build the `gifscythe_doc_sweep` env in `tools/skillopt/` (launcher +
+      `SplitDataLoader` + `EnvAdapter` subclass + YAML), register it by injecting into
+      `scripts.train._ENV_REGISTRY` rather than patching the subtree, and score it against
+      `working_code/gifscythe/scripts/sweep_stale.sh` on a generated corpus. Contract in
+      `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` §5. **Blocked on model credentials**
+      (`OPTIMIZER_*` / `TARGET_*`); none exist in the S18 sandbox and none may be committed.
 
 ### Session S16 (2026-09-13) — GS-201 / P0-5 stop-loss
 - [x] **GS-201 (P0-5)** — CLI `--run` refuses Batch with no `output` (rc=2, named
@@ -438,8 +472,9 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       update. Then write the outcome into the docs R5 named.
 - [ ] **Owner answers** — `docs/planning/OWNER_DECISIONS.md` `OD-01`…`OD-15` (reply `OD-nn = <letter>`,
       from that row's own options; `OD-15` runs `a`–`d`).
-      **`OD-01 = a` and `OD-02 = a` are answered** (2026-09-12); the other 13 are direction
-      choices the plan can proceed without.
+      **`OD-01 = a` and `OD-02 = a` are answered** (2026-09-12) and **`OD-15 = a` was answered
+      and executed** (2026-09-13, S18); `OD-03`…`OD-14` are direction choices the plan can
+      proceed without.
 - [x] **N-07 / P2-15 — closed S17 (2026-09-13):** S2 now checks standalone
       numeric `UNTRIAGED` counts against the generated register, including Markdown
       emphasis/backticks and line wraps. Fourteen isolated regression tests pass;
@@ -454,10 +489,14 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] **Execute `OD-02 = a` — done S16 (2026-09-13):** CLI `--run` refuses Batch with no `output`
       (exit 2, named reason) before the engine starts; smoke 21/21 (source GIF `cmp`-identical;
       print still emits `-b`). The only code change the current decisions authorized.
-- [ ] **SkillOpt** — after `OD-15`, add microsoft/SkillOpt per
-      `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` (shape A pinned submodule, quarantined; the
-      three non-negotiable conditions apply), then register the doc-sweep skill experiment as its
-      own item.
+- [x] **Execute `OD-15 = a` — done S18 (2026-09-13):** microsoft/SkillOpt is in the checkout as a
+      pinned submodule plus wrapper in `tools/skillopt/`, quarantined and inert, with its own README,
+      `upstream.pin` and `selfcheck.sh`; the three non-negotiable conditions are checked, not
+      promised. The doc-sweep experiment was registered as its own item (`SW-05`, next line) instead
+      of being bundled into the integration.
+- [ ] **SkillOpt experiment (`SW-05`)** — train the doc-sweep skill against
+      `working_code/gifscythe/scripts/sweep_stale.sh` ground truth; spec in
+      `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` §5, blocker is model credentials.
 - [x] **Push + PR** — pushed and merged as PR #18 (`e32ed28`; `main` run `34713398377` green on
       linux + windows), via `scripts/pr_preflight.sh --online --body /tmp/pr_body.md`.
 

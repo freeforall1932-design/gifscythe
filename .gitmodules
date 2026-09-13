@@ -1,0 +1,4 @@
+[submodule "tools/skillopt/upstream"]
+	path = tools/skillopt/upstream
+	url = https://github.com/microsoft/SkillOpt.git
+	ignore = dirty

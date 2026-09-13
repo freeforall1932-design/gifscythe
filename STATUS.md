@@ -29,8 +29,8 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 87 DONE · 8 PARTIAL · 27 OPEN · 0 UNTRIAGED · 122 total
-**Last regenerated:** S17 · 2026-09-13 · by scripts/check_docs.sh --emit
+**Counts (generated - do not edit by hand):** 89 DONE · 8 PARTIAL · 28 OPEN · 0 UNTRIAGED · 125 total
+**Last regenerated:** S18 · 2026-09-13 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
 
@@ -151,6 +151,9 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 | SW-01 | Stale-claim sweep automation: detector + gate + PR/merge companion | DONE | S14 | `scripts/sweep_stale.sh` (rules S1–S5, each mutation-tested) + `check_docs.sh` gate **G17** + `scripts/pr_preflight.sh` (P1/P2 run it at PR create/merge) | - |
 | SW-02 | Owner-decision register + SkillOpt integration query | DONE | S14 | `docs/planning/OWNER_DECISIONS.md` (OD-01…OD-15) + `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` + `docs/planning/NEXT_SESSION_PROMPT.md` | - |
 | SW-03 | Uncommitted-work hard rule + web-plan content vs token | DONE | S16 | `check_docs.sh` **G18** FAILs on a dirty tree; `pr_preflight.sh` **P3b** FAILs on unpushed HEAD; **G16** FAILs when SKELETON/WORKING PLAN disagrees with leftover slot placeholders in `web/WEB_PLAN_TEMPLATE.md` §1-§10 (never auto-edits) | - |
+| SW-04 | SkillOpt in-repo integration: pinned submodule + wrapper, wired into nothing | DONE | S18 | `tools/skillopt/` (OD-15 = a, answered 2026-09-13): gitlink `79124b37` + `upstream.pin` + `LICENSE.SkillOpt` + `skillopt.sh` + `selfcheck.sh`; `tools/skillopt/selfcheck.sh` 15 PASS / 0 FAIL; `skillopt.sh selftest` ran upstream's suite at the pin (1496 passed, 12 skipped, ~30 s, no credentials); inertness measured in a fresh clone that never initializes the subtree - the three gates reproduce the pre-integration baseline | - |
+| SW-05 | First SkillOpt target: a trained doc-sweep skill (`gifscythe_doc_sweep` env) | OPEN | S18 | needs model credentials — upstream reads `OPTIMIZER_*` / `TARGET_*` and this repo commits none; the S18 sandbox had none either, so no run was possible; contract + measured registration path in `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` §5 | on a credentialed machine: `tools/skillopt/skillopt.sh init`, then write the launcher + env in `tools/skillopt/` (register into `scripts.train._ENV_REGISTRY`, never patch the subtree) and score it against `sweep_stale.sh` |
+| N-08 | Three SkillOpt-integration hazards found by measurement, not by reading: (1) any content dirt inside a pinned submodule makes the parent dirty, so **G18** fails a session that merely *used* SkillOpt; (2) `git submodule update --init --depth 1` cannot reach a pin that is not the fetched tip; (3) `pip install --no-index --find-links <dir>` fails when the wheelhouse holds only the app wheel | DONE | S18 | all three closed in the same session: `.gitmodules` carries `ignore = dirty` (measured both ways — `all` would also hide a HEAD that drifted off the pin); `skillopt.sh init` fetches the recorded SHA explicitly; `skillopt.sh wheelhouse` caches the pinned wheel **and** its 33 dependency wheels and `init --offline` installs from it (rc 0, no network) | - |
 
 
 ### External review intake 2026-09-12 (S14) - triaged into §6 fix-order ids in S15 (`OD-01 = a`)

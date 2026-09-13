@@ -27,7 +27,7 @@ answers are fine; `OD-14` has two sub-questions and needs both.
 | **OD-12** | Two-way CLI settings in 1.0.0 | (a) out · (b) in | **a** — the live pane stays honest one-way | Keeping the one-way CLI pane unchanged through 1.0.0 |
 | **OD-13** | Threads contract (`<0` / `0` / `>0`) | (a) yes, restore the sentinel · (b) leave as-is | **a** — `DS-06`'s tri-state fix | The `threads` sentinel semantics (`DS-06`/`DS-07`) |
 | **OD-14** | Disposal 4..7 + settings whitespace | (a) fix disposal 4..7 · (b) document settings quoting | **a** for disposal, **b** for settings whitespace | `DS-10` (unreachable disposal values) and `DS-12` (whitespace round-trip) |
-| **OD-15** | SkillOpt: how to incorporate | (a) pinned git submodule, quarantined · (b) vendored pinned copy · (c) venv/pip wrapper · (d) skip | **a** — see `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` | The first in-repo SkillOpt experiment (the doc-sweep skill) |
+| **OD-15** | SkillOpt: how to incorporate | (a) pinned git submodule, quarantined · (b) vendored pinned copy · (c) venv/pip wrapper · (d) skip | **a** — answered by the owner 2026-09-13, executed S18; see `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` §9 | The first in-repo SkillOpt experiment (the doc-sweep skill), `SW-05` |
 
 ## Answers so far
 
@@ -51,17 +51,28 @@ answers are fine; `OD-14` has two sub-questions and needs both.
   change; the standing docs-only constraint does not cover anything else.
   **Executed S16 (2026-09-13):** CLI `--run` refuses Batch with no `output`
   (rc=2, named reason) before the engine starts; smoke 21/21.
+- **`OD-15 = a`** (2026-09-13) — incorporate SkillOpt as a **pinned git submodule,
+  quarantined outside `working_code/`**, with the owner's added condition that it is for
+  *sessions reading the repo* and must not be implemented into the app.
+  **Executed S18 (2026-09-13):** `tools/skillopt/` (submodule + `upstream.pin` + wrapper +
+  `selfcheck.sh`), no gate/build/CI reference, `SW-04` closed and `SW-05` opened for the
+  doc-sweep experiment. Shape (b) was rejected on measurement — a vendored copy put 105
+  upstream markdown files under the doc gates (9 broken path citations across 12 files, plus
+  29 sweep **S3** hits); shape (c) alone leaves nothing in the checkout for a session to read,
+  so it became the *execution layer* of (a) rather than the answer; shape (d) is excluded by
+  the owner's own request to incorporate it.
 
 **`OD-01` executed S15 (2026-09-13); `OD-02` executed S16 (2026-09-13).** The
 triage of all 18 rows landed in S15. The `GS-201` stop-loss (**P0-5**) landed in
-S16. Remaining owner questions are **OD-03…OD-15**.
+S16; `OD-15` executed S18. Remaining owner questions are **OD-03…OD-14**.
 
 ## Notes
 
 - **OD-01 and OD-02 first** — they gate the release-blocker remediation; the
   rest are direction choices the plan can proceed without.
-- **OD-15** feeds directly into `docs/planning/SKILLOPT_INTEGRATION_QUERY.md`,
-  which holds the three non-negotiable conditions and the four integration
-  shapes. Answering `OD-15 = a` unblocks the submodule shape.
+- **OD-15** landed as `a` and is executed: `tools/skillopt/` is the submodule
+  shape, and `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` keeps the three
+  non-negotiable conditions, the measured rejections of the other shapes, and the
+  env-adapter contract the remaining experiment (`SW-05`) needs.
 - Nothing here is a `STATUS.md` row; the register stays the single source of
   work-item state.

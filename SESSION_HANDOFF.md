@@ -1,16 +1,16 @@
 # Session Handoff
 
-**Session:** S17 · **Date:** 2026-09-13
-**Branch:** `arena/01a09934-gifscythe` (platform-assigned; all S17 work stays here)
-**PR #21 merged as `df1dfd5`** (2026-09-13); merge status and diff reviewed with `gh` in S17.
+**Session:** S18 · **Date:** 2026-09-13
+**Branch:** `arena/01a09984-gifscythe` (platform-assigned; all S18 work stays here)
+**PR #22 merged as `f760ebe`** (2026-09-13); merge status and diff reviewed with `gh` in S18.
 This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written here: a session cannot know it at write time,
 and guessing it is how stale claims get born.
-**Docs synced through:** PR #21 · branch `arena/01a098ff-gifscythe` · merged as `df1dfd5`
+**Docs synced through:** PR #22 · branch `arena/01a09934-gifscythe` · merged as `f760ebe`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares
 this against the newest merged PR and fails when a merge landed with no doc sync — that is the
 "we jumped a merge without updating any docs" case. Move this line as part of the sync, never
 before the writing is done.)*
-Based on `main` commit `df1dfd5` ·
+Based on `main` commit `f760ebe` ·
 **Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
@@ -19,7 +19,7 @@ owner's draft is refitted into that template's slots — move both lines in the 
 =`SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back.
 Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (after S17)
+## Next session — fast hand-off (after S18)
 
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
@@ -37,14 +37,14 @@ Inspect that content at every new-session start.)*
   list — `OD-15` runs `a`–`d`, and `OD-14` has two sub-questions so it needs two
   letters). **`OD-01 = a` executed S15** (18 intake rows mapped into §6).
   **`OD-02 = a` executed S16** (CLI `--run` refuses Batch with no `output`,
-  exit 2). The rest (`OD-03`…`OD-15`) are direction choices the plan can
-  proceed without.
-- **SkillOpt ask:** `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` — verified facts,
-  the three non-negotiable conditions, the four shapes, and open questions Q1–Q4.
-  Await `OD-15`. **Do not vendor, submodule or pip-install anything before that
-  answer** — the query exists to decide *whether*, not *how fast*.
-  **`OD-01 = a` executed S15; `OD-02 = a` executed S16** (GS-201 / P0-5 stop-loss
-  landed). Remaining answers are `OD-03`…`OD-15`.
+  exit 2). **`OD-15 = a` executed S18** (SkillOpt in-repo, `tools/skillopt/`).
+  The rest (`OD-03`…`OD-14`) are direction choices the plan can proceed without.
+- **SkillOpt, landed:** `tools/skillopt/` is the pinned submodule + wrapper the owner
+  asked for (S18). `tools/skillopt/skillopt.sh status` says what is pinned and installed;
+  `tools/skillopt/selfcheck.sh` proves the quarantine. The review, the measurements that
+  settled the shape, and the §5 contract for the remaining experiment are in
+  `docs/planning/SKILLOPT_INTEGRATION_QUERY.md`. **Nothing may depend on it** — no gate,
+  no build step, no CI job, no package. It is for sessions reading the repo.
 
 ## PR ledger (append-only — this is how you see a skipped or closed PR)
 
@@ -78,6 +78,7 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #19 | S14 continuation | `arena/01a096ec-gifscythe` | `43e3f96` | docs: re-sync handoff to PR #18 merge + main run 34713398377 |
 | #20 | S14 continuation | `arena/01a09712-gifscythe` | `2542f1b` | docs: post-merge sync for PR #19 + owner patch adjudicated + OD answer-format fix |
 | #21 | S16 | `arena/01a098ff-gifscythe` | `df1dfd5` | Merged 2026-09-13; reviewed S17: S15 OD-01 triage + S16 GS-201 stop-loss + G18/G16/P3b process gates |
+| #22 | S17 | `arena/01a09934-gifscythe` | `f760ebe` | S17: safety checks, fail-closed packaging, and the explicit Qt/Windows handoff (GS-202/P0-6, GS-207/P1-29, DS-11/P2-14, DS-13/P1-32 closed; GS-203/GS-204/GS-210 partial). Merged 2026-09-13T06:42:21Z, reviewed and written up by S18 |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
@@ -93,6 +94,43 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, and
 `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
 alone would have passed straight through both skipped syncs.
+
+## S18 — SkillOpt incorporated in-repo (`OD-15 = a`) (2026-09-13)
+
+The owner asked for SkillOpt **inside the checkout, for sessions to read** rather than
+implemented into the app, and asked for a feasibility review first. The review's verdict,
+reported before any build: **not necessary for anything that ships.** No open release
+blocker depends on SkillOpt; its only claimed value is the trained doc-sweep skill, and the
+mechanical detector it would compete with already ships mutation-tested. So it was built as
+**optional, inert infrastructure**, and the experiment became its own register row (`SW-05`,
+blocked on model credentials).
+
+**Landed:** `tools/skillopt/` — the `upstream` submodule pinned to `79124b37`
+(`v0.2.0-318-g79124b3`, version 0.2.0, MIT), `upstream.pin` as the single provenance record
+cross-checked against the gitlink, `LICENSE.SkillOpt` (byte-identical MIT copy, so
+attribution survives an uninitialized subtree), `skillopt.sh` (`status` / `init
+[--offline]` / `wheelhouse` / `run` / `selftest`) and `selfcheck.sh` (15 checks). Measured:
+`init` ~15 s with a 172 MB venv; `wheelhouse` ~10 s, 29 MB / 33 wheels; `init --offline`
+~10 s with no network at all; `skillopt-sleep status` rc 0 offline; upstream's own suite at
+the pin ran 1496 passed, 12 skipped, 353 subtests in ~30 s with no credential.
+
+**Inertness proven, not asserted:** in a fresh clone that never initializes the submodule —
+the state CI and every new session start in — the gates reproduce the pre-integration baseline
+(measured 2026-09-13: docs 23 passed / 0 failed with one extra `G10` SKIP that any local clone
+has, sweep 5/0/0, audit 27/0/6), `selfcheck.sh` passes with the subtree absent, and
+`git ls-files '*.md'` counts 0 upstream markdown files either way. `.gitignore` covers every
+generated path here, and `.gitmodules` carries `ignore = dirty` — chosen after measuring both
+settings, because `ignore = all` also hides a HEAD that drifted off the recorded pin while no
+setting at all let one stray file inside the subtree fail **G18** for the whole repo.
+Vendoring (shape B) was rejected after replaying **G8**'s own extraction over the 105 upstream
+`.md` files: 9 broken citations across 12 files plus 29 sweep **S3** hits.
+
+**Not verifiable here:** a train/eval run. Upstream takes its backend from `OPTIMIZER_*` /
+`TARGET_*` and this repo commits no credential; the S18 sandbox had none. One recorded fact was
+corrected from the shipped source while measuring: the CLI `--backend` list in §2 of the query
+doc had over-stated the surface — there is no `openai_compatible` CLI choice, only a
+config-level one. No gate and no product file changed; `IMPROVEMENT_LOG.md` carries the session
+entry, `WORKLIST.md` the task lines, and `STATUS.md` the `SW-04`/`SW-05`/`N-08` rows.
 
 ## S17 sequential high-confidence work (2026-09-13)
 
@@ -217,7 +255,7 @@ S15 triage landed on this branch as cherry-pick `0e6e1a7` (of `5677612`). Then
 **`OD-02 = a`**: CLI `--run` with Batch and no `output` exits 2 with a named
 reason before the engine starts. Print still prints `-b`. Smoke **21/21** (source
 GIF `cmp`-identical). Engine `-b -O3` rewrite confirmed 8703→8637 B.
-**`N-07` triaged to P2-15** (OPEN at S16; closed by the S17 count check). Current register after the S17 count-check follow-up: **87 DONE · 8 PARTIAL · 27 OPEN · 0 UNTRIAGED · 122 total.**
+**`N-07` triaged to P2-15** (OPEN at S16; closed by the S17 count check). Current register after the S18 SkillOpt integration: **89 DONE · 8 PARTIAL · 28 OPEN · 0 UNTRIAGED · 125 total.**
 No PR until yes.
 
 ## S16 continuation — uncommitted-work hard rule (G18) + template content check (G16)
@@ -325,8 +363,8 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
 ## TL;DR for the next session
 
 > **Read the block at the top of this file first** (*"Next session — fast
-> hand-off (S16 continuation)"*). It is the current entry point: the copy-paste
-> prompt, `OD-01`…`OD-15`, and the SkillOpt ask. The list below is the older,
+> hand-off (S18)"*). It is the current entry point: the copy-paste
+> prompt, `OD-01`…`OD-15`, and the landed SkillOpt integration. The list below is the older,
 > longer orientation and is kept for background, not as the current state.
 
 0. **START HERE — `STATUS.md`.** The single status register: one row per
@@ -334,7 +372,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S17: **87 DONE · 8 PARTIAL · 27 OPEN · 0 UNTRIAGED · 122 total.**
+   `U-nn` row; neither replaces the other. As of S18: **89 DONE · 8 PARTIAL · 28 OPEN · 0 UNTRIAGED · 125 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —
@@ -647,6 +685,7 @@ section of this file.**
 | `docs/screenshots/README.md` | S10 re-shoot recipe + what each shot shows (S11 changed no desktop-visible UI, so they remain current); linked from the root README |
 | `docs/archive/` | The two dated review snapshots (historical line refs kept) |
 | `web/` | Web app (**product alternative since S14**): `/optimize` (legacy single-file) + `/run` (all four modes, S11) + 3 parity/transport suites. Plan template + split rules: `web/WEB_PLAN_TEMPLATE.md` |
+| `tools/skillopt/README.md` | **SkillOpt workbench (S18, `OD-15 = a`):** the pinned submodule, its wrapper (`skillopt.sh`), the inertness checks (`selfcheck.sh`), the provenance file, and how to move the pin. It ships nothing and no gate reads it |
 | `working_code/gifscythe/VERSION.md` | Version source of truth → committed `src/core/version.h` fallback (build.sh) + build-tree copy (CMake, from `build_support/version.h.in`) |
 
 ## Prior-session history (S4/S4b/S5/S6/S7/S8/S9/S10)

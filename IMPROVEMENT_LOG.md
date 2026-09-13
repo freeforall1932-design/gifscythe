@@ -4,6 +4,70 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S18 — SkillOpt incorporated in-repo, `OD-15 = a` (2026-09-13)
+
+**Authorization:** owner asked for microsoft/SkillOpt to be usable by *every session
+reading this checkout*, explicitly **not** implemented into the app, and for a
+feasibility review first with its verdict reported. Review came first; the verdict is
+below; the build was accepted as optional infrastructure only.
+
+1. **Review verdict (reported before any build):** SkillOpt is **not necessary for
+   anything that ships**. Nothing in the open set depends on it — the release blockers
+   are `U-09`, `U-08`, `GS-208`/`W-30` (needs a `workflows` scope), the Qt/CMake halves of
+   `GS-203`/`GS-204`/`GS-205`/`GS-206`/`GS-209`/`GS-210`, and `DS-06`/`DS-07`/`DS-09`/`DS-12`
+   behind `OD-13`/`OD-14`. Its only claimed value is a trained doc-sweep skill, so the
+   integration was built and the experiment was registered separately.
+2. **Shapes measured, not opined:** A+C adopted — a pinned submodule plus a venv wrapper.
+   B (vendored copy) was rejected after replaying **G8**'s extraction over the 105 upstream
+   `.md` files: 9 citations that resolve to nothing across 12 files, plus 29 **S3** hits.
+   C alone cannot satisfy "readable from the checkout", and A alone has no console scripts.
+3. **Landed:** `tools/skillopt/` — `upstream` submodule pinned at `79124b37` with
+   `upstream.pin`, `LICENSE.SkillOpt` (byte-identical MIT copy), `skillopt.sh`
+   (`status`/`init [--offline]`/`wheelhouse`/`run`/`selftest`), `selfcheck.sh` (15 checks)
+   and a README holding the provenance and the rules. `SW-04` closed; `SW-05` opened for
+   the doc-sweep experiment; `N-08` records the three hazards found by measurement.
+4. **Measured:** `init` ~15 s (172 MB venv), `wheelhouse` ~10 s (29 MB, 33 wheels),
+   `init --offline` ~10 s with no network, subtree materialized 6.1 MB / 439 files, upstream's
+   own suite at the pin 1496 passed, 12 skipped, 353 subtests in ~30 s, at `v0.2.0`
+   164 passed, 6 skipped in 1.2 s, `skillopt-sleep status` rc 0 offline. `selfcheck.sh`:
+   **15 passed, 0 failed, 0 skipped**.
+5. **Proof of inertness:** measured in a fresh clone of this commit that never initializes
+   the submodule, i.e. the state CI and every new session start in — docs **23 passed, 0 failed,
+   3 skipped** (the extra skip is `G10`, which needs `origin/main` and skips in any local clone),
+   sweep 5/0/0 and `selfcheck.sh` 10 passed, 0 failed, 3 skipped;
+   and in the fully provisioned state (subtree + 172 MB venv + wheelhouse) docs 23/0/2, sweep
+   5/0/0, audit 27/0/6 — this sandbox's pre-integration baseline, quoted at the time it was
+   measured because a full-toolchain sandbox measures more audit checks. `git ls-files '*.md'` counts 0 upstream markdown
+   files in either state.
+6. **Process facts worth keeping:** `.gitmodules` needs `ignore = dirty` — with no setting,
+   one untracked file inside the subtree dirtied the parent and failed **G18**; with
+   `ignore = all`, a HEAD that had drifted off the pin was hidden from `git status`. A
+   `--depth 1` submodule init can only reach a pin that is the fetched tip, so `init` fetches
+   the recorded SHA explicitly. An offline `pip install --no-index --find-links` needs a
+   wheelhouse containing the dependencies too, which is why `wheelhouse` exists.
+
+**Sandbox restart mid-session:** the platform re-cloned the workspace at 10:15 and the first
+commit of this work (`54c22b6`) was lost — file contents came back as uncommitted changes, but
+the submodule registration, the gitlink and `core.hooksPath` did not. Recovered in-session:
+re-registered the subtree at the same pin (a `--depth 1` clone, 6.1 MB), re-ran `init` (14.7 s)
+and `selftest` (1496 passed, 12 skipped, 353 subtests in 26.62 s), re-bootstrapped the hooks and
+re-committed. `verify_audit.sh` caught the gap as **F1** ← `G18`, which is exactly the failure
+the rule names. That is the live case for commit-then-push rather than commit-only.
+
+**Not verifiable here:** any train/eval run (no model credential in this sandbox; upstream
+reads `OPTIMIZER_*` / `TARGET_*`, and none is committed), the `gifscythe_doc_sweep`
+end-to-end loop, and Windows/Qt behaviour — untouched by this session, as intended.
+
+**Docs touched:** `tools/skillopt/README.md` (new), `docs/planning/SKILLOPT_INTEGRATION_QUERY.md`
+(status, the backend-list correction, the §5 env contract, §7–§9), `docs/planning/OWNER_DECISIONS.md`
+(`OD-15 = a` answered + executed), `docs/planning/NEXT_SESSION_PROMPT.md` §3,
+`docs/planning/SEQUENTIAL_WORK_HANDOFF.md` (answer range), `SESSION_HANDOFF.md` (header,
+PR #22 ledger row, S18 section, doc map, both tallies), `WORKLIST.md`, `STATUS.md`
+(`SW-04`/`SW-05`/`N-08`, re-emitted), root `README.md`. Register regenerated:
+**89 DONE · 8 PARTIAL · 28 OPEN · 0 UNTRIAGED · 125 total**. No PR opened without a yes.
+
+---
+
 ## S17 continuation — sequential DS-11 / GS-210 / GS-204 / GS-203 (2026-09-13)
 
 **Authorization:** owner requested highest→high confidence sequential work, medium/
