@@ -4,7 +4,12 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
-## S14 continuation — stale-claim sweep, PR preflight, owner-decision register (docs + two scripts)  (2026-09-12)
+## S14 continuation — stale-claim sweep, PR preflight, owner-decision register, gate repairs  (2026-09-13)
+
+*(This entry spans 2026-09-12 → 2026-09-13 and is deliberately **not** filed as `## S15`: gate
+**G12** fails on a session heading newer than any `UNTRIAGED` row, and the 18 intake findings are
+still `UNTRIAGED` since S14. The date is the newest so that **G11** can see the log is current with
+the code changed on 2026-09-13 — `check_docs.sh`, `sweep_stale.sh` and `pr_preflight.sh`.)*
 
 **Changed:**
 
@@ -131,6 +136,18 @@ intake (`GS-201`, `GS-204`, `GS-208`, `DS-06`). `OD-01`'s recommended **(b) was 
 impossible** — G12 fails if *any* UNTRIAGED row outlives its session, so triaging only the blockers
 would still block a new session entry. Both answers are recorded, **not executed**; the 18-row
 triage and the `GS-201` code fix are the next session's first two tasks.
+
+**Handoff sync is now a check, not a promise (`pr_preflight.sh` step P6).** The header gained a
+machine-readable `**Docs synced through:** PR #n · branch X · merged as Y` line, and **P6**
+(`--online`) compares it against the newest *merged* PR. If a merge landed after the last doc sync
+it fails, names every unreviewed PR with its branch and title, and tells the session to read
+`gh pr diff <n>` and write up what changed / what was fixed / what was implemented *before* moving
+the line. Mutation-tested: with the line at #18 while #19 is merged it fails with exit 1 and lists
+`unreviewed: PR #19`; with a wrong branch label but the right PR number it passes and prints a
+mismatch note. The **PR number is the key and the branch only a cross-check** — measured, not
+assumed: `arena/01a0968e-gifscythe` produced both #16 and #17, and `arena/01a096ec-gifscythe`
+produced both #18 and #19, so a branch-name-only comparison would have passed through both skipped
+syncs.
 
 **Handoff header re-based on what a session can actually know.** It no longer asserts its own
 merge sha, its own run ids, or "not yet pushed" — all of which are unknowable at write time and
