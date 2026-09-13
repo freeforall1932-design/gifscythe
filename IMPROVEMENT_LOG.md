@@ -4,6 +4,70 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S16 continuation — uncommitted-work hard rule (G18) + template content check (G16)  (2026-09-13)
+
+**Changed:**
+
+- **No GitHub patch** was in the asking message; none was applied this session.
+  The S14 owner patch was adjudicated earlier and was not applied wholesale.
+
+- **HARD RULE, mechanical:** every edit/write/delete is committed into the repo
+  before merge **and** before the session can close. Uncommitted work is lost
+  when the sandbox is cut off (second time). Do not wait to be reminded.
+  - `check_docs.sh` gate **G18** FAILs on a dirty tree. Pre-push runs this
+    script, so a dirty tree cannot be pushed. CI checkouts are clean, so G18
+    PASSes there.
+  - `pr_preflight.sh` **P3** FAILs create/merge on dirty; new **P3b** FAILs if
+    HEAD has no upstream or is ahead of origin (unpushed commits are not in
+    the repo).
+  - Standing rule 6 is written in `SESSION_HANDOFF.md`, `WORKLIST.md` and
+    `docs/release/RELEASE_PROCEDURE.md` (G13 now requires those files to
+    mention **G18**). `docs/planning/NEXT_SESSION_PROMPT.md` recovery no
+    longer hardcodes a check_docs triple; it requires 0 failed and names G18.
+
+- **Merge-related checks run before merge**, not after. Rule 3 already pointed
+  at `pr_preflight.sh --online`; WORKLIST rule 3 now matches, and the prompt
+  says create **and** merge.
+
+- **G16 inspects template content vs the state token** (session-start check).
+  Slot placeholders in `web/WEB_PLAN_TEMPLATE.md` §1–§10 (not §0) must agree
+  with the token: leftover `<date>`/`<owner>`/`<next>`/`<who>`/`<what>` /
+  `<ids the draft names>` / `<open:` / "the owner's draft fills this in" =
+  stay **SKELETON**; filled content + SKELETON = flip both lines to
+  **WORKING PLAN** in the same commit (one-way). WORKING PLAN + leftover
+  placeholders = fill them; never flip back. The gate never auto-edits.
+  Current tree is still skeleton — both lines stay **SKELETON**.
+
+- **SW-03** registered DONE in `STATUS.md` (hand-maintained).
+
+**Partial:** none of this work. N-07 / P2-15 remains OPEN (detector gap).
+
+**Left:** OD-03…OD-15 unanswered. Remaining 17 intake rows OPEN. No PR until
+an explicit yes.
+
+**Verified:**
+
+- Mutation: dirty tree → `FAIL [G18]`; restore → PASS after commit.
+- Mutation: `WORKING PLAN` token while §1–§10 still have placeholders →
+  `FAIL [G16]`; restore → PASS (`SKELETON`, content skeleton).
+- Mutation: strip §1–§10 placeholders while token stays `SKELETON` →
+  `FAIL [G16]`; restore → PASS.
+- Gate never edited the template state lines.
+
+**Not verifiable here:**
+
+- Whether a future sandbox cut-off still drops unpushed commits if the agent
+  ignores P3b (the check cannot run after the sandbox is gone).
+- Native Windows / CI for this commit (not yet pushed at write time).
+
+**Docs touched:** `working_code/gifscythe/scripts/check_docs.sh`,
+`working_code/gifscythe/scripts/pr_preflight.sh`, `STATUS.md`,
+`SESSION_HANDOFF.md`, `WORKLIST.md`, `IMPROVEMENT_LOG.md`,
+`docs/release/RELEASE_PROCEDURE.md`, `docs/planning/NEXT_SESSION_PROMPT.md`,
+`docs/ci/README.md`, `web/WEB_PLAN_TEMPLATE.md`.
+
+---
+
 ## S16 — `OD-02 = a` executed: CLI `--run` refuses Batch with no output (GS-201 / P0-5)  (2026-09-13)
 
 **Changed:**

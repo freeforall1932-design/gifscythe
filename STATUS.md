@@ -29,7 +29,7 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 81 DONE · 5 PARTIAL · 35 OPEN · 0 UNTRIAGED · 121 total
+**Counts (generated - do not edit by hand):** 82 DONE · 5 PARTIAL · 35 OPEN · 0 UNTRIAGED · 122 total
 **Last regenerated:** S16 · 2026-09-13 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
@@ -150,6 +150,7 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 | N-05 | Multi-input Explode silently scatters frames: with `-o prefix` the engine (rc=0) explodes every input except the LAST as `<basename>.NNN` into the process CWD — and the desktop GUI queued all inputs into one explode run | DONE | S11 | found while designing the U-41 web explode rule; verified against the bundled 1.96 (`gifsicle -e a.gif b.gif -o p`: a's 12 frames went to the CWD, only b's frame landed under p); refused same-session at every layer: `validate()` warning (C++ + byte-identical JS mirror, parity-pinned), CLI `--run` rc=2, GUI warning dialog + REFUSED summary; unit block 35, smoke case 12, harness T7 subcase, Wine rc=2 | - |
 | SW-01 | Stale-claim sweep automation: detector + gate + PR/merge companion | DONE | S14 | `scripts/sweep_stale.sh` (rules S1–S5, each mutation-tested) + `check_docs.sh` gate **G17** + `scripts/pr_preflight.sh` (P1/P2 run it at PR create/merge) | - |
 | SW-02 | Owner-decision register + SkillOpt integration query | DONE | S14 | `docs/planning/OWNER_DECISIONS.md` (OD-01…OD-15) + `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` + `docs/planning/NEXT_SESSION_PROMPT.md` | - |
+| SW-03 | Uncommitted-work hard rule + web-plan content vs token | DONE | S16 | `check_docs.sh` **G18** FAILs on a dirty tree; `pr_preflight.sh` **P3b** FAILs on unpushed HEAD; **G16** FAILs when SKELETON/WORKING PLAN disagrees with leftover slot placeholders in `web/WEB_PLAN_TEMPLATE.md` §1-§10 (never auto-edits) | - |
 
 
 ### External review intake 2026-09-12 (S14) - triaged into §6 fix-order ids in S15 (`OD-01 = a`)

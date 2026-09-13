@@ -31,9 +31,11 @@ reads them in a file, not in a conversation.
    below. It may not wait for a later audit pass. Gate **G12** fails if an
    `UNTRIAGED` row outlives the session that found it.
 3. **Before `gh pr create`, and again before `gh pr merge`:** run
-   `working_code/gifscythe/scripts/check_docs.sh`, fix every failure, re-run
-   until green. Do not create or merge with a failing doc check, and **do not
-   ask whether to run it**.
+   `working_code/gifscythe/scripts/pr_preflight.sh --online` (it runs
+   `check_docs.sh` and `sweep_stale.sh`, and prints the repo/run/PR state),
+   fix every failure, re-run until green. Do not create or merge with a
+   failing check, and **do not ask whether to run it**. Anything labelled
+   "after merge" is done **before** merging.
 4. **It is also enforced mechanically.** `.githooks/pre-push` blocks a red push.
    Git does not copy hooks on clone, so run
    `working_code/gifscythe/scripts/bootstrap_hooks.sh` once per clone —
@@ -41,6 +43,15 @@ reads them in a file, not in a conversation.
 5. **`IMPROVEMENT_LOG.md` entries use the template** (`Changed / Partial / Left /
    Verified / Not verifiable here / Docs touched`). The **`Not verifiable here`**
    line is mandatory and must never be omitted or softened.
+6. **HARD RULE — commit every edit/write/delete before merge AND before the
+   session can close.** Uncommitted work is lost when the sandbox is cut off
+   (it happened twice). Do not wait to be reminded. Gate **G18** fails
+   `check_docs.sh` on a dirty tree; `pr_preflight.sh` **P3** fails create/merge
+   on dirty and **P3b** fails if HEAD is ahead of origin. Push after you
+   commit. At every new-session start, inspect `web/WEB_PLAN_TEMPLATE.md`
+   §1–§10: leftover `<placeholders>` = stay **SKELETON**; filled content =
+   flip both **G16** lines to **WORKING PLAN** in the same commit (one-way).
+   The gate never auto-edits.
 
 ## Found this session — pending lines (rule 2)
 
@@ -251,6 +262,10 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       CLI left the source `cmp`-identical. Smoke **21/21**. Print still emits `-b`.
 - [x] **N-07 triaged to P2-15** (still OPEN) — S4 is a 5-phrase list, not a general
       reversal detector. Sweep not changed this session.
+- [x] **SW-03** — uncommitted-work hard rule (**G18** dirty-tree FAIL in
+      `check_docs.sh`; **P3b** unpushed FAIL in `pr_preflight.sh`) plus **G16**
+      content-vs-token (never auto-edit). Template stays **SKELETON**. Rule 6
+      written in the three files a new session reads. No PR until yes.
 
 ### Session S14 continuation (2026-09-12) — stale-claim sweep, PR preflight, owner-decision register (docs only)
 

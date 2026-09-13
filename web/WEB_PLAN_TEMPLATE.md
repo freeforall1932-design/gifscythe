@@ -3,7 +3,9 @@
 **Template state:** SKELETON
 *(One-way flip, once: when the owner's draft is refitted into the slots below, change this line
 to `WORKING PLAN` **and** the mirror in `SESSION_HANDOFF.md` in the same commit. Gate **G16** fails
-if the two lines disagree or name anything else; never flip back.)*
+if the two lines disagree or name anything else, **or** if the token disagrees with §1–§10
+content (leftover `<placeholders>` = stay SKELETON; filled = flip both lines). The gate never
+auto-edits and never flips back. Inspect that content at every new-session start.)*
 
 **What this file is.** The reusable skeleton for a Gifscythe web-surface plan, parked in `web/`
 so it is easy to find next to the code it describes. The slots below are filled with the
@@ -32,10 +34,11 @@ document that drifts from `STATUS.md`, `COMPILED_AUDIT.md` and the vision.
 7. **§5 is fixed boilerplate.** Its meaning is the anti-divergence contract; a refit may extend
    the examples but must not weaken the rules.
 8. **After editing, run `working_code/gifscythe/scripts/check_docs.sh`** and keep it green.
-9. **The flip is one-way and once.** A refit that fills §2–§9 changes `**Template state:** SKELETON`
+9. **The flip is one-way and once.** A refit that fills §1–§10 changes `**Template state:** SKELETON`
    to `WORKING PLAN` and moves the mirror line in `SESSION_HANDOFF.md` in the same commit. Gate
-   **G16** compares the two, so the handoff can never tell a session "skeleton" while the plan is
-   live (or the reverse).
+   **G16** compares the two tokens **and** leftover slot placeholders in §1–§10, so the handoff
+   can never tell a session "skeleton" while the plan is live (or the reverse). Never auto-edit
+   the state lines; never flip back.
 
 ---
 

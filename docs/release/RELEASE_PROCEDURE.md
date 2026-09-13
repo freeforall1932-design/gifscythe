@@ -87,7 +87,11 @@ Also verify before packaging:
 - **The documentation gate is green.** `./scripts/check_docs.sh` must report
   `0 failed`. If `STATUS.md` has drifted, run `./scripts/check_docs.sh --emit`,
   inspect the diff, and commit it. Do not release with a red doc gate and do not
-  hand-edit the generated block to make it pass.
+  hand-edit the generated block to make it pass. Gate **G18** fails on a dirty
+  tree — commit every edit/write/delete **before** merge and **before** the
+  session can close (uncommitted work is lost on cutoff; it happened twice).
+  `pr_preflight.sh` **P3** / **P3b** fail create/merge on dirty or unpushed
+  HEAD. Anything labelled "after merge" is done **before** merging.
 - `git status` clean; `.github/workflows/build.yml` and
   `docs/ci/build.yml.proposed` are **byte-identical** (`diff` them) — unless
   `docs/ci/PENDING_WORKFLOW_CHANGE.md` exists, which declares a workflow change

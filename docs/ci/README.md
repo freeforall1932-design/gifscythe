@@ -26,11 +26,15 @@
 - **Documentation status gate — APPLIED (confirmed S14).** The linux job runs
   `scripts/check_docs.sh --no-gate-run`; the S9 change is in the live
   `.github/workflows/build.yml`, not only in `docs/ci/build.yml.proposed`. S14 introduced gate
-  **G16** (web plan template state); the S14 continuation added **G17** (the stale-claim sweep,
-  `scripts/sweep_stale.sh` — five rule groups). Both gates run in the same three places: the
-  `.githooks/pre-push` hook, the linux CI job (`--no-gate-run`), and
-  `scripts/pr_preflight.sh` at PR create and merge. The two workflow copies still differ by one
-  line (the Windows E2E temp-path fallback), so
+  **G16** (web plan template state: token agreement **and** §1–§10 content vs token — leftover
+  placeholders stay SKELETON; filled content requires both lines flipped to WORKING PLAN; the
+  gate never auto-edits). The S14 continuation added **G17** (the stale-claim sweep,
+  `scripts/sweep_stale.sh` — five rule groups). S16 added **G18** (dirty tree FAIL — uncommitted
+  work is lost on session cut-off) and `pr_preflight.sh` **P3b** (unpushed HEAD FAIL). These
+  gates run in the same three places: the `.githooks/pre-push` hook, the linux CI job
+  (`--no-gate-run`; a CI checkout is clean so G18 PASSes there), and
+  `scripts/pr_preflight.sh` at PR create **and** merge (not after). The two workflow copies
+  still differ by one line (the Windows E2E temp-path fallback), so
   `docs/ci/PENDING_WORKFLOW_CHANGE.md` now describes *that* drift instead — see it for the
   remaining apply-and-delete step.
 - **Both jobs green on main** since 2026-09-07 (runs #23/#24 after PR #5

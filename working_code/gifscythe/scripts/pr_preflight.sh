@@ -12,7 +12,8 @@
 #
 #   P1  runs check_docs.sh and prints its "==> Done" line
 #   P2  runs sweep_stale.sh
-#   P3  fails if the working tree is dirty
+#   P3  fails if the working tree is dirty (uncommitted work is lost on cutoff)
+#   P3b fails if HEAD is ahead of origin (unpushed commits are not in the repo)
 #   P4  (--online only) prints repo, main tip + latest main run, branch tip +
 #       latest branch run, and the PR state for the branch
 #   P5  writes a "## What this is / ## Evidence / ## Not in this PR" skeleton
@@ -80,11 +81,25 @@ fi
 # ---------------------------------------------------------------------------
 echo "== P3: working tree"
 if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
-  echo "  FAIL [P3] working tree is dirty - commit or stash before the PR boundary"
+  echo "  FAIL [P3] working tree is dirty - commit NOW before create/merge (session cut-off loses uncommitted work)"
   git status --porcelain | head -20 | sed 's/^/         /'
   FAIL=$((FAIL + 1))
 else
   echo "  PASS [P3] working tree clean"
+fi
+
+echo "== P3b: unpushed commits"
+if ! git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+  echo "  FAIL [P3b] branch has no upstream - git push -u origin HEAD before create/merge (unpushed commits are not in the repo)"
+  FAIL=$((FAIL + 1))
+else
+  ahead="$(git rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)"
+  if [[ "$ahead" -gt 0 ]]; then
+    echo "  FAIL [P3b] $ahead unpushed commit(s) - git push before create/merge (unpushed commits are not in the repo)"
+    FAIL=$((FAIL + 1))
+  else
+    echo "  PASS [P3b] HEAD is not ahead of origin"
+  fi
 fi
 
 # ---------------------------------------------------------------------------
