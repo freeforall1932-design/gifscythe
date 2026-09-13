@@ -80,6 +80,7 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #18 | S14 | `arena/01a096ec-gifscythe` | `e32ed28` | S14 continuation: stale-claim sweep + PR preflight + owner-decision register |
 | #19 | S14 continuation | `arena/01a096ec-gifscythe` | `43e3f96` | docs: re-sync handoff to PR #18 merge + main run 34713398377 |
 | #20 | S14 continuation | `arena/01a09712-gifscythe` | `2542f1b` | docs: post-merge sync for PR #19 + owner patch adjudicated + OD answer-format fix |
+| #21 | S16 | `arena/01a098ff-gifscythe` | **open** | S15 OD-01 triage + S16 GS-201 stop-loss + G18/G16/P3b process gates |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
