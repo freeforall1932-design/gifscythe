@@ -70,7 +70,7 @@ blockers `GS-204`/`GS-208`/`U-09`/`DS-06`.
   download render, out-of-range lossy refused with the validator's
   wording. `node --check` on both scripts; `build_wasm.sh --help` rc=0,
   `--bogus` rc=2, no-emcc rc=1; `prove_wasm.mjs` without `dist/` fails
-  rc=1 naming the build step; all 25 JS-referenced element ids exist in
+  rc=1 naming the build step; all 24 JS-referenced element ids exist in
   the page.
 - Native oracle for the future proof: `logo.gif` 8703 B → 8637 B under
   `-O3` (GIF89a, 12 images, 60x132), → 4106 B under `-O3 --resize-fit
