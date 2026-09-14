@@ -1,9 +1,12 @@
 # Legal — licence single source of truth
 
-**Current state (S18, 2026-09-14):** first-party code is **Ms-PL**
+**Current state (S19, 2026-09-14):** first-party code is **Ms-PL**
 (`COPYING.ms-pl`); the gifsicle engine is a **GPL v2-only** subprocess
-(`COPYING.gifsicle`); Qt is **LGPL v3**. The UI carries no GPL code and no
-Caesium content.
+(`COPYING.gifsicle`); Qt is **LGPL v3** (`COPYING.lgplv3` + companion
+`COPYING.gplv3`, `QT_NOTICE.txt` in GUI packages). The UI carries no GPL
+code and no Caesium content. The experimental `web/wasm/` track has its
+own open licence question (`WASM_LICENSE_QUESTION.md`, `OD-16`) and is
+not shippable until it is answered.
 
 Rule: **licence rationale lives in this folder.** Everywhere else only *points
 here* (one line) or *lists files* (packagers, manifests). If any doc outside
@@ -19,6 +22,8 @@ Files:
   reopens it.
 - `COPYING_RULES.md` — operational checklist for copying ScreenToGif fork
   files compliantly (notices, log entries, tripwires).
+- `WASM_LICENSE_QUESTION.md` — the open Ms-PL/GPLv2 in-process question
+  for the experimental `web/wasm/` track, decided by `OD-16`.
 
 Maintenance contract — to change the licence again, touch exactly two sets:
 

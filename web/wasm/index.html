@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gifscythe — wasm build (experimental)</title>
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <header>
+    <h1>Gifscythe <span class="tag">wasm experimental</span></h1>
+    <p class="sub">One file, optimized entirely in your browser by a
+    WebAssembly build of the gifsicle engine. Nothing is uploaded anywhere.</p>
+    <p class="sub"><strong>Not shippable:</strong> the in-process licence
+    question is open (<code>docs/legal/WASM_LICENSE_QUESTION.md</code>,
+    owner decision <code>OD-16</code>). The supported web path stays the
+    self-hosted Node server until this track is proven.</p>
+  </header>
+
+  <main>
+    <section class="panel" id="inputPanel">
+      <h2>1 · Input</h2>
+      <div class="drop">
+        <input type="file" id="file" accept=".gif,image/gif" hidden />
+        <button id="pick" class="btn">Choose a GIF…</button>
+        <span id="fileName">no file selected (one file per run)</span>
+      </div>
+      <div class="preview-row">
+        <figure>
+          <figcaption>Before</figcaption>
+          <img id="before" alt="no file selected" />
+        </figure>
+        <figure>
+          <figcaption>After</figcaption>
+          <img id="after" alt="—" />
+        </figure>
+      </div>
+      <div id="savings" class="savings"></div>
+    </section>
+
+    <section class="panel" id="actionsPanel">
+      <h2>2 · Settings (6)</h2>
+      <div class="form">
+        <label>Optimization level
+          <select id="optimize">
+            <option value="0">0 — off</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3" selected>3 — smallest</option>
+          </select>
+        </label>
+        <label>Lossy (0 = lossless)
+          <input type="number" id="lossy" min="0" max="200" value="0" />
+        </label>
+        <label class="inline"><input type="checkbox" id="colorsOn" />
+          Reduce colors <input type="number" id="colors" min="2" max="256" value="128" disabled />
+        </label>
+        <label>Resize
+          <select id="resize">
+            <option value="none" selected>No resize</option>
+            <option value="fit">Fit inside W×H</option>
+            <option value="touch">Touch W×H (never enlarge)</option>
+            <option value="exact">Exact W×H</option>
+            <option value="width">Width only</option>
+            <option value="height">Height only</option>
+            <option value="scale">Scale %</option>
+          </select>
+        </label>
+        <label>W <input type="number" id="w" min="1" max="65535" value="320" /></label>
+        <label>H <input type="number" id="h" min="1" max="65535" value="240" /></label>
+        <label>Scale X % <input type="number" id="scalePctX" min="1" max="1000" value="100" step="0.1" /></label>
+        <label>Scale Y % <input type="number" id="scalePctY" min="1" max="1000" value="100" step="0.1" /></label>
+        <label>Loop
+          <select id="loop">
+            <option value="keep" selected>Keep original</option>
+            <option value="forever">Loop forever</option>
+            <option value="n">Loop N times…</option>
+          </select>
+        </label>
+        <label id="loopNRow" hidden>N <input type="number" id="loopN" min="1" max="65535" value="3" /></label>
+        <label class="inline"><input type="checkbox" id="delayOn" />
+          Frame delay (1/100 s) <input type="number" id="delay" min="0" max="65535" value="10" disabled />
+        </label>
+      </div>
+    </section>
+
+    <section class="panel" id="runPanel">
+      <h2>3 · Run</h2>
+      <button id="run" class="btn primary" disabled>Optimize</button>
+      <span id="status" class="status">loading the engine…</span>
+      <div id="outputs" hidden>
+        <h3>Result</h3>
+        <ul id="outputList" class="filelist"></ul>
+      </div>
+      <details id="cmdDetails">
+        <summary>Generated engine command (one-way: controls → command)</summary>
+        <pre id="command">choose a GIF to generate a command…</pre>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    Experimental wasm track — engine runs in-process (WebAssembly, main
+    thread, no Worker). Engine: gifsicle 1.96, GPL v2-only — licence text
+    <code>dist/COPYING.gifsicle</code>, notices
+    <code>THIRD_PARTY_NOTICES.md</code>. Not shippable until
+    <code>OD-16</code> is answered.
+  </footer>
+
+  <script src="dist/gifsicle.js"></script>
+  <script type="module" src="wasm.js"></script>
+</body>
+</html>

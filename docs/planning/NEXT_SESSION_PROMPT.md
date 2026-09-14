@@ -1,12 +1,12 @@
 # Next-session prompt (copy-paste hand-off)
 
-Paste the block below into a fresh session to pick up post-S17 work
+Paste the block below into a fresh session to pick up post-S19 work
 fast. Everything it references lives in this repo.
 
 ---
 
 ```
-CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S17.
+CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S19.
 
 1. RECOVERY (run these, in order, from the repo root):
    working_code/gifscythe/scripts/bootstrap_hooks.sh      # if G15 says core.hooksPath != .githooks
@@ -27,7 +27,12 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S17.
    DS-13/P1-32 also closed: /optimize checks response-buffer GIF magic; transport
    at that checkpoint 53/53. GS-207/P1-29 also closed: invalid non-empty engine
    overrides fail, source logged; CLI smoke 30/30, web transport now 63/63 on Linux.
-   GS-203/U-06 and pending owner decisions remain unresolved.
+   S18 (merged PR #23): Ms-PL relicense + C# plan + spike GREEN — then S19 PARKED
+   the C# shell (OD-C7, exe stays C++17/Qt6), closed U-08 (Qt LGPL staged,
+   packaging 36/36), answered OD-11 = a / OD-12 = a, and scaffolded web/wasm/
+   (UNPROVEN: no emcc here; OD-16 licence question open, blocks shippable).
+   GS-203/U-06, release blockers GS-204/GS-208/U-09/DS-06, and the Windows
+   smoke + desktop probes remain unresolved.
 
    START HERE: STATUS.md (the single status register). COMPILED_AUDIT.md §5 is
    the detail. Never hand-edit STATUS.md's generated block — run check_docs.sh --emit.
@@ -39,9 +44,10 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S17.
    (A submodule [recommended] / B vendored / C venv wrapper / D skip).
    Await OD-15 first. Do not vendor, submodule or pip-install before that answer.
 
-4. DECISION BACKLOG: docs/planning/OWNER_DECISIONS.md (OD-01..OD-15). Answer in
+4. DECISION BACKLOG: docs/planning/OWNER_DECISIONS.md (OD-01..OD-16). Answer in
    the form "OD-nn = <letter>" from that row's own options (OD-15 is a–d).
-   OD-01 = a and OD-02 = a are already executed. Remaining: OD-03…OD-15.
+   OD-01 = a, OD-02 = a, OD-09 = b, OD-11 = a, OD-12 = a are already executed.
+   Remaining: OD-03…OD-08, OD-10, OD-13…OD-16 (OD-16 blocks web/wasm shippable).
 
 5. STANDING CONSTRAINTS: HARD RULE — commit every edit/write/delete into the
    repo before merge AND before the session can close (G18 / P3 / P3b). Do not

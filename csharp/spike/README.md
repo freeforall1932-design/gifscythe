@@ -1,4 +1,10 @@
-# Phase-1 spike (throwaway-allowed)
+# Phase-1 spike (throwaway-allowed) — PARKED
+
+**PARKED 2026-09-14 (S19, owner direction): the exe stays C++17/Qt6, no
+rewrite — this spike is inert until 1.0.0 ships on the current stack. No
+further work here (no Phase 2 start, no edits beyond keeping this notice
+true). The spike stays CI-run as-is; that is parking, not progress. Record:
+`docs/planning/CSHARP_SHELL_PLAN.md` §8 (`OD-C7 = park`).**
 
 Smallest possible proof for the C# shell (`docs/planning/CSHARP_SHELL_PLAN.md`
 Phase 1): a C# console app that builds one argv from a hardcoded settings

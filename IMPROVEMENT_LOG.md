@@ -4,6 +4,112 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S19 — exe stays C++/Qt6 (park C#, close U-08) + wasm MVP scaffold, unproven (2026-09-14)
+
+**Changed:**
+
+- Direction (owner): the exe stays C++17/Qt6, no rewrite. C# shell parked
+  (`OD-C7 = park` in `docs/planning/CSHARP_SHELL_PLAN.md` §8): plan
+  `PARKED`, `csharp/spike/` inert but still CI-run, offline-review §4
+  reinstated. The S18 "Phase 2 GO" verdict is suspended, not deleted.
+- `U-08` closed (was the last licence-set remainder): verbatim
+  `COPYING.lgplv3` + `COPYING.gplv3` staged by both packagers
+  (`package_common.sh`), generated `QT_NOTICE.txt` in GUI packages only
+  (version via `qmake -query`, `unknown` fallback), packaging suite 36/36
+  (4 new required-file negatives fire by name), CI manifest (live +
+  proposed, 1-line cygpath drift preserved) and `verify_audit.sh` D1/D2
+  assert the set. Release blockers five → four.
+- Owner answers executed: `OD-11 = a` (stay 0.1.0 — `W-29` stays OPEN, no
+  version file touched) and `OD-12 = a` (two-way CLI out — `W-26` DONE, no
+  code change). `OD-16` added for the wasm in-process licence question
+  (`docs/legal/WASM_LICENSE_QUESTION.md`, open, blocks shippable).
+- Desktop evidence docs: `docs/ci/CLEAN_WINDOWS_SMOKE.md` re-pointed at a
+  green CI artifact (run id + commit recorded; banked snapshot disqualified
+  — it cannot validate the current tree); new `docs/ci/DESKTOP_PROBES.md`
+  procedures the three W-19 probes (external engine kill, physical
+  drag-drop, engine-missing GUI) against the real `MainWindow` branches.
+- Wasm MVP scaffold (`web/wasm/`, additive — `web/command.mjs`,
+  `web/validate.mjs`, server, page untouched): `build_wasm.sh` (emcc,
+  single-threaded `config.wasm.h`, same source list as the native engine,
+  MEMFS only, stages `COPYING.gifsicle`), one-screen `index.html` +
+  `wasm.js` (main-thread sync `callMain`, no Worker; 6 setting groups;
+  live pane and run refusal via the verbatim builders), `prove_wasm.mjs`
+  byte-proof script, `THIRD_PARTY_NOTICES.md`. Register now 89/7/26/0
+  over 122 rows.
+- Sync: PR #22 (`f760ebe`, S17 work) + PR #23 (`8230247`, S18 work)
+  reviewed from history after landing with no doc sync; ledger, `Docs
+  synced through:`, and header base moved to #23.
+
+**Partial:** the wasm track is scaffold, not proof — no `.wasm` binary is
+built anywhere (see Not verifiable here), and `OD-16` is unanswered, so
+the Node server stays the shipped web path. `GS-204` stays PARTIAL (real
+Windows/Qt deployment + clean-machine proof still need the equipped
+agent). `D-07` stays OPEN.
+
+**Left:** `OD-16` answer (owner/counsel); the first emcc run of
+`build_wasm.sh` + `prove_wasm.mjs` printing real proof bytes; the
+clean-Windows smoke + desktop probes on real hardware; remaining release
+blockers `GS-204`/`GS-208`/`U-09`/`DS-06`.
+
+**Verified:**
+
+- `./build.sh`: engine `LCDF Gifsicle 1.96` + CLI + unit suite
+  **296 checks, 0 failures**; `test_engine.sh` 5/5; `smoke_cli.sh` 40/40;
+  `test_package.sh` **36 passed, 0 failed** (new `COPYING.lgplv3` /
+  `COPYING.gplv3` missing-cases fail by name, both kinds).
+- Real packager: headless bundle carries both texts; hiding
+  `COPYING.lgplv3` makes `package_system.sh` ERROR with no stale
+  directory; GUI-scope run generates `QT_NOTICE.txt` in both branches
+  (`unknown` without qmake, `6.4.2` with a stub qmake6); headless runs
+  omit the notice (pinned by the suite).
+- Web suites (untouched code, re-run): command ALL PASSED, validate ALL
+  PASSED, transport ALL PASSED.
+- Wasm glue (scratch stub-DOM harness, real engine behind the fake
+  module): live pane `gifsicle -O3 -j logo.gif -o logo_opt.gif`,
+  `callMain` argv exits 0, output 8703→8637 B with GIF magic, savings +
+  download render, out-of-range lossy refused with the validator's
+  wording. `node --check` on both scripts; `build_wasm.sh --help` rc=0,
+  `--bogus` rc=2, no-emcc rc=1; `prove_wasm.mjs` without `dist/` fails
+  rc=1 naming the build step; all 25 JS-referenced element ids exist in
+  the page.
+- Native oracle for the future proof: `logo.gif` 8703 B → 8637 B under
+  `-O3` (GIF89a, 12 images, 60x132), → 4106 B under `-O3 --resize-fit
+  30x66`.
+- `check_docs.sh` + `sweep_stale.sh` green (S2 stale handoff tally
+  corrected in-session; G10/G15 fixed: base re-synced to `8230247`,
+  hooks bootstrapped). `git status` clean at commit.
+
+**Not verifiable here:**
+
+- CI's verdict on this commit (live workflow manifest change included —
+  needs a `workflows`-scoped push; staged separately at push time).
+- The Emscripten build itself: `./emsdk install latest` fails in this
+  sandbox downloading from `storage.googleapis.com` (TLS EOF; host
+  unreachable, `nodejs.org` likewise), so `build_wasm.sh` never ran
+  green and no `.wasm` bytes exist yet.
+- Real-Qt packaging (windeployqt runtime, `QT_NOTICE.txt` with a true Qt
+  version), the clean-Windows smoke, and the three desktop probes — all
+  need Windows/Qt hardware this sandbox lacks.
+- The `OD-16` licence answer (owner/counsel), and any counsel review of
+  the staged Qt notices.
+
+**Docs touched:** `COMPILED_AUDIT.md` (U-08 narrative + §5 row to FIXED;
+P1-26 + §13 GS-204 counts 32→36), `STATUS.md` (--emit: U-08 DONE;
+hand block: W-08/W-26/W-29/D-07/GS-204), `WORKLIST.md` (S19 section,
+GS-204 count, parked spike, OD answers, wasm note), `SESSION_HANDOFF.md`
+(S19 header/sync/ledger/sections/tally/toolchain), `IMPROVEMENT_LOG.md`,
+`docs/planning/OWNER_DECISIONS.md` (OD-11/OD-12 answers, OD-16),
+`docs/planning/CSHARP_SHELL_PLAN.md` (PARKED + OD-C7),
+`docs/planning/SEQUENTIAL_WORK_HANDOFF.md` (GS-204 count),
+`docs/planning/NEXT_SESSION_PROMPT.md` (S19 refresh), `docs/legal/`
+(WASM_LICENSE_QUESTION.md new; WHY_MSPL.md pointer; README.md state),
+`docs/release/RELEASE_PROCEDURE.md` (blockers four, §4 file list),
+`docs/ci/CLEAN_WINDOWS_SMOKE.md` (CI-artifact asset),
+`docs/ci/DESKTOP_PROBES.md` (new), `README.md` (licence lines, parked
+spike), `LICENSE` (Qt texts pointer), `web/wasm/` (new track).
+
+---
+
 ## S18 — Phase 1 spike GREEN, Phase 2 GO (2026-09-14)
 
 - Run `34804350470`: `csharp-spike` all green, zero skips — happy path,

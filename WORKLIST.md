@@ -74,8 +74,9 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
             postconditions implemented (smoke 40/40, transport 67/67 on Linux); Qt lifecycle
             integration remains. See `docs/planning/SEQUENTIAL_WORK_HANDOFF.md`.
       - [ ] **GS-204** → **P1-26** — **PARTIAL S17:** both packagers share verified fresh staging,
-            explicit targets/headless scope; 30 Linux checks pass. Real Qt/Windows deployment,
-            architecture and clean-machine verification remain; U-08/U-09 are not waived.
+            explicit targets/headless scope; 36 Linux checks pass (30 + 2 Ms-PL cases S18 + 4 Qt LGPL
+            cases S19). Real Qt/Windows deployment, architecture and clean-machine verification remain;
+            the release re-cut blocker is not waived.
       - [ ] **GS-205** → **P1-27** — (Med) non-GIF inputs still admitted via the picker and drop.
       - [ ] **GS-206** → **P1-28** — (Med) `long`→`int` narrowing; no validation for loopcount/threads/gamma/enums.
       - [x] **GS-207** → **P1-29** — **closed S17:** invalid non-empty `GS_ENGINE`
@@ -130,6 +131,8 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - **Language: stay C++17 + Qt6 Widgets through 1.0.0** (already offline,
   portable, CI-verified). Revisit only if a documented trigger fires — then
   spike **Rust + Tauri**. Comparison matrix in the offline review doc.
+  **Reaffirmed S19 (2026-09-14, owner):** the exe stays C++17/Qt6, no
+  rewrite; the C# shell is parked until 1.0.0 ships (`OD-C7 = park`).
 
 ## Current status
 
@@ -281,6 +284,14 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] **License (OD-09 = b, OD-C6):** first-party code relicensed to Ms-PL (`LICENSE` rewritten, `COPYING.ms-pl` added, packagers + CI require it); Caesium base dropped (never incorporated); OD-C1 reference-only superseded.
 - [x] **Legal consolidation:** licence rationale single-sourced into `docs/legal/` (`README.md` index + maintenance contract, `WHY_MSPL.md`, `COPYING_RULES.md`); live docs repointed, history left verbatim.
 - [x] **Next:** Phase 1 spike — GREEN 2026-09-14 (run `34804350470`, all 9 spike steps + publish + published-run success, zero skips). Verdict: Phase 2 GO; CJK criterion corrected to honest-fail per the engine-ACP residual.
+
+### Session S19 (2026-09-14) — exe stays C++/Qt6 (park C#, close U-08) + wasm MVP scaffold (unproven)
+- [x] **Direction (owner):** exe stays C++17/Qt6, no rewrite; C# shell parked (`OD-C7 = park`) until 1.0.0 ships — spike inert, plan `PARKED`, offline-review §4 reinstated.
+- [x] **Licences:** Qt LGPL remainder closed — `COPYING.lgplv3` + `COPYING.gplv3` staged by both packagers, generated `QT_NOTICE.txt` in GUI packages, 36 packaging checks, CI manifest asserts the set (`U-08` DONE, `W-08` re-proved).
+- [x] **Owner answers:** `OD-11 = a` (stay 0.1.0) and `OD-12 = a` (two-way CLI out) executed; `OD-16` added for the wasm in-process licence question (open, blocks shippable).
+- [x] **Desktop evidence docs:** `docs/ci/CLEAN_WINDOWS_SMOKE.md` re-pointed at the CI artifact (the banked snapshot cannot validate the current tree — see the smoke doc); `docs/ci/DESKTOP_PROBES.md` written for the three W-19 probes. Both still await a real Windows run.
+- [x] **Wasm MVP scaffold:** `web/wasm/` (emcc build script, one-screen UI reusing `web/command.mjs` + `web/validate.mjs` verbatim, byte-proof script, staged `COPYING.gifsicle`) — glue proven against the real engine, but no `.wasm` built (no emcc here) and `OD-16` open, so the Node server stays the shipped web path.
+- [x] **Sync:** PR ledger + docs caught up through PR #23 (`8230247`); handoff base re-synced.
 
 ### Session S14 continuation (2026-09-12) — stale-claim sweep, PR preflight, owner-decision register (docs only)
 
@@ -434,7 +445,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
 ## Next actions (ordered)
 
-- [x] **C# shell Phase 1 spike** (per `docs/planning/CSHARP_SHELL_PLAN.md` §4) — GREEN 2026-09-14 (run `34804350470`): console → repo-built gifsicle → GIF verify → honest 0/2/3/4/5 → single-file publish runs stock. é+space passes natively (product previously only Wine-proven); CJK fails honestly, re-proving the engine-ACP residual. Verdict: Phase 2 GO.
+- [x] **C# shell Phase 1 spike** (per `docs/planning/CSHARP_SHELL_PLAN.md` §4) — GREEN 2026-09-14 (run `34804350470`): console → repo-built gifsicle → GIF verify → honest 0/2/3/4/5 → single-file publish runs stock. é+space passes natively (product previously only Wine-proven); CJK fails honestly, re-proving the engine-ACP residual. **PARKED S19 (2026-09-14, owner direction — `OD-C7 = park`):** the exe stays C++17/Qt6, no rewrite; the spike stays CI-run and inert until 1.0.0 ships on the current stack. The S18 "Phase 2 GO" verdict is suspended, not deleted.
 - [ ] **Owner draft:** refit the web plan into `web/WEB_PLAN_TEMPLATE.md` (slot-by-slot; §0
       rules). On that commit do the **one-time flip** — `Template state:` here and the mirror line
       in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it). The 18 intake rows were triaged
@@ -444,10 +455,10 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       matches nothing (how G10 stayed dead for five PRs), R3 flags prose counts that disagree
       with a live measurement, R4 flags lost `+x`, R5 lists the docs the change obliges you to
       update. Then write the outcome into the docs R5 named.
-- [ ] **Owner answers** — `docs/planning/OWNER_DECISIONS.md` `OD-01`…`OD-15` (reply `OD-nn = <letter>`,
-      from that row's own options; `OD-15` runs `a`–`d`).
-      **`OD-01 = a`, `OD-02 = a` (2026-09-12) and `OD-09 = b` (2026-09-14) are answered; the other 12
-      are direction choices the plan can proceed without.
+- [ ] **Owner answers** — `docs/planning/OWNER_DECISIONS.md` `OD-01`…`OD-16` (reply `OD-nn = <letter>`,
+      from that row's own options; `OD-15` runs `a`–`d`; `OD-16` added S19 for the wasm licence question).
+      **`OD-01 = a`, `OD-02 = a` (2026-09-12), `OD-09 = b`, `OD-11 = a` and `OD-12 = a` (2026-09-14) are
+      answered; the other 11 are direction choices the plan can proceed without.
 - [x] **N-07 / P2-15 — closed S17 (2026-09-13):** S2 now checks standalone
       numeric `UNTRIAGED` counts against the generated register, including Markdown
       emphasis/backticks and line wraps. Fourteen isolated regression tests pass;
@@ -481,9 +492,10 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
    drag-drop, B14 engine-missing GUI variant. (S10 note: the offscreen harness
    now covers busy-locking and preview invalidation, but these three still need
    a physical desktop.)
-5. Owner decisions: two-way CLI pane **or** keep one-way forever; version
-   (0.2.0 for the S7 feature set per the minor-bump rule, vs straight 1.0.0
-   once 3+4 are green). Release how-to: `docs/release/RELEASE_PROCEDURE.md`.
+5. Owner decisions — answered S19 (2026-09-14): two-way CLI pane is **out**
+   (`OD-12 = a`, one-way stays through 1.0.0); version stays 0.1.0 for now
+   (`OD-11 = a`, not yet). 0.2.0 remains allowed first per the minor-bump
+   rule. Release how-to: `docs/release/RELEASE_PROCEDURE.md`.
    Audit release criterion: *no Critical/High open, package-negative tests green,
    clean-Windows smoke against the exact tagged SHA.*
 6. The 2 remaining `OPEN` audit findings — **U-09** (release re-cut: needs a
@@ -508,7 +520,9 @@ and deliberately not started until GIF 1.0.0 ships.
 - Optional: logging framework, i18n, dark mode, system tray (see COMPILED_AUDIT S3 P2/P3).
 - **Web (product alternative; server-side chosen S14):** the self-hosted browser UI already
   exists (`web/`); optional client-side `gifsicle.wasm` + web UI
-  (`docs/web/WEB_FEASIBILITY.md` Option 4) remains unbuilt.
+  (`docs/web/WEB_FEASIBILITY.md` Option 4) is scaffolded in `web/wasm/` (S19)
+  but unbuilt and NOT SHIPPABLE until `OD-16` is answered — the Node server
+  stays the shipped web path until then.
 - **Language migration (only if a trigger fires):** Rust + Tauri spike —
   see `docs/planning/OFFLINE_BUILD_REVIEW.md` §4.
 
