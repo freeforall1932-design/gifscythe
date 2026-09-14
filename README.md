@@ -135,7 +135,7 @@ gifscythe/                        (repo root)
   IMPROVEMENT_LOG.md              decision/change log
   FEASIBILITY_REVIEW.md           architecture + gifsicle flag mapping
   COMPILED_AUDIT.md               master audit checklist (start here for reviews)
-  LICENSE / COPYING.gifsicle      license notices (GPLv3 UI intent + GPLv2 engine)
+  LICENSE / COPYING.ms-pl / COPYING.gifsicle   license notices (Ms-PL UI + GPLv2 engine)
   README.md                       this file
   docs/
     audit/REMEDIATION_2026-09-10.md    S8: what was fixed + the executed proof
@@ -154,8 +154,6 @@ gifscythe/                        (repo root)
     gifsicle/                     canonical gifsicle 1.96 source
     gifsicle-nested-1.96/         older alternate variant (reference only)
     gifsicle-upstream/            shallow clone (auto-fetched, gitignored)
-    caesium-source/               Caesium UI source GPLv3 (auto-fetched, gitignored)
-    caesium-bin/                  Caesium Win bundle — portable Qt pattern only (gitignored)
 
   working_code/                   THE PRODUCT — edit & ship this
     gifscythe/                    the app (v0.1.0)
@@ -197,6 +195,6 @@ generates its own copy inside the build tree only (S11, audit U-15).
 **Never call it 1.0.0 until the UI/UX task is done.**
 
 ## License note
-gifsicle remains a **separate subprocess** (GPL v2-only). The UI/control layer
-is intended GPLv3-compatible with the Caesium-derived UX base. See `LICENSE` and
-`COPYING.gifsicle`.
+gifsicle remains a **separate subprocess** (GPL v2-only). The first-party
+UI/control layer is Ms-PL (`LICENSE`, full text `COPYING.ms-pl`); the engine text
+is `COPYING.gifsicle`.
