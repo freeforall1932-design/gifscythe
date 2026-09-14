@@ -4,6 +4,22 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S18 — Phase 1 spike GREEN, Phase 2 GO (2026-09-14)
+
+- Run `34804350470`: `csharp-spike` all green, zero skips — happy path,
+  é+space, honest 0/2/3/4/5 incl. both lying-engine exit-5 cases,
+  self-contained single-file publish runs on the stock runner.
+- The spike's first red was decision-grade, not waste: the combined é+CJK
+  step re-proved the engine-ACP residual (`src/core/WinUnicode.h`) from C#,
+  correcting the plan's own acceptance criterion (CJK now pinned to fail
+  honestly; the step flips red if the residual ever closes).
+- Two CI-harness gotchas, both fixed without touching the C# source (first
+  compile passed untouched): `command -v true` returns the shell builtin,
+  so the lying-engine lookup must use `type -P`; and multi-path
+  `upload-artifact` rooting must never be assumed — `find` the engine.
+- First native-Windows é-path proof anywhere in the repo (U-07's é evidence
+  is Wine-only). Verdict recorded in plan §4: **Phase 2 GO**.
+
 ## S18 — Phase 1 spike scaffolded (csharp/spike/ + CI job) (2026-09-14)
 
 - `csharp/spike/`: net9.0 console, hardcoded optimize-3 settings → argv,
