@@ -432,7 +432,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
 ## Next actions (ordered)
 
-- [ ] **C# shell Phase 1 spike** (per `docs/planning/CSHARP_SHELL_PLAN.md` §4): time-boxed C# console app spawns the repo-built gifsicle, verifies output, publishes self-contained single-file. Proves toolchain + portable promise + non-ASCII-path handling on a real Windows runner. A failing spike is a valid, decision-grade outcome.
+- [ ] **C# shell Phase 1 spike** (per `docs/planning/CSHARP_SHELL_PLAN.md` §4): time-boxed C# console app spawns the repo-built gifsicle, verifies output, publishes self-contained single-file. Proves toolchain + portable promise + non-ASCII-path handling on a real Windows runner. A failing spike is a valid, decision-grade outcome. Owner granted the `workflows` scope 2026-09-14 (S18) — the spike session retries landing the workflow change instead of staging it in `docs/ci/build.yml.proposed`.
 - [ ] **Owner draft:** refit the web plan into `web/WEB_PLAN_TEMPLATE.md` (slot-by-slot; §0
       rules). On that commit do the **one-time flip** — `Template state:` here and the mirror line
       in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it). The 18 intake rows were triaged
