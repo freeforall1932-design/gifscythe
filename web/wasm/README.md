@@ -60,6 +60,17 @@ a reference number, not this script's verdict): `logo.gif` 8703 B goes
 to 8637 B under `-O3` (GIF89a, 12 images, 60x132, loop forever), and to
 4106 B under `-O3 --resize-fit 30x66` (30x66).
 
+## Glue harness (the JS, not the wasm binary)
+
+`node web/wasm/glue_harness.mjs` runs `wasm.js` in Node with a stub DOM
+and a fake engine module that shells out to the real native gifsicle, so
+it needs no emcc output: it proves the live pane renders engine-valid
+argv, the virtual-FS write/`callMain`/read flow round-trips bytes, the
+GIF magic check and savings/download rendering work, and out-of-range
+settings refuse the run. Requires a built engine (`build.sh` first);
+prints `GLUE-HARNESS: PASS` and exits 0 on success. It does not promote
+the track: the wasm binary itself is still unbuilt and `OD-16` unanswered.
+
 ## Serve the page
 
 Any static server rooted at `web/` (the page imports `../command.mjs`,
