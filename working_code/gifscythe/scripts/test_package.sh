@@ -17,6 +17,8 @@ fixture() {
   printf 'license\n' > "$root/LICENSE"
   printf 'engine license\n' > "$root/COPYING.gifsicle"
   printf 'first-party license\n' > "$root/COPYING.ms-pl"
+  printf 'qt lgpl text\n' > "$root/COPYING.lgplv3"
+  printf 'qt gpl companion text\n' > "$root/COPYING.gplv3"
   printf '#!/bin/sh\nexit 0\n' > "$t/build/gifscythe-cli"
   cp "$t/build/gifscythe-cli" "$t/release/0.1.0/gifsicle"
   chmod +x "$t/build/gifscythe-cli" "$t/release/0.1.0/gifsicle"
@@ -31,7 +33,7 @@ echo "==> Packaging negative tests"
 for kind in portable system; do
   folder=Gifscythe; [[ "$kind" == system ]] && folder=Gifscythe-system
   fixture; label="no GUI"; refused
-  for missing in build/gifscythe-cli release/0.1.0/gifsicle ../../LICENSE ../../COPYING.gifsicle ../../COPYING.ms-pl; do
+  for missing in build/gifscythe-cli release/0.1.0/gifsicle ../../LICENSE ../../COPYING.gifsicle ../../COPYING.ms-pl ../../COPYING.lgplv3 ../../COPYING.gplv3; do
     fixture; rm "$t/$missing"; mkdir -p "$out"; echo stale > "$out/STALE"
     label="missing $missing"; refused --engine-cli-only
   done
@@ -43,11 +45,13 @@ for kind in portable system; do
   cp "$t/build/gifscythe-cli" "$t/build/gifscythe"
   if "$t/scripts/package_$kind.sh" --engine-cli-only >"$ROOT/log" 2>&1 \
      && [[ ! -e "$out/STALE" && ! -e "$out/gifscythe" && -s "$out/MANIFEST.txt" ]] \
+     && [[ ! -e "$out/QT_NOTICE.txt" && -s "$out/COPYING.lgplv3" && -s "$out/COPYING.gplv3" ]] \
      && grep -q 'no GUI, by request' "$out/README.txt"; then
     ok "$kind explicit headless excludes even an available GUI and wipes stale files"
   else bad "$kind headless manifest/scope/staging"; fi
   fixture; cp "$t/build/gifscythe-cli" "$t/build/gifscythe"
-  if "$t/scripts/package_$kind.sh" >"$ROOT/log" 2>&1 && [[ -x "$out/gifscythe" ]]; then
+  if "$t/scripts/package_$kind.sh" >"$ROOT/log" 2>&1 && [[ -x "$out/gifscythe" ]] \
+     && [[ -s "$out/QT_NOTICE.txt" && -s "$out/COPYING.lgplv3" && -s "$out/COPYING.gplv3" ]]; then
     ok "$kind complete native GUI fixture stages required files"
   else bad "$kind complete GUI fixture"; fi
   fixture
@@ -94,7 +98,7 @@ if PATH="$TOOLS" "$t/scripts/package_portable.sh" --windows >"$ROOT/log" 2>&1 \
   ok "portable Windows fixture stages only target binaries and asserted runtime entries"
 else bad "portable successful deployer fixture"; fi
 if PATH="$TOOLS" "$t/scripts/package_portable.sh" --windows --engine-cli-only >"$ROOT/log" 2>&1 \
-   && [[ ! -e "$out/gifscythe.exe" && ! -e "$out/Qt6Core.dll" ]]; then
+   && [[ ! -e "$out/gifscythe.exe" && ! -e "$out/Qt6Core.dll" && ! -e "$out/QT_NOTICE.txt" ]]; then
   ok "Windows explicit headless omits GUI and runtime"
 else bad "Windows headless fixture"; fi
 if PATH="$TOOLS" "$t/scripts/package_system.sh" --windows >"$ROOT/log" 2>&1 \

@@ -12,22 +12,23 @@ anything done without evidence).
 ---
 
 
-## Open release-blocking items (as of 2026-09-13, session S17)
+## Open release-blocking items (as of 2026-09-14, session S19)
 
 Historical CI evidence: run `34735692932` on PR #20 merge `2542f1b` passed both jobs.
-PR #21 subsequently merged as `df1dfd5`; re-check the exact candidate SHA's CI rather than
-carrying forward that earlier green result. Release is still **blocked by the items below**. Do not cut a release until they are closed or
+PR #21 merged as `df1dfd5`, PR #22 as `f760ebe`, PR #23 as `8230247`; re-check the exact
+candidate SHA's CI rather than carrying forward any earlier green result. Release is still
+**blocked by the items below**. Do not cut a release until they are closed or
 explicitly waived by the owner.
 
 **S15 triaged the whole intake** (`OD-01 = a`). **S16 closed `GS-201` (P0-5)** — CLI `--run` now
-refuses Batch with no `output` (exit 2) before the engine starts. Five blockers remain; one of
-them is still scheduled as **P0** (`DS-06`→**P0-2**).
+refuses Batch with no `output` (exit 2) before the engine starts. **S19 closed `U-08`**
+(Qt LGPL texts + notice staged, 36 packaging checks, CI manifest asserts the set).
+Four blockers remain; one of them is still scheduled as **P0** (`DS-06`→**P0-2**).
 
 | Item | Why it blocks | Where the task lives |
 |---|---|---|
-| `GS-204` packaging (PARTIAL S17) | local stager/manifest fixes pass 32 checks (30 + 2 required-file cases S18); real Windows/Qt deployment, target architecture and clean-machine proof remain | **P1-26** · `STATUS.md` · `docs/planning/SEQUENTIAL_WORK_HANDOFF.md` |
+| `GS-204` packaging (PARTIAL S17) | local stager/manifest fixes pass 36 checks (30 + 2 required-file cases S18 + 4 Qt LGPL cases S19); real Windows/Qt deployment, target architecture and clean-machine proof remain | **P1-26** · `STATUS.md` · `docs/planning/SEQUENTIAL_WORK_HANDOFF.md` |
 | `GS-208` red main / stale status docs | release evidence must come from a green exact SHA | **P2-7** · `docs/ci/PENDING_WORKFLOW_CHANGE.md` + this file's gate below |
-| `U-08` licence set incomplete | Qt LGPL notices are not staged (Ms-PL text + grant staged S18) | `STATUS.md` row (PARTIAL) · `LICENSE` |
 | `U-09` release re-cut | banked artifact SHA does not match the claimed source | `STATUS.md` row (OPEN) · `docs/ci/CLEAN_WINDOWS_SMOKE.md` |
 | `DS-06` threads sentinel | default conf silently runs 8-way parallel against the documented contract | **P0-2** · `STATUS.md` · §13 |
 
@@ -142,7 +143,9 @@ Every package **must** contain (the portable packager enforces/probes these):
   platform plugin if the harness will run there;
 - licenses: `LICENSE` (first-party notice, Ms-PL) + `COPYING.ms-pl` (full
   Ms-PL text), `COPYING.gifsicle` (engine, GPL v2-only — always shipped next
-  to the engine), `VERSION.md`, `README.md`, generated `README.txt`.
+  to the engine), `COPYING.lgplv3` + `COPYING.gplv3` (Qt LGPLv3 + companion
+  GPLv3 text), generated `QT_NOTICE.txt` in GUI packages, `VERSION.md`,
+  `README.md`, generated `README.txt`.
 
 Zip the folder(s): `gifscythe-<ver>-windows.zip`, `gifscythe-<ver>-linux.zip`.
 Record each zip's **sha256** in the release notes.

@@ -1,4 +1,7 @@
-# csharp/ — the C# shell (Phase 1+)
+# csharp/ — the C# shell (Phase 1+) — PARKED
+
+**PARKED 2026-09-14 (S19, owner direction): no further work until 1.0.0
+ships on C++17/Qt6. This tree stays as-is; the spike stays CI-run.**
 
 Future home of `Gifscythe.Core` (settings/command/validate/output-planning
 port) and the WPF shell. Today it holds only the Phase-1 spike:

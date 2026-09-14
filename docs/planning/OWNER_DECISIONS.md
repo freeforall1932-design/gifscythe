@@ -21,10 +21,10 @@ answers are fine; `OD-14` has two sub-questions and needs both.
 | **OD-06** | Web release artifact | (a) in-repo until 1.0.0 · (b) a separate release artifact now | **a** — desktop stays the 1.0.0 artifact | Deciding whether the web build gets its own release path pre-1.0.0 |
 | **OD-07** | How frozen is the desktop lane | (a) the plan's floor (build-green, tests-green, release-blockers) · (b) a deeper freeze | **a** — correctness-only, not a code freeze | The desktop lane's allowed-change envelope |
 | **OD-08** | Apply `docs/ci/build.yml.proposed` and delete `docs/ci/PENDING_WORKFLOW_CHANGE.md` | (a) apply + delete the marker · (b) leave pending | **a** — needs a `workflows`-scoped token | Returning gates **E9**/**G7** to byte-equality enforcement |
-| **OD-09** | First-party licence | (a) GPLv3 + Qt LGPL notices staged, legal review before 1.0.0 · (b) other | **b** — Ms-PL relicense executed S18 (`OD-09 = b`); Qt LGPL notices still open | Closing the `U-08` licence-set remainder |
+| **OD-09** | First-party licence | (a) GPLv3 + Qt LGPL notices staged, legal review before 1.0.0 · (b) other | **b** — Ms-PL relicense executed S18 (`OD-09 = b`); Qt LGPL notices staged S19 (`U-08` closed) | Closing the `U-08` licence-set remainder |
 | **OD-10** | Release re-cut | (a) re-cut from one reviewed SHA after the blockers · (b) re-cut now | **a** | `U-09` (the banked snapshot predates S7) |
-| **OD-11** | Bump to 1.0.0 | (a) not yet · (b) bump now | **a** — gates + decisions still open | Version stays 0.1.0 until the release criteria are met |
-| **OD-12** | Two-way CLI settings in 1.0.0 | (a) out · (b) in | **a** — the live pane stays honest one-way | Keeping the one-way CLI pane unchanged through 1.0.0 |
+| **OD-11** | Bump to 1.0.0 | (a) not yet · (b) bump now | **a** — answered by the owner 2026-09-14 (S19): stays 0.1.0 until the release criteria are met | Version stays 0.1.0 until the release criteria are met |
+| **OD-12** | Two-way CLI settings in 1.0.0 | (a) out · (b) in | **a** — answered by the owner 2026-09-14 (S19): the live pane stays honest one-way through 1.0.0 | Keeping the one-way CLI pane unchanged through 1.0.0 |
 | **OD-13** | Threads contract (`<0` / `0` / `>0`) | (a) yes, restore the sentinel · (b) leave as-is | **a** — `DS-06`'s tri-state fix | The `threads` sentinel semantics (`DS-06`/`DS-07`) |
 | **OD-14** | Disposal 4..7 + settings whitespace | (a) fix disposal 4..7 · (b) document settings quoting | **a** for disposal, **b** for settings whitespace | `DS-10` (unreachable disposal values) and `DS-12` (whitespace round-trip) |
 | **OD-15** | SkillOpt: how to incorporate | (a) pinned git submodule, quarantined · (b) vendored pinned copy · (c) venv/pip wrapper · (d) skip | **a** — see `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` | The first in-repo SkillOpt experiment (the doc-sweep skill) |
@@ -56,10 +56,30 @@ answers are fine; `OD-14` has two sub-questions and needs both.
   both packagers + CI manifest require it, Caesium base dropped (it was never
   incorporated). Closes the U-08 remainder except Qt LGPL notices.
   Rationale: `docs/legal/WHY_MSPL.md`; copying rules: `docs/legal/COPYING_RULES.md`.
+- **`OD-11` = a** (2026-09-14) — stay 0.1.0; the 1.0.0 bump waits for the
+  release criteria (clean-Windows smoke, desktop probes, no open
+  Critical/High). **Executed S19 (2026-09-14):** recorded here and in
+  `STATUS.md` row `W-29` (stays OPEN — the decision defers the bump, it
+  does not perform it); no version file touched.
+- **`OD-12` = a** (2026-09-14) — two-way CLI settings are out for 1.0.0;
+  the live pane stays honest one-way. **Executed S19 (2026-09-14):**
+  `STATUS.md` row `W-26` closed (DONE); no code change — the UI already
+  states one-way explicitly.
 
-**`OD-01` executed S15 (2026-09-13); `OD-02` executed S16 (2026-09-13); `OD-09` executed S18 (2026-09-14).** The
+**`OD-01` executed S15 (2026-09-13); `OD-02` executed S16 (2026-09-13); `OD-09` executed S18 (2026-09-14); `OD-11` + `OD-12` executed S19 (2026-09-14).** The
 triage of all 18 rows landed in S15. The `GS-201` stop-loss (**P0-5**) landed in
-S16. Remaining owner questions are **OD-03…OD-08, OD-10…OD-15** (OD-09 answered S18).
+S16. Remaining owner questions are **OD-03…OD-08, OD-10, OD-13…OD-16**
+(`OD-09` answered S18; `OD-11`/`OD-12` answered S19; `OD-16` added S19).
+
+## Questions added after S14
+
+The table above is the S14 set of 15 (that count is history, not a limit).
+New questions land here, in the same shape, answered in the same
+`OD-nn = <letter>` form.
+
+| ID | Question | Options | Recommended | Unblocks |
+|----|----------|---------|-------------|----------|
+| **OD-16** | May the `web/wasm/` build ship with the GPLv2 engine in-process with the Ms-PL UI? (Question: `docs/legal/WASM_LICENSE_QUESTION.md`) | (a) no — wasm stays experimental/unshipped · (b) yes, on counsel-approved terms · (c) other (owner states terms) | **a** until counsel answers — the FSF lists Ms-PL as GPL-incompatible, and MVP scope does not shrink an in-process question | Calling `web/wasm/` shippable; `D-07` cannot close before this lands |
 
 ## Notes
 

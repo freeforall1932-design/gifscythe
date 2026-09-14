@@ -78,6 +78,17 @@ auditable.
   of this folder. Deliberately hard: licence churn is worse than either
   licence.
 
+## WASM note (S19 — a different boundary, tracked separately)
+
+Everything above reasons about a **subprocess** engine boundary (desktop
+GUI/CLI, Node web server). The experimental `web/wasm/` track compiles
+the engine in-process, where that boundary does not exist — so this
+file's reasoning does not cover it. The Ms-PL/GPLv2 in-process question
+is tracked in `docs/legal/WASM_LICENSE_QUESTION.md` and decided by
+`OD-16` (`docs/planning/OWNER_DECISIONS.md`); the wasm track is not
+shippable until that answer lands. This section is a pointer, not a
+second rationale.
+
 ## Verification appendix (S18)
 
 - Copyright-header sweep over shipped code: no foreign headers.
