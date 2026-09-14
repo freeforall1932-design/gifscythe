@@ -277,7 +277,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
 ### Session S18 (2026-09-14) — C# shell plan, Phase 0 decided (docs only)
 - [x] **Plan:** `docs/planning/CSHARP_SHELL_PLAN.md` is a `WORKING PLAN` — a WPF shell driving the unchanged gifsicle subprocess, parity-tested against the C++ CLI.
-- [x] **Decisions:** OD-C1 = a (fork reference-only, MS-PL stays out of the tree), OD-C2 = c (phased: sidecar through Phase 2, commit at Phase 3), OD-C3 = a (no recorder; XNConvert-style converter+compressor, APNG/WebP promoted to planned, video strictly as a conversion endpoint, ezgif-class editing later), OD-C4 = a (WPF), OD-C5 = a (archive Qt GUI at cutover; C++ CLI stays as parity oracle).
+- [x] **Decisions:** OD-C1 = a (fork reference-only, MS-PL stays out of the tree), OD-C2 = c (phased: sidecar through Phase 2, commit at Phase 3), OD-C3 = a (no recorder; XNConvert-style converter+compressor, APNG/WebP promoted to planned, stills (photo collections) and video strictly as conversion endpoints, ezgif-class editing later), OD-C4 = a (WPF), OD-C5 = a (archive Qt GUI at cutover; C++ CLI stays as parity oracle).
 - [ ] **Next:** Phase 1 spike (time-boxed C# console → gifsicle → verify → single-file publish; needs a Windows runner — that proof is not obtainable in this sandbox).
 
 ### Session S14 continuation (2026-09-12) — stale-claim sweep, PR preflight, owner-decision register (docs only)

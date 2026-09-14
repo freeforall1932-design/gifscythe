@@ -98,7 +98,8 @@ alone would have passed straight through both skipped syncs.
 
 - **Plan:** `docs/planning/CSHARP_SHELL_PLAN.md` is `WORKING PLAN` — a WPF shell over the unchanged gifsicle subprocess. Decisions OD-C1 = a, OD-C2 = c, OD-C3 = a, OD-C4 = a, OD-C5 = a (record + rationale in the plan's §8).
 - **Next:** Phase 1 spike on a Windows runner (dotnet publish + non-ASCII-path proof). The Qt GUI remains the shippable path until the Phase 3 commit point — S18 changed no code, CI, or the release line.
-- **Watch-outs for the spike session:** the fork stays reference-only (no file copies); the `PROJECT_VISION.md` mission amendment lands before any video-endpoint work.
+- **Watch-outs for the spike session:** the fork stays reference-only (no file copies); the `PROJECT_VISION.md` mission amendment lands before any stills-import or video-endpoint work.
+- **Scope addendum (same day):** still-image collections (JPG/PNG) → animated with global+per-frame timing is planned scope (plan §2.1 item 3); the mission amendment now covers photos too.
 
 ## S17 sequential high-confidence work (2026-09-13)
 
