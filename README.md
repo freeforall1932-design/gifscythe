@@ -4,7 +4,7 @@
 **Status:** Engine + control layer + CLI + GUI shippable as pre-release.
 P0/P1 silent-failure and honesty fixes landed 2026-09-07 and were **verified
 with evidence the same day** (audit §6: CLI/unit/engine/smoke green, offscreen
-GUI harness green, Windows engine+CLI proven under Wine). The **XNConvert-style
+GUI harness green, Windows engine+CLI exercised under Wine — emulation signal, not Windows proof). The **XNConvert-style
 UI retrofit (S4b)** landed the same day: Input/Actions/Output tabs, ~30
 engine-truth controls, debounced async before/after preview, batch output
 folder. **Windows CI green and merged 2026-09-07** (PR #5 → `0ad1ff5`; main
@@ -135,7 +135,8 @@ gifscythe/                        (repo root)
   IMPROVEMENT_LOG.md              decision/change log
   FEASIBILITY_REVIEW.md           architecture + gifsicle flag mapping
   COMPILED_AUDIT.md               master audit checklist (start here for reviews)
-  LICENSE / COPYING.ms-pl / COPYING.gifsicle   license notices (Ms-PL UI + GPLv2 engine)
+  LICENSE / COPYING.ms-pl / COPYING.gifsicle / COPYING.lgplv3 / COPYING.gplv3
+                                           license notices (Ms-PL UI + GPLv2 engine + LGPLv3 Qt)
   README.md                       this file
   docs/
     audit/REMEDIATION_2026-09-10.md    S8: what was fixed + the executed proof
@@ -150,8 +151,8 @@ gifscythe/                        (repo root)
   web/                             web app (product alternative) + JS⇄C++ parity suites
     WEB_PLAN_TEMPLATE.md           web-surface plan template (split rules, phases, slots)
 
-  csharp/                          C# shell (spike now; Core + WPF per the C# plan)
-    spike/                         Phase-1 spike (throwaway-allowed; CI-run)
+  csharp/                          C# shell — PARKED S19 until 1.0.0 ships on C++/Qt6
+    spike/                         Phase-1 spike (throwaway-allowed; CI-run; inert)
 
   reference_code/                 SOURCE MATERIAL — do not edit, do not ship
     gifsicle/                     canonical gifsicle 1.96 source
@@ -200,4 +201,5 @@ generates its own copy inside the build tree only (S11, audit U-15).
 ## License note
 gifsicle remains a **separate subprocess** (GPL v2-only). The first-party
 UI/control layer is Ms-PL (`LICENSE`, full text `COPYING.ms-pl`); the engine text
-is `COPYING.gifsicle`.
+is `COPYING.gifsicle`; Qt is LGPLv3 (`COPYING.lgplv3` + companion `COPYING.gplv3`,
+plus a generated `QT_NOTICE.txt` in GUI packages).

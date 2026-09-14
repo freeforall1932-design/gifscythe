@@ -4,9 +4,13 @@
 no MinGW, no dev tools** — the last unverified promise of the portable vision
 (audit §6.D). Status: **OPEN** (nothing here has been executed yet).
 
-**Asset:** `gifscythe-windows.zip`
-- Preferred source: GitHub Release `snapshot-2026-09-07` (does not expire).
-- Alternate: Actions run artifact (`gifscythe-windows`, retention 14 days).
+**Asset:** the `gifscythe-windows` artifact of a green CI run on `main`
+(retention 14 days — record the run id and the built commit in the
+evidence; the run must be green on both jobs). Do NOT use GitHub Release
+`snapshot-2026-09-07` for this smoke: that zip predates S7 while its notes
+pin a newer SHA (audit U-09, still OPEN) — a pass against it cannot
+validate the current tree. A re-cut release (fix-order P0-4) becomes the
+preferred asset once it exists.
 - Contents: `build/` (static `gifscythe-cli.exe`, tests), `build-win/`
   (`gifscythe.exe` + windeployqt runtime + `gifsicle.exe` staged beside it),
   `release/` (engine exes).
@@ -16,9 +20,11 @@ no MinGW, no dev tools** — the last unverified promise of the portable vision
 1. **Prepare the machine.** Clean Windows 10/11 VM or PC (or fresh user
    profile): no Qt, no MinGW/MSYS, no Visual Studio, no prior Gifscythe runs.
    Note OS build (`winver`) for the evidence record.
-2. **Fetch + verify.** Download `gifscythe-windows.zip`; record its sha256.
-   Unzip to `C:\gifscythe-test\` (no spaces; optional second pass later with
-   a spaced path to re-probe argv quoting, audit A4/W).
+2. **Fetch + verify.** From the chosen green run, download the
+   `gifscythe-windows` artifact; record the run id, the built commit, and
+   the zip sha256. Unzip to `C:\gifscythe-test\` (no spaces; optional
+   second pass later with a spaced path to re-probe argv quoting,
+   audit A4/W).
 3. **Engine identity (C5 recall).** In `cmd.exe`:
    `cd C:\gifscythe-test\build-win && gifsicle.exe --version`
    → expect first line `LCDF Gifsicle 1.96 (Windows)`.
@@ -41,8 +47,10 @@ no MinGW, no dev tools** — the last unverified promise of the portable vision
    - Add the test GIF → Optimize GIF → completes; output written; preview
      pane animates before/after.
    - Tabs (Input/Actions/Output) responsive; command pane updates live.
-6. **Record evidence.** Machine/OS build, zip sha256, screenshots or copied
-   console output for steps 3–5. Then tick in `COMPILED_AUDIT.md` §6.D:
+6. **Record evidence.** Machine/OS build, CI run id + built commit, zip
+   sha256, screenshots or copied console output for steps 3–5. Then run the
+   three real-desktop probes (`docs/ci/DESKTOP_PROBES.md`) on this same
+   build while the machine is still clean. Then tick in `COMPILED_AUDIT.md` §6.D:
    C4, D3, D4 (and note D1/D2 re-confirm if desired), plus an
    `IMPROVEMENT_LOG.md` line. Only then is the portable-Windows promise
    fully evidenced.
