@@ -45,6 +45,10 @@ clean-Windows smoke + desktop probes; `OD-16`; blockers
 - `test_package.sh` re-run **36 passed, 0 failed** (packager untouched,
   stager still green); `check_docs.sh` + `sweep_stale.sh` green;
   `review_change.sh` on the range clean. `git status` clean at commit.
+- Post-push, same session: Windows CI run `34812043127` green (linux +
+  windows + spike; new package/assert steps green on a real runner;
+  artifacts confirm no Linux upload). `GS-204` proof updated, still
+  PARTIAL — architecture checks and clean-machine proof remain.
 
 **Not verifiable here:**
 
