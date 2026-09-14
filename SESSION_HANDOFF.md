@@ -37,7 +37,8 @@ Inspect that content at every new-session start.)*
   list — `OD-15` runs `a`–`d`, and `OD-14` has two sub-questions so it needs two
   letters). **`OD-01 = a` executed S15** (18 intake rows mapped into §6).
   **`OD-02 = a` executed S16** (CLI `--run` refuses Batch with no `output`,
-  exit 2). The rest (`OD-03`…`OD-15`) are direction choices the plan can
+  exit 2). **`OD-09 = b` executed S18** (UI relicensed to Ms-PL). The rest
+  (`OD-03`…`OD-08`, `OD-10`…`OD-15`) are direction choices the plan can
   proceed without.
 - **SkillOpt ask:** `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` — verified facts,
   the three non-negotiable conditions, the four shapes, and open questions Q1–Q4.
@@ -93,6 +94,18 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, and
 `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
 alone would have passed straight through both skipped syncs.
+
+## S18 — C# shell plan, Phase 0 decided (2026-09-14)
+
+- **Plan:** `docs/planning/CSHARP_SHELL_PLAN.md` is `WORKING PLAN` — a WPF shell over the unchanged gifsicle subprocess. Decisions OD-C1 = a, OD-C2 = c, OD-C3 = a, OD-C4 = a, OD-C5 = a (record + rationale in the plan's §8).
+- **Next:** Phase 1 spike on a Windows runner (dotnet publish + non-ASCII-path proof). The Qt GUI remains the shippable path until the Phase 3 commit point — S18 changed no code, CI, or the release line.
+- **Watch-outs for the spike session:** the fork stays reference-only (no file copies); the `PROJECT_VISION.md` mission amendment lands before any stills-import or video-endpoint work.
+- **Scope addendum (same day):** still-image collections (JPG/PNG) → animated with global+per-frame timing is planned scope (plan §2.1 item 3); the mission amendment now covers photos too.
+- **Workflows scope granted + verified (same day):** owner granted the permission and the relicense commit pushed a live `build.yml` change successfully — workflow edits are unblocked (`docs/ci/PENDING_WORKFLOW_CHANGE.md` still tracks the 1-line cygpath drift).
+- **Relicense (same day):** UI is now Ms-PL (`OD-09 = b`, `OD-C6`); Caesium base dropped; packagers + CI manifest require `COPYING.ms-pl`.
+- **Spike scaffolded (same day):** `csharp/spike/` (console + honest exit codes 0/2/3/4/5) + `csharp-spike` CI job in live and proposed `build.yml`; first run pending, outcome recorded below.
+- **Spike GREEN (same day, run `34804350470`):** all 9 spike steps + publish + published-run success, zero skips. Happy path, é+space, honest 0/2/3/4/5, single-file exe runs stock. CJK re-proved the engine-ACP residual (fails honestly by design). Verdict: **Phase 2 GO** — next session starts the Core port (§5) or opens the PR.
+- **Legal consolidation (same day):** licence story single-sourced into `docs/legal/` — point there instead of quoting it.
 
 ## S17 sequential high-confidence work (2026-09-13)
 
@@ -504,7 +517,7 @@ only stick if they are in files a new session reads, not in a conversation.
   provenance record and gets updated with evidence (never the code trees).
 - Do not bump to `1.0.0` before the UI/UX gates + owner decision.
 - Do not add WebP/APNG before the GIF UI is stable.
-- Keep gifsicle as a **subprocess** (GPL v2-only engine vs GPLv3 UI).
+- Keep gifsicle as a **subprocess** (GPL v2-only engine vs Ms-PL UI).
 - Do **not** "fix" `--loopcount=0`, `-O0`, crop `+` form, or gamma sentinel —
   verified correct.
 - Live CLI pane stays honest **one-way** (until the owner decides otherwise).

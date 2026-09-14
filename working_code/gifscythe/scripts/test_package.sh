@@ -16,6 +16,7 @@ fixture() {
   printf 'product\n' > "$t/README.md"
   printf 'license\n' > "$root/LICENSE"
   printf 'engine license\n' > "$root/COPYING.gifsicle"
+  printf 'first-party license\n' > "$root/COPYING.ms-pl"
   printf '#!/bin/sh\nexit 0\n' > "$t/build/gifscythe-cli"
   cp "$t/build/gifscythe-cli" "$t/release/0.1.0/gifsicle"
   chmod +x "$t/build/gifscythe-cli" "$t/release/0.1.0/gifsicle"
@@ -30,7 +31,7 @@ echo "==> Packaging negative tests"
 for kind in portable system; do
   folder=Gifscythe; [[ "$kind" == system ]] && folder=Gifscythe-system
   fixture; label="no GUI"; refused
-  for missing in build/gifscythe-cli release/0.1.0/gifsicle ../../LICENSE ../../COPYING.gifsicle; do
+  for missing in build/gifscythe-cli release/0.1.0/gifsicle ../../LICENSE ../../COPYING.gifsicle ../../COPYING.ms-pl; do
     fixture; rm "$t/$missing"; mkdir -p "$out"; echo stale > "$out/STALE"
     label="missing $missing"; refused --engine-cli-only
   done

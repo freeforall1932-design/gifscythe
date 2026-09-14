@@ -162,7 +162,7 @@ Roughly: **days for a usable MVP (GIF-only GUI shell over gifsicle); weeks to ad
 
 GPL **v2-only code is not compatible with GPL v3 code** in the same program — you can't just merge them. Therefore:
 
-- **Clean path (recommended): keep gifsicle as a separate process.** Your GUI shells out to `gifsicle.exe`. Your GUI can be GPL v3 (with Caesium) and gifsicle stays a GPL v2 executable you ship alongside; you comply with gifsicle's distribution terms by providing its source and the license text. No license conflict, no permission needed.
+- **Clean path (recommended): keep gifsicle as a separate process.** Your GUI shells out to `gifsicle.exe`. Your GUI can be GPL v3 (with Caesium) and gifsicle stays a GPL v2 executable you ship alongside; you comply with gifsicle's distribution terms by providing its source and the license text. No license conflict, no permission needed. *(Superseded S18: UI relicensed to Ms-PL, `OD-09 = b`; Caesium base dropped — the subprocess design itself is unchanged.)*
 - **If you link gifsicle C code into a single binary:** you either (a) open-sourcing the whole thing still won't fix v2-only ⊕ v3-onward (v2-only can't be combined into v3 at all — the "v3" file would be incompatible), so you'd need to **contact Eddie Kohler** for permission / a GPL v3 grant under gifsicle's alternative-license clause, or (b) build **your own** re-encoding in libwebp/libpng for the APNG/WebP side and keep the GIF side purely as a subprocess.
 
 This is the one genuine *legal* constraint on ask #1 and #4. If you plan to distribute a closed-source app, you **must** use the subprocess approach (or get written permission). If you're open-sourcing under GPLv3 but still want gifsicle linked in, you need the author's OK because of v2-only.

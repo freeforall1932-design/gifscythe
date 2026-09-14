@@ -1,6 +1,6 @@
 # Pending workflow change — needs a token with the `workflows` scope
 
-**Status:** ⏳ waiting on a maintainer with the `workflows` scope (rewritten 2026-09-12, session S14).
+**Status:** ✅ scope granted AND verified 2026-09-14 (S18) — the `build.yml` change in commit `161e862` pushed successfully, so workflow edits are unblocked. This marker stays for the remaining 1-line cygpath drift (delete it only in the commit that applies THAT fix, per its own rule). (Rewritten 2026-09-12, session S14.)
 
 `.github/workflows/build.yml` and `docs/ci/build.yml.proposed` currently
 **differ on purpose**. The CI bot token used for these branches has no

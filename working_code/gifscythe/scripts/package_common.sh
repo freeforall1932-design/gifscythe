@@ -68,6 +68,7 @@ copy_required VERSION.md "$self/VERSION.md"
 copy_required README.md "$self/README.md"
 copy_required LICENSE "$repo_root/LICENSE" "$repo_root/COPYING"
 copy_required COPYING.gifsicle "$repo_root/COPYING.gifsicle" "$repo_root/reference_code/gifsicle/COPYING"
+copy_required COPYING.ms-pl "$repo_root/COPYING.ms-pl"
 runtime="Qt runtime is not bundled on this target; GUI requires system Qt6."
 if [[ "$package_kind" == portable && "$windows" == 1 && "$engine_cli_only" == 0 ]]; then
   runtime="Qt runtime deployed by windeployqt; clean-Windows smoke is still required."
@@ -77,7 +78,7 @@ Gifscythe $version — $package_kind package
 Contents: $scope
 $runtime
 Run gifscythe-cli for the command-line interface; GUI is present only in GUI packages.
-gifsicle is GPL v2-only — see COPYING.gifsicle. See LICENSE for the first-party notice.
+gifsicle is GPL v2-only — see COPYING.gifsicle. First-party code is Ms-PL — see LICENSE and COPYING.ms-pl.
 EOF
 required+=(README.txt)
 printf '%s\n' "${required[@]}" > "$stage/MANIFEST.txt"

@@ -275,6 +275,13 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       content-vs-token (never auto-edit). Template stays **SKELETON**. Rule 6
       written in the three files a new session reads. No PR until yes.
 
+### Session S18 (2026-09-14) — C# shell plan, Phase 0 decided (docs only)
+- [x] **Plan:** `docs/planning/CSHARP_SHELL_PLAN.md` is a `WORKING PLAN` — a WPF shell driving the unchanged gifsicle subprocess, parity-tested against the C++ CLI.
+- [x] **Decisions:** OD-C1 = a (fork reference-only, MS-PL stays out of the tree), OD-C2 = c (phased: sidecar through Phase 2, commit at Phase 3), OD-C3 = a (no recorder; XNConvert-style converter+compressor, APNG/WebP promoted to planned, stills (photo collections) and video strictly as conversion endpoints, ezgif-class editing later), OD-C4 = a (WPF), OD-C5 = a (archive Qt GUI at cutover; C++ CLI stays as parity oracle).
+- [x] **License (OD-09 = b, OD-C6):** first-party code relicensed to Ms-PL (`LICENSE` rewritten, `COPYING.ms-pl` added, packagers + CI require it); Caesium base dropped (never incorporated); OD-C1 reference-only superseded.
+- [x] **Legal consolidation:** licence rationale single-sourced into `docs/legal/` (`README.md` index + maintenance contract, `WHY_MSPL.md`, `COPYING_RULES.md`); live docs repointed, history left verbatim.
+- [x] **Next:** Phase 1 spike — GREEN 2026-09-14 (run `34804350470`, all 9 spike steps + publish + published-run success, zero skips). Verdict: Phase 2 GO; CJK criterion corrected to honest-fail per the engine-ACP residual.
+
 ### Session S14 continuation (2026-09-12) — stale-claim sweep, PR preflight, owner-decision register (docs only)
 
 - [x] **Stale-claim sweep:** `scripts/sweep_stale.sh` (rules **S1–S5**, each mutation-tested) +
@@ -427,6 +434,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
 ## Next actions (ordered)
 
+- [x] **C# shell Phase 1 spike** (per `docs/planning/CSHARP_SHELL_PLAN.md` §4) — GREEN 2026-09-14 (run `34804350470`): console → repo-built gifsicle → GIF verify → honest 0/2/3/4/5 → single-file publish runs stock. é+space passes natively (product previously only Wine-proven); CJK fails honestly, re-proving the engine-ACP residual. Verdict: Phase 2 GO.
 - [ ] **Owner draft:** refit the web plan into `web/WEB_PLAN_TEMPLATE.md` (slot-by-slot; §0
       rules). On that commit do the **one-time flip** — `Template state:` here and the mirror line
       in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it). The 18 intake rows were triaged
@@ -438,8 +446,8 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       update. Then write the outcome into the docs R5 named.
 - [ ] **Owner answers** — `docs/planning/OWNER_DECISIONS.md` `OD-01`…`OD-15` (reply `OD-nn = <letter>`,
       from that row's own options; `OD-15` runs `a`–`d`).
-      **`OD-01 = a` and `OD-02 = a` are answered** (2026-09-12); the other 13 are direction
-      choices the plan can proceed without.
+      **`OD-01 = a`, `OD-02 = a` (2026-09-12) and `OD-09 = b` (2026-09-14) are answered; the other 12
+      are direction choices the plan can proceed without.
 - [x] **N-07 / P2-15 — closed S17 (2026-09-13):** S2 now checks standalone
       numeric `UNTRIAGED` counts against the generated register, including Markdown
       emphasis/backticks and line wraps. Fourteen isolated regression tests pass;
@@ -534,7 +542,7 @@ node web/test/transport.test.mjs   # live-server transport net (63 check groups 
 - Bump to 1.0.0 as a placeholder.
 - Add WebP/APNG before GIF UI is stable.
 - “Fix” `--loopcount=0`, `-O0`, crop plus-form, or gamma sentinel (verified correct).
-- Link gifsicle into the GUI binary (keep subprocess for GPL v2-only vs GPLv3).
+- Link gifsicle into the GUI binary (keep subprocess for GPL v2-only vs Ms-PL).
 - Edit `reference_code/` (read-only).
 - Hand-edit the generated block in `STATUS.md` — run `check_docs.sh --emit`.
 - Push, open or merge a PR with a red `check_docs.sh`, or bypass the pre-push

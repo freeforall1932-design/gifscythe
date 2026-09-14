@@ -25,9 +25,9 @@ them is still scheduled as **P0** (`DS-06`→**P0-2**).
 
 | Item | Why it blocks | Where the task lives |
 |---|---|---|
-| `GS-204` packaging (PARTIAL S17) | local stager/manifest fixes pass 30 checks; real Windows/Qt deployment, target architecture and clean-machine proof remain | **P1-26** · `STATUS.md` · `docs/planning/SEQUENTIAL_WORK_HANDOFF.md` |
+| `GS-204` packaging (PARTIAL S17) | local stager/manifest fixes pass 32 checks (30 + 2 required-file cases S18); real Windows/Qt deployment, target architecture and clean-machine proof remain | **P1-26** · `STATUS.md` · `docs/planning/SEQUENTIAL_WORK_HANDOFF.md` |
 | `GS-208` red main / stale status docs | release evidence must come from a green exact SHA | **P2-7** · `docs/ci/PENDING_WORKFLOW_CHANGE.md` + this file's gate below |
-| `U-08` licence set incomplete | GPLv3 text and Qt notices are not staged | `STATUS.md` row (PARTIAL) · `LICENSE` |
+| `U-08` licence set incomplete | Qt LGPL notices are not staged (Ms-PL text + grant staged S18) | `STATUS.md` row (PARTIAL) · `LICENSE` |
 | `U-09` release re-cut | banked artifact SHA does not match the claimed source | `STATUS.md` row (OPEN) · `docs/ci/CLEAN_WINDOWS_SMOKE.md` |
 | `DS-06` threads sentinel | default conf silently runs 8-way parallel against the documented contract | **P0-2** · `STATUS.md` · §13 |
 
@@ -140,9 +140,9 @@ Every package **must** contain (the portable packager enforces/probes these):
 - `gifscythe-cli` and (when Qt was present) the `gifscythe` GUI;
 - on Windows: the `windeployqt` runtime for the GUI **and** the offscreen
   platform plugin if the harness will run there;
-- licenses: `LICENSE` (UI, GPLv3 intent), `COPYING.gifsicle` (engine, GPL
-  v2-only — always shipped next to the engine), `VERSION.md`, `README.md`,
-  generated `README.txt`.
+- licenses: `LICENSE` (first-party notice, Ms-PL) + `COPYING.ms-pl` (full
+  Ms-PL text), `COPYING.gifsicle` (engine, GPL v2-only — always shipped next
+  to the engine), `VERSION.md`, `README.md`, generated `README.txt`.
 
 Zip the folder(s): `gifscythe-<ver>-windows.zip`, `gifscythe-<ver>-linux.zip`.
 Record each zip's **sha256** in the release notes.
