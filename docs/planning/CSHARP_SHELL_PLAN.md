@@ -193,12 +193,14 @@ Smallest possible proof: a C# console app that builds one argv from a
 hardcoded settings object, spawns the repo-built `gifsicle`, verifies the
 output GIF signature, and publishes as a self-contained single file.
 Success criteria: runs on stock Windows with no SDK/runtime installed,
-Unicode path (`é`, CJK — the U-07 case) passes, exit codes honest
+`é` path passes and CJK fails honestly (rc≠0 — the engine-ACP residual in
+`src/core/WinUnicode.h`, re-proven from C#, not a shell bug), exit codes honest
 (engine-missing ≠ engine-failed ≠ invalid-output).
 **Spike failing is a valid outcome** — it would re-confirm the C++ decision
 with evidence instead of opinion.
-**Status S18:** scaffolded (`csharp/spike/` + `csharp-spike` CI job); first run
-pending — outcome lands here and in the log.
+**Status S18:** scaffolded; first runs red on the combined é+CJK step, which
+re-proved the engine-ACP residual from C# — criterion split (é passes, CJK
+fails honestly), rerun pending; final outcome lands here and in the log.
 
 ### Phase 2 — `Gifscythe.Core` port (the careful phase)
 

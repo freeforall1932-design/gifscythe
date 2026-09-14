@@ -15,9 +15,11 @@ Exit codes (all honest — non-zero unless a verified GIF was produced):
 | 5 | engine exited 0 but output is missing/empty/not a GIF |
 
 Run by the `csharp-spike` CI job (`.github/workflows/build.yml`): happy path,
-Unicode + space paths, every failure code (the exit-5 cases use `true` as a
+é + space paths, every failure code (the exit-5 cases use `true` as a
 lying engine that exits 0 without writing), then a self-contained single-file
-publish that must be one `.exe` and must run.
+publish that must be one `.exe` and must run. CJK paths fail honestly
+(rc≠0) — the engine-ACP residual documented in `src/core/WinUnicode.h`,
+not a shell bug.
 
 Deliberately not here (Phase 2+): settings parsing, validation, batch
 planning, naming templates, engine discovery, full output verification.
