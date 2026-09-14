@@ -75,7 +75,7 @@ jobs:
           version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' VERSION.md \
             | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
           pkg="release/$version/Gifscythe"
-          for f in gifsicle gifscythe-cli gifscythe LICENSE COPYING.gifsicle COPYING.ms-pl README.txt; do
+          for f in gifsicle gifscythe-cli gifscythe LICENSE COPYING.gifsicle COPYING.ms-pl COPYING.lgplv3 COPYING.gplv3 QT_NOTICE.txt README.txt; do
             if [[ ! -s "$pkg/$f" ]]; then
               echo "FAIL: $pkg/$f is missing or empty" >&2
               ls -la "$pkg" >&2 || true
