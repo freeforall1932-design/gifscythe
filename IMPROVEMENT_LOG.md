@@ -4,6 +4,30 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S18 follow-up — stills-to-animated scope + mission-amendment fix (2026-09-14)
+
+**Changed:**
+
+- Owner confirmed video↔animated endpoints (already plan §2.1) and asked for still-image collections (JPG/PNG) → GIF/APNG/WebP with a speed control plus per-frame timing — the phone-app GIF-maker flow, ezgif-maker-class (global "Delay time" + per-frame "Delay" in 1/100 s, matching the existing `delay_cs` units). Recorded as plan §2.1 item 3; video endpoints shift to item 4, editing to item 5.
+- Fixed the mission-amendment wording the owner quoted back: it must cover photos too — *"photos and video only as conversion endpoints/inputs, never as the subject."* Still gated: no stills-import or video-endpoint code until `PROJECT_VISION.md` is amended.
+- Engine note recorded: gifsicle reads GIF inputs only (vendored man page), so stills need a decode step — folded into the same FFmpeg-sidecar-or-platform-codecs TBD as video.
+
+**Partial:** none — planning only, no code.
+
+**Left:** unchanged from the S18 entry below (Phase 1 spike needs a Windows runner; vision amendment due before endpoint work).
+
+**Verified:**
+
+- `working_code/gifscythe/scripts/check_docs.sh --emit` re-run (register unchanged), then `check_docs.sh --no-gate-run` green with zero failures; `scripts/sweep_stale.sh` clean. New doc text kept gate-safe (existing repo paths only, no runtime counts, no audit-ID checkboxes).
+
+**Not verifiable here:**
+
+- CI's verdict on this commit (not yet pushed at write time); the spike still needs Windows.
+
+**Docs touched:** `docs/planning/CSHARP_SHELL_PLAN.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`.
+
+---
+
 ## S18 — C# shell plan: Phase 0 decided, plan is WORKING (2026-09-14)
 
 **Changed:**

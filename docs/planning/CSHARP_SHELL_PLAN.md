@@ -111,20 +111,32 @@ with **ezgif-like richness**. Planned product scope, in ship order:
 1. **GIF MVP** (Phases 1–4): optimizer/compressor at Qt-GUI parity.
 2. **APNG + WebP** (promoted from bucket-list to planned): same
    converter/compressor treatment as GIF, after the GIF shell ships.
-3. **Video ↔ animated-picture conversion**: video formats allowed strictly
+3. **Still-image collections → animated** (ezgif-maker-class, owner request
+   2026-09-14): build GIF/APNG/WebP from a set of stills (JPG/PNG/etc.)
+   with a global speed control plus per-frame delay editing and frame
+   reorder — the phone-app "GIF maker" flow (e.g. ezgif's maker: global
+   "Delay time" + per-frame "Delay" inputs in 1/100 s units, the same units
+   as the existing `delay_cs` setting). Global speed maps to delay scaling;
+   per-frame timing maps to a delay list; both land as verifiable engine
+   argv. Engine note: gifsicle reads **GIF inputs only** (its man page:
+   "command line consists of GIF input files and options"), so stills need
+   a decode step first — same TBD as item 4 (FFmpeg sidecar candidate,
+   or platform codecs feeding single-frame GIFs into a gifsicle merge).
+4. **Video ↔ animated-picture conversion**: video formats allowed strictly
    as **conversion endpoints** (video→GIF/APNG/WebP import, animated→video
    export). No video editing, no timeline, no capture — the product's
    subject stays animated pictures. Engine story TBD (likely an FFmpeg
    sidecar subprocess, same argv/subprocess pattern; needs its own
    feasibility + license note — FFmpeg is LGPL/GPL depending on build).
-4. **Editing features** (ezgif-class: crop/resize/rotate/reverse/text-style
+5. **Editing features** (ezgif-class: crop/resize/rotate/reverse/text-style
    frame ops): after conversion/compression is solid; each op lands as a
    verifiable engine argv, same honesty bar.
 
 **Mission-amendment note:** `PROJECT_VISION.md` currently says "Not photos,
-not video." Item 3 narrows that to *"video only as a conversion endpoint,
-never as the subject."* The vision doc must be amended (with this rationale)
-before any video-endpoint work starts — no code until the words change.
+not video." Items 3–4 narrow that to *"photos and video only as conversion
+endpoints/inputs, never as the subject."* The vision doc must be amended
+(with this rationale) before any stills-import or video-endpoint work starts
+— no code until the words change.
 
 **Hard constraints carried over:** portable/no-installer/no-admin,
 Windows-first, animated-images-only, live one-way command pane, argv
