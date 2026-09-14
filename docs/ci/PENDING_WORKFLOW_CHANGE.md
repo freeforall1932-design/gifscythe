@@ -1,6 +1,6 @@
 # Pending workflow change — needs a token with the `workflows` scope
 
-**Status:** ✅ scope granted 2026-09-14 (S18) — owner granted the `workflows` permission; **retry the push next session** (the C# spike session needs it for its CI job). This marker stays until the retry succeeds: if the push is still rejected, restore the ⏳ status with the new rejection text instead of deleting this file. (Rewritten 2026-09-12, session S14; status updated S18.)
+**Status:** ✅ scope granted AND verified 2026-09-14 (S18) — the `build.yml` change in commit `161e862` pushed successfully, so workflow edits are unblocked. This marker stays for the remaining 1-line cygpath drift (delete it only in the commit that applies THAT fix, per its own rule). (Rewritten 2026-09-12, session S14.)
 
 `.github/workflows/build.yml` and `docs/ci/build.yml.proposed` currently
 **differ on purpose**. The CI bot token used for these branches has no
