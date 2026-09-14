@@ -281,17 +281,12 @@ jobs:
       - name: Build spike
         run: dotnet build csharp/spike/spike.csproj -c Release
 
-      - name: Run spike cases
+      - name: Spike stage files
         run: |
           set -euo pipefail
-          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' working_code/gifscythe/VERSION.md \
-            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-          engine="spike-deps/working_code/gifscythe/release/$version/gifsicle.exe"
-          if [[ ! -s "$engine" ]]; then
-            echo "FAIL: no engine at $engine" >&2
-            find spike-deps -maxdepth 5 | head -n 30 >&2 || true
-            exit 1
-          fi
+          # Never assume the artifact layout: find the engine wherever it rooted.
+          engine=$(find spike-deps -name 'gifsicle.exe' -print -quit)
+          [[ -n "$engine" && -s "$engine" ]] || { echo "FAIL: engine not in artifact" >&2; find spike-deps -maxdepth 6 >&2 || true; exit 1; }
           exe="csharp/spike/bin/Release/net9.0/gifscythe-spike.exe"
           [[ -x "$exe" ]] || { echo "FAIL: spike exe missing: $exe" >&2; exit 1; }
           work="$RUNNER_TEMP/spike"
@@ -299,38 +294,103 @@ jobs:
           cp reference_code/gifsicle/logo.gif "$work/plain/in.gif"
           cp reference_code/gifsicle/logo1.gif "$work/vacación/résumé_日本語.gif"
           printf 'not a gif\n' > "$work/plain/bad.gif"
+          echo "SPIKE_ENGINE=$PWD/$engine" >> "$GITHUB_ENV"
+          echo "SPIKE_EXE=$PWD/$exe" >> "$GITHUB_ENV"
+          echo "SPIKE_WORK=$work" >> "$GITHUB_ENV"
+          ls -la "$work/plain" "$work/vacación"
+          echo "staged: engine=$engine exe=$exe"
 
-          expect() { # expect <rc> <cmd...>: exact-code assertion (set -e safe)
-            local want="$1"; shift
-            set +e
-            "$@" >"$work/last.log" 2>&1
-            local got=$?
-            set -e
-            if [[ "$got" != "$want" ]]; then
-              echo "FAIL: want rc=$want got rc=$got: $*" >&2
-              cat "$work/last.log" >&2
-              exit 1
-            fi
-            echo "ok: rc=$got :: $*"
-          }
+      - name: Spike happy path is rc 0
+        run: |
+          set -euo pipefail
+          set +e
+          "$SPIKE_EXE" "$SPIKE_ENGINE" "$SPIKE_WORK/plain/in.gif" "$SPIKE_WORK/plain/out.gif" >"$SPIKE_WORK/happy.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/happy.log"
+          [[ "$rc" == 0 ]] || { echo "FAIL: want rc=0 got rc=$rc" >&2; exit 1; }
+          [[ -s "$SPIKE_WORK/plain/out.gif" ]] || { echo "FAIL: out.gif missing/empty" >&2; exit 1; }
+          echo OK
 
-          expect 0 "$exe" "$engine" "$work/plain/in.gif" "$work/plain/out.gif"
-          [[ -s "$work/plain/out.gif" ]]
-          expect 0 "$exe" "$engine" "$work/vacación/résumé_日本語.gif" "$work/vacación/salida_O3.gif"
-          expect 2 "$exe"
-          expect 2 "$exe" "$engine" "$work/plain/nope.gif" "$work/plain/x.gif"
-          [[ ! -e "$work/plain/x.gif" ]]  # usage error starts no engine
-          expect 3 "$exe" "$work/nope.exe" "$work/plain/in.gif" "$work/plain/y.gif"
-          [[ ! -e "$work/plain/y.gif" ]]  # missing engine writes nothing
-          expect 4 "$exe" "$engine" "$work/plain/bad.gif" "$work/plain/z.gif"
-          # Lying engines (U-17 class): exit 0 without writing must be rc=5,
-          # never success. Git-bash true(1) via a real Windows path.
-          trueexe="$(cygpath -w "$(command -v true)")"
-          [[ -x "$trueexe" ]] || { echo "FAIL: no true.exe" >&2; exit 1; }
-          expect 5 "$exe" "$trueexe" "$work/plain/in.gif" "$work/plain/ghost.gif"
-          printf 'junk-bytes' > "$work/plain/stale.gif"
-          expect 5 "$exe" "$trueexe" "$work/plain/in.gif" "$work/plain/stale.gif"
-          echo "spike cases OK"
+      - name: Spike unicode paths are rc 0
+        run: |
+          set -euo pipefail
+          set +e
+          "$SPIKE_EXE" "$SPIKE_ENGINE" "$SPIKE_WORK/vacación/résumé_日本語.gif" "$SPIKE_WORK/vacación/salida_O3.gif" >"$SPIKE_WORK/unicode.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/unicode.log"
+          [[ "$rc" == 0 ]] || { echo "FAIL: want rc=0 got rc=$rc" >&2; exit 1; }
+          [[ -s "$SPIKE_WORK/vacación/salida_O3.gif" ]] || { echo "FAIL: unicode out missing/empty" >&2; exit 1; }
+          echo OK
+
+      - name: Spike usage errors are rc 2
+        run: |
+          set -euo pipefail
+          set +e
+          "$SPIKE_EXE" >"$SPIKE_WORK/usage.log" 2>&1; rc1=$?
+          "$SPIKE_EXE" "$SPIKE_ENGINE" "$SPIKE_WORK/plain/nope.gif" "$SPIKE_WORK/plain/x.gif" >>"$SPIKE_WORK/usage.log" 2>&1; rc2=$?
+          set -e
+          cat "$SPIKE_WORK/usage.log"
+          [[ "$rc1" == 2 ]] || { echo "FAIL: no-args want rc=2 got $rc1" >&2; exit 1; }
+          [[ "$rc2" == 2 ]] || { echo "FAIL: missing-input want rc=2 got $rc2" >&2; exit 1; }
+          [[ ! -e "$SPIKE_WORK/plain/x.gif" ]] || { echo "FAIL: usage error wrote output" >&2; exit 1; }
+          echo OK
+
+      - name: Spike missing engine is rc 3
+        run: |
+          set -euo pipefail
+          set +e
+          "$SPIKE_EXE" "$SPIKE_WORK/nope.exe" "$SPIKE_WORK/plain/in.gif" "$SPIKE_WORK/plain/y.gif" >"$SPIKE_WORK/rc3.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/rc3.log"
+          [[ "$rc" == 3 ]] || { echo "FAIL: want rc=3 got rc=$rc" >&2; exit 1; }
+          [[ ! -e "$SPIKE_WORK/plain/y.gif" ]] || { echo "FAIL: missing engine wrote output" >&2; exit 1; }
+          echo OK
+
+      - name: Spike bad input is rc 4
+        run: |
+          set -euo pipefail
+          set +e
+          "$SPIKE_EXE" "$SPIKE_ENGINE" "$SPIKE_WORK/plain/bad.gif" "$SPIKE_WORK/plain/z.gif" >"$SPIKE_WORK/rc4.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/rc4.log"
+          [[ "$rc" == 4 ]] || { echo "FAIL: want rc=4 got rc=$rc" >&2; exit 1; }
+          echo OK
+
+      - name: Spike lying engine without output is rc 5
+        run: |
+          set -euo pipefail
+          # command -v finds the shell builtin; type -P forces a PATH search.
+          tpath="$(type -P true || true)"
+          [[ -n "$tpath" ]] || tpath=/usr/bin/true.exe
+          trueexe="$(cygpath -w "$tpath")"
+          [[ -x "$trueexe" ]] || { echo "FAIL: no runnable true.exe (tried $tpath)" >&2; exit 1; }
+          set +e
+          "$SPIKE_EXE" "$trueexe" "$SPIKE_WORK/plain/in.gif" "$SPIKE_WORK/plain/ghost.gif" >"$SPIKE_WORK/rc5a.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/rc5a.log"
+          [[ "$rc" == 5 ]] || { echo "FAIL: want rc=5 got rc=$rc" >&2; exit 1; }
+          echo OK
+
+      - name: Spike lying engine over stale output is rc 5
+        run: |
+          set -euo pipefail
+          tpath="$(type -P true || true)"
+          [[ -n "$tpath" ]] || tpath=/usr/bin/true.exe
+          trueexe="$(cygpath -w "$tpath")"
+          [[ -x "$trueexe" ]] || { echo "FAIL: no runnable true.exe (tried $tpath)" >&2; exit 1; }
+          printf 'junk-bytes' > "$SPIKE_WORK/plain/stale.gif"
+          set +e
+          "$SPIKE_EXE" "$trueexe" "$SPIKE_WORK/plain/in.gif" "$SPIKE_WORK/plain/stale.gif" >"$SPIKE_WORK/rc5b.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/rc5b.log"
+          [[ "$rc" == 5 ]] || { echo "FAIL: want rc=5 got rc=$rc" >&2; exit 1; }
+          echo OK
 
       - name: Publish self-contained single file
         run: |
@@ -350,10 +410,10 @@ jobs:
           work="$RUNNER_TEMP/spike-published"
           rm -rf "$work"; mkdir -p "$work"
           cp reference_code/gifsicle/logo.gif "$work/in.gif"
-          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' working_code/gifscythe/VERSION.md \
-            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          engine=$(find spike-deps -name 'gifsicle.exe' -print -quit)
+          [[ -n "$engine" && -s "$engine" ]] || { echo "FAIL: engine not in artifact" >&2; exit 1; }
           csharp/spike/publish/gifscythe-spike.exe \
-            "spike-deps/working_code/gifscythe/release/$version/gifsicle.exe" \
+            "$PWD/$engine" \
             "$work/in.gif" "$work/out.gif"
           [[ -s "$work/out.gif" ]]
           echo "published exe runs OK"
