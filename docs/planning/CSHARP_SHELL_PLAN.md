@@ -198,9 +198,14 @@ Success criteria: runs on stock Windows with no SDK/runtime installed,
 (engine-missing ≠ engine-failed ≠ invalid-output).
 **Spike failing is a valid outcome** — it would re-confirm the C++ decision
 with evidence instead of opinion.
-**Status S18:** scaffolded; first runs red on the combined é+CJK step, which
-re-proved the engine-ACP residual from C# — criterion split (é passes, CJK
-fails honestly), rerun pending; final outcome lands here and in the log.
+**Status S18: GREEN — Phase 2 GO.** Run `34804350470` (2026-09-14): all 9
+spike steps + single-file publish + published-exe run succeeded, zero skips.
+Happy path rc=0, é+space rc=0 (first native-Windows é proof — the product's
+own U-07 é evidence is Wine-only), CJK fails honestly per the engine-ACP
+residual, exit codes 0/2/3/4/5 all exact, one self-contained exe runs stock.
+First red runs were CI-harness bugs (`command -v` returning the `true`
+builtin; assumed artifact layout), not C# bugs — fixed without touching the
+spike source, whose first compile passed untouched.
 
 ### Phase 2 — `Gifscythe.Core` port (the careful phase)
 

@@ -104,6 +104,7 @@ alone would have passed straight through both skipped syncs.
 - **Workflows scope granted + verified (same day):** owner granted the permission and the relicense commit pushed a live `build.yml` change successfully — workflow edits are unblocked (`docs/ci/PENDING_WORKFLOW_CHANGE.md` still tracks the 1-line cygpath drift).
 - **Relicense (same day):** UI is now Ms-PL (`OD-09 = b`, `OD-C6`); Caesium base dropped; packagers + CI manifest require `COPYING.ms-pl`.
 - **Spike scaffolded (same day):** `csharp/spike/` (console + honest exit codes 0/2/3/4/5) + `csharp-spike` CI job in live and proposed `build.yml`; first run pending, outcome recorded below.
+- **Spike GREEN (same day, run `34804350470`):** all 9 spike steps + publish + published-run success, zero skips. Happy path, é+space, honest 0/2/3/4/5, single-file exe runs stock. CJK re-proved the engine-ACP residual (fails honestly by design). Verdict: **Phase 2 GO** — next session starts the Core port (§5) or opens the PR.
 - **Legal consolidation (same day):** licence story single-sourced into `docs/legal/` — point there instead of quoting it.
 
 ## S17 sequential high-confidence work (2026-09-13)

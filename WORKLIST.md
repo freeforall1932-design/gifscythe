@@ -280,7 +280,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] **Decisions:** OD-C1 = a (fork reference-only, MS-PL stays out of the tree), OD-C2 = c (phased: sidecar through Phase 2, commit at Phase 3), OD-C3 = a (no recorder; XNConvert-style converter+compressor, APNG/WebP promoted to planned, stills (photo collections) and video strictly as conversion endpoints, ezgif-class editing later), OD-C4 = a (WPF), OD-C5 = a (archive Qt GUI at cutover; C++ CLI stays as parity oracle).
 - [x] **License (OD-09 = b, OD-C6):** first-party code relicensed to Ms-PL (`LICENSE` rewritten, `COPYING.ms-pl` added, packagers + CI require it); Caesium base dropped (never incorporated); OD-C1 reference-only superseded.
 - [x] **Legal consolidation:** licence rationale single-sourced into `docs/legal/` (`README.md` index + maintenance contract, `WHY_MSPL.md`, `COPYING_RULES.md`); live docs repointed, history left verbatim.
-- [ ] **Next:** Phase 1 spike (time-boxed C# console → gifsicle → verify → single-file publish; needs a Windows runner — that proof is not obtainable in this sandbox).
+- [x] **Next:** Phase 1 spike — GREEN 2026-09-14 (run `34804350470`, all 9 spike steps + publish + published-run success, zero skips). Verdict: Phase 2 GO; CJK criterion corrected to honest-fail per the engine-ACP residual.
 
 ### Session S14 continuation (2026-09-12) — stale-claim sweep, PR preflight, owner-decision register (docs only)
 
@@ -434,7 +434,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
 ## Next actions (ordered)
 
-- [ ] **C# shell Phase 1 spike** (per `docs/planning/CSHARP_SHELL_PLAN.md` §4): time-boxed C# console app spawns the repo-built gifsicle, verifies output, publishes self-contained single-file. Proves toolchain + portable promise + non-ASCII-path handling on a real Windows runner. A failing spike is a valid, decision-grade outcome. Owner granted the `workflows` scope 2026-09-14 (S18), verified by a live `build.yml` push the same day — land the spike's CI job directly.
+- [x] **C# shell Phase 1 spike** (per `docs/planning/CSHARP_SHELL_PLAN.md` §4) — GREEN 2026-09-14 (run `34804350470`): console → repo-built gifsicle → GIF verify → honest 0/2/3/4/5 → single-file publish runs stock. é+space passes natively (product previously only Wine-proven); CJK fails honestly, re-proving the engine-ACP residual. Verdict: Phase 2 GO.
 - [ ] **Owner draft:** refit the web plan into `web/WEB_PLAN_TEMPLATE.md` (slot-by-slot; §0
       rules). On that commit do the **one-time flip** — `Template state:` here and the mirror line
       in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it). The 18 intake rows were triaged
