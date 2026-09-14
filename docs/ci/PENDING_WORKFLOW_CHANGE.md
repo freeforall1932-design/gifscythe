@@ -59,7 +59,8 @@ live `.github/workflows/build.yml` (linux job, immediately after `CLI smoke test
 runs execute). S14 verified that directly, so this marker no longer describes a *missing step*.
 
 What the two copies actually differ by now is **one line** — the Windows E2E smoke's temp-path
-fallback (`.github/workflows/build.yml` line 178):
+fallback (`.github/workflows/build.yml` line 171; was 178 before the S20
+upload-step removal shifted it):
 
 | Copy | Line reads | Effect |
 |---|---|---|

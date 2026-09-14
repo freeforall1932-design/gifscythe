@@ -111,17 +111,21 @@ Also verify before packaging:
 3. Sanity: `./build/gifscythe-cli` banner and the GUI window title (harness
    T1 asserts the title contains `GS_VERSION`) both show the new version.
 
-## 3. CI build (both OSes)
+## 3. CI build (Windows ships, Linux tests)
 
 Push the branch/PR and wait for **both** GitHub Actions jobs green
-(`.github/workflows/build.yml`):
+(`.github/workflows/build.yml`) — windows is the shippable, linux is the
+automated battery (OD-17: the product is Windows-only, so the linux job
+uploads nothing):
 
 - **linux** — engine, CLI, unit tests, engine/CLI smoke, GUI offscreen
-  harness, portable package; uploads artifact `gifscythe-linux`.
+  harness, portable package + negatives + manifest assert over the shared
+  stager. Ships nothing.
 - **windows** — MinGW engine (`win32cfg.h` recipe), static-linked CLI/tests,
   native E2E smoke (spaces in paths + honest exit codes), GUI via CMake+Ninja,
-  `windeployqt` runtime, engine staged beside the GUI; uploads artifact
-  `gifscythe-windows`.
+  `windeployqt` runtime, engine staged beside the GUI, portable package +
+  manifest assert; uploads artifact `gifscythe-windows` (the staged package
+  rides inside `release/`).
 
 Record the run numbers/IDs in the release notes (evidence rule).
 
@@ -147,7 +151,8 @@ Every package **must** contain (the portable packager enforces/probes these):
   GPLv3 text), generated `QT_NOTICE.txt` in GUI packages, `VERSION.md`,
   `README.md`, generated `README.txt`.
 
-Zip the folder(s): `gifscythe-<ver>-windows.zip`, `gifscythe-<ver>-linux.zip`.
+Zip the folder: `gifscythe-<ver>-windows.zip` (OD-17: the product is
+Windows-only — there is no Linux ship).
 Record each zip's **sha256** in the release notes.
 
 ## 5. Publish (GitHub)

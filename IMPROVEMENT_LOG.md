@@ -4,6 +4,65 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S20 — Windows-only product, Linux demoted to test rig (2026-09-14)
+
+**Changed:**
+
+- Direction (owner, `OD-17 = a`): the shipped product is Windows-only
+  (exe) + web app. Linux stays as the CI job and sandbox scripts — the
+  automated test battery — and ships nothing. The Linux release zip and
+  the `gifscythe-linux` CI upload are deleted; the top README no longer
+  presents Wine emulation as Windows proof.
+- CI (`build.yml` live + proposed, identical — the 1-line cygpath drift
+  is untouched): the linux job keeps build/test/package/assert and drops
+  its upload step; the windows job gains `package_portable.sh --windows`
+  plus a manifest assert over the staged `.exe` set + licence texts
+  (the shipped folder rides to `gifscythe-windows` inside `release/`).
+  The negatives suite stays on Linux: its tools-dir uses symlinks, which
+  stock Windows runners cannot create — porting it is follow-up work for
+  a Windows-iterated session, not this one.
+- Release: `RELEASE_PROCEDURE.md` releases only
+  `gifscythe-<ver>-windows.zip`; CI §3 re-titled (Windows ships, Linux
+  tests); the pending-marker's drift line number corrected 178→171 (the
+  step removal shifted it; the drift itself is unchanged).
+
+**Partial:** the new Windows packaging steps have never run — no Windows
+exists in this loop, so the first green is pending CI observation after
+the push (`GS-204` stays PARTIAL regardless; clean-machine proof and
+architecture checks still need the equipped agent).
+
+**Left:** observe the Windows CI green (or fix what it finds); port the
+negatives suite to Windows runners (symlink-free tools dir); the
+clean-Windows smoke + desktop probes; `OD-16`; blockers
+`GS-204`/`GS-208`/`U-09`/`DS-06`.
+
+**Verified:**
+
+- `diff` of the two workflow copies shows only the cygpath line; the new
+  steps' indentation shape matches the proven Linux assert block
+  line-for-line (no YAML parser in this sandbox, so structural mirroring
+  + `git diff` review instead).
+- `test_package.sh` re-run **36 passed, 0 failed** (packager untouched,
+  stager still green); `check_docs.sh` + `sweep_stale.sh` green;
+  `review_change.sh` on the range clean. `git status` clean at commit.
+
+**Not verifiable here:**
+
+- The Windows CI verdict on this commit (new steps never executed on a
+  real runner; this sandbox is Linux-only).
+- Everything S19 already listed: clean-Windows smoke, desktop probes,
+  real-Qt packaging proof, the `OD-16` answer.
+
+**Docs touched:** `docs/planning/OWNER_DECISIONS.md` (OD-17),
+`docs/release/RELEASE_PROCEDURE.md` (windows-only release),
+`.github/workflows/build.yml` + `docs/ci/build.yml.proposed` (linux
+upload dropped, Windows packaging gates),
+`docs/ci/PENDING_WORKFLOW_CHANGE.md` (drift line number),
+`docs/ci/README.md` (artifact list), `README.md` (Wine reframe),
+`STATUS.md` (--emit stamp; W-06/W-07 notes), `WORKLIST.md` (W-07 box),
+`SESSION_HANDOFF.md` (S20), `IMPROVEMENT_LOG.md`,
+`docs/planning/NEXT_SESSION_PROMPT.md` (S20 refresh).
+
 ## S19 — exe stays C++/Qt6 (park C#, close U-08) + wasm MVP scaffold, unproven (2026-09-14)
 
 **Changed:**

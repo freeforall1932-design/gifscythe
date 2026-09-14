@@ -1,12 +1,12 @@
 # Next-session prompt (copy-paste hand-off)
 
-Paste the block below into a fresh session to pick up post-S19 work
+Paste the block below into a fresh session to pick up post-S20 work
 fast. Everything it references lives in this repo.
 
 ---
 
 ```
-CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S19.
+CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S20.
 
 1. RECOVERY (run these, in order, from the repo root):
    working_code/gifscythe/scripts/bootstrap_hooks.sh      # if G15 says core.hooksPath != .githooks
@@ -30,7 +30,7 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S19.
    S18 (merged PR #23): Ms-PL relicense + C# plan + spike GREEN — then S19 PARKED
    the C# shell (OD-C7, exe stays C++17/Qt6), closed U-08 (Qt LGPL staged,
    packaging 36/36), answered OD-11 = a / OD-12 = a, and scaffolded web/wasm/
-   (UNPROVEN: no emcc here; OD-16 licence question open, blocks shippable).
+   (UNPROVEN: no emcc here; OD-16 licence question open, blocks shippable). S20 (OD-17): windows-only ship — linux zip + CI upload dropped, Windows job gained the packaging + manifest gates (first green pending at push).
    GS-203/U-06, release blockers GS-204/GS-208/U-09/DS-06, and the Windows
    smoke + desktop probes remain unresolved.
 
@@ -44,9 +44,9 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S19.
    (A submodule [recommended] / B vendored / C venv wrapper / D skip).
    Await OD-15 first. Do not vendor, submodule or pip-install before that answer.
 
-4. DECISION BACKLOG: docs/planning/OWNER_DECISIONS.md (OD-01..OD-16). Answer in
+4. DECISION BACKLOG: docs/planning/OWNER_DECISIONS.md (OD-01..OD-17). Answer in
    the form "OD-nn = <letter>" from that row's own options (OD-15 is a–d).
-   OD-01 = a, OD-02 = a, OD-09 = b, OD-11 = a, OD-12 = a are already executed.
+   OD-01 = a, OD-02 = a, OD-09 = b, OD-11 = a, OD-12 = a, OD-17 = a are already executed.
    Remaining: OD-03…OD-08, OD-10, OD-13…OD-16 (OD-16 blocks web/wasm shippable).
 
 5. STANDING CONSTRAINTS: HARD RULE — commit every edit/write/delete into the

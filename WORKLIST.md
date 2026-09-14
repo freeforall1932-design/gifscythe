@@ -143,7 +143,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] CLI driver + unit tests + integration smoke (`smoke_cli.sh`)
 - [x] Qt6 GUI MVP scaffold (Batch default, mode combo, async run, queue, DnD)
 - [x] Portable and system-dependent packaging scripts (`.exe` probe + licenses)
-- [x] Linux GitHub Actions path with Qt6 + artifacts (recipe present)
+- [x] Linux GitHub Actions path with Qt6 (test battery; ships nothing since S20/OD-17)
 - [x] Root LICENSE / COPYING.gifsicle / `.gitignore` / `.gitattributes`
 
 ### Review remediation (implemented 2026-09-07 — re-verify via §6)

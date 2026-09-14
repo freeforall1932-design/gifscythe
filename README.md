@@ -4,7 +4,7 @@
 **Status:** Engine + control layer + CLI + GUI shippable as pre-release.
 P0/P1 silent-failure and honesty fixes landed 2026-09-07 and were **verified
 with evidence the same day** (audit §6: CLI/unit/engine/smoke green, offscreen
-GUI harness green, Windows engine+CLI proven under Wine). The **XNConvert-style
+GUI harness green, Windows engine+CLI exercised under Wine — emulation signal, not Windows proof). The **XNConvert-style
 UI retrofit (S4b)** landed the same day: Input/Actions/Output tabs, ~30
 engine-truth controls, debounced async before/after preview, batch output
 folder. **Windows CI green and merged 2026-09-07** (PR #5 → `0ad1ff5`; main
