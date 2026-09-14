@@ -197,6 +197,8 @@ Unicode path (`é`, CJK — the U-07 case) passes, exit codes honest
 (engine-missing ≠ engine-failed ≠ invalid-output).
 **Spike failing is a valid outcome** — it would re-confirm the C++ decision
 with evidence instead of opinion.
+**Status S18:** scaffolded (`csharp/spike/` + `csharp-spike` CI job); first run
+pending — outcome lands here and in the log.
 
 ### Phase 2 — `Gifscythe.Core` port (the careful phase)
 

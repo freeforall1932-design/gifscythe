@@ -254,3 +254,113 @@ jobs:
             working_code/gifscythe/build/
             working_code/gifscythe/build-win/
             working_code/gifscythe/release/
+
+  csharp-spike:
+    # Phase 1 spike (S18): proves the dotnet toolchain, honest subprocess
+    # semantics and self-contained single-file publish on real Windows.
+    # Failing here is a valid, decision-grade outcome (see the C# plan).
+    runs-on: windows-latest
+    needs: windows
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Fetch Windows engine artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: gifscythe-windows
+          path: spike-deps
+
+      - name: Build spike
+        run: dotnet build csharp/spike/spike.csproj -c Release
+
+      - name: Run spike cases
+        run: |
+          set -euo pipefail
+          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' working_code/gifscythe/VERSION.md \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          engine="spike-deps/working_code/gifscythe/release/$version/gifsicle.exe"
+          if [[ ! -s "$engine" ]]; then
+            echo "FAIL: no engine at $engine" >&2
+            find spike-deps -maxdepth 5 | head -n 30 >&2 || true
+            exit 1
+          fi
+          exe="csharp/spike/bin/Release/net9.0/gifscythe-spike.exe"
+          [[ -x "$exe" ]] || { echo "FAIL: spike exe missing: $exe" >&2; exit 1; }
+          work="$RUNNER_TEMP/spike"
+          rm -rf "$work"; mkdir -p "$work/plain" "$work/vacación"
+          cp reference_code/gifsicle/logo.gif "$work/plain/in.gif"
+          cp reference_code/gifsicle/logo1.gif "$work/vacación/résumé_日本語.gif"
+          printf 'not a gif\n' > "$work/plain/bad.gif"
+
+          expect() { # expect <rc> <cmd...>: exact-code assertion (set -e safe)
+            local want="$1"; shift
+            set +e
+            "$@" >"$work/last.log" 2>&1
+            local got=$?
+            set -e
+            if [[ "$got" != "$want" ]]; then
+              echo "FAIL: want rc=$want got rc=$got: $*" >&2
+              cat "$work/last.log" >&2
+              exit 1
+            fi
+            echo "ok: rc=$got :: $*"
+          }
+
+          expect 0 "$exe" "$engine" "$work/plain/in.gif" "$work/plain/out.gif"
+          [[ -s "$work/plain/out.gif" ]]
+          expect 0 "$exe" "$engine" "$work/vacación/résumé_日本語.gif" "$work/vacación/salida_O3.gif"
+          expect 2 "$exe"
+          expect 2 "$exe" "$engine" "$work/plain/nope.gif" "$work/plain/x.gif"
+          [[ ! -e "$work/plain/x.gif" ]]  # usage error starts no engine
+          expect 3 "$exe" "$work/nope.exe" "$work/plain/in.gif" "$work/plain/y.gif"
+          [[ ! -e "$work/plain/y.gif" ]]  # missing engine writes nothing
+          expect 4 "$exe" "$engine" "$work/plain/bad.gif" "$work/plain/z.gif"
+          # Lying engines (U-17 class): exit 0 without writing must be rc=5,
+          # never success. Git-bash true(1) via a real Windows path.
+          trueexe="$(cygpath -w "$(command -v true)")"
+          [[ -x "$trueexe" ]] || { echo "FAIL: no true.exe" >&2; exit 1; }
+          expect 5 "$exe" "$trueexe" "$work/plain/in.gif" "$work/plain/ghost.gif"
+          printf 'junk-bytes' > "$work/plain/stale.gif"
+          expect 5 "$exe" "$trueexe" "$work/plain/in.gif" "$work/plain/stale.gif"
+          echo "spike cases OK"
+
+      - name: Publish self-contained single file
+        run: |
+          set -euo pipefail
+          dotnet publish csharp/spike/spike.csproj -c Release -r win-x64 \
+            --self-contained -p:PublishSingleFile=true -o csharp/spike/publish
+          ls -la csharp/spike/publish
+          exes=$(ls csharp/spike/publish/*.exe | wc -l | tr -d ' ')
+          [[ "$exes" == 1 ]] || { echo "FAIL: want 1 exe, found $exes" >&2; exit 1; }
+          size=$(stat -c%s csharp/spike/publish/gifscythe-spike.exe)
+          [[ "$size" -ge 5000000 ]] || { echo "FAIL: exe too small for self-contained ($size B)" >&2; exit 1; }
+          echo "single-file exe OK ($size bytes)"
+
+      - name: Run published exe
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/spike-published"
+          rm -rf "$work"; mkdir -p "$work"
+          cp reference_code/gifsicle/logo.gif "$work/in.gif"
+          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' working_code/gifscythe/VERSION.md \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          csharp/spike/publish/gifscythe-spike.exe \
+            "spike-deps/working_code/gifscythe/release/$version/gifsicle.exe" \
+            "$work/in.gif" "$work/out.gif"
+          [[ -s "$work/out.gif" ]]
+          echo "published exe runs OK"
+
+      - name: Upload spike artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gifscythe-spike
+          retention-days: 14
+          path: csharp/spike/publish/
