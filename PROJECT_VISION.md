@@ -80,12 +80,13 @@ want the full gifsicle terminal control underneath.
 - **Feature-richness of eZgif** for GIF-style options + a "Convert / other"
   branch (convert between formats, explode, merge, reorder frames, and so on).
 
-## UI approach (owner decision)
-- Use **Caesium's UI/UX files as the base** — **not** a full copy/paste.
-- Reuse their **open-source / public** icon and style assets; Caesium has no
-  exclusive trademark on those (the XNConvert-style modeling applies, **logo
-  excluded**).
-- Model the layout/feel on **XNConvert** for ease of use.
+## UI approach (owner decision — Caesium base dropped S18, `OD-09 = b`)
+- **No Caesium base.** The Caesium UI/UX files were never incorporated — nothing
+  of theirs ever entered the product tree — and the Ms-PL relicense closes that
+  door. The look-and-feel is rebuilt from open parts (system fonts and
+  MIT/Apache-licensed icon sets) with no third-party files.
+- Model the layout/feel on **XNConvert** for ease of use. Workflow imitation
+  uses no third-party files; no branding copied.
 
 ## Hard scope constraints
 - **Exclusively** animated GIF, APNG, and WebP. Not photos, not video —
@@ -94,7 +95,7 @@ want the full gifsicle terminal control underneath.
 - **Offline-only** (2026-09-09): no server, no auto-update, no telemetry.
 - Retain gifsicle terminal-level control for power users (live command pane;
   argv execution — never shell injection).
-- gifsicle stays a **subprocess** (GPL v2-only engine vs GPLv3 UI).
+- gifsicle stays a **subprocess** (GPL v2-only engine vs Ms-PL UI).
 
 ## Format support plan
 - **GIF:** gifsicle (existing, native) — current focus through 1.0.0.

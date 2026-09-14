@@ -37,7 +37,8 @@ Inspect that content at every new-session start.)*
   list — `OD-15` runs `a`–`d`, and `OD-14` has two sub-questions so it needs two
   letters). **`OD-01 = a` executed S15** (18 intake rows mapped into §6).
   **`OD-02 = a` executed S16** (CLI `--run` refuses Batch with no `output`,
-  exit 2). The rest (`OD-03`…`OD-15`) are direction choices the plan can
+  exit 2). **`OD-09 = b` executed S18** (UI relicensed to Ms-PL). The rest
+  (`OD-03`…`OD-08`, `OD-10`…`OD-15`) are direction choices the plan can
   proceed without.
 - **SkillOpt ask:** `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` — verified facts,
   the three non-negotiable conditions, the four shapes, and open questions Q1–Q4.
@@ -101,6 +102,7 @@ alone would have passed straight through both skipped syncs.
 - **Watch-outs for the spike session:** the fork stays reference-only (no file copies); the `PROJECT_VISION.md` mission amendment lands before any stills-import or video-endpoint work.
 - **Scope addendum (same day):** still-image collections (JPG/PNG) → animated with global+per-frame timing is planned scope (plan §2.1 item 3); the mission amendment now covers photos too.
 - **Workflows scope granted (same day):** owner granted the `workflows` permission — the spike session retries the workflow push (`docs/ci/PENDING_WORKFLOW_CHANGE.md` carries the retry rule).
+- **Relicense (same day):** UI is now Ms-PL (`OD-09 = b`, `OD-C6`); Caesium base dropped; packagers + CI manifest require `COPYING.ms-pl`.
 
 ## S17 sequential high-confidence work (2026-09-13)
 
@@ -512,7 +514,7 @@ only stick if they are in files a new session reads, not in a conversation.
   provenance record and gets updated with evidence (never the code trees).
 - Do not bump to `1.0.0` before the UI/UX gates + owner decision.
 - Do not add WebP/APNG before the GIF UI is stable.
-- Keep gifsicle as a **subprocess** (GPL v2-only engine vs GPLv3 UI).
+- Keep gifsicle as a **subprocess** (GPL v2-only engine vs Ms-PL UI).
 - Do **not** "fix" `--loopcount=0`, `-O0`, crop `+` form, or gamma sentinel —
   verified correct.
 - Live CLI pane stays honest **one-way** (until the owner decides otherwise).

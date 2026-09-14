@@ -4,6 +4,32 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S18 follow-up — UI relicensed to Ms-PL, Caesium dropped (2026-09-14)
+
+**Changed:**
+
+- **Relicense executed (`OD-09 = b`, `OD-C6`):** first-party code is now Ms-PL. `LICENSE` rewritten (with revision note), full text added as `COPYING.ms-pl`, both packagers hard-require it (`package_common.sh` + fixture/negative case in `test_package.sh`), CI manifest (live + proposed) asserts it. No third-party code was in the tree (verified: no foreign copyright headers, empty `assets/`/`resources/`), so the relicense needed no outside permission. Engine untouched (GPLv2 subprocess); Qt LGPL line kept.
+- **Caesium dropped:** the base was never incorporated (zero files in the tree; the 74 MB binary bundle was removed in S7 and only a packaging pattern was ever taken from it). Vision UI-approach rewritten to open-parts rebuild (system fonts, MIT/Apache icon sets); `reference_code/REFERENCE_MANIFEST.md` rows retired (provenance kept, re-fetch forbidden); `.gitignore` lines + README layout lines removed; dated reviews annotated, not rewritten.
+- **U-08 narrowed (stays PARTIAL):** "no full text / grant unstated" closed by the Ms-PL text + `LICENSE` grant; still missing: Qt LGPL notices. Packaging count 30 — 32 (one new required-file case per kind).
+- **OD-C1 superseded:** fork is no longer reference-only — Ms-PL fork files may now be copied with notices retained (plan §1.4/§8 updated, OD-C6 recorded).
+
+**Partial:** Qt LGPL notices still unstaged (U-08 remainder); full 32-green packaging run needs real artifacts (CI).
+
+**Left:** spike session (workflow push now armed with granted scope + this commit's manifest line as the first live test of it).
+
+**Verified:**
+
+- `test_package.sh` delta executed here: baseline 11 PASS then abort at the missing-build-artifact `cp` (no `build/` in this sandbox); modified run 12 PASS then the same abort — exactly +1 (the new portable missing-file case passes; system side same shared `copy_required` path). Absolute 32-green re-measured in CI, which has real artifacts.
+- `check_docs.sh --emit` regenerated `STATUS.md` (U-08 proof only); plain `--no-gate-run` green with zero failures; `sweep_stale.sh` clean.
+
+**Not verifiable here:**
+
+- The full 32-case packaging green (needs `build/` artifacts); CI's verdict on this commit, including whether the granted `workflows` scope accepts the live `build.yml` change (if rejected, the change is reverted from live and the pending marker extended).
+
+**Docs touched:** `LICENSE`, `COPYING.ms-pl`, `COMPILED_AUDIT.md`, `STATUS.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`, `PROJECT_VISION.md`, `README.md`, `FEASIBILITY_REVIEW.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/planning/OWNER_DECISIONS.md`, `docs/planning/CSHARP_SHELL_PLAN.md`, `docs/release/RELEASE_PROCEDURE.md`, `reference_code/REFERENCE_MANIFEST.md`, `.gitignore`, `.github/workflows/build.yml`, `docs/ci/build.yml.proposed`, `working_code/gifscythe/scripts/package_common.sh`, `working_code/gifscythe/scripts/test_package.sh`.
+
+---
+
 ## S18 follow-up — workflows scope granted, retry armed (2026-09-14)
 
 **Changed:**

@@ -77,15 +77,15 @@ APNG, and WebP").
 
 - ScreenToGif is licensed **MS-PL** (`LICENSE.txt`, `Directory.Build.props`
   confirms `MS-PL`). MS-PL §3(D): source distribution only under MS-PL.
-- Gifscythe's intent: UI **GPLv3**, engine **GPLv2** (`LICENSE`,
-  `PROJECT_VISION.md`).
-- MS-PL source files copied into a GPLv3 tree are a license conflict
-  (this is not legal advice — but it is a real, known incompatibility).
+- Gifscythe's licence: UI **Ms-PL** since S18 (`OD-09 = b`, `OD-C6`; was GPLv3
+  intent), engine **GPLv2** (`LICENSE`, `PROJECT_VISION.md`). The licences now
+  match the fork, so the conflict below is closed.
 
-**Decided 2026-09-14 (OD-C1, option a):** the fork is **reference-only**,
-exactly like `reference_code/` treats third-party sources today — read it, learn its
-patterns, write fresh C# here. No fork source file is copied into this repo.
-This keeps the GPL boundary and the audit trail clean.
+**Decided 2026-09-14 (OD-C1, option a), SUPERSEDED same day by OD-C6:** the owner
+relicensed the UI to Ms-PL, so the fork is no longer reference-only — fork files
+may be copied with their notices retained (`LICENSE` revision note). Fresh C# is
+still preferred where the fork's shape doesn't fit; every copied file keeps its
+attribution and is named in the log.
 
 ---
 
@@ -184,11 +184,12 @@ ScreenToGif).
 
 | ID | Decision | Options | Recommendation |
 |---|---|---|---|
-| OD-C1 | License stance | (a) reference-only / (b) resolve + copy | **DECIDED: (a)** 2026-09-14 |
+| OD-C1 | License stance | (a) reference-only / (b) resolve + copy | **SUPERSEDED by OD-C6** 2026-09-14 (was (a); relicense closed the conflict) |
 | OD-C2 | Reverse "C++ through 1.0.0"? | (a) full commitment / (b) sidecar / (c) phased (sidecar→commit at Phase 3) | **DECIDED: (c) phased** 2026-09-14 — rationale in §8 |
 | OD-C3 | Recorder in scope? | (a) no / (b) yes | **DECIDED: (a)** 2026-09-14 — plus scope refinement, see §2.1 |
 | OD-C4 | UI framework | (a) WPF / (b) Avalonia / (c) WinUI 3 | **DECIDED: (a) WPF** 2026-09-14 |
 | OD-C5 | Qt GUI fate | (a) archive / (b) maintain both | **DECIDED: (a) archive** 2026-09-14 (C++ CLI stays as parity oracle) |
+| OD-C6 | UI licence vs fork | (a) stay GPLv3 + reference-only / (b) relicense UI to Ms-PL | **DECIDED: (b)** 2026-09-14 — UI relicensed, fork files may be copied with notices |
 
 Exit gate: this doc moves `DRAFT` → `WORKING PLAN`, decision log appended
 to `IMPROVEMENT_LOG.md`, `WORKLIST.md` gains the Phase-1 board.
@@ -218,8 +219,8 @@ parity report (C# vs C++ vs JS, three-way agreement).
  fresh XAML UI in the Gifscythe custom design (not the fork's look):
 Input/Actions/Output tabs at Qt-GUI parity (~30 controls), queue + reorder,
 live command pane, before/after animated preview, naming templates, batch
-folder, settings persistence. Fork patterns reused (dialogs, progress/cancel,
-export flow) but reskinned. Exit gate: side-by-side checklist vs the Qt GUI
+folder, settings persistence. Fork files may be copied and adapted (notices
+retained, OD-C6) or reimplemented where the shape doesn't fit. Exit gate: side-by-side checklist vs the Qt GUI
 harness behaviors (T1–T20 categories) — every honest refusal the Qt GUI
 makes, the WPF shell makes too.
 
@@ -243,7 +244,7 @@ flow, Qt GUI archived per OD-C5), and a final three-client parity run
 
 | Risk | Mitigation |
 |---|---|
-| License commingling (MS-PL vs GPLv3) | Reference-only default (OD-C1); no fork file lands here without resolution |
+| License commingling (was MS-PL vs GPLv3) | **CLOSED S18 (OD-C6):** UI relicensed to Ms-PL; fork files allowed with notices retained |
 | Scope creep (recorder, gifski engine, APNG/WebP) | §2 non-goals + OD-C3; any addition re-opens Phase 0 |
 | Parity drift (C# shell silently differs from engine truth) | Phase-2 tests run the real C++ CLI as oracle; same fixture set as `web/test/` |
 | Re-introducing fixed audit bugs (U-01 overwrite, U-07 Unicode, U-17 unverified explode…) | Phase-3 exit gate replays the harness categories; audit IDs cited per control |
@@ -277,11 +278,12 @@ flow, Qt GUI archived per OD-C5), and a final three-client parity run
 
 | ID | Decision | Rationale (one line) |
 |---|---|---|
-| OD-C1 = a | Fork is reference-only | MS-PL source (§1.4) never enters this GPLv3-intent tree; patterns only. |
+| OD-C1 = a | Fork is reference-only | SUPERSEDED same day by OD-C6 (relicense); was: MS-PL source never enters the tree. |
 | OD-C2 = c | Phased commitment | Sidecar through Phase 1–2 (spike + Core port, Qt oracle alive), full commit at Phase 3 (UI built once, in WPF; Qt frozen). |
 | OD-C3 = a | No recorder (+ §2.1 scope) | Converter+compressor focus; APNG/WebP planned; video endpoints only; editing later. |
 | OD-C4 = a | WPF | Matches the fork, best portable single-file story, mature. |
 | OD-C5 = a | Archive Qt at cutover | One GUI to maintain; C++ CLI stays as the permanent parity oracle. |
+| OD-C6 = b | UI relicensed to Ms-PL | Licences match the fork; copying allowed with notices; Caesium base dropped (was never incorporated). |
 
 Why phased (c) over full commitment (a) or permanent sidecar (b):
 
