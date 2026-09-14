@@ -30,7 +30,7 @@ hand-fudged roll-up fails the gate.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
 **Counts (generated - do not edit by hand):** 89 DONE · 7 PARTIAL · 26 OPEN · 0 UNTRIAGED · 122 total
-**Last regenerated:** S19 · 2026-09-14 · by scripts/check_docs.sh --emit
+**Last regenerated:** S20 · 2026-09-14 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
 
@@ -104,8 +104,8 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 | W-03 | Qt-independent command/settings control layer | DONE | S11 | `src/core/*.h` compile with plain g++ (no Qt); unit suite 296 checks (S11 count) | - |
 | W-04 | CLI driver + unit tests + integration smoke | DONE | S17 | `./build.sh` 296 checks, 0 failures; `scripts/smoke_cli.sh` 40/40 (GS-207 overrides + GS-203 output postconditions) | - |
 | W-05 | Qt6 GUI MVP (Batch default, mode combo, async run, queue, DnD) | DONE | S8 | CI run `34471563229` green on linux + windows; NOT compiled in the S8/S9 sandboxes (no Qt6) | - |
-| W-06 | Portable + system-dependent packaging scripts | DONE | S8 | `scripts/test_package.sh` 9/9 negative cases; `verify_audit.sh` D1/D2/D5 | - |
-| W-07 | Linux GitHub Actions path with Qt6 + artifacts | DONE | S8 | `.github/workflows/build.yml`; main runs #23/#24 green both jobs | - |
+| W-06 | Portable + system-dependent packaging scripts | DONE | S20 | `scripts/test_package.sh` 9/9 negative cases; `verify_audit.sh` D1/D2/D5 ; S20 (OD-17): scripts unchanged — only the Windows package ships now | - |
+| W-07 | Linux GitHub Actions path with Qt6 (test battery) | DONE | S20 | `.github/workflows/build.yml`; main runs #23/#24 green both jobs ; S20 (OD-17): linux upload dropped (windows-only ship); job stays as the automated battery | - |
 | W-08 | Root LICENSE / COPYING.ms-pl / COPYING.gifsicle / COPYING.lgplv3 / COPYING.gplv3 / .gitignore / .gitattributes | DONE | S19 | CI "Assert package manifest" step requires LICENSE + COPYING.gifsicle + COPYING.ms-pl + COPYING.lgplv3 + COPYING.gplv3 + QT_NOTICE.txt in the package | - |
 | W-09 | P0 silent-failure fixes (2026-09-07) | DONE | S4 | `COMPILED_AUDIT.md` §6.A re-run green | - |
 | W-10 | P1 honesty work (2026-09-07) | DONE | S4 | `COMPILED_AUDIT.md` §6.E 8/8 | - |

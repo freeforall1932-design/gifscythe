@@ -1,7 +1,7 @@
 # Session Handoff
 
-**Session:** S19 · **Date:** 2026-09-14
-**Branch:** `arena/01a09e2e-gifscythe` (platform-assigned; all S19 work stays here)
+**Session:** S20 · **Date:** 2026-09-14
+**Branch:** `arena/01a09e2e-gifscythe` (platform-assigned; S19 review + S20 work stays here)
 **PR #23 merged as `8230247`** (2026-09-14); PR #22 merged as `f760ebe` (2026-09-13); both reviewed from history in S19.
 This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written here: a session cannot know it at write time,
 and guessing it is how stale claims get born.
@@ -19,7 +19,7 @@ owner's draft is refitted into that template's slots — move both lines in the 
 =`SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back.
 Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (after S19)
+## Next session — fast hand-off (after S20)
 
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
@@ -32,14 +32,14 @@ Inspect that content at every new-session start.)*
   to satisfy the older session-number convention. The current branch is in the header.
 - **Copy-paste prompt:** `docs/planning/NEXT_SESSION_PROMPT.md` — recovery steps,
   the SkillOpt ask, the decision backlog, and the standing constraints in one block.
-- **Owner decisions:** `docs/planning/OWNER_DECISIONS.md` — answer `OD-01`…`OD-16`
+- **Owner decisions:** `docs/planning/OWNER_DECISIONS.md` — answer `OD-01`…`OD-17`
   in the form `OD-nn = <letter>` (one letter per row, from that row's own option
   list — `OD-15` runs `a`–`d`, and `OD-14` has two sub-questions so it needs two
-  letters; `OD-16` was added S19 for the wasm licence question). **`OD-01 = a`
+  letters; `OD-16` was added S19 for the wasm licence question; `OD-17` added and answered S20 (windows-only ship). **`OD-01 = a`
   executed S15** (18 intake rows mapped into §6). **`OD-02 = a` executed S16**
   (CLI `--run` refuses Batch with no `output`, exit 2). **`OD-09 = b` executed
   S18** (UI relicensed to Ms-PL). **`OD-11 = a` + `OD-12 = a` executed S19**
-  (stay 0.1.0; two-way CLI out). The rest (`OD-03`…`OD-08`, `OD-10`,
+  (stay 0.1.0; two-way CLI out). **`OD-17 = a` executed S20** (windows-only product, linux test rig). The rest (`OD-03`…`OD-08`, `OD-10`,
   `OD-13`…`OD-16`) are direction choices the plan can proceed without —
   except `OD-16`, which blocks calling `web/wasm/` shippable.
 - **SkillOpt ask:** `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` — verified facts,
@@ -99,6 +99,20 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, and
 `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
 alone would have passed straight through both skipped syncs.
+
+## S20 — Windows-only product (OD-17): Linux demoted to test rig (2026-09-14)
+
+Owner voted option A: the shipped product is Windows-only (exe) + web app;
+Linux (CI job + sandbox scripts) is the automated test battery and ships
+nothing. CI: linux upload step deleted, windows job gained portable-package
++ manifest-assert steps (both workflow copies identical; the 1-line cygpath
+drift untouched, now line 171). Release: only the Windows zip
+(`RELEASE_PROCEDURE.md` §3 re-titled, §4 zip line). Wine reframed as
+emulation signal in the top README. The negatives suite stays on Linux (its
+symlink tools-dir cannot run on stock Windows runners — follow-up work).
+First Windows-CI green with the new steps is PENDING at push time — the
+next session must observe it (`gh run view`) before citing Windows
+packaging as proven; `GS-204` stays PARTIAL regardless. Web untouched.
 
 ## S19 — exe stays C++/Qt6 (park C#, close U-08) + wasm MVP scaffold (2026-09-14)
 

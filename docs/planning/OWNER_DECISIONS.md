@@ -65,11 +65,17 @@ answers are fine; `OD-14` has two sub-questions and needs both.
   the live pane stays honest one-way. **Executed S19 (2026-09-14):**
   `STATUS.md` row `W-26` closed (DONE); no code change — the UI already
   states one-way explicitly.
+- **`OD-17` = a** (2026-09-14) — the shipped product is Windows-only (exe)
+  + web app; Linux stays as the CI/sandbox test battery and ships nothing.
+  **Executed S20 (2026-09-14):** linux CI upload dropped, Windows
+  portable-package + manifest-assert steps added, release narrowed to the
+  Windows zip, Wine reframed as emulation signal. First Windows-CI green
+  with the new steps was still pending at push time (see the S20 log).
 
-**`OD-01` executed S15 (2026-09-13); `OD-02` executed S16 (2026-09-13); `OD-09` executed S18 (2026-09-14); `OD-11` + `OD-12` executed S19 (2026-09-14).** The
+**`OD-01` executed S15 (2026-09-13); `OD-02` executed S16 (2026-09-13); `OD-09` executed S18 (2026-09-14); `OD-11` + `OD-12` executed S19 (2026-09-14); `OD-17` executed S20 (2026-09-14).** The
 triage of all 18 rows landed in S15. The `GS-201` stop-loss (**P0-5**) landed in
 S16. Remaining owner questions are **OD-03…OD-08, OD-10, OD-13…OD-16**
-(`OD-09` answered S18; `OD-11`/`OD-12` answered S19; `OD-16` added S19).
+(`OD-09` answered S18; `OD-11`/`OD-12` answered S19; `OD-16` added S19; `OD-17` answered S20).
 
 ## Questions added after S14
 
@@ -80,6 +86,7 @@ New questions land here, in the same shape, answered in the same
 | ID | Question | Options | Recommended | Unblocks |
 |----|----------|---------|-------------|----------|
 | **OD-16** | May the `web/wasm/` build ship with the GPLv2 engine in-process with the Ms-PL UI? (Question: `docs/legal/WASM_LICENSE_QUESTION.md`) | (a) no — wasm stays experimental/unshipped · (b) yes, on counsel-approved terms · (c) other (owner states terms) | **a** until counsel answers — the FSF lists Ms-PL as GPL-incompatible, and MVP scope does not shrink an in-process question | Calling `web/wasm/` shippable; `D-07` cannot close before this lands |
+| **OD-17** | Shipped platforms: Windows-only exe + web app, Linux as the CI/sandbox test battery | (a) yes — windows-only ship, linux tests · (b) no — keep a Linux release artifact too | **a** — answered by the owner 2026-09-14 (S20): the linux job and sandbox scripts stay as the test rig and ship nothing | Killing the Linux zip + CI upload; the Windows job gains the packaging gates |
 
 ## Notes
 

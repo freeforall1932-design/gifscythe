@@ -85,16 +85,9 @@ jobs:
           echo "package manifest OK"
           ls -la "$pkg"
 
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: gifscythe-linux
-          retention-days: 14
-          path: |
-            working_code/gifscythe/build/gifscythe-cli
-            working_code/gifscythe/build/gifscythe
-            working_code/gifscythe/build/gui/
-            working_code/gifscythe/release/
+      # OD-17: the product is Windows-only, so this job ships nothing. The
+      # linux build/package/assert above stays as the automated test battery
+      # for the shared logic (engine, CLI, GUI harness, stager).
 
   windows:
     runs-on: windows-latest
@@ -244,6 +237,29 @@ jobs:
           mkdir -p build-win/platforms
           cp "$QT_BIN/../plugins/platforms/qoffscreen.dll" build-win/platforms/ || true
           QT_QPA_PLATFORM=offscreen ./build-win/test_gui_offscreen.exe
+
+      - name: Package portable (Windows)
+        working-directory: working_code/gifscythe
+        run: ./scripts/package_portable.sh --windows
+
+      - name: Assert Windows package manifest
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          # OD-17: the Windows portable folder is the only shipped build, so
+          # its manifest is a gate (mirrors the linux stager check, .exe names).
+          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' VERSION.md \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          pkg="release/$version/Gifscythe"
+          for f in gifsicle.exe gifscythe-cli.exe gifscythe.exe LICENSE COPYING.gifsicle COPYING.ms-pl COPYING.lgplv3 COPYING.gplv3 QT_NOTICE.txt README.txt; do
+            if [[ ! -s "$pkg/$f" ]]; then
+              echo "FAIL: $pkg/$f is missing or empty" >&2
+              ls -la "$pkg" >&2 || true
+              exit 1
+            fi
+          done
+          echo "Windows package manifest OK"
+          ls -la "$pkg"
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
