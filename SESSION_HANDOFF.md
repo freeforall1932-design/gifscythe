@@ -100,6 +100,7 @@ alone would have passed straight through both skipped syncs.
 - **Next:** Phase 1 spike on a Windows runner (dotnet publish + non-ASCII-path proof). The Qt GUI remains the shippable path until the Phase 3 commit point — S18 changed no code, CI, or the release line.
 - **Watch-outs for the spike session:** the fork stays reference-only (no file copies); the `PROJECT_VISION.md` mission amendment lands before any stills-import or video-endpoint work.
 - **Scope addendum (same day):** still-image collections (JPG/PNG) → animated with global+per-frame timing is planned scope (plan §2.1 item 3); the mission amendment now covers photos too.
+- **Workflows scope granted (same day):** owner granted the `workflows` permission — the spike session retries the workflow push (`docs/ci/PENDING_WORKFLOW_CHANGE.md` carries the retry rule).
 
 ## S17 sequential high-confidence work (2026-09-13)
 

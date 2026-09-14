@@ -4,6 +4,29 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S18 follow-up — workflows scope granted, retry armed (2026-09-14)
+
+**Changed:**
+
+- Owner granted the `workflows` permission, unblocking pushes to `.github/workflows/`. Per the owner's "try it later": nothing pushed now; `docs/ci/PENDING_WORKFLOW_CHANGE.md` status flipped to granted-with-retry (marker stays until a retry succeeds, with a restore rule if rejection recurs), and the C# spike next-action now says to land the workflow change directly instead of staging it in `docs/ci/build.yml.proposed`.
+- Also corrected an owner mental model in chat: MS-PL is not "GPLv3 with a different name" (weak/file-level copyleft vs strong/work-level copyleft; FSF lists them incompatible). Reference-only stance unchanged.
+
+**Partial:** none — docs only, no code.
+
+**Left:** the retry itself belongs to the spike session (needs the spike's CI job to exist first).
+
+**Verified:**
+
+- `working_code/gifscythe/scripts/check_docs.sh --emit` re-run (register unchanged), then `check_docs.sh --no-gate-run` green with zero failures; `scripts/sweep_stale.sh` clean.
+
+**Not verifiable here:**
+
+- Whether the granted scope actually works (the proof is the retry push, deliberately deferred); CI's verdict on this commit (not yet pushed at write time).
+
+**Docs touched:** `docs/ci/PENDING_WORKFLOW_CHANGE.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`.
+
+---
+
 ## S18 follow-up — stills-to-animated scope + mission-amendment fix (2026-09-14)
 
 **Changed:**
