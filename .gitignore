@@ -12,6 +12,11 @@
 **/*.exe
 !reference_code/**/*.exe
 
+# .NET (C# shell): never commit build outputs or published binaries
+**/bin/
+**/obj/
+csharp/**/publish/
+
 # Engine + packaged releases (built artifacts)
 working_code/gifscythe/release/*/gifsicle
 working_code/gifscythe/release/*/gifsicle.exe

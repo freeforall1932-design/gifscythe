@@ -4,6 +4,18 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S18 — Phase 1 spike scaffolded (csharp/spike/ + CI job) (2026-09-14)
+
+- `csharp/spike/`: net9.0 console, hardcoded optimize-3 settings → argv,
+  real engine spawn via an argv array (never a shell), GIF87a/89a output
+  verify, honest exit codes 0/2/3/4/5.
+- `csharp-spike` CI job (live + proposed `build.yml`, drift still one line):
+  happy path, Unicode + space paths, every failure code incl. lying-engine
+  exit-5 cases, then a self-contained single-file publish that must be one
+  `.exe` over 5 MB and must run.
+- Outcome pending: first CI run decides Phase 2 go/no-go. A red run is a
+  valid, decision-grade result, not a failure to hide.
+
 ## S18 follow-up — licence story consolidated into docs/legal/ (2026-09-14)
 
 **Changed:**

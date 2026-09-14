@@ -150,6 +150,9 @@ gifscythe/                        (repo root)
   web/                             web app (product alternative) + JS⇄C++ parity suites
     WEB_PLAN_TEMPLATE.md           web-surface plan template (split rules, phases, slots)
 
+  csharp/                          C# shell (spike now; Core + WPF per the C# plan)
+    spike/                         Phase-1 spike (throwaway-allowed; CI-run)
+
   reference_code/                 SOURCE MATERIAL — do not edit, do not ship
     gifsicle/                     canonical gifsicle 1.96 source
     gifsicle-nested-1.96/         older alternate variant (reference only)
