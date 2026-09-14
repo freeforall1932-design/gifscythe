@@ -69,9 +69,27 @@ copy_required README.md "$self/README.md"
 copy_required LICENSE "$repo_root/LICENSE" "$repo_root/COPYING"
 copy_required COPYING.gifsicle "$repo_root/COPYING.gifsicle" "$repo_root/reference_code/gifsicle/COPYING"
 copy_required COPYING.ms-pl "$repo_root/COPYING.ms-pl"
+copy_required COPYING.lgplv3 "$repo_root/COPYING.lgplv3"
+copy_required COPYING.gplv3 "$repo_root/COPYING.gplv3"
 runtime="Qt runtime is not bundled on this target; GUI requires system Qt6."
 if [[ "$package_kind" == portable && "$windows" == 1 && "$engine_cli_only" == 0 ]]; then
   runtime="Qt runtime deployed by windeployqt; clean-Windows smoke is still required."
+fi
+# Qt notice (audit U-08): a GUI package links Qt dynamically, so it carries a
+# generated QT_NOTICE.txt next to the staged LGPLv3/GPLv3 texts. Headless
+# (--engine-cli-only) packages ship no Qt and carry no such notice.
+if [[ "$engine_cli_only" == 0 ]]; then
+  qt_ver="$(qmake6 -query QT_VERSION 2>/dev/null || qmake -query QT_VERSION 2>/dev/null || echo unknown)"
+  cat > "$stage/QT_NOTICE.txt" <<EOF
+Qt licensing notice (Gifscythe $version, $package_kind package)
+This build of Gifscythe links the Qt libraries (version: $qt_ver) dynamically.
+Qt is used under the GNU Lesser General Public License v3 - see COPYING.lgplv3
+(companion GPLv3 text: COPYING.gplv3), unless you hold a commercial Qt license.
+Qt sources: https://www.qt.io and https://code.qt.io/cgit/qt/qtbase.git
+Relink: Qt is linked as shared libraries, so you may replace them with a
+compatible build of your choice.
+EOF
+  required+=(QT_NOTICE.txt)
 fi
 cat > "$stage/README.txt" <<EOF
 Gifscythe $version — $package_kind package
@@ -79,6 +97,7 @@ Contents: $scope
 $runtime
 Run gifscythe-cli for the command-line interface; GUI is present only in GUI packages.
 gifsicle is GPL v2-only — see COPYING.gifsicle. First-party code is Ms-PL — see LICENSE and COPYING.ms-pl.
+Qt is LGPLv3 — see COPYING.lgplv3 and COPYING.gplv3 (GUI packages also carry QT_NOTICE.txt).
 EOF
 required+=(README.txt)
 printf '%s\n' "${required[@]}" > "$stage/MANIFEST.txt"

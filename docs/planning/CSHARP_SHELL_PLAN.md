@@ -1,7 +1,13 @@
 # C# Shell Plan — a C#/WPF exe for Gifscythe alongside (then instead of) the Qt GUI
 
-**State:** `WORKING PLAN` (Phase 0 signed 2026-09-14, S18 — all five
-decisions answered, record in §8; the C++-through-1.0.0 direction is now
+**State:** `PARKED` 2026-09-14 (S19, owner direction — `OD-C7 = park`, §8):
+no further work until 1.0.0 ships on C++17/Qt6. The spike (`csharp/spike/`)
+stays CI-run and inert. `docs/planning/OFFLINE_BUILD_REVIEW.md` §4 (stay
+C++/Qt through 1.0.0) is reinstated; the OD-C2(c) phased reversal below is
+suspended, not deleted — it is the resume point after 1.0.0.
+
+**Pre-park state (S18):** `WORKING PLAN` (Phase 0 signed 2026-09-14 — all
+five decisions answered, record in §8; the C++-through-1.0.0 direction was
 superseded per OD-C2(c), phased commit)
 **Date:** 2026-09-14 · **Author:** arena agent (planning session with owner)
 **Context:** owner forked `NickeManarin/ScreenToGif` →
@@ -286,6 +292,7 @@ flow, Qt GUI archived per OD-C5), and a final three-client parity run
 | OD-C4 = a | WPF | Matches the fork, best portable single-file story, mature. |
 | OD-C5 = a | Archive Qt at cutover | One GUI to maintain; C++ CLI stays as the permanent parity oracle. |
 | OD-C6 = b | UI relicensed to Ms-PL | Licences match the fork; copying allowed with notices; Caesium base dropped (was never incorporated). |
+| OD-C7 = park | Park the C# shell until 1.0.0 ships on C++/Qt6 (S19, 2026-09-14) | Owner direction: exe stays C++17/Qt6, no rewrite; spike inert; OFFLINE_BUILD_REVIEW §4 reinstated. Resume point after 1.0.0, not a cancellation. |
 
 Why phased (c) over full commitment (a) or permanent sidecar (b):
 

@@ -1,17 +1,17 @@
 # Session Handoff
 
-**Session:** S17 · **Date:** 2026-09-13
-**Branch:** `arena/01a09934-gifscythe` (platform-assigned; all S17 work stays here)
-**PR #21 merged as `df1dfd5`** (2026-09-13); merge status and diff reviewed with `gh` in S17.
+**Session:** S20 · **Date:** 2026-09-14
+**Branch:** `arena/01a09e2e-gifscythe` (platform-assigned; S19 review + S20 work stays here)
+**PR #23 merged as `8230247`** (2026-09-14); PR #22 merged as `f760ebe` (2026-09-13); both reviewed from history in S19.
 This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written here: a session cannot know it at write time,
 and guessing it is how stale claims get born.
-**Docs synced through:** PR #21 · branch `arena/01a098ff-gifscythe` · merged as `df1dfd5`
+**Docs synced through:** PR #23 · branch `arena/01a09dae-gifscythe` · merged as `8230247`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares
 this against the newest merged PR and fails when a merge landed with no doc sync — that is the
 "we jumped a merge without updating any docs" case. Move this line as part of the sync, never
 before the writing is done.)*
-Based on `main` commit `df1dfd5` ·
-**Product version:** 0.1.0 (do not bump to 1.0.0 yet — owner decision pending) ·
+Based on `main` commit `8230247` ·
+**Product version:** 0.1.0 (owner `OD-11 = a` S19: not yet — stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
 owner's draft is refitted into that template's slots — move both lines in the same commit. Gate
@@ -19,7 +19,7 @@ owner's draft is refitted into that template's slots — move both lines in the 
 =`SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back.
 Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (after S17)
+## Next session — fast hand-off (after S20)
 
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
@@ -32,20 +32,23 @@ Inspect that content at every new-session start.)*
   to satisfy the older session-number convention. The current branch is in the header.
 - **Copy-paste prompt:** `docs/planning/NEXT_SESSION_PROMPT.md` — recovery steps,
   the SkillOpt ask, the decision backlog, and the standing constraints in one block.
-- **Owner decisions:** `docs/planning/OWNER_DECISIONS.md` — answer `OD-01`…`OD-15`
+- **Owner decisions:** `docs/planning/OWNER_DECISIONS.md` — answer `OD-01`…`OD-17`
   in the form `OD-nn = <letter>` (one letter per row, from that row's own option
   list — `OD-15` runs `a`–`d`, and `OD-14` has two sub-questions so it needs two
-  letters). **`OD-01 = a` executed S15** (18 intake rows mapped into §6).
-  **`OD-02 = a` executed S16** (CLI `--run` refuses Batch with no `output`,
-  exit 2). **`OD-09 = b` executed S18** (UI relicensed to Ms-PL). The rest
-  (`OD-03`…`OD-08`, `OD-10`…`OD-15`) are direction choices the plan can
-  proceed without.
+  letters; `OD-16` was added S19 for the wasm licence question; `OD-17` added and answered S20 (windows-only ship). **`OD-01 = a`
+  executed S15** (18 intake rows mapped into §6). **`OD-02 = a` executed S16**
+  (CLI `--run` refuses Batch with no `output`, exit 2). **`OD-09 = b` executed
+  S18** (UI relicensed to Ms-PL). **`OD-11 = a` + `OD-12 = a` executed S19**
+  (stay 0.1.0; two-way CLI out). **`OD-17 = a` executed S20** (windows-only product, linux test rig). The rest (`OD-03`…`OD-08`, `OD-10`,
+  `OD-13`…`OD-16`) are direction choices the plan can proceed without —
+  except `OD-16`, which blocks calling `web/wasm/` shippable.
 - **SkillOpt ask:** `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` — verified facts,
   the three non-negotiable conditions, the four shapes, and open questions Q1–Q4.
   Await `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer** — the query exists to decide *whether*, not *how fast*.
   **`OD-01 = a` executed S15; `OD-02 = a` executed S16** (GS-201 / P0-5 stop-loss
-  landed). Remaining answers are `OD-03`…`OD-15`.
+  landed); **`OD-09`/`OD-11`/`OD-12`** answered later. Remaining answers are
+  `OD-03`…`OD-08`, `OD-10`, `OD-13`…`OD-16`.
 
 ## PR ledger (append-only — this is how you see a skipped or closed PR)
 
@@ -79,6 +82,9 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #19 | S14 continuation | `arena/01a096ec-gifscythe` | `43e3f96` | docs: re-sync handoff to PR #18 merge + main run 34713398377 |
 | #20 | S14 continuation | `arena/01a09712-gifscythe` | `2542f1b` | docs: post-merge sync for PR #19 + owner patch adjudicated + OD answer-format fix |
 | #21 | S16 | `arena/01a098ff-gifscythe` | `df1dfd5` | Merged 2026-09-13; reviewed S17: S15 OD-01 triage + S16 GS-201 stop-loss + G18/G16/P3b process gates |
+| #22 | S17 | `arena/01a09934-gifscythe` | `f760ebe` | Merged 2026-09-13; reviewed S19 from history: S17 sequential work — N-07 count sweep + GS-202 containment + DS-13 magic check + GS-207 strict override + shared packaging/output-verifier hardening |
+| #23 | S17 | `arena/01a09dae-gifscythe` | `8230247` | Merged 2026-09-14; reviewed S19 from history: S18 Ms-PL relicense (OD-09 = b) + C# shell plan Phase 0 + Phase-1 spike GREEN (run 34804350470, Phase 2 GO — since parked by S19 OD-C7) |
+| #24 | S20 | `arena/01a09e2e-gifscythe` | **open** | S19 exe-direction/U-08-close/wasm-scaffold + S19-review fixes + S20 windows-only product (OD-17) |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
@@ -94,6 +100,52 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, and
 `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
 alone would have passed straight through both skipped syncs.
+
+## S20 — Windows-only product (OD-17): Linux demoted to test rig (2026-09-14)
+
+Owner voted option A: the shipped product is Windows-only (exe) + web app;
+Linux (CI job + sandbox scripts) is the automated test battery and ships
+nothing. CI: linux upload step deleted, windows job gained portable-package
++ manifest-assert steps (both workflow copies identical; the 1-line cygpath
+drift untouched, now line 171). Release: only the Windows zip
+(`RELEASE_PROCEDURE.md` §3 re-titled, §4 zip line). Wine reframed as
+emulation signal in the top README. The negatives suite stays on Linux (its
+symlink tools-dir cannot run on stock Windows runners — follow-up work).
+First Windows-CI green OBSERVED same session: run `34812043127` (linux +
+windows + csharp-spike success; new package/assert steps 9–10 green;
+artifacts `gifscythe-windows` 52.8 MB + `gifscythe-spike`, no linux upload).
+`GS-204` stays PARTIAL (architecture + clean-machine proof remain). Web untouched.
+
+## S19 — exe stays C++/Qt6 (park C#, close U-08) + wasm MVP scaffold (2026-09-14)
+
+- **Direction (owner):** exe stays C++17/Qt6, no rewrite. C# shell parked
+  (`OD-C7 = park`): plan `PARKED`, spike inert (still CI-run),
+  `docs/planning/OFFLINE_BUILD_REVIEW.md` §4 reinstated.
+- **Merged baseline:** PR #22 (`f760ebe`, S17 work) + PR #23 (`8230247`, S18
+  work) reviewed from history; ledger + `Docs synced through:` + header base
+  moved to #23. Both merges had landed with no doc sync (the P6 case).
+- **U-08 closed:** `COPYING.lgplv3` + `COPYING.gplv3` (verbatim) staged by
+  both packagers, generated `QT_NOTICE.txt` in GUI packages, packaging
+  suite 36/36, CI manifest (live + proposed) + `verify_audit.sh` D1/D2
+  assert the set. Release blockers five → four.
+- **Owner answers executed:** `OD-11 = a` (stay 0.1.0, `W-29` stays OPEN),
+  `OD-12 = a` (two-way CLI out, `W-26` DONE). `OD-16` added: the wasm
+  in-process licence question (`docs/legal/WASM_LICENSE_QUESTION.md`) —
+  open, blocks shippable.
+- **Desktop evidence docs:** `docs/ci/CLEAN_WINDOWS_SMOKE.md` re-pointed at
+  the CI artifact (banked snapshot disqualified); `docs/ci/DESKTOP_PROBES.md`
+  written for the three W-19 probes. Both await a real Windows run.
+- **Wasm MVP scaffold:** `web/wasm/` — emcc build script (single-threaded
+  config, MEMFS only), one-screen UI reusing `web/command.mjs` +
+  `web/validate.mjs` verbatim, byte-proof script, staged
+  `COPYING.gifsicle`. Glue proven against the real engine via a stub-DOM
+  harness (live pane `gifsicle -O3 -j logo.gif -o logo_opt.gif`, refuse
+  path, 8703→8637 B). No `.wasm` built: emcc uninstallable here
+  (`storage.googleapis.com` unreachable — executed probe). Node server
+  untouched and stays the shipped web path.
+- **Next:** an emcc machine runs `web/wasm/build_wasm.sh` +
+  `prove_wasm.mjs` (byte proof); owner/counsel answers `OD-16`; a clean
+  Windows box runs the smoke + probes.
 
 ## S18 — C# shell plan, Phase 0 decided (2026-09-14)
 
@@ -230,7 +282,7 @@ S15 triage landed on this branch as cherry-pick `0e6e1a7` (of `5677612`). Then
 **`OD-02 = a`**: CLI `--run` with Batch and no `output` exits 2 with a named
 reason before the engine starts. Print still prints `-b`. Smoke **21/21** (source
 GIF `cmp`-identical). Engine `-b -O3` rewrite confirmed 8703→8637 B.
-**`N-07` triaged to P2-15** (OPEN at S16; closed by the S17 count check). Current register after the S17 count-check follow-up: **87 DONE · 8 PARTIAL · 27 OPEN · 0 UNTRIAGED · 122 total.**
+**`N-07` triaged to P2-15** (OPEN at S16; closed by the S17 count check). The register after the S17 count-check follow-up read 87/8/27/0 over 122 rows (historical S17 figures — `STATUS.md` carries the live register).
 No PR until yes.
 
 ## S16 continuation — uncommitted-work hard rule (G18) + template content check (G16)
@@ -347,7 +399,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S17: **87 DONE · 8 PARTIAL · 27 OPEN · 0 UNTRIAGED · 122 total.**
+   `U-nn` row; neither replaces the other. As of S19: **89 DONE · 7 PARTIAL · 26 OPEN · 0 UNTRIAGED · 122 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —
@@ -518,6 +570,10 @@ only stick if they are in files a new session reads, not in a conversation.
 - Do not bump to `1.0.0` before the UI/UX gates + owner decision.
 - Do not add WebP/APNG before the GIF UI is stable.
 - Keep gifsicle as a **subprocess** (GPL v2-only engine vs Ms-PL UI).
+  Carve-out, not an exception: the experimental `web/wasm/` track compiles
+  the engine in-process — that is exactly the open `OD-16` licence question
+  (`docs/legal/WASM_LICENSE_QUESTION.md`), and the track is NOT shippable
+  until it is answered. Do not extend the in-process pattern anywhere else.
 - Do **not** "fix" `--loopcount=0`, `-O0`, crop `+` form, or gamma sentinel —
   verified correct.
 - Live CLI pane stays honest **one-way** (until the owner decides otherwise).
@@ -604,7 +660,14 @@ prints which kind it means and compares like with like.
 **This varies between sandboxes — always re-check before trusting an older
 section of this file.**
 
-* **S11 sandbox (current):** **full toolchain + Windows cross-proof.** uid 0
+* **S19 sandbox (current):** gcc/g++ 12.2, node v22.22.3, python3, git —
+  NO cmake, NO Qt6, NO mingw, NO wine, NO dotnet, NO emcc. Network:
+  `github.com` reachable (clone/fetch/`gh` work); `storage.googleapis.com`
+  and `nodejs.org` unreachable, so `./emsdk install latest` fails on its
+  toolchain download (executed S19 — wasm binary unbuildable here). Clone
+  arrived shallow (depth 1); `git fetch --unshallow` restored history for
+  the PR #22/#23 sync review.
+* **S11 sandbox:** **full toolchain + Windows cross-proof.** uid 0
   with working apt (aliyun mirror): g++ 12.2.0, cmake 3.25.1, Qt 6.4.2,
   ninja, **mingw-w64 (gcc 12-win32)**, **Wine 8.0** (runs; wine32/i386 absent —
   64-bit exes only), **gawk** (next to mawk — verify awk changes under BOTH),

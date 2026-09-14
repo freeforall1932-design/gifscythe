@@ -174,8 +174,12 @@ if ./scripts/package_portable.sh ${pkg_args+"${pkg_args[@]}"} >/dev/null 2>&1; t
   [[ -x "$pkg/gifscythe-cli" ]] || miss+=" cli"
   [[ -s "$pkg/LICENSE" ]] || miss+=" LICENSE"
   [[ -s "$pkg/COPYING.gifsicle" ]] || miss+=" COPYING.gifsicle"
+  [[ -s "$pkg/COPYING.ms-pl" ]] || miss+=" COPYING.ms-pl"
+  [[ -s "$pkg/COPYING.lgplv3" ]] || miss+=" COPYING.lgplv3"
+  [[ -s "$pkg/COPYING.gplv3" ]] || miss+=" COPYING.gplv3"
   if [[ "$gui_built" == "1" ]]; then
     { [[ -f "$pkg/gifscythe" ]] || [[ -f "$pkg/gifscythe.exe" ]]; } || miss+=" GUI"
+    [[ -s "$pkg/QT_NOTICE.txt" ]] || miss+=" QT_NOTICE.txt"
   fi
   if [[ -z "$miss" ]]; then
     ok "D1/D2" "portable package complete (engine+CLI+licenses$([[ $gui_built == 1 ]] && echo '+GUI' || echo ', headless by request'))"

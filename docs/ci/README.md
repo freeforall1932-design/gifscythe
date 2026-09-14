@@ -19,10 +19,11 @@
   smokes, the offscreen GUI harness (`test_gui_offscreen`, **324 checks as last
   *measured* in the S11 sandbox** — Qt 6.4.2; 306 in S10, 243 in S7),
   `windeployqt` staging, the three web parity/transport suites and
-  the package-manifest assertion (both added by `190d030`), portable packaging,
-  and artifact upload (`gifscythe-linux`, `gifscythe-windows`, 14-day
-  retention — binaries are banked on Releases instead; see
-  `docs/release/RELEASE_PROCEDURE.md`).
+  the package-manifest assertion (both added by `190d030`), portable packaging
+  on both jobs (S20 added the Windows package + manifest assert, OD-17),
+  and artifact upload (`gifscythe-windows` only since S20 — the linux
+  upload is dropped; 14-day retention — binaries are banked on Releases
+  instead; see `docs/release/RELEASE_PROCEDURE.md`).
 - **Documentation status gate — APPLIED (confirmed S14).** The linux job runs
   `scripts/check_docs.sh --no-gate-run`; the S9 change is in the live
   `.github/workflows/build.yml`, not only in `docs/ci/build.yml.proposed`. S14 introduced gate

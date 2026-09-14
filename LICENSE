@@ -27,7 +27,12 @@ Shipping gifsicle alongside Gifscythe requires redistributing its license text
 (COPYING.gifsicle) and offering its corresponding source (the reference_code/
 gifsicle tree, or upstream https://github.com/kohler/gifsicle).
 
-Qt is used under the LGPL v3 (or a commercial Qt license, if you have one).
+Qt is used under the GNU Lesser General Public License v3 (or a commercial
+Qt license, if you have one). The full LGPLv3 text is in COPYING.lgplv3 and
+its companion GPLv3 text in COPYING.gplv3 (both staged into every package);
+every GUI package also carries a generated QT_NOTICE.txt naming the Qt
+usage, where to get the Qt sources, and the relink term for the dynamically
+linked Qt libraries.
 
 For the full GPLv2 text covering the engine, see COPYING.gifsicle.
 For the full Ms-PL text covering the first-party code, see COPYING.ms-pl.
