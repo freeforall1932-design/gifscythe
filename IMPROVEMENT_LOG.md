@@ -4,6 +4,28 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S18 follow-up — workflows scope verified, relicense CI success (2026-09-14)
+
+**Changed:**
+
+- Run `34801397493` (relicense commit `161e862`) concluded success on both jobs (2026-09-14): the manifest step asserts `COPYING.ms-pl` in the package, and the packaging-negative step passes with both new required-file cases (fixture-pure, run before any artifact-dependent case in each kind), confirming the 30 — 32 count by construction plus the executed portable delta. Pre-push hook green 23/0/3. The `build.yml` push itself is the workflows-scope proof, so the pending marker now tracks only the 1-line cygpath drift.
+
+**Partial:** none — close-out entry.
+
+**Left:** spike session (unblocked: workflow edits push cleanly).
+
+**Verified:**
+
+- `gh run view 34801397493` conclusion success (linux + windows); `gh run watch --exit-status` 0; `check_docs.sh --no-gate-run` green with zero failures; `sweep_stale.sh` clean.
+
+**Not verifiable here:**
+
+- Raw CI log text (the results-receiver host is unreachable from this sandbox); step-level conclusions stand as the proof, and both packaging steps are fail-closed (any failure reds the job).
+
+**Docs touched:** `docs/ci/PENDING_WORKFLOW_CHANGE.md`, `SESSION_HANDOFF.md`, `WORKLIST.md`, `IMPROVEMENT_LOG.md`.
+
+---
+
 ## S18 follow-up — UI relicensed to Ms-PL, Caesium dropped (2026-09-14)
 
 **Changed:**
