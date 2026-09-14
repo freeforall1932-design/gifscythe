@@ -275,6 +275,11 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       content-vs-token (never auto-edit). Template stays **SKELETON**. Rule 6
       written in the three files a new session reads. No PR until yes.
 
+### Session S18 (2026-09-14) — C# shell plan, Phase 0 decided (docs only)
+- [x] **Plan:** `docs/planning/CSHARP_SHELL_PLAN.md` is a `WORKING PLAN` — a WPF shell driving the unchanged gifsicle subprocess, parity-tested against the C++ CLI.
+- [x] **Decisions:** OD-C1 = a (fork reference-only, MS-PL stays out of the tree), OD-C2 = c (phased: sidecar through Phase 2, commit at Phase 3), OD-C3 = a (no recorder; XNConvert-style converter+compressor, APNG/WebP promoted to planned, video strictly as a conversion endpoint, ezgif-class editing later), OD-C4 = a (WPF), OD-C5 = a (archive Qt GUI at cutover; C++ CLI stays as parity oracle).
+- [ ] **Next:** Phase 1 spike (time-boxed C# console → gifsicle → verify → single-file publish; needs a Windows runner — that proof is not obtainable in this sandbox).
+
 ### Session S14 continuation (2026-09-12) — stale-claim sweep, PR preflight, owner-decision register (docs only)
 
 - [x] **Stale-claim sweep:** `scripts/sweep_stale.sh` (rules **S1–S5**, each mutation-tested) +
@@ -427,6 +432,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 
 ## Next actions (ordered)
 
+- [ ] **C# shell Phase 1 spike** (per `docs/planning/CSHARP_SHELL_PLAN.md` §4): time-boxed C# console app spawns the repo-built gifsicle, verifies output, publishes self-contained single-file. Proves toolchain + portable promise + non-ASCII-path handling on a real Windows runner. A failing spike is a valid, decision-grade outcome.
 - [ ] **Owner draft:** refit the web plan into `web/WEB_PLAN_TEMPLATE.md` (slot-by-slot; §0
       rules). On that commit do the **one-time flip** — `Template state:` here and the mirror line
       in `SESSION_HANDOFF.md` go to `WORKING PLAN` (G16 checks it). The 18 intake rows were triaged
