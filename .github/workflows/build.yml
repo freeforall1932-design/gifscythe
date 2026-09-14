@@ -290,14 +290,15 @@ jobs:
           exe="csharp/spike/bin/Release/net9.0/gifscythe-spike.exe"
           [[ -x "$exe" ]] || { echo "FAIL: spike exe missing: $exe" >&2; exit 1; }
           work="$RUNNER_TEMP/spike"
-          rm -rf "$work"; mkdir -p "$work/plain" "$work/vacación"
+          rm -rf "$work"; mkdir -p "$work/plain" "$work/vacación" "$work/日本語"
           cp reference_code/gifsicle/logo.gif "$work/plain/in.gif"
-          cp reference_code/gifsicle/logo1.gif "$work/vacación/résumé_日本語.gif"
+          cp reference_code/gifsicle/logo1.gif "$work/vacación/résumé final.gif"
+          cp reference_code/gifsicle/logo1.gif "$work/日本語/入力.gif"
           printf 'not a gif\n' > "$work/plain/bad.gif"
           echo "SPIKE_ENGINE=$PWD/$engine" >> "$GITHUB_ENV"
           echo "SPIKE_EXE=$PWD/$exe" >> "$GITHUB_ENV"
           echo "SPIKE_WORK=$work" >> "$GITHUB_ENV"
-          ls -la "$work/plain" "$work/vacación"
+          ls -la "$work/plain" "$work/vacación" "$work/日本語"
           echo "staged: engine=$engine exe=$exe"
 
       - name: Spike happy path is rc 0
@@ -312,17 +313,33 @@ jobs:
           [[ -s "$SPIKE_WORK/plain/out.gif" ]] || { echo "FAIL: out.gif missing/empty" >&2; exit 1; }
           echo OK
 
-      - name: Spike unicode paths are rc 0
+      - name: Spike latin path with space is rc 0
         run: |
           set -euo pipefail
           set +e
-          "$SPIKE_EXE" "$SPIKE_ENGINE" "$SPIKE_WORK/vacación/résumé_日本語.gif" "$SPIKE_WORK/vacación/salida_O3.gif" >"$SPIKE_WORK/unicode.log" 2>&1
+          "$SPIKE_EXE" "$SPIKE_ENGINE" "$SPIKE_WORK/vacación/résumé final.gif" "$SPIKE_WORK/vacación/salida O3.gif" >"$SPIKE_WORK/latin.log" 2>&1
           rc=$?
           set -e
-          cat "$SPIKE_WORK/unicode.log"
+          cat "$SPIKE_WORK/latin.log"
           [[ "$rc" == 0 ]] || { echo "FAIL: want rc=0 got rc=$rc" >&2; exit 1; }
-          [[ -s "$SPIKE_WORK/vacación/salida_O3.gif" ]] || { echo "FAIL: unicode out missing/empty" >&2; exit 1; }
+          [[ -s "$SPIKE_WORK/vacación/salida O3.gif" ]] || { echo "FAIL: latin out missing/empty" >&2; exit 1; }
           echo OK
+
+      - name: Spike CJK path fails honestly (engine ACP residual)
+        run: |
+          set -euo pipefail
+          # Known product residual (src/core/WinUnicode.h): upstream gifsicle's
+          # CRT parses argv in the system ACP, so CJK cannot reach the engine's
+          # file APIs on stock Windows. The spike must FAIL LOUDLY here (rc!=0),
+          # never silently succeed. If this ever goes rc=0, the residual has
+          # closed - celebrate, then update WinUnicode.h and the C# plan.
+          set +e
+          "$SPIKE_EXE" "$SPIKE_ENGINE" "$SPIKE_WORK/日本語/入力.gif" "$SPIKE_WORK/日本語/出力.gif" >"$SPIKE_WORK/cjk.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/cjk.log"
+          [[ "$rc" != 0 ]] || { echo "FAIL: CJK unexpectedly rc=0 - residual closed? update WinUnicode.h + plan" >&2; exit 1; }
+          echo "OK: CJK failed honestly with rc=$rc (engine ACP residual)"
 
       - name: Spike usage errors are rc 2
         run: |
