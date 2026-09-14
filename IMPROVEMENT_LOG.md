@@ -4,6 +4,29 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S18 follow-up — licence story consolidated into docs/legal/ (2026-09-14)
+
+**Changed:**
+
+- New `docs/legal/` folder (owner request): `README.md` (licence single source of truth + maintenance contract), `WHY_MSPL.md` (full OD-09 = b / OD-C6 rationale, rejected alternatives, accepted costs, one-way-door warning), `COPYING_RULES.md` (per-file fork-copying checklist). Live docs now point here instead of carrying their own rationale prose: vision UI-approach, plan §1.4, offline S18 note, OD-09 answer, `LICENSE` pointer line.
+- Stale/confusing leftovers fixed: README auto-fetch line no longer lists the retired Caesium trees; nested `reference_code/.gitignore` drops `caesium-source/` (guard comment forbids re-add); manifest fetch note rewritten (retired absence is policy, not fetch-away). Dated history (old log entries, dated reviews, audit evidence, intake reports) deliberately left verbatim as evidence.
+
+**Partial:** none — docs only.
+
+**Left:** spike session (unchanged).
+
+**Verified:**
+
+- `check_docs.sh --emit` re-run (register unchanged), then `check_docs.sh --no-gate-run` green with zero failures; `sweep_stale.sh` clean. New files written gate-aware (existing repo paths only, no counts, no volatile phrasing).
+
+**Not verifiable here:**
+
+- CI's verdict on this commit (not yet pushed at write time).
+
+**Docs touched:** `docs/legal/README.md`, `docs/legal/WHY_MSPL.md`, `docs/legal/COPYING_RULES.md`, `LICENSE`, `PROJECT_VISION.md`, `README.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/planning/OWNER_DECISIONS.md`, `docs/planning/CSHARP_SHELL_PLAN.md`, `reference_code/REFERENCE_MANIFEST.md`, `reference_code/.gitignore`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`.
+
+---
+
 ## S18 follow-up — workflows scope verified, relicense CI success (2026-09-14)
 
 **Changed:**

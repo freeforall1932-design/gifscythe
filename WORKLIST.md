@@ -279,6 +279,7 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] **Plan:** `docs/planning/CSHARP_SHELL_PLAN.md` is a `WORKING PLAN` — a WPF shell driving the unchanged gifsicle subprocess, parity-tested against the C++ CLI.
 - [x] **Decisions:** OD-C1 = a (fork reference-only, MS-PL stays out of the tree), OD-C2 = c (phased: sidecar through Phase 2, commit at Phase 3), OD-C3 = a (no recorder; XNConvert-style converter+compressor, APNG/WebP promoted to planned, stills (photo collections) and video strictly as conversion endpoints, ezgif-class editing later), OD-C4 = a (WPF), OD-C5 = a (archive Qt GUI at cutover; C++ CLI stays as parity oracle).
 - [x] **License (OD-09 = b, OD-C6):** first-party code relicensed to Ms-PL (`LICENSE` rewritten, `COPYING.ms-pl` added, packagers + CI require it); Caesium base dropped (never incorporated); OD-C1 reference-only superseded.
+- [x] **Legal consolidation:** licence rationale single-sourced into `docs/legal/` (`README.md` index + maintenance contract, `WHY_MSPL.md`, `COPYING_RULES.md`); live docs repointed, history left verbatim.
 - [ ] **Next:** Phase 1 spike (time-boxed C# console → gifsicle → verify → single-file publish; needs a Windows runner — that proof is not obtainable in this sandbox).
 
 ### Session S14 continuation (2026-09-12) — stale-claim sweep, PR preflight, owner-decision register (docs only)

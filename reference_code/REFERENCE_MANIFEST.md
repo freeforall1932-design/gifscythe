@@ -69,9 +69,9 @@ is upstream's own test from `ed5b018` ("Add a frame-change test").
 - `gifsicle-nested-1.96/` is the pristine `v1.96` comparison tree (frame-
   selection behaviour predates upstream fix #186 there). It is not the build
   input.
-- The three **Auto-fetched** rows above (`gifsicle-upstream/`, `caesium-source/`,
-  `caesium-bin/`) are gitignored and therefore **absent from a fresh checkout**;
-  re-fetch them before relying on this manifest.
+- `gifsicle-upstream/` is gitignored and therefore **absent from a fresh checkout**;
+  re-fetch it before relying on this manifest. The two Caesium rows above are
+  retired (S18) — their absence is permanent policy, not a fetch-away state.
 - The nested `.git` directories of earlier shallow clones were removed; this
   folder is a plain read-only snapshot, and provenance is documented here
   instead. (`gifsicle-upstream/` keeps its `.git` — it is gitignored scratch

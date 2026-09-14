@@ -77,15 +77,8 @@ APNG, and WebP").
 
 - ScreenToGif is licensed **MS-PL** (`LICENSE.txt`, `Directory.Build.props`
   confirms `MS-PL`). MS-PL §3(D): source distribution only under MS-PL.
-- Gifscythe's licence: UI **Ms-PL** since S18 (`OD-09 = b`, `OD-C6`; was GPLv3
-  intent), engine **GPLv2** (`LICENSE`, `PROJECT_VISION.md`). The licences now
-  match the fork, so the conflict below is closed.
-
-**Decided 2026-09-14 (OD-C1, option a), SUPERSEDED same day by OD-C6:** the owner
-relicensed the UI to Ms-PL, so the fork is no longer reference-only — fork files
-may be copied with their notices retained (`LICENSE` revision note). Fresh C# is
-still preferred where the fork's shape doesn't fit; every copied file keeps its
-attribution and is named in the log.
+- Licence status: UI **Ms-PL** since S18 (`OD-09 = b`, `OD-C6`) — full story in
+  `docs/legal/WHY_MSPL.md`. Fork files may be copied per `docs/legal/COPYING_RULES.md`.
 
 ---
 

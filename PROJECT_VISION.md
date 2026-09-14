@@ -80,11 +80,10 @@ want the full gifsicle terminal control underneath.
 - **Feature-richness of eZgif** for GIF-style options + a "Convert / other"
   branch (convert between formats, explode, merge, reorder frames, and so on).
 
-## UI approach (owner decision — Caesium base dropped S18, `OD-09 = b`)
-- **No Caesium base.** The Caesium UI/UX files were never incorporated — nothing
-  of theirs ever entered the product tree — and the Ms-PL relicense closes that
-  door. The look-and-feel is rebuilt from open parts (system fonts and
-  MIT/Apache-licensed icon sets) with no third-party files.
+## UI approach (owner decision — licence story lives in `docs/legal/`)
+- **No Caesium base** (dropped S18, `OD-09 = b`): the look-and-feel is rebuilt
+  from open parts — system fonts and MIT/Apache-licensed icon sets — with no
+  third-party files. Rationale: `docs/legal/WHY_MSPL.md`.
 - Model the layout/feel on **XNConvert** for ease of use. Workflow imitation
   uses no third-party files; no branding copied.
 

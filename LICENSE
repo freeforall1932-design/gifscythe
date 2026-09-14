@@ -31,3 +31,4 @@ Qt is used under the LGPL v3 (or a commercial Qt license, if you have one).
 
 For the full GPLv2 text covering the engine, see COPYING.gifsicle.
 For the full Ms-PL text covering the first-party code, see COPYING.ms-pl.
+Rationale and copying rules: docs/legal/ (WHY_MSPL.md, COPYING_RULES.md).
