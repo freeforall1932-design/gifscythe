@@ -2,6 +2,8 @@
 
 **Date:** 2026-09-09 · **Author:** arena agent (S5/S6) · **Product:** Gifscythe 0.1.0
 
+**S18 note (2026-09-14):** the first-party UI licence is now Ms-PL (owner `OD-09 = b`, Caesium base dropped). "GPLv3 UI" below is the pre-S18 intent; the subprocess-separation design is unchanged. Full rationale: `docs/legal/WHY_MSPL.md`.
+
 This review answers three questions:
 
 1. Is an **offline-only** Gifscythe feasible (portable, no installer, no network)?

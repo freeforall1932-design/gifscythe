@@ -21,7 +21,7 @@ answers are fine; `OD-14` has two sub-questions and needs both.
 | **OD-06** | Web release artifact | (a) in-repo until 1.0.0 · (b) a separate release artifact now | **a** — desktop stays the 1.0.0 artifact | Deciding whether the web build gets its own release path pre-1.0.0 |
 | **OD-07** | How frozen is the desktop lane | (a) the plan's floor (build-green, tests-green, release-blockers) · (b) a deeper freeze | **a** — correctness-only, not a code freeze | The desktop lane's allowed-change envelope |
 | **OD-08** | Apply `docs/ci/build.yml.proposed` and delete `docs/ci/PENDING_WORKFLOW_CHANGE.md` | (a) apply + delete the marker · (b) leave pending | **a** — needs a `workflows`-scoped token | Returning gates **E9**/**G7** to byte-equality enforcement |
-| **OD-09** | First-party licence | (a) GPLv3 + Qt LGPL notices staged, legal review before 1.0.0 · (b) other | **a** | Closing the `U-08` licence-set remainder |
+| **OD-09** | First-party licence | (a) GPLv3 + Qt LGPL notices staged, legal review before 1.0.0 · (b) other | **b** — Ms-PL relicense executed S18 (`OD-09 = b`); Qt LGPL notices still open | Closing the `U-08` licence-set remainder |
 | **OD-10** | Release re-cut | (a) re-cut from one reviewed SHA after the blockers · (b) re-cut now | **a** | `U-09` (the banked snapshot predates S7) |
 | **OD-11** | Bump to 1.0.0 | (a) not yet · (b) bump now | **a** — gates + decisions still open | Version stays 0.1.0 until the release criteria are met |
 | **OD-12** | Two-way CLI settings in 1.0.0 | (a) out · (b) in | **a** — the live pane stays honest one-way | Keeping the one-way CLI pane unchanged through 1.0.0 |
@@ -51,10 +51,15 @@ answers are fine; `OD-14` has two sub-questions and needs both.
   change; the standing docs-only constraint does not cover anything else.
   **Executed S16 (2026-09-13):** CLI `--run` refuses Batch with no `output`
   (rc=2, named reason) before the engine starts; smoke 21/21.
+- **`OD-09` = b** (2026-09-14) — first-party code relicensed to Ms-PL (option (b) "other").
+  **Executed S18 (2026-09-14):** `LICENSE` rewritten, full text in `COPYING.ms-pl`,
+  both packagers + CI manifest require it, Caesium base dropped (it was never
+  incorporated). Closes the U-08 remainder except Qt LGPL notices.
+  Rationale: `docs/legal/WHY_MSPL.md`; copying rules: `docs/legal/COPYING_RULES.md`.
 
-**`OD-01` executed S15 (2026-09-13); `OD-02` executed S16 (2026-09-13).** The
+**`OD-01` executed S15 (2026-09-13); `OD-02` executed S16 (2026-09-13); `OD-09` executed S18 (2026-09-14).** The
 triage of all 18 rows landed in S15. The `GS-201` stop-loss (**P0-5**) landed in
-S16. Remaining owner questions are **OD-03…OD-15**.
+S16. Remaining owner questions are **OD-03…OD-08, OD-10…OD-15** (OD-09 answered S18).
 
 ## Notes
 

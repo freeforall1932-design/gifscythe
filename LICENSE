@@ -1,10 +1,21 @@
 Gifscythe License Notice
 ========================
 
-Gifscythe (the GUI and control-layer code under working_code/gifscythe/) is
-intended to be distributed under the GNU General Public License version 3
-(or, at your option, any later version), consistent with the Caesium UI/UX
-base (GPLv3) that the product adapts.
+Gifscythe — the first-party code (GUI, control layer, CLI, web client, and
+any future C# shell) — is distributed under the Microsoft Public License
+(Ms-PL). See COPYING.ms-pl for the full license text.
+
+Revision note (2026-09-14, S18 — owner decision OD-09 = b): the UI was
+previously *intended* GPLv3, as the base for a Caesium-derived UX. That base
+was never incorporated — no Caesium file ever entered the product tree — and
+the owner relicensed the first-party code to Ms-PL to match the ScreenToGif
+reference fork (also Ms-PL), whose files may now be adapted here with their
+notices retained. No third-party code is in the relicensed tree, so no
+third-party permission was needed for the relicense itself.
+
+UI look-and-feel is rebuilt from open parts (system fonts and MIT/Apache
+licensed icon sets), not from any proprietary or GPL asset. Layout and
+workflow inspiration (XNConvert-style) uses no third-party files.
 
 The bundled gifsicle engine is a SEPARATE PROGRAM, invoked as a subprocess.
 gifsicle is Copyright (C) Eddie Kohler and is licensed under the GNU General
@@ -19,5 +30,5 @@ gifsicle tree, or upstream https://github.com/kohler/gifsicle).
 Qt is used under the LGPL v3 (or a commercial Qt license, if you have one).
 
 For the full GPLv2 text covering the engine, see COPYING.gifsicle.
-For the full GPLv3 text, see https://www.gnu.org/licenses/gpl-3.0.html
-(or the COPYING file shipped with a full source release).
+For the full Ms-PL text covering the first-party code, see COPYING.ms-pl.
+Rationale and copying rules: docs/legal/ (WHY_MSPL.md, COPYING_RULES.md).

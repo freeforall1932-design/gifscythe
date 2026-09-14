@@ -11,8 +11,8 @@ or consult. **Never edit or ship these directly.** All edits happen in
 | `gifsicle/` | gifsicle source (GPL v2-only) — the tree `scripts/build_engine.sh` compiles. **Provenance VERIFIED 2026-09-12 (S11):** byte-identical to upstream `kohler/gifsicle` master commit `07f5c4c3de1306156e1d8f33e62971d4664c8f7` (5 commits after the `v1.96` tag) in every shared file, **minus four upstream CI dotfiles** (`.appveyor.yml`, `.github/`, `.gitignore`, `.travis.yml`). The product-owned native config is staged from `working_code/gifscythe/build_support/gifsicle/config.native.h`; it is no longer inside this tree (S13). Hashes below. | `https://github.com/kohler/gifsicle.git` @ `07f5c4c3` | Verified against a fresh clone 2026-09-12; config relocation verified 2026-09-12 |
 | `gifsicle-nested-1.96/` | **Pristine gifsicle v1.96** — verified 2026-09-12 (S11) byte-identical to upstream tag `v1.96` (commit `a08e0f6686d467bb8b9e4715b1f1835f12984fb0`) in every shared file, minus the same four CI dotfiles, with NO local additions. The three files that differ from `gifsicle/` (`src/gifsicle.c`, `src/gifsicle.h`, `src/Makefile.w32`) plus the missing `test/012-framechange.testie` are exactly the upstream post-1.96 delta, not local edits. | `https://github.com/kohler/gifsicle.git` @ `v1.96` | Verified against a fresh clone 2026-09-12 |
 | `gifsicle-upstream/` | Fresh FULL clone of upstream gifsicle used for the 2026-09-12 verification; `07f5c4c3` checked out. Gitignored (re-fetch as needed: `git clone https://github.com/kohler/gifsicle.git reference_code/gifsicle-upstream`). | `https://github.com/kohler/gifsicle.git` | Auto-fetched (GitHub) 2026-09-12 |
-| `caesium-source/` | Caesium **UI** source (GPLv3) — the UI/UX base we adapt. Commit `867c7d5ce6efec599b87cd773fbe659bd5d1263f`. | `https://github.com/Lymphatus/caesium-image-compressor.git` | Auto-fetched (GitHub) |
-| `caesium-bin/` | Caesium 2.8.5 **Windows binary bundle** (Qt6 runtime: Qt6*.dll, platforms/, imageformats/ incl. `qgif.dll` + `qwebp.dll`). Used as the reference for the **portable Qt runtime** pattern. | Was already in this repo (bundled `.exe` + DLLs). **Untracked 2026-09-07** (74 MB of third-party binaries; `.gitignore`d) — re-fetch from the Caesium GitHub releases (`Lymphatus/caesium-image-compressor` 2.8.5 Windows bundle) if needed. | Untracked (gitignored) |
+| `caesium-source/` | **RETIRED S18** (`OD-09 = b`): was the planned Caesium UI-source base (GPLv3); never incorporated, do not re-fetch. | n/a (retired) | Retired 2026-09-14 |
+| `caesium-bin/` | Caesium 2.8.5 **Windows binary bundle** (Qt6 runtime: Qt6*.dll, platforms/, imageformats/ incl. `qgif.dll` + `qwebp.dll`). Used as the reference for the **portable Qt runtime** pattern. | Was already in this repo (bundled `.exe` + DLLs). **Untracked 2026-09-07** (74 MB of third-party binaries). **RETIRED S18** (`OD-09 = b`): do not re-fetch. | Retired 2026-09-14 |
 
 ## Verified identity of `gifsicle/` (audit U-10 / A-09, provenance half — S11, 2026-09-12)
 
@@ -52,7 +52,7 @@ of the 5 commits between `v1.96` and `07f5c4c3`. `test/012-framechange.testie`
 is upstream's own test from `ed5b018` ("Add a frame-change test").
 
 ## Notes
-- **Auto-fetched** items (network worked): `gifsicle-upstream`, `caesium-source`.
+- **Auto-fetched** items (network worked): `gifsicle-upstream`, `caesium-source` (retired S18).
 - If a future reference **cannot** be auto-fetched, it must be **manually
   uploaded** here; append it to this manifest and mark `Retrieved: manually
   uploaded`.
@@ -69,9 +69,9 @@ is upstream's own test from `ed5b018` ("Add a frame-change test").
 - `gifsicle-nested-1.96/` is the pristine `v1.96` comparison tree (frame-
   selection behaviour predates upstream fix #186 there). It is not the build
   input.
-- The three **Auto-fetched** rows above (`gifsicle-upstream/`, `caesium-source/`,
-  `caesium-bin/`) are gitignored and therefore **absent from a fresh checkout**;
-  re-fetch them before relying on this manifest.
+- `gifsicle-upstream/` is gitignored and therefore **absent from a fresh checkout**;
+  re-fetch it before relying on this manifest. The two Caesium rows above are
+  retired (S18) — their absence is permanent policy, not a fetch-away state.
 - The nested `.git` directories of earlier shallow clones were removed; this
   folder is a plain read-only snapshot, and provenance is documented here
   instead. (`gifsicle-upstream/` keeps its `.git` — it is gitignored scratch

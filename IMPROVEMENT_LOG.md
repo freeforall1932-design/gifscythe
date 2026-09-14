@@ -4,6 +4,177 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S18 — Phase 1 spike GREEN, Phase 2 GO (2026-09-14)
+
+- Run `34804350470`: `csharp-spike` all green, zero skips — happy path,
+  é+space, honest 0/2/3/4/5 incl. both lying-engine exit-5 cases,
+  self-contained single-file publish runs on the stock runner.
+- The spike's first red was decision-grade, not waste: the combined é+CJK
+  step re-proved the engine-ACP residual (`src/core/WinUnicode.h`) from C#,
+  correcting the plan's own acceptance criterion (CJK now pinned to fail
+  honestly; the step flips red if the residual ever closes).
+- Two CI-harness gotchas, both fixed without touching the C# source (first
+  compile passed untouched): `command -v true` returns the shell builtin,
+  so the lying-engine lookup must use `type -P`; and multi-path
+  `upload-artifact` rooting must never be assumed — `find` the engine.
+- First native-Windows é-path proof anywhere in the repo (U-07's é evidence
+  is Wine-only). Verdict recorded in plan §4: **Phase 2 GO**.
+
+## S18 — Phase 1 spike scaffolded (csharp/spike/ + CI job) (2026-09-14)
+
+- `csharp/spike/`: net9.0 console, hardcoded optimize-3 settings → argv,
+  real engine spawn via an argv array (never a shell), GIF87a/89a output
+  verify, honest exit codes 0/2/3/4/5.
+- `csharp-spike` CI job (live + proposed `build.yml`, drift still one line):
+  happy path, Unicode + space paths, every failure code incl. lying-engine
+  exit-5 cases, then a self-contained single-file publish that must be one
+  `.exe` over 5 MB and must run.
+- Outcome pending: first CI run decides Phase 2 go/no-go. A red run is a
+  valid, decision-grade result, not a failure to hide.
+
+## S18 follow-up — licence story consolidated into docs/legal/ (2026-09-14)
+
+**Changed:**
+
+- New `docs/legal/` folder (owner request): `README.md` (licence single source of truth + maintenance contract), `WHY_MSPL.md` (full OD-09 = b / OD-C6 rationale, rejected alternatives, accepted costs, one-way-door warning), `COPYING_RULES.md` (per-file fork-copying checklist). Live docs now point here instead of carrying their own rationale prose: vision UI-approach, plan §1.4, offline S18 note, OD-09 answer, `LICENSE` pointer line.
+- Stale/confusing leftovers fixed: README auto-fetch line no longer lists the retired Caesium trees; nested `reference_code/.gitignore` drops `caesium-source/` (guard comment forbids re-add); manifest fetch note rewritten (retired absence is policy, not fetch-away). Dated history (old log entries, dated reviews, audit evidence, intake reports) deliberately left verbatim as evidence.
+
+**Partial:** none — docs only.
+
+**Left:** spike session (unchanged).
+
+**Verified:**
+
+- `check_docs.sh --emit` re-run (register unchanged), then `check_docs.sh --no-gate-run` green with zero failures; `sweep_stale.sh` clean. New files written gate-aware (existing repo paths only, no counts, no volatile phrasing).
+
+**Not verifiable here:**
+
+- CI's verdict on this commit (not yet pushed at write time).
+
+**Docs touched:** `docs/legal/README.md`, `docs/legal/WHY_MSPL.md`, `docs/legal/COPYING_RULES.md`, `LICENSE`, `PROJECT_VISION.md`, `README.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/planning/OWNER_DECISIONS.md`, `docs/planning/CSHARP_SHELL_PLAN.md`, `reference_code/REFERENCE_MANIFEST.md`, `reference_code/.gitignore`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`.
+
+---
+
+## S18 follow-up — workflows scope verified, relicense CI success (2026-09-14)
+
+**Changed:**
+
+- Run `34801397493` (relicense commit `161e862`) concluded success on both jobs (2026-09-14): the manifest step asserts `COPYING.ms-pl` in the package, and the packaging-negative step passes with both new required-file cases (fixture-pure, run before any artifact-dependent case in each kind), confirming the 30 — 32 count by construction plus the executed portable delta. Pre-push hook green 23/0/3. The `build.yml` push itself is the workflows-scope proof, so the pending marker now tracks only the 1-line cygpath drift.
+
+**Partial:** none — close-out entry.
+
+**Left:** spike session (unblocked: workflow edits push cleanly).
+
+**Verified:**
+
+- `gh run view 34801397493` conclusion success (linux + windows); `gh run watch --exit-status` 0; `check_docs.sh --no-gate-run` green with zero failures; `sweep_stale.sh` clean.
+
+**Not verifiable here:**
+
+- Raw CI log text (the results-receiver host is unreachable from this sandbox); step-level conclusions stand as the proof, and both packaging steps are fail-closed (any failure reds the job).
+
+**Docs touched:** `docs/ci/PENDING_WORKFLOW_CHANGE.md`, `SESSION_HANDOFF.md`, `WORKLIST.md`, `IMPROVEMENT_LOG.md`.
+
+---
+
+## S18 follow-up — UI relicensed to Ms-PL, Caesium dropped (2026-09-14)
+
+**Changed:**
+
+- **Relicense executed (`OD-09 = b`, `OD-C6`):** first-party code is now Ms-PL. `LICENSE` rewritten (with revision note), full text added as `COPYING.ms-pl`, both packagers hard-require it (`package_common.sh` + fixture/negative case in `test_package.sh`), CI manifest (live + proposed) asserts it. No third-party code was in the tree (verified: no foreign copyright headers, empty `assets/`/`resources/`), so the relicense needed no outside permission. Engine untouched (GPLv2 subprocess); Qt LGPL line kept.
+- **Caesium dropped:** the base was never incorporated (zero files in the tree; the 74 MB binary bundle was removed in S7 and only a packaging pattern was ever taken from it). Vision UI-approach rewritten to open-parts rebuild (system fonts, MIT/Apache icon sets); `reference_code/REFERENCE_MANIFEST.md` rows retired (provenance kept, re-fetch forbidden); `.gitignore` lines + README layout lines removed; dated reviews annotated, not rewritten.
+- **U-08 narrowed (stays PARTIAL):** "no full text / grant unstated" closed by the Ms-PL text + `LICENSE` grant; still missing: Qt LGPL notices. Packaging count 30 — 32 (one new required-file case per kind).
+- **OD-C1 superseded:** fork is no longer reference-only — Ms-PL fork files may now be copied with notices retained (plan §1.4/§8 updated, OD-C6 recorded).
+
+**Partial:** Qt LGPL notices still unstaged (U-08 remainder); full 32-green packaging run needs real artifacts (CI).
+
+**Left:** spike session (workflow push now armed with granted scope + this commit's manifest line as the first live test of it).
+
+**Verified:**
+
+- `test_package.sh` delta executed here: baseline 11 PASS then abort at the missing-build-artifact `cp` (no `build/` in this sandbox); modified run 12 PASS then the same abort — exactly +1 (the new portable missing-file case passes; system side same shared `copy_required` path). Absolute 32-green re-measured in CI, which has real artifacts.
+- `check_docs.sh --emit` regenerated `STATUS.md` (U-08 proof only); plain `--no-gate-run` green with zero failures; `sweep_stale.sh` clean.
+
+**Not verifiable here:**
+
+- The full 32-case packaging green (needs `build/` artifacts); CI's verdict on this commit, including whether the granted `workflows` scope accepts the live `build.yml` change (if rejected, the change is reverted from live and the pending marker extended).
+
+**Docs touched:** `LICENSE`, `COPYING.ms-pl`, `COMPILED_AUDIT.md`, `STATUS.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`, `PROJECT_VISION.md`, `README.md`, `FEASIBILITY_REVIEW.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/planning/OWNER_DECISIONS.md`, `docs/planning/CSHARP_SHELL_PLAN.md`, `docs/release/RELEASE_PROCEDURE.md`, `reference_code/REFERENCE_MANIFEST.md`, `.gitignore`, `.github/workflows/build.yml`, `docs/ci/build.yml.proposed`, `working_code/gifscythe/scripts/package_common.sh`, `working_code/gifscythe/scripts/test_package.sh`.
+
+---
+
+## S18 follow-up — workflows scope granted, retry armed (2026-09-14)
+
+**Changed:**
+
+- Owner granted the `workflows` permission, unblocking pushes to `.github/workflows/`. Per the owner's "try it later": nothing pushed now; `docs/ci/PENDING_WORKFLOW_CHANGE.md` status flipped to granted-with-retry (marker stays until a retry succeeds, with a restore rule if rejection recurs), and the C# spike next-action now says to land the workflow change directly instead of staging it in `docs/ci/build.yml.proposed`.
+- Also corrected an owner mental model in chat: MS-PL is not "GPLv3 with a different name" (weak/file-level copyleft vs strong/work-level copyleft; FSF lists them incompatible). Reference-only stance unchanged.
+
+**Partial:** none — docs only, no code.
+
+**Left:** the retry itself belongs to the spike session (needs the spike's CI job to exist first).
+
+**Verified:**
+
+- `working_code/gifscythe/scripts/check_docs.sh --emit` re-run (register unchanged), then `check_docs.sh --no-gate-run` green with zero failures; `scripts/sweep_stale.sh` clean.
+
+**Not verifiable here:**
+
+- Whether the granted scope actually works (the proof is the retry push, deliberately deferred); CI's verdict on this commit (not yet pushed at write time).
+
+**Docs touched:** `docs/ci/PENDING_WORKFLOW_CHANGE.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`.
+
+---
+
+## S18 follow-up — stills-to-animated scope + mission-amendment fix (2026-09-14)
+
+**Changed:**
+
+- Owner confirmed video↔animated endpoints (already plan §2.1) and asked for still-image collections (JPG/PNG) → GIF/APNG/WebP with a speed control plus per-frame timing — the phone-app GIF-maker flow, ezgif-maker-class (global "Delay time" + per-frame "Delay" in 1/100 s, matching the existing `delay_cs` units). Recorded as plan §2.1 item 3; video endpoints shift to item 4, editing to item 5.
+- Fixed the mission-amendment wording the owner quoted back: it must cover photos too — *"photos and video only as conversion endpoints/inputs, never as the subject."* Still gated: no stills-import or video-endpoint code until `PROJECT_VISION.md` is amended.
+- Engine note recorded: gifsicle reads GIF inputs only (vendored man page), so stills need a decode step — folded into the same FFmpeg-sidecar-or-platform-codecs TBD as video.
+
+**Partial:** none — planning only, no code.
+
+**Left:** unchanged from the S18 entry below (Phase 1 spike needs a Windows runner; vision amendment due before endpoint work).
+
+**Verified:**
+
+- `working_code/gifscythe/scripts/check_docs.sh --emit` re-run (register unchanged), then `check_docs.sh --no-gate-run` green with zero failures; `scripts/sweep_stale.sh` clean. New doc text kept gate-safe (existing repo paths only, no runtime counts, no audit-ID checkboxes).
+
+**Not verifiable here:**
+
+- CI's verdict on this commit (not yet pushed at write time); the spike still needs Windows.
+
+**Docs touched:** `docs/planning/CSHARP_SHELL_PLAN.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`.
+
+---
+
+## S18 — C# shell plan: Phase 0 decided, plan is WORKING (2026-09-14)
+
+**Changed:**
+
+- **New plan:** `docs/planning/CSHARP_SHELL_PLAN.md` — a C#/WPF exe shell driving the unchanged gifsicle subprocess, written because the owner forked ScreenToGif as a faster exe path and asked for a custom UI/UX. Answers the C/C++-vs-C# question (no technical clash: subprocess+argv boundary, already proven by the JS web client) and lays out six phases with exit gates.
+- **Phase 0 signed (owner, same session):** OD-C1 = a (fork is reference-only — MS-PL source never lands in this GPLv3-intent tree), OD-C2 = c (phased commitment: sidecar through the Phase 1 spike + Phase 2 Core port, full commit at Phase 3 UI), OD-C3 = a (no recorder; converter+compressor focus, APNG/WebP promoted to planned scope, video allowed only as a conversion endpoint, ezgif-class editing later — mission amendment to `PROJECT_VISION.md` required before any video-endpoint work), OD-C4 = a (WPF), OD-C5 = a (archive the Qt GUI at cutover; the C++ CLI stays forever as the parity oracle).
+- **Direction effect:** the OFFLINE_BUILD_REVIEW §4 decision ("stay C++/Qt through 1.0.0") is now superseded by the phased plan — Qt stays the shippable path only until the Phase 3 commit point.
+
+**Partial:** none — planning session, no code.
+
+**Left:** Phase 1 spike (needs a Windows runner with dotnet; not obtainable here); the `PROJECT_VISION.md` mission amendment (due before video-endpoint work, not now); OD-03…OD-15 untouched.
+
+**Verified:**
+
+- Docs gate: `working_code/gifscythe/scripts/check_docs.sh --emit` regenerated `STATUS.md` (header session/date only — no register rows changed), then `check_docs.sh --no-gate-run` is green with zero failures (`G6 SKIP`, the CI-accepted mode for doc runs; no full `verify_audit.sh` re-run for a docs-only change). `scripts/sweep_stale.sh` run alongside, clean.
+- Gate-safety review of the new plan doc before commit: every backticked repo path in it exists in this checkout (G8); no bare harness/unit runtime counts (G9); no audit-ID checkboxes added to `WORKLIST.md` (G2).
+
+**Not verifiable here:**
+
+- The Phase 1 spike itself (no dotnet/Windows in this sandbox) and CI's verdict on this commit (not yet pushed at write time).
+
+**Docs touched:** `docs/planning/CSHARP_SHELL_PLAN.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `STATUS.md` (regenerated header), `IMPROVEMENT_LOG.md`.
+
+---
+
 ## S17 continuation — sequential DS-11 / GS-210 / GS-204 / GS-203 (2026-09-13)
 
 **Authorization:** owner requested highest→high confidence sequential work, medium/
