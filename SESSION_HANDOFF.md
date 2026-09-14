@@ -84,6 +84,7 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #21 | S16 | `arena/01a098ff-gifscythe` | `df1dfd5` | Merged 2026-09-13; reviewed S17: S15 OD-01 triage + S16 GS-201 stop-loss + G18/G16/P3b process gates |
 | #22 | S17 | `arena/01a09934-gifscythe` | `f760ebe` | Merged 2026-09-13; reviewed S19 from history: S17 sequential work — N-07 count sweep + GS-202 containment + DS-13 magic check + GS-207 strict override + shared packaging/output-verifier hardening |
 | #23 | S17 | `arena/01a09dae-gifscythe` | `8230247` | Merged 2026-09-14; reviewed S19 from history: S18 Ms-PL relicense (OD-09 = b) + C# shell plan Phase 0 + Phase-1 spike GREEN (run 34804350470, Phase 2 GO — since parked by S19 OD-C7) |
+| #24 | S20 | `arena/01a09e2e-gifscythe` | **open** | S19 exe-direction/U-08-close/wasm-scaffold + S19-review fixes + S20 windows-only product (OD-17) |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
