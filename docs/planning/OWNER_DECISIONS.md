@@ -55,6 +55,7 @@ answers are fine; `OD-14` has two sub-questions and needs both.
   **Executed S18 (2026-09-14):** `LICENSE` rewritten, full text in `COPYING.ms-pl`,
   both packagers + CI manifest require it, Caesium base dropped (it was never
   incorporated). Closes the U-08 remainder except Qt LGPL notices.
+  Rationale: `docs/legal/WHY_MSPL.md`; copying rules: `docs/legal/COPYING_RULES.md`.
 
 **`OD-01` executed S15 (2026-09-13); `OD-02` executed S16 (2026-09-13); `OD-09` executed S18 (2026-09-14).** The
 triage of all 18 rows landed in S15. The `GS-201` stop-loss (**P0-5**) landed in

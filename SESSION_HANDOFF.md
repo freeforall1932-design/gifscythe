@@ -103,6 +103,7 @@ alone would have passed straight through both skipped syncs.
 - **Scope addendum (same day):** still-image collections (JPG/PNG) → animated with global+per-frame timing is planned scope (plan §2.1 item 3); the mission amendment now covers photos too.
 - **Workflows scope granted + verified (same day):** owner granted the permission and the relicense commit pushed a live `build.yml` change successfully — workflow edits are unblocked (`docs/ci/PENDING_WORKFLOW_CHANGE.md` still tracks the 1-line cygpath drift).
 - **Relicense (same day):** UI is now Ms-PL (`OD-09 = b`, `OD-C6`); Caesium base dropped; packagers + CI manifest require `COPYING.ms-pl`.
+- **Legal consolidation (same day):** licence story single-sourced into `docs/legal/` — point there instead of quoting it.
 
 ## S17 sequential high-confidence work (2026-09-13)
 

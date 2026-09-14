@@ -163,8 +163,8 @@ gifscythe/                        (repo root)
 - **reference_code/** — unmodified source material we reference, adapt, or bundle
   into releases. **Never edit** these; treat them as read-only imports.
 - **working_code/** — our actual product. All edits happen here.
-- Large auto-fetched trees (`gifsicle-upstream`, `caesium-source`, `caesium-bin`)
-  are gitignored; re-fetch or see `reference_code/REFERENCE_MANIFEST.md`.
+- Large auto-fetched trees (`gifsicle-upstream`) are gitignored; re-fetch or see
+  `reference_code/REFERENCE_MANIFEST.md` (its Caesium rows are retired S18).
 
 ## Docs for reviewers / next session
 0. **`STATUS.md`** — the single status register. Start here: one row per tracked
