@@ -4,6 +4,31 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S18 — C# shell plan: Phase 0 decided, plan is WORKING (2026-09-14)
+
+**Changed:**
+
+- **New plan:** `docs/planning/CSHARP_SHELL_PLAN.md` — a C#/WPF exe shell driving the unchanged gifsicle subprocess, written because the owner forked ScreenToGif as a faster exe path and asked for a custom UI/UX. Answers the C/C++-vs-C# question (no technical clash: subprocess+argv boundary, already proven by the JS web client) and lays out six phases with exit gates.
+- **Phase 0 signed (owner, same session):** OD-C1 = a (fork is reference-only — MS-PL source never lands in this GPLv3-intent tree), OD-C2 = c (phased commitment: sidecar through the Phase 1 spike + Phase 2 Core port, full commit at Phase 3 UI), OD-C3 = a (no recorder; converter+compressor focus, APNG/WebP promoted to planned scope, video allowed only as a conversion endpoint, ezgif-class editing later — mission amendment to `PROJECT_VISION.md` required before any video-endpoint work), OD-C4 = a (WPF), OD-C5 = a (archive the Qt GUI at cutover; the C++ CLI stays forever as the parity oracle).
+- **Direction effect:** the OFFLINE_BUILD_REVIEW §4 decision ("stay C++/Qt through 1.0.0") is now superseded by the phased plan — Qt stays the shippable path only until the Phase 3 commit point.
+
+**Partial:** none — planning session, no code.
+
+**Left:** Phase 1 spike (needs a Windows runner with dotnet; not obtainable here); the `PROJECT_VISION.md` mission amendment (due before video-endpoint work, not now); OD-03…OD-15 untouched.
+
+**Verified:**
+
+- Docs gate: `working_code/gifscythe/scripts/check_docs.sh --emit` regenerated `STATUS.md` (header session/date only — no register rows changed), then `check_docs.sh --no-gate-run` is green with zero failures (`G6 SKIP`, the CI-accepted mode for doc runs; no full `verify_audit.sh` re-run for a docs-only change). `scripts/sweep_stale.sh` run alongside, clean.
+- Gate-safety review of the new plan doc before commit: every backticked repo path in it exists in this checkout (G8); no bare harness/unit runtime counts (G9); no audit-ID checkboxes added to `WORKLIST.md` (G2).
+
+**Not verifiable here:**
+
+- The Phase 1 spike itself (no dotnet/Windows in this sandbox) and CI's verdict on this commit (not yet pushed at write time).
+
+**Docs touched:** `docs/planning/CSHARP_SHELL_PLAN.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `STATUS.md` (regenerated header), `IMPROVEMENT_LOG.md`.
+
+---
+
 ## S17 continuation — sequential DS-11 / GS-210 / GS-204 / GS-203 (2026-09-13)
 
 **Authorization:** owner requested highest→high confidence sequential work, medium/

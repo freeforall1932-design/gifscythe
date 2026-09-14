@@ -30,7 +30,7 @@ hand-fudged roll-up fails the gate.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
 **Counts (generated - do not edit by hand):** 87 DONE · 8 PARTIAL · 27 OPEN · 0 UNTRIAGED · 122 total
-**Last regenerated:** S17 · 2026-09-13 · by scripts/check_docs.sh --emit
+**Last regenerated:** S18 · 2026-09-14 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
 

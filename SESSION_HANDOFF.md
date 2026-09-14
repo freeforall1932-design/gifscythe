@@ -94,6 +94,12 @@ each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, an
 `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
 alone would have passed straight through both skipped syncs.
 
+## S18 — C# shell plan, Phase 0 decided (2026-09-14)
+
+- **Plan:** `docs/planning/CSHARP_SHELL_PLAN.md` is `WORKING PLAN` — a WPF shell over the unchanged gifsicle subprocess. Decisions OD-C1 = a, OD-C2 = c, OD-C3 = a, OD-C4 = a, OD-C5 = a (record + rationale in the plan's §8).
+- **Next:** Phase 1 spike on a Windows runner (dotnet publish + non-ASCII-path proof). The Qt GUI remains the shippable path until the Phase 3 commit point — S18 changed no code, CI, or the release line.
+- **Watch-outs for the spike session:** the fork stays reference-only (no file copies); the `PROJECT_VISION.md` mission amendment lands before any video-endpoint work.
+
 ## S17 sequential high-confidence work (2026-09-13)
 
 Owner authorized highest-to-high confidence changes, deferring medium/low work
