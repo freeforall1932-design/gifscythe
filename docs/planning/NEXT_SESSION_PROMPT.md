@@ -30,7 +30,7 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S20.
    S18 (merged PR #23): Ms-PL relicense + C# plan + spike GREEN — then S19 PARKED
    the C# shell (OD-C7, exe stays C++17/Qt6), closed U-08 (Qt LGPL staged,
    packaging 36/36), answered OD-11 = a / OD-12 = a, and scaffolded web/wasm/
-   (UNPROVEN: no emcc here; OD-16 licence question open, blocks shippable). S20 (OD-17): windows-only ship — linux zip + CI upload dropped, Windows job gained the packaging + manifest gates (first green pending at push).
+   (UNPROVEN: no emcc here; OD-16 licence question open, blocks shippable). S20 (OD-17): windows-only ship — linux zip + CI upload dropped, Windows job gained the packaging + manifest gates (run 34812043127 green).
    GS-203/U-06, release blockers GS-204/GS-208/U-09/DS-06, and the Windows
    smoke + desktop probes remain unresolved.
 

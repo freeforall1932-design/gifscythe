@@ -110,9 +110,10 @@ drift untouched, now line 171). Release: only the Windows zip
 (`RELEASE_PROCEDURE.md` §3 re-titled, §4 zip line). Wine reframed as
 emulation signal in the top README. The negatives suite stays on Linux (its
 symlink tools-dir cannot run on stock Windows runners — follow-up work).
-First Windows-CI green with the new steps is PENDING at push time — the
-next session must observe it (`gh run view`) before citing Windows
-packaging as proven; `GS-204` stays PARTIAL regardless. Web untouched.
+First Windows-CI green OBSERVED same session: run `34812043127` (linux +
+windows + csharp-spike success; new package/assert steps 9–10 green;
+artifacts `gifscythe-windows` 52.8 MB + `gifscythe-spike`, no linux upload).
+`GS-204` stays PARTIAL (architecture + clean-machine proof remain). Web untouched.
 
 ## S19 — exe stays C++/Qt6 (park C#, close U-08) + wasm MVP scaffold (2026-09-14)
 
