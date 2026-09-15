@@ -71,8 +71,13 @@ trust A/D + primary source. Where A and D disagree, treat D as the fresher obser
 | ⏸ **BLOCKED** | Cannot be checked in this sandbox (no Qt6/cmake/Windows) |
 
 > **Status:** Audit A and B extracted files (`AUDIT_A_extracted.md`, `AUDIT_B_extracted.md`)
-> have been incorporated into this compiled document and then deleted. This file is now the
-> single source of truth for all findings from all four audits.
+> were incorporated into this compiled document and then deleted from `main`. They still exist
+> on the closed branch `codebase-review-and-fix-implementation-b8d7e` (PR #9, never merged),
+> which is where the v3 completeness sweep re-read them from — the branch is the backup copy,
+> `main` is not. This file is the single source of truth for all findings from **all six audits**
+> (A, B, C, D, E, F). v3 also recovered their *non-finding* sections, which the v2 merge had
+> dropped: see §16 (A/B positives, method, fix-order rationale) and §15 (the VP / false-positive
+> guardrails §12 cites).
 
 ---
 
@@ -91,7 +96,7 @@ trust A/D + primary source. Where A and D disagree, treat D as the fresher obser
 
 ## 1. Executive cross-audit summary
 
-**All four audits converge on the same top failure class:**
+**All six audits converge on the same top failure class:**
 **silent data loss / false success** — the tool reports success while destroying data,
 writing nothing, or running single-threaded when the user asked for auto-threading.
 
@@ -2477,6 +2482,8 @@ Repo files on `origin/main` (c4f9e1c):
 - `gifscythe-audit-01a0a4f2-59e2-729d-ba6e-9030c6b52dcb 2026-09-15.md` → 5 findings (NA)
 
 So file name ID does NOT match live URL content for same ID — files appear swapped on upload. Content by finding count is authoritative.
+
+**Update (v3, 2026-09-15):** both root-level copies named above were folded into this file and deleted, so `COMPILED_AUDIT.md` is the only audit md at the repo root. The listing is kept as the historical observation that established the swap; the full text of both is in git history at `c4f9e1c`. The `…7b91…` copy's stale register tally was the live **G17/S2** gate failure on `main`; deleting it cleared that (see §18).
 
 **Resolution adopted per owner latest check (19 = fable WINNER):**
 - **E = 7b91 URL = 5 findings NA = gpt 5.6 sol xhigh (non-winner)**
