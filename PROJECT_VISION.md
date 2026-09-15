@@ -34,9 +34,9 @@ sandbox**. **2026-09-10 (S8):** the audit register was
 worked down — **31 findings closed with executed proof** (both release blockers
 included). **2026-09-10 (S9):** the status-tracking system landed — `STATUS.md`,
 `scripts/check_docs.sh`, the `verify_audit.sh` **F1/F2** gates and a pre-push
-hook — and the one-command gate is green at **28 PASS / 0 FAIL / 3 SKIP,
-exit 0** as measured in the S11 sandbox (E9 SKIPs while the CI workflow change
-awaits a `workflows`-scoped token).
+hook — and the one-command gate is green at **30 PASS / 0 FAIL / 3 SKIP,
+exit 0** after S22 added the two missing web regressions (E9 SKIPs while the CI
+workflow change awaits a `workflows`-scoped token).
 **2026-09-11 (S10):** the S10 sandbox had cmake + Qt6 (apt-installed), so the
 harness was re-measured locally for the first time since S7 — **306 runtime
 checks, 0 failures (T1–T20)** — and 9 findings closed with executed proof
@@ -52,8 +52,9 @@ addition: the handwritten `config.h`), **U-12** scoped as P1-24 and
 deliberately left OPEN, and new finding new findings **N-04** (MinGW `fs::path`
 non-UTF-8 narrow conversions) and **N-05** (multi-input Explode silently
 scattered frames; now refused at every layer) found and closed in-session.
-Harness re-measured at **324 runtime checks**; unit **296**; smoke **14/14**;
-web **17 + 23 + 30**; `verify_audit.sh` **28/0/3**. S12 also closed the
+Harness re-measured at **324 runtime checks**; unit **296**; smoke **14/14**.
+The **current** web-node suites are **17 + 23 + 67 + 8 + 43**, and
+`verify_audit.sh` is now **30/0/3** after S22 added W4/W5. S12 also closed the
 P2-4/U-18 regression-coverage scope and repaired the post-merge documentation
 base check (PR #15). **S13 (2026-09-12):** product-owned native engine
 configuration moved to `working_code/gifscythe/build_support/gifsicle/`, so

@@ -64,9 +64,16 @@ const fixtures = [
   { name: "explode by name still validates resize geometry",
     s: { mode: "explode", explode_by_name: true, resize_kind: "fit",
          resize_w: 0, resize_h: 0, inputs: [IN] } },
-  { name: "crop with zero height",
-    s: { mode: "auto", crop: true, crop_x: 0, crop_y: 0, crop_w: 30, crop_h: 0,
-         inputs: [IN] } },
+  { name: "crop 0x0 is allowed (audit U-62)",
+    s: { mode: "auto", crop: true, crop_x: 2, crop_y: 2, crop_w: 0, crop_h: 0,
+         inputs: [IN] },
+    expect: [] },
+  // threads < -1 is reachable only via a hand-written conf because both writers
+  // normalize negative values away except -1 = unset.
+  { name: "threads below -1 warns (audit DS-09)",
+    s: { mode: "auto", threads: -7, inputs: [IN] },
+    conf: `mode = auto\nthreads = -7\ninput = ${IN}\n`,
+    expect: ["threads=-7: must be >= -1 (-1 = unset/default, 0 = auto, >0 = explicit thread count)"] },
   { name: "resize-fit 0x0 (audit U-22)",
     s: { mode: "auto", resize_kind: "fit", resize_w: 0, resize_h: 0, inputs: [IN] } },
   { name: "resize-touch 0x0",
@@ -106,13 +113,20 @@ try {
     const cpp = [...stderr.matchAll(/^WARNING: ([^=]*)=(.*?): (.*)$/gm)]
       .map((m) => `${m[1]}=${m[2]}: ${m[3]}`);
     const js = validate(f.s).map((i) => `${i.field}=${i.value}: ${i.reason}`);
+    const expected = f.expect || null;
 
     const same = cpp.length === js.length && cpp.every((line, i) => line === js[i]);
-    if (!same) {
+    const matchesExpected = !expected
+      || (cpp.length === expected.length
+        && js.length === expected.length
+        && cpp.every((line, i) => line === expected[i])
+        && js.every((line, i) => line === expected[i]));
+    if (!same || !matchesExpected) {
       failures++;
       console.log(`FAIL ${f.name}`);
       console.log(`  C++: ${JSON.stringify(cpp)}`);
       console.log(`  JS : ${JSON.stringify(js)}`);
+      if (expected) console.log(`  EXP: ${JSON.stringify(expected)}`);
     } else {
       console.log(`PASS ${f.name} (${js.length} warning${js.length === 1 ? "" : "s"})`);
     }

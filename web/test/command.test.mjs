@@ -69,6 +69,24 @@ const fixtures = [
     },
   },
   {
+    name: "frame selector input stays literal (audit U-60)",
+    s: {
+      mode: "auto", inputs: ["/tmp/parity/in.gif", "#0"], output: "/tmp/parity/out.gif",
+    },
+  },
+  {
+    name: "stdin input stays literal dash (audit U-60)",
+    s: {
+      mode: "auto", inputs: ["-"], output: "/tmp/parity/out.gif",
+    },
+  },
+  {
+    name: "stdout output stays literal dash (audit U-61)",
+    s: {
+      mode: "auto", inputs: ["/tmp/parity/in.gif"], output: "-",
+    },
+  },
+  {
     name: "scale percent + resize method",
     s: {
       mode: "auto", resize_kind: "scale", scale_x: 0.5, scale_y: 0.5,

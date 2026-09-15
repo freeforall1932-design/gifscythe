@@ -368,6 +368,24 @@ int main() {
     CHECK(has(GifsicleCommand(one).args(), "-j1"));
   }
 
+  // 21b. threads < -1 is warned (audit DS-09) even though the command builder
+  //      still falls back to bare -j for "auto" semantics.
+  {
+    auto warns = [](const Settings& s, const char* field) {
+      for (const auto& w : validate(s)) if (w.field == field) return true;
+      return false;
+    };
+    Settings neg; neg.inputs = {"a.gif"}; neg.threads = -7;
+    CHECK(warns(neg, "threads"));
+    CHECK(has(GifsicleCommand(neg).args(), "-j"));
+
+    Settings unset; unset.inputs = {"a.gif"}; unset.threads = -1;
+    CHECK(!warns(unset, "threads"));
+
+    Settings auto0; auto0.inputs = {"a.gif"}; auto0.threads = 0;
+    CHECK(!warns(auto0, "threads"));
+  }
+
   // 22. Output planning — the data-destruction guard (audit U-01).
   {
     namespace f = std::filesystem;
@@ -467,6 +485,10 @@ int main() {
     Settings none; none.inputs = {"a.gif"};             // ResizeKind::None
     CHECK(!warns(none, "resize"));
     CHECK(!warns(none, "scale"));
+
+    Settings crop0; crop0.inputs = {"a.gif"}; crop0.crop = true;
+    crop0.crop_x = 2; crop0.crop_y = 2; crop0.crop_w = 0; crop0.crop_h = 0;
+    CHECK(!warns(crop0, "crop"));                       // 0 = extend to edge
   }
 
   // 24. Malformed booleans warn instead of silently meaning "false"
@@ -510,6 +532,27 @@ int main() {
     Settings s2 = load_settings(in2, &w2);
     CHECK(s2.has_position);
     CHECK(has_seq(GifsicleCommand(s2).args(), "-p", "12,7"));
+  }
+
+  // 25b. A half-parsed position pair is also ignored (audit U-53): if one
+  //      coordinate parses and the other does not, the pair must not stay
+  //      live as `-p X,0`.
+  {
+    std::vector<LoadWarning> w;
+    std::istringstream in("position_x = 12\nposition_y = nope\ninput = a.gif\n");
+    Settings s = load_settings(in, &w);
+    CHECK(!s.has_position);
+    CHECK(s.position_x == 0);
+    CHECK(s.position_y == 0);
+    CHECK(w.size() == 2);  // parse failure + pair-level ignore warning
+    bool bad_y = false, pair = false;
+    for (const auto& x : w) {
+      if (x.key == "position_y" && x.reason == "not an integer") bad_y = true;
+      if (x.reason.find("position needs both position_x and position_y") != std::string::npos) pair = true;
+    }
+    CHECK(bad_y);
+    CHECK(pair);
+    CHECK(!has(GifsicleCommand(s).args(), "-p"));
   }
 
   // 26. Settings round trip stays exact, including the toggle-dependent groups
