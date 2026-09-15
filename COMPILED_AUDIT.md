@@ -30,10 +30,16 @@
 > audit text disagreed with the register, the original wording is kept after *"Original report:"*
 > and is superseded by the register.
 
-**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), S14 (2026-09-12 — external-review intake and status-truth corrections), S15 (2026-09-13 — 18-row triage), **S16 (2026-09-13 — GS-201 / P0-5 stop-loss)**, **S17 (2026-09-13 — N-07 count check, GS-202 path containment DS-13 signature check and GS-207 strict engine override)**
-**Branch:** `main` at `2d51347817f5cdb39334415a03bb5f2b543119dd` (the PR #15 merge; re-confirm with
-`gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`;
-`check_docs.sh` gate **G10** fails if this line names anything else)
+**Compiled:** 2026-09-10 · **Consolidated to v3:** 2026-09-15 (S21) · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), S14 (2026-09-12 — external-review intake and status-truth corrections), S15 (2026-09-13 — 18-row triage), S16 (2026-09-13 — GS-201 / P0-5 stop-loss), S17 (2026-09-13 — N-07 count check, GS-202 path containment, DS-13 signature check, GS-207 strict engine override), S18–S20 (2026-09-13/14 — Ms-PL relicense, exe direction, windows-only product), **S21 (2026-09-15 — v3 consolidation, U-68 413, U-67 serveStatic allow-list)**
+**Base:** `main` at `d1d7939` (the PR #26 merge; re-confirm with
+`gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`).
+*Corrected S21: this line said `2d51347` (the PR #15 merge) and claimed gate **G10**
+enforced it. G10 does not — its matcher covers the `based on` / `base commit` /
+`**Base:**` forms but not the `**Branch:**` form this line used, so it passed
+vacuously for ~10 merges. That is the same silent-no-op failure G10's own comment
+records fixing in S14. The line is now in the `**Base:**` form G10 does match, so
+it is enforced going forward; the authoritative base claim remains the one in
+`SESSION_HANDOFF.md`.*
 **Product version:** 0.1.0 (do **not** bump to 1.0.0 yet)
 **Companion docs:** `STATUS.md` · `SESSION_HANDOFF.md` · `WORKLIST.md` · `IMPROVEMENT_LOG.md`
 

@@ -1,16 +1,16 @@
 # Session Handoff
 
 **Session:** S21 · **Date:** 2026-09-15
-**Branch:** `audit/compiled-v3-consolidation` (hand-named, **not** platform-assigned — S21 was started from the owner's audit-compilation request rather than an arena session branch; the owner then approved opening the PR. S19 review + S20 work stayed on `arena/01a09e2e-gifscythe`.)
-**PR #25 merged as `034ad65`** (2026-09-15, reviewed S21 from history); PR #24 merged as `dcb9279` (2026-09-14); PR #23 merged as `8230247` (2026-09-14); PR #22 merged as `f760ebe` (2026-09-13); reviewed from history in S19/S20/S21.
+**Branch:** `audit/u67-serve-static-allowlist` (hand-named, **not** platform-assigned — S21 was started from the owner's audit-compilation request rather than an arena session branch; the owner then approved opening PRs. The first S21 branch `audit/compiled-v3-consolidation` merged as PR #26.) S19 review + S20 work stayed on `arena/01a09e2e-gifscythe`.)
+**PR #26 merged as `d1d7939`** (2026-09-15, this session's own work — v3 consolidation + U-68); PR #25 merged as `034ad65` (2026-09-15, reviewed S21 from history); PR #24 merged as `dcb9279` (2026-09-14); PR #23 merged as `8230247` (2026-09-14); PR #22 merged as `f760ebe` (2026-09-13); reviewed from history in S19/S20/S21.
 This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written here: a session cannot know it at write time,
 and guessing it is how stale claims get born.
-**Docs synced through:** PR #25 · branch `arena/01a0a508-gifscythe` · merged as `034ad65`
+**Docs synced through:** PR #26 · branch `audit/compiled-v3-consolidation` · merged as `d1d7939`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares
 this against the newest merged PR and fails when a merge landed with no doc sync — that is the
 "we jumped a merge without updating any docs" case. Move this line as part of the sync, never
 before the writing is done.)*
-Based on `main` commit `c4f9e1c` ·
+Based on `main` commit `d1d7939` ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: not yet — stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
@@ -87,7 +87,7 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #24 | S20 | `arena/01a09e2e-gifscythe` | `dcb9279` | S19 exe-direction/U-08-close/wasm-scaffold + S19-review fixes + S20 windows-only product (OD-17) |
 | #25 | S21 (reviewed from history) | `arena/01a0a508-gifscythe` | `034ad65` | Merged 2026-09-15; reviewed S21: audit attribution correction — live-URL check found the two uploaded intake md files were **swapped on upload** (7b91 = 5 findings NA = gpt 5.6 non-winner; 729d = 19 findings NF = fable 5.1 low WINNER), so §2E/§2F were re-aligned to the URLs, §5 U-53..U-76 re-mapped, §6 fix-order ids corrected, §14 unverified/discrepancy log added, STATUS regenerated (89/7/50/0 = 146). **No findings dropped.** Docs-only: no code changed, so the newest non-doc commit stayed `a444b08` (S20) |
 
-| #26 | S21 | `audit/compiled-v3-consolidation` | **open** | CI green on head `450cdca` (runs `34987258037` + `34987252639`: linux + windows + csharp-spike all success; `mergeable_state=clean`; the earlier heads `60ac528`/`3bd37cb`/`414f9e0`/`0644e25`/`446f545` were green too). S21: `COMPILED_AUDIT.md` → v3 (recovered §15 VP/false-positive guardrails, §16 Audit A/B non-finding sections, §17 intake E/F prose + 19 regression cases; added §18 merge checklist, §19 next-session review ask; folded in + removed the two scattered root intake copies, clearing the live G17/S2 failure) **+ two engine-independent code fixes**: U-68/NF-11 oversized body → 413 (`web/test/body-limit.test.mjs` 8/8 red→green) and U-67/NF-10 `serveStatic` allow-list + `assertContainedPath` + explicit HEAD contract (`web/test/static-hygiene.test.mjs` 43/43 red→green, 18 failures stashed); NF-10 measured first — 2 of its 3 sub-claims did not reproduce, so U-67 is narrowed in §5 and §2F keeps the filed text plus a per-claim table **+ the PR #25 doc sync** P6 required. Register unchanged at 76; U-67 and U-68 OPEN→PARTIAL, U-69 untouched |
+| #26 | S21 | `audit/compiled-v3-consolidation` | `d1d7939` | Merged 2026-09-15T15:31:40Z at head `690c771` (CI green: runs `34988125213` + `34988120877`, linux + windows + csharp-spike). S21: `COMPILED_AUDIT.md` → v3 (§15 VP/false-positive guardrails, §16 Audit A/B non-finding sections, §17 intake E/F prose + 19 regression cases, §18 merge checklist, §19 next-session review ask; two scattered root intake copies folded in and removed, clearing the live G17/S2 failure) + the **U-68/NF-11** 413 fix (`web/test/body-limit.test.mjs` 8/8 red→green) + the **PR #25 doc sync** P6 required. Register unchanged at 76; U-68 OPEN→PARTIAL |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
