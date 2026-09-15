@@ -37,6 +37,21 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S20.
    START HERE: STATUS.md (the single status register). COMPILED_AUDIT.md §5 is
    the detail. Never hand-edit STATUS.md's generated block — run check_docs.sh --emit.
 
+   COMPILED_AUDIT.md is now v3 (2026-09-15 consolidation — the two scattered root
+   intake copies were folded in and removed; the register is still 76, unchanged).
+   New/recovered sections: §15 VP-1..VP-5 + false-positive guardrails (the "do NOT
+   fix these correct behaviors" list §12 cites), §16 recovered Audit A/B positives +
+   method, §17 intake E/F verdicts + delivery paths + 19 per-finding regression cases,
+   §18 merge-completeness checklist, §19 NEXT-SESSION REVIEW ASK.
+   DO §19 BEFORE TRUSTING ANY ✅ FIXED ROW: nothing in the compilation was executed
+   in the consolidating sandbox (no Qt6/cmake/Windows/mingw/Wine/emcc). Re-run the
+   §17.1 validation order, write the failing test FIRST for each OPEN row (cases are
+   named in §17.2 / §7), and hunt for new pits — a fix that closes one row and
+   reopens another is a FAILED fix. Watch the §19.3 pairings: U-01↔U-55/U-59,
+   U-33↔U-53, U-46↔U-54, U-03↔DS-06/VP-1/VP-2, GS-203↔U-57. Windows-only rows
+   (U-55/U-56/U-70/U-71) cannot be closed on Linux — mark PARTIAL with the exact
+   remaining proof, never DONE.
+
 3. SKILLOPT ASK (owner): incorporate microsoft/SkillOpt INTO THIS REPO so any
    session's agent has it. See docs/planning/SKILLOPT_INTEGRATION_QUERY.md for
    the verified facts, the three non-negotiable conditions (quarantined /
