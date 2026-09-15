@@ -29,8 +29,8 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 89 DONE · 7 PARTIAL · 50 OPEN · 0 UNTRIAGED · 146 total
-**Last regenerated:** S20 · 2026-09-14 · by scripts/check_docs.sh --emit
+**Counts (generated - do not edit by hand):** 89 DONE · 8 PARTIAL · 49 OPEN · 0 UNTRIAGED · 146 total
+**Last regenerated:** S21 · 2026-09-15 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
 
@@ -104,7 +104,7 @@ hand-fudged roll-up fails the gate.
 | U-65 | CLI symlink/PATH loses engine-beside-executable discovery — `exe_path_of(argv0)` keeps symlink, bare name only resolved if... | OPEN | - | not started; scoped as P1-41 in COMPILED_AUDIT.md §6 | P1-41: Web info:true and engine beside symlink — NEW F:NF-07/08/09 — fable 5.1 low — WINNER. |
 | U-66 | Desktop pinned to GS_VERSION while web picks newest — CLI/GUI look in `release/<GS_VERSION>/`, web `findEngine()` picks newest numeric dir; VERSION bump breaks CLI/GUI while web still works. | OPEN | - | not started; scoped as P1-41 in COMPILED_AUDIT.md §6 | P1-41: Web info:true and engine beside symlink — NEW F:NF-07/08/09 — fable 5.1 low — WINNER. |
 | U-67 | serveStatic raw prefix containment, serves source/tests, HEAD body — `file.startsWith(ROOT)` hygiene; every file under web/ served; HEAD returns body. | OPEN | - | not started; scoped as P2-16 in COMPILED_AUDIT.md §6 | P2-16: Web static hygiene and 413 mapping — NEW F:NF-10/11/12 — fable 5.1 low — WINNER. |
-| U-68 | Oversized bodies 400 not 413, /run cap ~48MB not 64MB — `readBody` rejects generic Error, `handleRun` maps to bad JSON;... | OPEN | - | not started; scoped as P2-16 in COMPILED_AUDIT.md §6 | P2-16: Web static hygiene and 413 mapping — NEW F:NF-10/11/12 — fable 5.1 low — WINNER. |
+| U-68 | Oversized bodies 400 not 413, /run cap ~48MB not 64MB — `readBody` rejects generic Error, `handleRun` maps to bad JSON;... | PARTIAL | S21 | REMAINING: the engine-gated `transport.test.mjs` no-regression re-run, and the numeric cap is left as-is (now documented as a 64MB envelope ≈ 48M... | P2-16: Web static hygiene and 413 mapping — NEW F:NF-10/11/12 — fable 5.1 low — WINNER. |
 | U-69 | After failed run previous After stays under Failed status — `revokeResults()`/hide only on success and queue change; setting... | OPEN | - | not started; scoped as P2-16 in COMPILED_AUDIT.md §6 | P2-16: Web static hygiene and 413 mapping — NEW F:NF-10/11/12 — fable 5.1 low — WINNER. |
 | U-70 | Preview engine check bypasses UTF-8 boundary — `ensureEngine()` wraps `u8path_compat()`, `startPreview()` passes... | OPEN | - | not started; scoped as P1-42 in COMPILED_AUDIT.md §6 | P1-42: Preview UTF-8 boundary and cancelling lifetime — NEW F:NF-13/15 — fable 5.1 low — WINNER. |
 | U-71 | Windows exit masked `&0xff` collapses NTSTATUS crash to success — `ProcessRunner.h` Windows `code &0xff`; crash NTSTATUS like... | OPEN | - | not started; scoped as P2-17 in COMPILED_AUDIT.md §6 | P2-17: Windows exit code and NTSTATUS — NEW F:NF-14 — fable 5.1 low — WINNER. |
