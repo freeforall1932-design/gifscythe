@@ -1,11 +1,11 @@
 # Session Handoff
 
-**Session:** S20 · **Date:** 2026-09-14
-**Branch:** `arena/01a09e2e-gifscythe` (platform-assigned; S19 review + S20 work stays here)
-**PR #24 merged as `dcb9279`** (2026-09-14); PR #23 merged as `8230247` (2026-09-14); PR #22 merged as `f760ebe` (2026-09-13); reviewed from history in S19/S20.
+**Session:** S21 · **Date:** 2026-09-15
+**Branch:** `audit/compiled-v3-consolidation` (hand-named, **not** platform-assigned — S21 was started from the owner's audit-compilation request rather than an arena session branch; the owner then approved opening the PR. S19 review + S20 work stayed on `arena/01a09e2e-gifscythe`.)
+**PR #25 merged as `034ad65`** (2026-09-15, reviewed S21 from history); PR #24 merged as `dcb9279` (2026-09-14); PR #23 merged as `8230247` (2026-09-14); PR #22 merged as `f760ebe` (2026-09-13); reviewed from history in S19/S20/S21.
 This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written here: a session cannot know it at write time,
 and guessing it is how stale claims get born.
-**Docs synced through:** PR #24 · branch `arena/01a09e2e-gifscythe` · merged as `dcb9279`
+**Docs synced through:** PR #25 · branch `arena/01a0a508-gifscythe` · merged as `034ad65`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares
 this against the newest merged PR and fails when a merge landed with no doc sync — that is the
 "we jumped a merge without updating any docs" case. Move this line as part of the sync, never
@@ -19,7 +19,7 @@ owner's draft is refitted into that template's slots — move both lines in the 
 =`SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back.
 Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (after S20)
+## Next session — fast hand-off (after S21)
 
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
@@ -85,6 +85,7 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #22 | S17 | `arena/01a09934-gifscythe` | `f760ebe` | Merged 2026-09-13; reviewed S19 from history: S17 sequential work — N-07 count sweep + GS-202 containment + DS-13 magic check + GS-207 strict override + shared packaging/output-verifier hardening |
 | #23 | S17 | `arena/01a09dae-gifscythe` | `8230247` | Merged 2026-09-14; reviewed S19 from history: S18 Ms-PL relicense (OD-09 = b) + C# shell plan Phase 0 + Phase-1 spike GREEN (run 34804350470, Phase 2 GO — since parked by S19 OD-C7) |
 | #24 | S20 | `arena/01a09e2e-gifscythe` | `dcb9279` | S19 exe-direction/U-08-close/wasm-scaffold + S19-review fixes + S20 windows-only product (OD-17) |
+| #25 | S21 (reviewed from history) | `arena/01a0a508-gifscythe` | `034ad65` | Merged 2026-09-15; reviewed S21: audit attribution correction — live-URL check found the two uploaded intake md files were **swapped on upload** (7b91 = 5 findings NA = gpt 5.6 non-winner; 729d = 19 findings NF = fable 5.1 low WINNER), so §2E/§2F were re-aligned to the URLs, §5 U-53..U-76 re-mapped, §6 fix-order ids corrected, §14 unverified/discrepancy log added, STATUS regenerated (89/7/50/0 = 146). **No findings dropped.** Docs-only: no code changed, so the newest non-doc commit stayed `a444b08` (S20) |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
