@@ -18,9 +18,10 @@ root `reference_code/` (read-only).
 - `COMPILED_AUDIT.md` §6 was **executed with evidence** (S4) and **rerun green
   on 2026-09-10 (S7)**: §6.A all green, §6.B green via the offscreen GUI
   harness (**324 checks, T1–T20**, measured in the S11 sandbox; 306 in S10),
-  §6.E all green; `verify_audit.sh` → **28 PASS / 0 FAIL / 3 SKIP, exit 0**
-  (E9 SKIPs while the CI workflow change awaits a `workflows`-scoped token;
-  F1/F2 are the S9 documentation gate; C9 is the S11 source-tree-purity gate).
+  §6.E all green; `verify_audit.sh` → **30 PASS / 0 FAIL / 3 SKIP, exit 0**
+  after S22 added the missing web regressions (**W4/W5**). E9 still SKIPs while
+  the CI workflow change awaits a `workflows`-scoped token; F1/F2 are the S9
+  documentation gate; C9 is the S11 source-tree-purity gate.
 - **Windows path proven under Wine + CI**: engine exe (`1.96 (Windows)`), CLI
   E2E with `C:\` paths + spaces, static-linked exes, honest exit codes; main
   green on both jobs (runs #23/#24), binaries banked on Release
@@ -77,7 +78,8 @@ CLI `--run` with an explicit ordinary GIF output verifies a new or size/mtime-
 changed non-empty regular file with a GIF87a/GIF89a signature; failures return 1
 and name the output. This is not full decoding or transactional rollback.
 Byte-identical rewrites within timestamp granularity conservatively fail.
-Streaming stdout, `--info`, and Explode keep their existing contracts.
+Streaming stdout (`output = -`), frame-selector inputs like `#0`, `--info`, and
+Explode keep their existing contracts.
 
 
 Cross-compile the Windows engine (needs mingw-w64):

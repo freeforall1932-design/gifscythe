@@ -90,7 +90,8 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       - [ ] **DS-06** → **P0-2** — (High) `threads <= 0` → bare `-j`; the `-1` sentinel now means 8 threads.
       - [ ] **DS-07** → **P1-30** — (Med) GUI threads spinner cannot express "no flag".
       - [ ] **DS-08** → **P3-5** — (Low) non-strict print mode exits 0 after warnings.
-      - [ ] **DS-09** → **P1-31** — (Info) `threads < -1` accepted silently.
+      - [x] **DS-09** → **P1-31** — **closed S22:** `threads < -1` now warns in
+            native + web validation; unit, web parity, and CLI smoke pin `threads = -7`.
       - [ ] **DS-10** → **P3-11** — (Info) disposal 4..7 unreachable from the desktop picker.
       - [x] **DS-11** → **P2-14** — **closed S17:** S5/G17 checks OPEN vs closed and
             closed vs nonclosed current status; ignores historical tails. 20 regression tests pass.
@@ -161,10 +162,11 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 ### Gates before more features
 - [x] **Verify fixes** (`COMPILED_AUDIT.md` §6) — one-command rerun:
       `working_code/gifscythe/scripts/verify_audit.sh`, currently
-      **28 PASS / 0 FAIL / 3 SKIP, exit 0** (skips: E9 declared-pending
-      workflow, CI-gated, clean-Windows; measured in the S11 sandbox which has
-      cmake+Qt6 — a toolchain-less sandbox skips C6/C7*/C9/B as well; S11
-      added gate C9, the cmake source-tree-purity check for U-15)
+      **30 PASS / 0 FAIL / 3 SKIP, exit 0** (S22 added W4/W5 for the missing
+      web regressions; skips: E9 declared-pending workflow, CI-gated,
+      clean-Windows; measured in the last full-toolchain checkpoint plus the
+      S22 Node-web additions — a toolchain-less sandbox skips C6/C7*/C9/B as
+      well; S11 added gate C9, the cmake source-tree-purity check for U-15)
 - [x] **Documentation gate** (NEW S9) — `scripts/check_docs.sh` emits and
       enforces `STATUS.md`; wired into `verify_audit.sh` as **F1/F2**, into CI
       (pending — see `docs/ci/PENDING_WORKFLOW_CHANGE.md`) and into

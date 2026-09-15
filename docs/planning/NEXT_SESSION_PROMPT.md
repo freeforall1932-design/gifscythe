@@ -1,12 +1,12 @@
 # Next-session prompt (copy-paste hand-off)
 
-Paste the block below into a fresh session to pick up post-S20 work
-fast. Everything it references lives in this repo.
+Paste the block below into a fresh session to pick up the next post-S22
+work fast. Everything it references lives in this repo.
 
 ---
 
 ```
-CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S20.
+CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S22 continuation.
 
 1. RECOVERY (run these, in order, from the repo root):
    working_code/gifscythe/scripts/bootstrap_hooks.sh      # if G15 says core.hooksPath != .githooks
@@ -30,9 +30,10 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S20.
    S18 (merged PR #23): Ms-PL relicense + C# plan + spike GREEN — then S19 PARKED
    the C# shell (OD-C7, exe stays C++17/Qt6), closed U-08 (Qt LGPL staged,
    packaging 36/36), answered OD-11 = a / OD-12 = a, and scaffolded web/wasm/
-   (UNPROVEN: no emcc here; OD-16 licence question open, blocks shippable). S20 (OD-17): windows-only ship — linux zip + CI upload dropped, Windows job gained the packaging + manifest gates (run 34812043127 green).
+   (UNPROVEN: no emcc here; OD-16 licence question open, blocks shippable). S20 (OD-17): windows-only ship — linux zip + CI upload dropped, Windows job gained the packaging + manifest gates (run 34812043127 green). S21 closed U-68's 413 mapping (still PARTIAL on the cap-value question), and S22 finished the follow-up from the PR #26/#27 review: PR #27's web allow-list files were ported onto this branch, U-67 is now FIXED, and the two new regressions (`body-limit.test.mjs`, `static-hygiene.test.mjs`) are now in CI and `verify_audit.sh` (W4/W5). S22 continuation then closed U-53, U-60, U-61, U-62, U-64 and DS-09 with test-first native/web coverage.
+   STARTING PRIORITIES NOW: U-54, U-55, U-56, U-57, U-63, U-65, U-66, U-69,
    GS-203/U-06, release blockers GS-204/GS-208/U-09/DS-06, and the Windows
-   smoke + desktop probes remain unresolved.
+   smoke + desktop probes.
 
    START HERE: STATUS.md (the single status register). COMPILED_AUDIT.md §5 is
    the detail. Never hand-edit STATUS.md's generated block — run check_docs.sh --emit.
@@ -87,10 +88,10 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S20.
 
 5. STANDING CONSTRAINTS: HARD RULE — commit every edit/write/delete into the
    repo before merge AND before the session can close (G18 / P3 / P3b). Do not
-   wait to be reminded. Never open or merge a PR without an explicit yes.
-   Docs-only unless a decision asks otherwise; never hand-edit STATUS.md (edit
-   COMPILED_AUDIT.md §5 then check_docs.sh --emit); keep every gate green;
-   never ask the owner for tokens (Arena handles GitHub auth).
+   wait to be reminded. Never merge a PR without an explicit yes; open one when
+   the session goal includes it. Never hand-edit STATUS.md's generated block
+   (edit COMPILED_AUDIT.md §5 then run check_docs.sh --emit); keep every gate
+   green; never ask the owner for tokens (Arena handles GitHub auth).
 ```
 
 ---

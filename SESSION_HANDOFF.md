@@ -1,16 +1,16 @@
 # Session Handoff
 
-**Session:** S21 · **Date:** 2026-09-15
-**Branch:** `audit/u67-serve-static-allowlist` (hand-named, **not** platform-assigned — S21 was started from the owner's audit-compilation request rather than an arena session branch; the owner then approved opening PRs. The first S21 branch `audit/compiled-v3-consolidation` merged as PR #26.) S19 review + S20 work stayed on `arena/01a09e2e-gifscythe`.)
-**PR #26 merged as `d1d7939`** (2026-09-15, this session's own work — v3 consolidation + U-68); PR #25 merged as `034ad65` (2026-09-15, reviewed S21 from history); PR #24 merged as `dcb9279` (2026-09-14); PR #23 merged as `8230247` (2026-09-14); PR #22 merged as `f760ebe` (2026-09-13); reviewed from history in S19/S20/S21.
+**Session:** S22 · **Date:** 2026-09-16
+**Branch:** `arena/01a0a5bc-gifscythe` (platform-assigned session branch for this Arena session)
+**PR #27 merged as `6cd7c7b`** (2026-09-15, reviewed from history in S22); PR #26 merged as `d1d7939` (2026-09-15, reviewed from history in S22); PR #25 merged as `034ad65` (2026-09-15, reviewed earlier in S21); PR #24 merged as `dcb9279` (2026-09-14).
 This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written here: a session cannot know it at write time,
 and guessing it is how stale claims get born.
-**Docs synced through:** PR #26 · branch `audit/compiled-v3-consolidation` · merged as `d1d7939`
+**Docs synced through:** PR #27 · branch `audit/u67-serve-static-allowlist` · merged as `6cd7c7b`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares
 this against the newest merged PR and fails when a merge landed with no doc sync — that is the
 "we jumped a merge without updating any docs" case. Move this line as part of the sync, never
 before the writing is done.)*
-Based on `main` commit `d1d7939` ·
+Based on `main` commit `6cd7c7b` ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: not yet — stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
@@ -19,7 +19,7 @@ owner's draft is refitted into that template's slots — move both lines in the 
 =`SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back.
 Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (after S21)
+## Next session — fast hand-off (after S22)
 
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
@@ -87,9 +87,9 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #24 | S20 | `arena/01a09e2e-gifscythe` | `dcb9279` | S19 exe-direction/U-08-close/wasm-scaffold + S19-review fixes + S20 windows-only product (OD-17) |
 | #25 | S21 (reviewed from history) | `arena/01a0a508-gifscythe` | `034ad65` | Merged 2026-09-15; reviewed S21: audit attribution correction — live-URL check found the two uploaded intake md files were **swapped on upload** (7b91 = 5 findings NA = gpt 5.6 non-winner; 729d = 19 findings NF = fable 5.1 low WINNER), so §2E/§2F were re-aligned to the URLs, §5 U-53..U-76 re-mapped, §6 fix-order ids corrected, §14 unverified/discrepancy log added, STATUS regenerated (89/7/50/0 = 146). **No findings dropped.** Docs-only: no code changed, so the newest non-doc commit stayed `a444b08` (S20) |
 
-| #26 | S21 | `audit/compiled-v3-consolidation` | `d1d7939` | Merged 2026-09-15T15:31:40Z at head `690c771` (CI green: runs `34988125213` + `34988120877`, linux + windows + csharp-spike). S21: `COMPILED_AUDIT.md` → v3 (§15 VP/false-positive guardrails, §16 Audit A/B non-finding sections, §17 intake E/F prose + 19 regression cases, §18 merge checklist, §19 next-session review ask; two scattered root intake copies folded in and removed, clearing the live G17/S2 failure) + the **U-68/NF-11** 413 fix (`web/test/body-limit.test.mjs` 8/8 red→green) + the **PR #25 doc sync** P6 required. Register unchanged at 76; U-68 OPEN→PARTIAL |
-
-| #27 | S21 | `audit/u67-serve-static-allowlist` | **open** | S21 task 2: **U-67/NF-10** `serveStatic` allow-list (`STATIC_FILES`, the four files the shipped UI loads) + `assertContainedPath` containment as defence in depth + one explicit `sendStatic()` HEAD contract; new `web/test/static-hygiene.test.mjs` 43/43 red→green (18 failures stashed), no engine needed. **NF-10 was measured first: only 1 of its 3 sub-claims reproduced** — "serves every file under `web/`" TRUE (`/server.mjs` 200 / 26 KB), "raw prefix containment" OVERSTATED (`new URL()` normalises dot-segments; above-ROOT paths already 404), "HEAD returns a body" FALSE (Node suppresses HEAD bodies). So §5 U-67 is narrowed to what measured true and §2F F-10 keeps the filed text + a per-claim table; §19 gained mandate 5 (measure before fixing). Also: the PR #26 merge doc sync (P6) and a corrected `**Base:**` line in `COMPILED_AUDIT.md` whose old `**Branch:**` form G10's regex never matched, so its "G10 enforces this" claim had passed vacuously for ~10 merges. CI green on head `b1caa3a` (run `34994054948`: linux + windows + csharp-spike). U-67 OPEN→PARTIAL; U-69 untouched |
+| #26 | S21 | `audit/compiled-v3-consolidation` | `d1d7939` | Merged 2026-09-15; reviewed from history in S22: `COMPILED_AUDIT.md` → v3 (recovered §15 VP/false-positive guardrails, §16 Audit A/B non-finding sections, §17 intake E/F prose + 19 regression cases; added §18 merge checklist, §19 next-session review ask; folded in + removed the two scattered root intake copies, clearing the live G17/S2 failure) **+ the U-68/NF-11 code fix** (oversized body → 413; `web/server.mjs` + new `web/test/body-limit.test.mjs`, 8/8 red→green, no engine needed) **+ the PR #25 doc sync** P6 required. Register unchanged at 76; U-68 OPEN→PARTIAL |
+| #27 | S21 | `audit/u67-serve-static-allowlist` | `6cd7c7b` | Merged 2026-09-15; reviewed from history in S22: measured U-67/NF-10 before fixing it, narrowed the finding to the over-exposure that actually reproduced, then landed the static allow-list + explicit HEAD/static contract in `web/server.mjs`, added `web/test/static-hygiene.test.mjs` (43/43), updated `web/wasm/README.md`, and synced docs through the PR #26 merge. |
+| #28 | S22 | `arena/01a0a5bc-gifscythe` | **open** | Opened 2026-09-16 from this Arena branch: ports the PR #27 web files + wires W4/W5 into CI / `verify_audit.sh`, then closes U-53, U-60, U-61, U-62, U-64 and DS-09 with test-first C++/web fixes; P1-40 and P1-41 remain partial because U-63/U-65/U-66 stay open. |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
@@ -106,6 +106,37 @@ each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, an
 `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
 alone would have passed straight through both skipped syncs.
 
+## S22 — PR #26/#27 review follow-up: automation gap fixed on this branch (2026-09-16)
+
+The review of merged PRs **#26** and **#27** found one live gap: the new web regressions were present in the repo but absent from the automated gates. This branch had also stopped at the PR #26 merge (`d1d7939`), so before fixing the automation I first ported the PR #27 web changes from `origin/main` — the `web/server.mjs` static allow-list / explicit HEAD contract, `web/test/static-hygiene.test.mjs`, and the `web/wasm/README.md` note that `web/server.mjs` intentionally returns 404 for `wasm/`.
+
+**What changed on this branch:**
+- CI: `.github/workflows/build.yml` and `docs/ci/build.yml.proposed` now run **all five** Node web suites, not just command/validate/transport. Added `web/test/body-limit.test.mjs` and `web/test/static-hygiene.test.mjs` to the shared step.
+- Local one-command audit: `working_code/gifscythe/scripts/verify_audit.sh` gained **W4** (oversized-body 413 regression) and **W5** (static allow-list / HEAD contract regression), so the review finding cannot regress silently outside CI either.
+- Audit state sync: `COMPILED_AUDIT.md` now records **U-67 FIXED (S22)** and **U-68 PARTIAL (S22)** with the updated proof surface. U-67 is now fully re-proven (`static-hygiene` 43/43, `transport` 67/67, automated in CI + W5). U-68 keeps only the cap-value question open; the 413 mapping itself is re-proven and automated (`body-limit` 8/8, `transport` 67/67, CI + W4).
+
+**Executed here:** `./build.sh`; `node web/test/command.test.mjs`; `node web/test/validate.test.mjs`; `node web/test/transport.test.mjs`; `node web/test/body-limit.test.mjs`; `node web/test/static-hygiene.test.mjs`; final `./scripts/verify_audit.sh` → **29 passed / 0 failed / 6 skipped** in this sandbox (the new **W4/W5** both PASS; skips are the existing CMake/Qt and clean-Windows items plus declared workflow drift). The Node-suite counts after the port are **17 + 23 + 67 + 8 + 43**.
+
+**Left:** U-69 (stale After image) is still untouched. U-68 remains PARTIAL only because the limit value is still the existing 64 MB HTTP-envelope cap (about 48 MB effective decoded GIF for `/run`), now documented in source rather than changed.
+
+## S22 continuation — current batch executed on this branch (2026-09-16)
+
+The next owner request after the PR #26/#27 review was to stop deferring the safest remaining intake rows and land them **now**, all at once. This continuation closed **U-53**, **U-60**, **U-61**, **U-62**, **U-64**, and **DS-09** with test-first changes and kept the fixes narrow.
+
+**What changed:**
+- `working_code/gifscythe/src/core/SettingsIO.h`: position is now an all-or-nothing pair even on a half-parse. `set_field()` no longer flips `has_position` on one successful coordinate, and `load_settings()` only enables it when both keys were seen and both parsed; otherwise it clears both coordinates and emits one pair-level warning.
+- `working_code/gifscythe/src/cli/main.cpp`: gifsicle special tokens are preserved. Inputs like `#0` and `-` are no longer path-resolved, `output = -` stays stdout/streaming, stream outputs skip file planning/verification, and the CLI planner ignores non-path inputs.
+- `working_code/gifscythe/src/core/Validate.h` + `web/validate.mjs`: crop width/height `0` now pass validation (matching the engine's "extend to edge" syntax), and `threads < -1` now warns in both native and web validation.
+- `web/server.mjs`: both `/optimize` and `/run` now reject `info:true` early with a clear **HTTP 400** instead of spawning the engine and then blaming GIF verification.
+- Regression coverage was added first in `working_code/gifscythe/tests/test_gifsicle_command.cpp`, `working_code/gifscythe/scripts/smoke_cli.sh`, `web/test/command.test.mjs`, `web/test/validate.test.mjs`, and `web/test/transport.test.mjs`.
+
+**Executed here:** `working_code/gifscythe/./build.sh` → **308/308 PASS**; `node web/test/command.test.mjs`; `node web/test/validate.test.mjs`; `node web/test/transport.test.mjs`; `working_code/gifscythe/./scripts/smoke_cli.sh` → **45 passed / 0 failed**.
+
+**Still open after this batch:**
+- `U-63` (`--no-loopcount` / play once) — so fix-order row **P1-40** is now **PARTIAL**, not done.
+- `U-65` (CLI symlink/PATH engine-beside-executable discovery) and `U-66` (desktop/web version-policy mismatch) — so **P1-41** is also **PARTIAL**.
+- Other intake rows outside this batch (`U-54`..`U-59`, `U-63`, `U-65`, `U-66`, `U-69`...) remain untouched.
+
 ## S21 — COMPILED_AUDIT v3 consolidation + first code fix U-68/NF-11 → 413 (2026-09-15, unmerged branch work)
 
 **Branch:** `audit/compiled-v3-consolidation` (a hand-named branch, not a platform arena branch; **no PR opened** — the owner asked to start a real task rather than open a PR for md-only edits). The header block above still records the last *merged* baseline (S20 / PR #24); this section is the in-flight S21 work.
@@ -114,14 +145,11 @@ alone would have passed straight through both skipped syncs.
 
 **Docs — `COMPILED_AUDIT.md` → v3.** Folded the two scattered root intake copies into the single master and recovered the non-finding content v2 had dropped: **§15** the VP-1..VP-5 + false-positive guardrails (§12 cited "VP-1/2/3/5" but v2 never defined them), **§16** Audit A/B positives + method + fix-order rationale, **§17** intake E/F verdicts + delivery paths + the 19 per-finding regression cases, **§18** the merge-completeness checklist, **§19** the next-session review ask (re-prove every ✅ FIXED, failing-test-first, and the new-pit pairings). Removing the `…7b91…` copy cleared a **live G17/S2 failure** on `main` (that file quoted a stale register tally). The consolidation itself added/dropped **no finding** — the register stayed 76.
 
-**Code — two highest-confidence tasks, both engine-independent HTTP/static concerns.** *Why these and not others:* the desktop has no HTTP server, so neither has a **C++ parity mirror to diverge from** (unlike a JS-only `validate.mjs`/`command.mjs` fix, which would silently break parity fixtures this sandbox cannot run), and neither needs an engine — `/run` reads the body *before* `findEngine()`, and `serveStatic` never calls it.
+**Code — one highest-confidence task: U-68 / NF-11 (oversized body → 413).** An oversized request body answered `400 "bad JSON request body"` on `/run` and `500` on `/optimize` instead of `413`. Fixed in `web/server.mjs`: `readBody` rejects with a typed `BodyTooLargeError` (`statusCode 413`) and stops accumulating *without* destroying the socket; both handlers map that tag to a real `413` (`sendTooLarge`, destroy-after-flush) kept distinct from a `400` parse error; `GS_MAX_BODY` injects the limit for tests; the 64 MB-envelope ≈ 48 MB-effective-decoded-GIF cap is now documented in source. **Why this task and not another:** it is HTTP-transport-only — the desktop has no HTTP server, so there is **no C++ parity mirror to diverge from** (unlike the validate/command findings, where a JS-only fix would break the parity fixtures I cannot run) — and `/run` reads the body *before* `findEngine()`, so the 413 is provable with no engine present.
 
-- **U-68 / NF-11 (oversized body → 413).** An oversized body answered `400 "bad JSON request body"` on `/run` and `500` on `/optimize` instead of `413`. In `web/server.mjs`: `readBody` rejects with a typed `BodyTooLargeError` (`statusCode 413`) and stops accumulating *without* destroying the socket; both handlers map that tag to a real `413` (`sendTooLarge`, destroy-after-flush) kept distinct from a `400` parse error; `GS_MAX_BODY` injects the limit for tests; the 64 MB-envelope ≈ 48 MB-effective-decoded-GIF cap is documented in source.
-- **U-67 / NF-10 (`serveStatic` hygiene), measured before fixing.** Raw un-normalised probes of the live server showed **only one of the finding's three sub-claims reproduced**: "every file under `web/` served" is TRUE (`/server.mjs` → 200 / 26 KB, disclosing the loopback bind and `GS_ENGINE` handling, which matters because `GS_WEB_HOST=0.0.0.0` is a documented opt-in; plus the 35 KB test suite, `run-paths`/`validate`/`output-verify`, the docs, `wasm/*`). "Raw prefix containment" is **overstated** — `new URL()` collapses dot-segments first, so `/../STATUS.md`, `/../../etc/hostname` and `/../working_code/...` already 404'd; `/../server.mjs` returned 200 only because it normalises to a file *inside* ROOT (the intake itself conceded "not exploitable today"). "HEAD returns a body" is **false** — Node suppresses HEAD bodies (measured `bodyLen=0`; at socket level the server wrote 5000 bytes and the client received 0). Two confident-looking fixes for non-bugs avoided. Owner decisions taken first: **UI-only allow-list** (this server is the shipped surface; `web/wasm/` is experimental), and **U-67 corrected to match the measurements** — §2F keeps the intake text verbatim for attribution plus a per-claim table, §5 states only what is true. Landed: a four-entry `STATIC_FILES` allow-list (`/`, `/index.html`, `/style.css`, `/app.js`, `/command.mjs` — the closed set verified from `index.html`'s two asset refs and `app.js`'s only import, a leaf module), everything else 404; `assertContainedPath(ROOT, …)` replaces the raw prefix check as defence in depth (the same resolved-path containment `run-paths.mjs` enforces on engine outputs, already unit-tested); one `sendStatic()` path gives 200/403/404 a single explicit HEAD contract with `Content-Length`.
+**Verified (executed here, not claimed):** `web/test/body-limit.test.mjs` **8/8, red→green** — `git stash` of the fix reproduces `/run 400≠413` and `/optimize 500≠413` while the 4 control cases still pass (so the test isolates the bug rather than passing vacuously); restoring the fix turns all 8 green. No real engine was used: `/run` is pre-discovery, and `/optimize` reaches `readBody` via an inert `GS_ENGINE` stub (`process.execPath`) that is **never executed**, because the oversize rejection precedes `run()`. `check_docs.sh` → 23 passed / 0 failed after `--emit` regenerated `STATUS.md`; `sweep_stale.sh` green.
 
-**Verified (executed here, not claimed):** `web/test/body-limit.test.mjs` **8/8 red→green** (stashing the fix reproduces `/run 400≠413` and `/optimize 500≠413` while 4 control cases still pass) and `web/test/static-hygiene.test.mjs` **43/43 red→green** (stashing reproduces **18** failures — every over-exposed path, the `server.mjs` disclosure check, and the two normalise-to-inside-ROOT traversals — while the UI byte-exact, HEAD-contract and above-ROOT-traversal cases already passed, so the test isolates the *real* defect and not the two sub-claims that never reproduced). It asserts the four assets are served **byte-exact** against disk with correct MIME and that `index.html`'s refs and `app.js`'s import still resolve, so the allow-list cannot silently break the shipped page; also that `POST /run` and `PUT /` are unaffected. `body-limit` re-run after: still 8/8. No real engine used — `/optimize` reaches `readBody` via an inert `GS_ENGINE` stub (`process.execPath`) never executed, because the rejection precedes `run()`. `web/wasm/README.md`'s "any static server rooted at `web/`" advice re-verified by execution (`python3 -m http.server -d web`: the page 200s and `../style.css` / `../command.mjs` / `../validate.mjs` all resolve — that page needs `validate.mjs`, which the shipped UI does not, the concrete reason it must not be routed through the allow-listed server). `check_docs.sh` → 23 passed / 0 failed after `--emit` regenerated `STATUS.md`; `sweep_stale.sh` green.
-
-**Left / honest limits.** U-67 and U-68 are both **PARTIAL, not DONE**: the full `transport.test.mjs` no-regression re-run is engine-gated (no gifsicle buildable here), and neither new test is wired into CI yet. For U-68 the numeric cap is documented but deliberately **not** changed (owner may want a specific value). For U-67 the transport suite's only static dependency is the readiness `GET /`, preserved and byte-exact verified. **U-69 (stale After image) — the last third of P2-16 — is untouched**: it is browser-DOM behaviour this sandbox cannot exercise. Every C++/Qt/Windows/wasm row stays exactly as §19 defers it. **Next session: execute `COMPILED_AUDIT.md` §19 before trusting any ✅ FIXED row, including these two — and note its new mandate 5: measure each sub-claim against the running code before fixing it.**
+**Left / honest limits.** U-68 is **PARTIAL, not DONE**: the full `transport.test.mjs` no-regression re-run is engine-gated (no gifsicle buildable here) and the numeric cap is documented but deliberately **not** changed (owner may want a specific value). U-67 (`serveStatic` hygiene) and U-69 (stale After image) — the other two thirds of fix-order row **P2-16** — are untouched. Every C++/Qt/Windows/wasm row stays exactly as §19 defers it. **Next session: execute `COMPILED_AUDIT.md` §19 before trusting any ✅ FIXED row, including this one.**
 
 ## S20 — Windows-only product (OD-17): Linux demoted to test rig (2026-09-14)
 
@@ -421,7 +449,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S21: **89 DONE · 9 PARTIAL · 48 OPEN · 0 UNTRIAGED · 146 total.**
+   `U-nn` row; neither replaces the other. As of S22 continuation: **96 DONE · 8 PARTIAL · 42 OPEN · 0 UNTRIAGED · 146 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —
@@ -499,7 +527,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
      re-synced to the real tip before anything else.
 
 2. **S11 full-toolchain gate baseline (retained; S12 CLI/docs rerun is in
-   the follow-up above):** `./build.sh` **296 checks, 0 failures** ·
+   the follow-up above):** `./build.sh` **308 checks, 0 failures** ·
    `test_engine.sh` **5/5** · `smoke_cli.sh` **14/14** ·
    `test_package.sh` **9/9** · web **17 + 23 + 30** · offscreen harness
    **324 checks, 0 failures** · `check_docs.sh` **21 passed, 0 failed,
@@ -655,7 +683,7 @@ Everything marked ✅ was **run in this sandbox**; ⏳ could not be. Quote the
 
 | Check | Result |
 |---|---|
-| `./build.sh` (engine + CLI + unit tests) | ✅ **296 checks, 0 failures** (runtime counter; blocks 33/34/35 added in S11) |
+| `./build.sh` (engine + CLI + unit tests) | ✅ **308 checks, 0 failures** (current runtime counter in this sandbox after the S22 continuation regressions) |
 | `scripts/test_engine.sh` | ✅ 5/5 |
 | `scripts/smoke_cli.sh` | ✅ **14/14** (S11 added the explode-verification + N-05 refusal cases) |
 | `scripts/test_package.sh` (packaging negative suite) | ✅ 9/9 |

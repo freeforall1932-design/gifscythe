@@ -278,11 +278,11 @@ else
   skip "F3/F4" "python3 unavailable for tooling regression tests"
 fi
 
-# ---------- W: web demo parity (JS ⇄ C++) ----------
-# web/ is not the product path, but it ships a SECOND copy of the command
-# builder and — since audit U-30 — of the validation rules. Neither is checked
-# by the C++ suites, so both are cross-checked against the real gifscythe-cli
-# here; otherwise the two clients drift silently (audit U-03 proved they do).
+# ---------- W: web demo parity + server regressions ----------
+# web/ ships a SECOND copy of the command builder and — since audit U-30 — of
+# the validation rules, plus Node-only server behavior that the C++ suites never
+# touch. Keep all of it in the one-command suite so web regressions cannot hide
+# behind a green native build.
 if command -v node >/dev/null 2>&1; then
   if ( cd ../.. && node web/test/command.test.mjs 2>&1 | tail -1 | grep -q "ALL WEB COMMAND TESTS PASSED" ); then
     ok "W1" "web command parity (web/command.mjs == src/core/GifsicleCommand.h)"
@@ -298,8 +298,18 @@ if command -v node >/dev/null 2>&1; then
     w3_n="$(grep -c '^PASS' <<<"$w3_out")"
     ok "W3" "web transport end-to-end (${w3_n:-?} cases against a live server)"
   else bad "W3" "web transport tests failed"; fi
+  w4_out="$( cd ../.. && node web/test/body-limit.test.mjs 2>&1 )"
+  if grep -q "body-limit: all cases passed" <<<"$w4_out"; then
+    w4_n="$(grep -c '^PASS' <<<"$w4_out")"
+    ok "W4" "web oversized-body regression (${w4_n:-?} cases, U-68 / NF-11)"
+  else bad "W4" "web oversized-body regression failed"; fi
+  w5_out="$( cd ../.. && node web/test/static-hygiene.test.mjs 2>&1 )"
+  if grep -q "static-hygiene: all cases passed" <<<"$w5_out"; then
+    w5_n="$(grep -c '^PASS' <<<"$w5_out")"
+    ok "W5" "web static allow-list + HEAD contract regression (${w5_n:-?} cases, U-67 / NF-10)"
+  else bad "W5" "web static allow-list regression failed"; fi
 else
-  skip "W1/W2" "node not installed — web parity tests skipped"
+  skip "W1-W5" "node not installed — web parity/server tests skipped"
 fi
 
 # ---------- Windows CI-only ----------
