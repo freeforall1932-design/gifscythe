@@ -4,6 +4,42 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S22 — PR #26/#27 automation gap fixed; PR #27 web files ported to this branch (2026-09-16)
+
+**Changed:**
+
+- Ported the PR #27 web changes from `origin/main` onto this branch before fixing the review finding, because the checkout had stopped at the PR #26 merge `d1d7939`: `web/server.mjs` now has the static allow-list + explicit HEAD/static contract, `web/test/static-hygiene.test.mjs` is present, and `web/wasm/README.md` now states that `web/server.mjs` intentionally returns **404** for `wasm/`.
+- Fixed the delivered review finding: `.github/workflows/build.yml` and `docs/ci/build.yml.proposed` now run **all five** Node web suites, adding `web/test/body-limit.test.mjs` and `web/test/static-hygiene.test.mjs` to the existing command/validate/transport block.
+- `working_code/gifscythe/scripts/verify_audit.sh` gained **W4** (oversized-body 413 regression) and **W5** (static allow-list / HEAD contract regression), so the two new web regressions are covered by the local one-command suite as well as CI.
+- Audit sync: `COMPILED_AUDIT.md` now records **U-67 FIXED (S22)** and **U-68 PARTIAL (S22)**, and the handoff header / PR ledger were advanced through merged **PR #27**. `STATUS.md` was re-emitted from the audit after the row-state change.
+
+**Partial:**
+
+- **U-68** stays PARTIAL. The 413 mapping is now re-proven and automated, but the limit value itself is still the existing **64 MB HTTP-envelope cap** (about **48 MB effective decoded GIF** for `/run`), documented in source rather than changed.
+
+**Left:**
+
+- **U-69** (stale After image / stale result UI) remains untouched.
+- The workflow-copy marker in `docs/ci/PENDING_WORKFLOW_CHANGE.md` still exists for the older declared drift; this session only kept the two workflow copies aligned on the newly-added web suites.
+
+**Verified:**
+
+- `working_code/gifscythe/./build.sh`
+- `node web/test/command.test.mjs`
+- `node web/test/validate.test.mjs`
+- `node web/test/transport.test.mjs` → **67/67 PASS**
+- `node web/test/body-limit.test.mjs` → **8/8 PASS**
+- `node web/test/static-hygiene.test.mjs` → **43/43 PASS**
+- `working_code/gifscythe/./scripts/verify_audit.sh` — final rerun **29 passed / 0 failed / 6 skipped** in this sandbox; new **W4/W5** both PASS. The first run failed only because `check_docs.sh` correctly rejected the dirty tree during the in-progress edit set (G18), not because of the new web checks.
+
+**Not verifiable here:**
+
+- Full Qt/CMake GUI verification and Windows runtime behavior are still outside this sandbox's toolchain. `verify_audit.sh` still SKIPs the same CMake/Qt and clean-Windows items here.
+
+**Docs touched:** `COMPILED_AUDIT.md`, `STATUS.md` (re-emitted), `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`, `.github/workflows/build.yml`, `docs/ci/build.yml.proposed`, `working_code/gifscythe/scripts/verify_audit.sh`, `web/server.mjs`, `web/test/static-hygiene.test.mjs`, `web/wasm/README.md`.
+
+---
+
 ## S21 — COMPILED_AUDIT v3 consolidation + U-68/NF-11 oversized-body 413 (2026-09-15)
 
 **Changed:**

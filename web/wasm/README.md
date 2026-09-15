@@ -78,6 +78,16 @@ Any static server rooted at `web/` (the page imports `../command.mjs`,
 module from its own output dir). `file://` may refuse the module
 imports — use a local static server.
 
+**Not `web/server.mjs`.** Since U-67/NF-10 (S21) the Node server serves an
+allow-list of exactly the four files the shipped UI loads — `index.html`,
+`style.css`, `app.js`, `command.mjs` — because serving the whole `web/` tree
+exposed `server.mjs` itself and the test suite. This track is experimental and
+not shippable, so `wasm/` is deliberately not on that allow-list and requesting
+`/wasm/index.html` from `web/server.mjs` returns **404 by design**. Use any
+other static server rooted at `web/` (for example
+`python3 -m http.server -d web`), which also supplies the `../validate.mjs`
+this page imports and the shipped UI does not.
+
 ## Why no binary exists yet (executed S19)
 
 Emscripten cannot be installed in this sandbox: `git clone` of the SDK

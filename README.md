@@ -21,10 +21,10 @@ two batches, each with executed proof** — including both release blockers:
 **U-01** (batch auto-naming could overwrite another output *or the user's
 source file*, rc=0) and **U-02** (`package_portable.sh` exited 0 with no GUI in
 the folder). New `src/core/OutputPlan.h` + `OutputName.h`,
-`scripts/test_package.sh` (9 negative cases), and three web suites; unit suite
-at **296 checks, 0 failures** (S11); `verify_audit.sh` now **28 PASS / 0 FAIL /
-3 SKIP, exit 0** as measured in the S11 Qt6+cmake sandbox (E9 SKIPs while the
-CI workflow change awaits a `workflows`-scoped token —
+`scripts/test_package.sh` (9 negative cases), and five Node web suites; unit suite
+at **296 checks, 0 failures** (S11); `verify_audit.sh` now **30 PASS / 0 FAIL /
+3 SKIP, exit 0** as measured in the last full-toolchain checkpoint plus the S22
+web-gate additions (E9 SKIPs while the CI workflow change awaits a `workflows`-scoped token —
 `docs/ci/PENDING_WORKFLOW_CHANGE.md`). See `docs/audit/REMEDIATION_2026-09-10.md`.
 **S9 (2026-09-10) added the status-tracking system:** `STATUS.md` is now the
 single status register (four states — DONE / PARTIAL / OPEN / UNTRIAGED),
@@ -75,9 +75,10 @@ byte-identical to `kohler/gifsicle@07f5c4c3` except the handwritten
 Two new findings were found AND closed in-session: **N-04** (MinGW's
 non-UTF-8 `fs::path` narrow conversions) and **N-05** (multi-input Explode
 silently scattered frames — every input but the last exploded into the CWD
-with rc=0; now refused by validate/CLI/GUI/web alike). Suite counts this
-session: unit **296**, smoke **14/14**, web **17 + 23 + 30**, harness
-**324**, `verify_audit.sh` **28/0/3**.
+with rc=0; now refused by validate/CLI/GUI/web alike). The S11 unit/smoke/harness
+figures were **296**, **14/14**, and **324**; the **current** web-node suites are
+**17 + 23 + 67 + 8 + 43**, and `verify_audit.sh` is now **30/0/3** after S22
+added W4/W5.
 **S12 (2026-09-12) expanded the regression net to smoke 19/19, closing the
 P2-4/U-18 scope with PATH-only engine, strict parser, binary-stdout, and
 unsafe-output tests. It also repaired the post-merge documentation gate; PR

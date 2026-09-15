@@ -1,16 +1,16 @@
 # Session Handoff
 
-**Session:** S21 · **Date:** 2026-09-15
-**Branch:** `audit/compiled-v3-consolidation` (hand-named, **not** platform-assigned — S21 was started from the owner's audit-compilation request rather than an arena session branch; the owner then approved opening the PR. S19 review + S20 work stayed on `arena/01a09e2e-gifscythe`.)
-**PR #25 merged as `034ad65`** (2026-09-15, reviewed S21 from history); PR #24 merged as `dcb9279` (2026-09-14); PR #23 merged as `8230247` (2026-09-14); PR #22 merged as `f760ebe` (2026-09-13); reviewed from history in S19/S20/S21.
+**Session:** S22 · **Date:** 2026-09-16
+**Branch:** `arena/01a0a5bc-gifscythe` (platform-assigned session branch for this Arena session)
+**PR #27 merged as `6cd7c7b`** (2026-09-15, reviewed from history in S22); PR #26 merged as `d1d7939` (2026-09-15, reviewed from history in S22); PR #25 merged as `034ad65` (2026-09-15, reviewed earlier in S21); PR #24 merged as `dcb9279` (2026-09-14).
 This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written here: a session cannot know it at write time,
 and guessing it is how stale claims get born.
-**Docs synced through:** PR #25 · branch `arena/01a0a508-gifscythe` · merged as `034ad65`
+**Docs synced through:** PR #27 · branch `audit/u67-serve-static-allowlist` · merged as `6cd7c7b`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares
 this against the newest merged PR and fails when a merge landed with no doc sync — that is the
 "we jumped a merge without updating any docs" case. Move this line as part of the sync, never
 before the writing is done.)*
-Based on `main` commit `c4f9e1c` ·
+Based on `main` commit `6cd7c7b` ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: not yet — stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
@@ -19,7 +19,7 @@ owner's draft is refitted into that template's slots — move both lines in the 
 =`SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back.
 Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (after S21)
+## Next session — fast hand-off (after S22)
 
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
@@ -87,7 +87,8 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #24 | S20 | `arena/01a09e2e-gifscythe` | `dcb9279` | S19 exe-direction/U-08-close/wasm-scaffold + S19-review fixes + S20 windows-only product (OD-17) |
 | #25 | S21 (reviewed from history) | `arena/01a0a508-gifscythe` | `034ad65` | Merged 2026-09-15; reviewed S21: audit attribution correction — live-URL check found the two uploaded intake md files were **swapped on upload** (7b91 = 5 findings NA = gpt 5.6 non-winner; 729d = 19 findings NF = fable 5.1 low WINNER), so §2E/§2F were re-aligned to the URLs, §5 U-53..U-76 re-mapped, §6 fix-order ids corrected, §14 unverified/discrepancy log added, STATUS regenerated (89/7/50/0 = 146). **No findings dropped.** Docs-only: no code changed, so the newest non-doc commit stayed `a444b08` (S20) |
 
-| #26 | S21 | `audit/compiled-v3-consolidation` | **open** | CI green on head `450cdca` (runs `34987258037` + `34987252639`: linux + windows + csharp-spike all success; `mergeable_state=clean`; the earlier heads `60ac528`/`3bd37cb`/`414f9e0`/`0644e25`/`446f545` were green too). S21: `COMPILED_AUDIT.md` → v3 (recovered §15 VP/false-positive guardrails, §16 Audit A/B non-finding sections, §17 intake E/F prose + 19 regression cases; added §18 merge checklist, §19 next-session review ask; folded in + removed the two scattered root intake copies, clearing the live G17/S2 failure) **+ the U-68/NF-11 code fix** (oversized body → 413; `web/server.mjs` + new `web/test/body-limit.test.mjs`, 8/8 red→green, no engine needed) **+ the PR #25 doc sync** P6 required. Register unchanged at 76; U-68 OPEN→PARTIAL |
+| #26 | S21 | `audit/compiled-v3-consolidation` | `d1d7939` | Merged 2026-09-15; reviewed from history in S22: `COMPILED_AUDIT.md` → v3 (recovered §15 VP/false-positive guardrails, §16 Audit A/B non-finding sections, §17 intake E/F prose + 19 regression cases; added §18 merge checklist, §19 next-session review ask; folded in + removed the two scattered root intake copies, clearing the live G17/S2 failure) **+ the U-68/NF-11 code fix** (oversized body → 413; `web/server.mjs` + new `web/test/body-limit.test.mjs`, 8/8 red→green, no engine needed) **+ the PR #25 doc sync** P6 required. Register unchanged at 76; U-68 OPEN→PARTIAL |
+| #27 | S21 | `audit/u67-serve-static-allowlist` | `6cd7c7b` | Merged 2026-09-15; reviewed from history in S22: measured U-67/NF-10 before fixing it, narrowed the finding to the over-exposure that actually reproduced, then landed the static allow-list + explicit HEAD/static contract in `web/server.mjs`, added `web/test/static-hygiene.test.mjs` (43/43), updated `web/wasm/README.md`, and synced docs through the PR #26 merge. |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
@@ -103,6 +104,19 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, and
 `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
 alone would have passed straight through both skipped syncs.
+
+## S22 — PR #26/#27 review follow-up: automation gap fixed on this branch (2026-09-16)
+
+The review of merged PRs **#26** and **#27** found one live gap: the new web regressions were present in the repo but absent from the automated gates. This branch had also stopped at the PR #26 merge (`d1d7939`), so before fixing the automation I first ported the PR #27 web changes from `origin/main` — the `web/server.mjs` static allow-list / explicit HEAD contract, `web/test/static-hygiene.test.mjs`, and the `web/wasm/README.md` note that `web/server.mjs` intentionally returns 404 for `wasm/`.
+
+**What changed on this branch:**
+- CI: `.github/workflows/build.yml` and `docs/ci/build.yml.proposed` now run **all five** Node web suites, not just command/validate/transport. Added `web/test/body-limit.test.mjs` and `web/test/static-hygiene.test.mjs` to the shared step.
+- Local one-command audit: `working_code/gifscythe/scripts/verify_audit.sh` gained **W4** (oversized-body 413 regression) and **W5** (static allow-list / HEAD contract regression), so the review finding cannot regress silently outside CI either.
+- Audit state sync: `COMPILED_AUDIT.md` now records **U-67 FIXED (S22)** and **U-68 PARTIAL (S22)** with the updated proof surface. U-67 is now fully re-proven (`static-hygiene` 43/43, `transport` 67/67, automated in CI + W5). U-68 keeps only the cap-value question open; the 413 mapping itself is re-proven and automated (`body-limit` 8/8, `transport` 67/67, CI + W4).
+
+**Executed here:** `./build.sh`; `node web/test/command.test.mjs`; `node web/test/validate.test.mjs`; `node web/test/transport.test.mjs`; `node web/test/body-limit.test.mjs`; `node web/test/static-hygiene.test.mjs`; final `./scripts/verify_audit.sh` → **29 passed / 0 failed / 6 skipped** in this sandbox (the new **W4/W5** both PASS; skips are the existing CMake/Qt and clean-Windows items plus declared workflow drift). The Node-suite counts after the port are **17 + 23 + 67 + 8 + 43**.
+
+**Left:** U-69 (stale After image) is still untouched. U-68 remains PARTIAL only because the limit value is still the existing 64 MB HTTP-envelope cap (about 48 MB effective decoded GIF for `/run`), now documented in source rather than changed.
 
 ## S21 — COMPILED_AUDIT v3 consolidation + first code fix U-68/NF-11 → 413 (2026-09-15, unmerged branch work)
 
@@ -416,7 +430,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S21: **89 DONE · 8 PARTIAL · 49 OPEN · 0 UNTRIAGED · 146 total.**
+   `U-nn` row; neither replaces the other. As of S22: **90 DONE · 8 PARTIAL · 48 OPEN · 0 UNTRIAGED · 146 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —
