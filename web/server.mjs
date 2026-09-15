@@ -51,7 +51,17 @@ const PORT = Number(process.argv[2] || process.env.PORT || 8000);
 // could submit 64 MB bodies and 120 s engine runs to an endpoint with no auth
 // and no concurrency cap. Default to loopback; opt in explicitly.
 const HOST = process.env.GS_WEB_HOST || "127.0.0.1";
-const MAX_BODY = 64 * 1024 * 1024;
+// MAX_BODY caps the raw HTTP request body. For /optimize the body IS the GIF, so
+// the cap is the GIF cap. For /run the GIF travels base64-encoded inside a JSON
+// envelope, so base64's ~33% overhead means the effective decoded-GIF cap is
+// ~48 MB at the default 64 MB envelope limit (NF-11 / U-68 — the old "64 MB"
+// claim was the envelope, not the GIF). Override with GS_MAX_BODY (a positive
+// integer number of bytes); web/test/body-limit.test.mjs injects a tiny limit so
+// the 413 path is exercised deterministically without shipping a 64 MB body.
+const MAX_BODY = (() => {
+  const fromEnv = Number(process.env.GS_MAX_BODY);
+  return Number.isInteger(fromEnv) && fromEnv > 0 ? fromEnv : 64 * 1024 * 1024;
+})();
 const ENGINE_TIMEOUT_MS = 120_000;
 
 const MIME = {
@@ -132,22 +142,45 @@ function run(argv) {
   });
 }
 
+// U-68 / NF-11: an oversized body used to reject with a bare Error and destroy
+// the socket, so the caller could not tell it from a JSON parse failure (both
+// landed in one catch -> 400 "bad JSON request body") and the client often saw a
+// reset instead of any status. Tag the rejection with 413 and stop accumulating
+// WITHOUT tearing down the socket; the handler writes the 413 and destroys the
+// request only after the response has flushed.
+class BodyTooLargeError extends Error {
+  constructor(limit) {
+    super(`request body too large (limit ${limit} bytes)`);
+    this.name = "BodyTooLargeError";
+    this.statusCode = 413;
+  }
+}
+
 function readBody(req, limit) {
   return new Promise((resolveBody, reject) => {
     const chunks = [];
     let size = 0;
+    let stopped = false;
     req.on("data", (c) => {
+      if (stopped) return;
       size += c.length;
       if (size > limit) {
-        reject(new Error("request body too large"));
-        req.destroy();
+        stopped = true;
+        reject(new BodyTooLargeError(limit));
         return;
       }
       chunks.push(c);
     });
-    req.on("end", () => resolveBody(Buffer.concat(chunks)));
-    req.on("error", reject);
+    req.on("end", () => { if (!stopped) resolveBody(Buffer.concat(chunks)); });
+    req.on("error", (err) => { if (!stopped) reject(err); });
   });
+}
+
+// Write the 413 and only then close the socket, so the status actually reaches
+// the client instead of being cut off mid-flight.
+function sendTooLarge(res, req, limit) {
+  sendJson(res, 413, { ok: false, error: `request body too large (limit ${limit} bytes)` });
+  res.once("finish", () => { req.destroy(); });
 }
 
 async function serveStatic(res, urlPath) {
@@ -264,6 +297,10 @@ async function handleOptimize(req, res, url) {
     });
     res.end(outBytes);
   } catch (err) {
+    // U-68 / NF-11: an oversized upload is a 413, not a generic 500. (This
+    // handler discovers the engine before reading the body, so the 413 is
+    // reachable only when an engine is present; /run reads the body first.)
+    if (err && err.statusCode === 413) { sendTooLarge(res, req, MAX_BODY); return; }
     res.writeHead(500, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: false, error: String(err && err.message ? err.message : err) }));
   } finally {
@@ -348,8 +385,19 @@ async function listWrittenFrames(dir, prefixName, before) {
 
 async function handleRun(req, res) {
   let payload;
+  // U-68 / NF-11: reading the body and parsing it are separate failures and must
+  // not share one catch. Oversized -> 413; unreadable -> 400; malformed JSON ->
+  // 400 "bad JSON request body" (unchanged). This runs before findEngine(), so
+  // the 413 is reachable with no engine present.
+  let raw;
   try {
-    const raw = await readBody(req, MAX_BODY);
+    raw = await readBody(req, MAX_BODY);
+  } catch (err) {
+    if (err && err.statusCode === 413) { sendTooLarge(res, req, MAX_BODY); return; }
+    sendJson(res, 400, { ok: false, error: "could not read request body" });
+    return;
+  }
+  try {
     payload = JSON.parse(raw.toString("utf8"));
   } catch {
     sendJson(res, 400, { ok: false, error: "bad JSON request body" });

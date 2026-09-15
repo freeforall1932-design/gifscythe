@@ -1,4 +1,14 @@
-# Gifscythe — Compiled Audit (Master) — v2
+# Gifscythe — Compiled Audit (Master) — v3
+
+> **v3 consolidation (2026-09-15).** This file is now the **single** compiled audit md: the two
+> scattered root-level intake copies (`GIFSCYTHE_REVIEW_INTAKE_…7b91….md` and `gifscythe-audit_…729d….md`)
+> were folded in (§2E/§2F/§5 findings; §17 reviewer prose) and removed. v3 also **recovers content v2
+> had dropped** — the Audit A/B non-finding sections (§16), the VP-1..VP-5 + false-positive guardrails
+> that §12 cites but v2 never defined (§15), and the intake E/F verdicts / delivery paths / per-finding
+> regression cases (§17) — and adds the **merge-completeness checklist** (§18) and the **next-session
+> review ask** (§19). **No finding was added or dropped: the register is still 76 (§5).** Removing the
+> `…7b91…` copy also clears the live **G17/S2** doc-gate failure (it quoted a stale register tally).
+> See §18 for the source-by-source traceability and §14 for the filename-vs-URL discrepancy log.
 
 > **Remediation status (2026-09-10, session S8): 31 findings closed outright
 > (21 in batch 1 + 10 in batch 2), 3 closed in part (U-10/U-14/U-18), 15 still
@@ -61,8 +71,13 @@ trust A/D + primary source. Where A and D disagree, treat D as the fresher obser
 | ⏸ **BLOCKED** | Cannot be checked in this sandbox (no Qt6/cmake/Windows) |
 
 > **Status:** Audit A and B extracted files (`AUDIT_A_extracted.md`, `AUDIT_B_extracted.md`)
-> have been incorporated into this compiled document and then deleted. This file is now the
-> single source of truth for all findings from all four audits.
+> were incorporated into this compiled document and then deleted from `main`. They still exist
+> on the closed branch `codebase-review-and-fix-implementation-b8d7e` (PR #9, never merged),
+> which is where the v3 completeness sweep re-read them from — the branch is the backup copy,
+> `main` is not. This file is the single source of truth for all findings from **all six audits**
+> (A, B, C, D, E, F). v3 also recovered their *non-finding* sections, which the v2 merge had
+> dropped: see §16 (A/B positives, method, fix-order rationale) and §15 (the VP / false-positive
+> guardrails §12 cites).
 
 ---
 
@@ -81,7 +96,7 @@ trust A/D + primary source. Where A and D disagree, treat D as the fresher obser
 
 ## 1. Executive cross-audit summary
 
-**All four audits converge on the same top failure class:**
+**All six audits converge on the same top failure class:**
 **silent data loss / false success** — the tool reports success while destroying data,
 writing nothing, or running single-threaded when the user asked for auto-threading.
 
@@ -445,7 +460,7 @@ lifetime on the input side.
 ## 2E. Independent Source Audit (E) — 5 findings — 01a0a4f2-59e2-7b91-a71d-c630bb77209a — gpt 5.6 sol xhigh
 
 **Source:** https://01a0a4f2-59e2-7b91-a71d-c630bb77209a.arena.site/
-**Repo file:** gifscythe-audit-01a0a4f2-59e2-729d-ba6e-9030c6b52dcb 2026-09-15.md from commit ca48bf8 and origin/main (307 lines, 5 findings) — *note: file name 729d on repo contains 5 findings but live URL 7b91 also contains 5 findings; content matched by finding count, URL verified 2026-09-15 via fetch_page*
+**Repo file:** gifscythe-audit-01a0a4f2-59e2-729d-ba6e-9030c6b52dcb 2026-09-15.md from commit ca48bf8 (307 lines, 5 findings) — **removed from `main` in v3 (2026-09-15): folded into this file (§2E findings + §17.1 prose); full text preserved in git history at `c4f9e1c`.** *note: file name 729d on repo contains 5 findings but live URL 7b91 also contains 5 findings; content matched by finding count, URL verified 2026-09-15 via fetch_page*
 **Model:** gpt 5.6 sol xhigh (per owner mapping, non-winner)
 **Rank:** Highest (source-confirmed, 0 runtime claims, CI green check 34818891106)
 **Date:** 2026-09-15
@@ -558,7 +573,7 @@ outBytes = M.FS.readFile("/out.gif");
 ## 2F. Code Review Intake (F) — 19 findings — 01a0a4f2-59e2-729d-ba6e-9030c6b52dcb — fable 5.1 low — WINNER
 
 **Source:** https://01a0a4f2-59e2-729d-ba6e-9030c6b52dcb.arena.site/
-**Repo file:** GIFSCYTHE_REVIEW_INTAKE_01a0a4f2-59e2-7b91-a71d-c630bb77209a 2026-09-15.md from commit ca48bf8 and origin/main (703 lines, 19 findings) — *note: file name 7b91 on repo contains 19 findings but live URL 729d also contains 19 findings; content matched by finding count, URL verified 2026-09-15 via fetch_page — 19 findings = fable WINNER per owner check*
+**Repo file:** GIFSCYTHE_REVIEW_INTAKE_01a0a4f2-59e2-7b91-a71d-c630bb77209a 2026-09-15.md from commit ca48bf8 (703 lines, 19 findings) — **removed from `main` in v3 (2026-09-15): folded into this file (§2F findings + §17.2 prose); full text preserved in git history at `c4f9e1c`. Its stale register tally was the live G17/S2 gate failure that v3 clears.** *note: file name 7b91 on repo contains 19 findings but live URL 729d also contains 19 findings; content matched by finding count, URL verified 2026-09-15 via fetch_page — 19 findings = fable WINNER per owner check*
 **Model:** fable 5.1 low — WINNER (per owner latest check, arena comparison winner, 19 findings)
 **Rank:** Highest (source-confirmed, checked against 122 rows, 0 runtime, needs smoke/harness)
 **Date:** 2026-09-15
@@ -688,7 +703,7 @@ return p; // bare name -> CWD
 **File:** `web/server.mjs` — `readBody()`, `handleRun()` catch
 **Finding.** `readBody` rejects generic Error, `handleRun` converts to bad JSON, hiding cause. MAX_BODY applies to JSON envelope, base64 +33% lowers effective upload to ~48MB while README says 64MB.
 **Fix:** Throw typed 413 from `readBody` and map, document effective limit or raise MAX_BODY for /run.
-**Status:** ⬜ **OPEN** — register §5 `U-68`.
+**Status:** ◐ **PARTIAL (S21)** — register §5 `U-68`. The 413 mapping is EXEC-proven for both endpoints (`web/test/body-limit.test.mjs` 8/8, red→green: `/run` 400→413, `/optimize` 500→413, no real engine — `/run` is pre-discovery, `/optimize` via an inert `GS_ENGINE` stub never executed); REMAINING: the engine-gated `transport.test.mjs` no-regression re-run, and the numeric cap is documented (64 MB envelope ≈ 48 MB effective decoded GIF) but not changed. Original report: ⬜ **OPEN**.
 
 ---
 
@@ -2065,7 +2080,7 @@ Deduplicated across A/B/C/D/E/F. "Src" = which audit(s) raised it.
 | **U-65** | F:NF-08 | **CLI symlink/PATH loses engine-beside-executable discovery** — `exe_path_of(argv0)` keeps symlink, bare name only resolved if exists in CWD; `ln -s` install into /usr/local/bin breaks sibling engine lookup. | ✅ **SRC** | ⬜ OPEN |
 | **U-66** | F:NF-09 | **Desktop pinned to GS_VERSION while web picks newest** — CLI/GUI look in `release/<GS_VERSION>/`, web `findEngine()` picks newest numeric dir; VERSION bump breaks CLI/GUI while web still works. Two policies. | ✅ **SRC** | ⬜ OPEN |
 | **U-67** | F:NF-10 | **serveStatic raw prefix containment, serves source/tests, HEAD body** — `file.startsWith(ROOT)` hygiene; every file under web/ served; HEAD returns body. `assertContainedPath` exists but not reused. | ✅ **SRC** | ⬜ OPEN |
-| **U-68** | F:NF-11 | **Oversized bodies 400 not 413, /run cap ~48MB not 64MB** — `readBody` rejects generic Error, `handleRun` maps to bad JSON; MAX_BODY applies to JSON envelope, base64 +33% lowers effective upload while README says 64MB. | ✅ **SRC** | ⬜ OPEN |
+| **U-68** | F:NF-11 | **Oversized bodies 400 not 413, /run cap ~48MB not 64MB** — `readBody` rejects generic Error, `handleRun` maps to bad JSON; MAX_BODY applies to JSON envelope, base64 +33% lowers effective upload while README says 64MB. | ✅ **EXEC** (S21) | ◐ PARTIAL (S21) — REMAINING: the engine-gated `transport.test.mjs` no-regression re-run, and the numeric cap is left as-is (now documented as a 64MB envelope ≈ 48MB effective decoded GIF for /run). LANDED + EXEC-proven: `readBody` rejects with a typed `BodyTooLargeError` (413) and stops accumulating without destroying the socket; both handlers map it to a real 413 (`sendTooLarge`, destroy-after-flush) distinct from a 400 parse error; `GS_MAX_BODY` injects the limit for tests. Proof: `web/test/body-limit.test.mjs` 8/8, red→green for /run (400→413) and /optimize (500→413), no real engine (inert `GS_ENGINE` discovery stub never executed). |
 | **U-69** | F:NF-12 | **After failed run previous After stays under Failed status** — `revokeResults()`/hide only on success and queue change; setting change + re-run to 422 leaves OLD results visible next to failure — web stale-visual of U-47 class. | ✅ **SRC** | ⬜ OPEN |
 | **U-70** | F:NF-13 | **Preview engine check bypasses UTF-8 boundary** — `ensureEngine()` wraps `u8path_compat()`, `startPreview()` passes `toStdString()` directly to `path_is_executable(fs::path)` — narrow mangling on MinGW; non-ASCII engine path: main run works but preview says not found. | ✅ **SRC** | ⬜ OPEN |
 | **U-71** | F:NF-14 | **Windows exit masked `&0xff` collapses NTSTATUS crash to success** — `ProcessRunner.h` Windows `code &0xff`; crash NTSTATUS like 0xC0000005 ends 0x05 keeps non-zero but 0x00 becomes 0, breaking honest exit contract in crash case. | ✅ **SRC** | ⬜ OPEN |
@@ -2162,7 +2177,7 @@ B and C findings are merged in where they add coverage or contradict A/D/E/F.
 | P2-14 | **Narrative-vs-register gate — DONE S17.** S5/G17 checks OPEN vs closed and closed vs nonclosed using leading current state/reference; historical Original report tails excluded. Invalid current references fail. 20 regression tests pass; three OPEN-vs-fixed mutations expose the old false PASS. | **DS-11** | **C (S17 closed)** |
 
 | P2-15 | **Check standalone UNTRIAGED counts (DONE S17).** S2 compares numeric counts in current-state docs with STATUS.md, even without DONE/PARTIAL/OPEN cells. Markdown and line wraps supported, paragraphs kept separate; file:line diagnostics. Fourteen isolated regression tests pass. S4 stays a fixed five-phrase check; unnumbered prose is not mechanically understood. | **N-07** | **C (S16 triage; S17 closed)** |
-| P2-16 | **Web static hygiene and 413 mapping — NEW F:NF-10/11/12 — fable 5.1 low — WINNER.** Reuse `assertContainedPath(ROOT, file)` in `serveStatic()`, allow-list served files, headers-only for HEAD; typed 413 from `readBody()` and map; document effective 48MB cap or raise MAX_BODY; `revokeResults()`/hide before every run or on failure to avoid stale After. | **U-67, U-68, U-69** | **F — WINNER** |
+| P2-16 | **Web static hygiene and 413 mapping — NEW F:NF-10/11/12 — fable 5.1 low — WINNER.** Reuse `assertContainedPath(ROOT, file)` in `serveStatic()`, allow-list served files, headers-only for HEAD; typed 413 from `readBody()` and map; document effective 48MB cap or raise MAX_BODY; `revokeResults()`/hide before every run or on failure to avoid stale After. **U-68 (the 413 mapping + cap documentation) PARTIAL S21** — `web/test/body-limit.test.mjs` 8/8 red→green for `/run` and `/optimize`; the engine-gated `transport.test.mjs` re-run remains. **U-67 and U-69 untouched.** | **U-67, U-68, U-69** | **F — WINNER** |
 | P2-17 | **Windows exit code and NTSTATUS — NEW F:NF-14 — fable 5.1 low — WINNER.** `if (code==0) return 0; int low=code&0xff; return low?low:1;` log raw hex when >255; add unit test for 0xC0000005 case. | **U-71** | **F — WINNER** |
 
 ### P3 — Docs and polish
@@ -2305,8 +2320,9 @@ B and C findings are merged in where they add coverage or contradict A/D/E/F.
 - **Audit B:** `AUDIT_B_extracted.md` — Seed 2.1 Pro Preview (16 findings) — **file deleted, content merged into §4**
 - **Audit C:** `docs/audit/POST_S7_AUDIT.md` — Arena agent session (13 findings)
 - **Audit D:** GPT 6 Astra Medium — `https://01a089b0-ef16-7451-bd81-a1c6a80d3252.arena.site/` (8 findings) — **merged 2026-09-10**
-- **Audit E:** Independent Source Audit — `https://01a0a4f2-59e2-7b91-a71d-c630bb77209a.arena.site/` — **5 findings (NA-01..NA-05) — gpt 5.6 sol xhigh — from repo commit `ca48bf8` + live URL verified 5 findings — merged 2026-09-15, source files deleted**
-- **Audit F:** Code Review Intake — `https://01a0a4f2-59e2-729d-ba6e-9030c6b52dcb.arena.site/` — **19 findings (NF-01..NF-19) — fable 5.1 low — WINNER — from repo commit `ca48bf8` + live URL verified 19 findings — merged 2026-09-15, source files deleted**
+- **Audit E:** Independent Source Audit — `https://01a0a4f2-59e2-7b91-a71d-c630bb77209a.arena.site/` — **5 findings (NA-01..NA-05) — gpt 5.6 sol xhigh — from repo commit `ca48bf8` + live URL verified 5 findings — merged 2026-09-15. Findings → §2E + §5 (U-53..U-57); reviewer prose → §17.1. The scattered root copy (`gifscythe-audit-…729d….md`) was removed in v3 — full text preserved in git history at `c4f9e1c`.**
+- **Audit F:** Code Review Intake — `https://01a0a4f2-59e2-729d-ba6e-9030c6b52dcb.arena.site/` — **19 findings (NF-01..NF-19) — fable 5.1 low — WINNER — from repo commit `ca48bf8` + live URL verified 19 findings — merged 2026-09-15. Findings → §2F + §5 (U-58..U-76); reviewer prose + 19 regression cases → §17.2. The scattered root copy (`GIFSCYTHE_REVIEW_INTAKE_…7b91….md`) was removed in v3 — its stale register tally was the live G17/S2 failure; full text preserved in git history at `c4f9e1c`.**
+- **Guardrails (VP / false positives):** `docs/archive/gifscythe-final-code-review.md` §6 + the closed branch `codebase-review-and-fix-implementation-b8d7e` — recovered into §15 (v3) so §12's "VP-1/2/3/5" reference resolves inside this master file.
 - **Consolidated:** `docs/audit/CONSOLIDATED_AUDIT_2026-09-10.md` — merges A+B+C (44 findings)
 - **Product docs:** `PROJECT_VISION.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`, `FEASIBILITY_REVIEW.md`
 - **Engine truth:** `reference_code/gifsicle/` + https://www.lcdf.org/gifsicle/man.html
@@ -2342,6 +2358,17 @@ B and C findings are merged in where they add coverage or contradict A/D/E/F.
    - Updated §1 counts to 76 unique, §6 fix order with P0-7..P1-43/P2-16-17/P3-12 new entries, §10 source index, §11 changelog, §12 handoff
    - Deleted scattered files: 01a0a4f2-59e2-7b91-a71d-c630bb77209a.md, 01a0a4f2-59e2-729d-ba6e-9030c6b52dcb.md, AUDIT_URL_COMPARISON.md, docs/audit/NA_AUDIT_7b91_FULL.md, NF_AUDIT_729d_FULL.md, and spaced-name originals if present (names listed without backticks to avoid G8 path-existence gate)
    - Regenerated STATUS.md via `check_docs.sh --emit`, verified G5/G5b green
+10. **2026-09-15 — v3 consolidation (this pass): merge-completeness sweep + recovery of dropped non-finding content.**
+   - **Completeness check vs the branch the owner pointed at** (`codebase-review-and-fix-implementation-b8d7e`, which still carries `AUDIT_A_extracted.md` / `AUDIT_B_extracted.md`): every finding ID and body was confirmed present and faithful in §3/§4/§5 (GS-001..GS-020 → A-01..A-20; BUG-01..BUG-16 → B-01..B-16). **No finding was missing.** What *was* missing was non-finding content (next four bullets).
+   - **Recovered §15** — the VP-1..VP-5 verified-correct table and the false-positives/bad-prescriptions table. §12 cited "VP-1/2/3/5" but v2 never defined them (they lived only in `docs/archive/` and the closed branch). Now self-contained.
+   - **Recovered §16** — Audit A & B non-finding sections (decision summary, recommended fix order, "what's working well" positives, method/limits, severity tallies, footers), framed as a dated 2026-09-10 historical snapshot.
+   - **Recovered §17** — intake E/F reviewer prose: E's verdict, verification boundary, already-tracked debt, delivery path, language/architecture recommendation and validation order; F's four planning recommendations, the 0.2.0→1.0.0 path, and the 19 per-finding regression cases.
+   - **Added §18** (merge-completeness checklist — which audit problems were worked on, source by source) and **§19** (next-session review ask — re-prove every ✅ FIXED, write the failing test first, and hunt for new pits / "closing a pit just to make a new pit").
+   - **Folded in and removed the two scattered root intake copies** so this is the one compiled audit md file (the policy §11.9/§12 already declared). Removing the `…7b91…` REVIEW_INTAKE copy **clears the live G17/S2 stale-tally gate failure**; full text stays in git history at `c4f9e1c`. §5 register unchanged (still 76), so STATUS.md needs no re-emit.
+11. **2026-09-15 — S21 first code task: U-68 / NF-11 oversized body → 413 (PARTIAL).** Chosen as the single highest-confidence task this sandbox can actually prove: it has **no compiler** (node v20.20.2 / python3 / git only), so no C++/CLI/Qt/Windows/wasm row is buildable and the existing web suites cannot run (command/validate spawn the C++ CLI; transport needs a discoverable engine; glue needs emcc). U-68 is HTTP-transport-only — the desktop has no HTTP server, so there is **no C++ parity mirror to diverge from** — and `/run` reads the body before `findEngine()`, so the 413 is provable with no engine.
+   - `web/server.mjs`: `readBody` rejects with a typed `BodyTooLargeError` (`statusCode 413`) and stops accumulating without destroying the socket; `handleRun` separates the read error (413) from the JSON parse error (400, wording unchanged); `handleOptimize`'s catch maps 413 before its generic 500; `sendTooLarge` writes the 413 and destroys the socket only after flush; `GS_MAX_BODY` injects the limit (guarded, defaults to 64 MB); the constant now documents the 64 MB envelope ≈ 48 MB effective decoded GIF for `/run`.
+   - **Executed proof:** new `web/test/body-limit.test.mjs` **8/8, red→green** — stashing the fix reproduces `/run 400≠413` and `/optimize 500≠413` while 4 control cases still pass (the test isolates the bug, it does not pass vacuously); restoring it turns all 8 green. No real engine: `/run` is pre-discovery; `/optimize` reaches `readBody` via an inert `GS_ENGINE` stub (`process.execPath`) never executed because the rejection precedes `run()`.
+   - **§5 U-68 → ◐ PARTIAL (S21)** (was ⬜ OPEN); §2F F-11 narrative and §6 P2-16 annotated to match (gate S5); §17.2 NF-11 regression case marked implemented. **STATUS.md re-emitted** via `check_docs.sh --emit` → 89 DONE · 8 PARTIAL · 49 OPEN · 0 UNTRIAGED · 146; `SESSION_HANDOFF.md` tally quote updated (gate S2) and an S21 section added; `IMPROVEMENT_LOG.md` S21 entry added (gate G11 — a non-doc file changed). REMAINING for DONE: the engine-gated `transport.test.mjs` no-regression re-run, and the cap value is documented but deliberately unchanged. U-67/U-69 (the rest of P2-16) untouched.
 
 ---
 
@@ -2354,7 +2381,8 @@ B and C findings are merged in where they add coverage or contradict A/D/E/F.
 > B and the compiled audit. **New P0 is U-59 (F:NF-02 fable 5.1 low WINNER) — cancel truncates existing file over pre-existing output — data-loss class requiring tmp+rename guard, not covered by OutputPlan existing.** The top item across all six audits remains **U-01**: batch auto-naming silently
 > overwrites other outputs **and** the source GIF. **All scattered audit copies deleted** — this `COMPILED_AUDIT.md` is now the single
 > source of truth. Run `verify_audit.sh` + `test_gui_offscreen` before trusting anything new.
-> Never "fix" verified-correct behaviors (VP-1/2/3/5); never start WebP/APNG before GIF 1.0.0.
+> Never "fix" verified-correct behaviors — **VP-1/2/3/5 are now defined in §15.1** (v2 cited them but never defined them); never implement the §15.2 false positives blindly; never start WebP/APNG before GIF 1.0.0.
+> **Next session: this compilation is documentation, not proof — execute the §19 review ask (re-run the suite, write the failing test first, hunt for new pits) before trusting any ✅ FIXED row.**
 
 ---
 
@@ -2455,6 +2483,8 @@ Repo files on `origin/main` (c4f9e1c):
 
 So file name ID does NOT match live URL content for same ID — files appear swapped on upload. Content by finding count is authoritative.
 
+**Update (v3, 2026-09-15):** both root-level copies named above were folded into this file and deleted, so `COMPILED_AUDIT.md` is the only audit md at the repo root. The listing is kept as the historical observation that established the swap; the full text of both is in git history at `c4f9e1c`. The `…7b91…` copy's stale register tally was the live **G17/S2** gate failure on `main`; deleting it cleared that (see §18).
+
 **Resolution adopted per owner latest check (19 = fable WINNER):**
 - **E = 7b91 URL = 5 findings NA = gpt 5.6 sol xhigh (non-winner)**
 - **F = 729d URL = 19 findings NF = fable 5.1 low WINNER**
@@ -2474,4 +2504,189 @@ All E/F findings marked ✅ **SRC** — source-confirmed, needs smoke/harness. T
 - U-59 P0 cancel truncates — needs stub engine that truncates then sleeps, plus pre-existence snapshot test
 These are logged as OPEN with proposed harness steps in §2E/§2F; not dropped.
 
-*End of compiled audit v2 — 76 findings, 6 audits merged.*
+## 15. Guardrails — verified-correct behaviors and refuted false positives (recovered)
+
+> **Why this section exists.** §12 says *"Never 'fix' verified-correct behaviors (VP-1/2/3/5)"* but v2 never defined them — the table lived only in `docs/archive/gifscythe-final-code-review.md` §6 and on the closed branch `codebase-review-and-fix-implementation-b8d7e`. Recovered here so the master file is self-contained and §12's reference resolves locally. These are the anti-"new pit" guardrails: each was checked against the committed engine source (`reference_code/gifsicle/src/gifsicle.c`) and/or the gifsicle 1.96 man page. **Changing them would introduce real bugs.**
+
+### 15.1 Verified-correct — do NOT "fix" (VP-1..VP-5)
+
+| ID | Behavior (correct as shipped) | Authority | Trap it avoids |
+|----|-------------------------------|-----------|----------------|
+| **VP-1** | `--loopcount=0` = loop **forever** (not "play once") | man page + `gifsicle.c:1853` (`case 'l'`: bare `-l` → 0 = forever; `--no-loopcount` → -1) | "Fixing" `GifsicleCommand.h` to emit `--loopcount=forever`, or treating `=0` as play-once. Play-once is `--no-loopcount` — see U-63 / NF-06. |
+| **VP-2** | `-O0` is valid = optimization **off** | `gifsicle.c:1866` (`OPTIMIZE_OPT`: no error path for 0; clears the optimize mask) | Clamping the GUI spinbox minimum to 1. If anything, label 0 "Off". |
+| **VP-3** | `gamma` already uses a safe sentinel (`-1` = unchanged) | `GifsicleSettings.h:80` (`double gamma = -1.0`) + `GifsicleCommand.h:87` (`if (s.gamma >= 0)`) | "Fixing" a non-existent "always emits `--gamma 0.0`" bug. |
+| **VP-4** | Q_OBJECT/MOC is handled by the current build files | `CMakeLists.txt:32` `qt_standard_project_setup()` sets AUTOMOC (Qt ≥ 6.3); the qmake path mocs `Q_OBJECT` headers | Adding a "vtable/link fix" for a crisis that does not exist. (Caveat: Qt < 6.3 needs manual `CMAKE_AUTOMOC ON`.) |
+| **VP-5** | crop emitter `X,Y+WxH` (plus form) is correct | man page + built engine; the unit test asserts `0,0+30x60` | "Aligning the code to the table": `FEASIBILITY_REVIEW.md:107` writes the comma form `--crop X,Y,WxH` — **the table is wrong, the code is right.** Edit the table, not the emitter. |
+
+### 15.2 False positives & bad prescriptions — do NOT implement blindly
+
+| Claim (rejected) | Origin | Why rejected |
+|------------------|--------|--------------|
+| SettingsIO is JSON / there is a `SettingsIO.cpp` | S3-13 | Format is `key=value` header lines only; no JSON, no `.cpp`. |
+| CLI flags `--settings` / `--input` / `settings.json` | S3-1 verify steps | Real CLI: `gifscythe-cli <file.conf> [--run] [--engine PATH]`. |
+| "Fix" the version with a `GIFSYCYTHE_VERSION` guard | S3-11 | Propagates an include-guard typo; the real guards are all `GIFSCYTHE_*` (see §7.E probe E8). |
+| The workflow file is `ci.yml` | S3-3 | Actual: `.github/workflows/build.yml`. |
+| Installers are required for 1.0 | S3-21 | Vision = portable click-and-run (`PROJECT_VISION.md`). |
+| Change `--loopcount=0` / ban `-O0` / "fix" crop commas | older N-series | Refuted by engine source — VP-1, VP-2, VP-5. |
+| Accept APNG/WebP in the drop target before 1.0 | S3-6 | Scope violation; blocked until GIF 1.0.0 (`PROJECT_VISION.md`). |
+
+> **Provenance:** `docs/archive/gifscythe-final-code-review.md` §6 (VP-1..VP-5 full text, with the engine-source citations) and the closed branch `codebase-review-and-fix-implementation-b8d7e` `COMPILED_AUDIT.md` §3.4 + §8. `IMPROVEMENT_LOG.md` records shipped regression guards for VP-1 (`--loopcount=0`), VP-2 (`-O0`), VP-3 (no `--gamma` unless chosen) and VP-5 (crop `1,2+30x40`).
+
+---
+
+## 16. Recovered non-finding sections — Audits A & B (historical snapshot, as filed 2026-09-10)
+
+> v2 merged the 36 A+B **findings** into §3/§4 but dropped the reviewers' surrounding narrative. Recovered verbatim below. **This is a dated historical snapshot (2026-09-10, S8 era):** every count in it (e.g. "243 GUI checks", "CI #36", "20 unit tests") is a past measurement of that date, **not** current state — see `STATUS.md` for the live register and `SESSION_HANDOFF.md` for the current harness runtime count. Source: branch `codebase-review-and-fix-implementation-b8d7e`, `AUDIT_A_extracted.md` / `AUDIT_B_extracted.md`.
+
+### 16.1 Audit A (GPT 5.6 sol xhigh) — decision summary, fix order, positives, method
+
+**Header / decision summary (2026-09-10 snapshot).** CI #36 Linux + Windows passed (run 34425977060); **"Release hold recommended."** Risk distribution as filed: Critical 2 / High 7 / Medium 9 / Low 2 = 20 actionable findings; 2 critical blockers; 243 GUI checks (past measurement); 0.1.0 pre-release. **"Do not cut 1.0.0 yet."** Three imperatives: (1) *Prevent overwrite* — plan and validate every output before the first engine process starts; (2) *Harden packaging* — make a partial GUI/CLI/runtime/license bundle fail closed; (3) *Re-cut evidence* — test a current-main Windows zip, not the older S4 snapshot asset.
+
+**Recommended fix order** ("Close the data-loss path before polishing the product"):
+1. **Stop silent replacement** — plan outputs, reject source/cross-job collisions, define the overwrite policy. (GS-001)
+2. **Make packaging fail closed** — fresh staging, required binaries/runtime, complete legal manifest, package E2E. (GS-002, GS-007)
+3. **Repair CLI contracts** — strict parser, safe stdout, PATH resolution, Unicode process APIs, validation errors. (GS-003, GS-004, GS-006, GS-010, GS-011)
+4. **Harden execution surfaces** — bound web work, remove GUI waits, validate input, atomic settings, verify Explode. (GS-005, GS-012, GS-013, GS-016, GS-017)
+5. **Turn fixes into gates** — hermetic builds, immutable upstream, negative packaging tests, sanitizer and web CI. (GS-009, GS-014, GS-015, GS-018)
+6. **Re-cut release evidence** — current-SHA artifacts, matching tag/provenance, clean Windows smoke, status sync. (GS-008, GS-019, GS-020)
+
+Suggested release criterion: *"No Critical/High findings open, package-negative tests green, and clean-Windows smoke run against the exact tagged SHA."*
+
+**Coverage and positives** ("What is already working well" — *do not regress these*):
+- "This is not a blanket rejection of the repository. Several previously severe defects were repaired correctly and have meaningful regression coverage."
+- **Argv execution:** the C++ and Node paths spawn with argument arrays, never shell-concatenated commands; space-path quoting has dedicated Windows coverage.
+- **Honest engine exit codes:** the CLI's old `system()` wait-status bug was replaced with platform process APIs; missing-engine behavior is checked on Windows and Linux.
+- **GUI process ownership:** main runs use member QProcess state, cancellation is explicit, controls are disabled while busy, and most non-Explode outputs are checked.
+- **Command parity:** the web command builder mirrors the C++ builder and has 12 cross-language fixtures plus direct argv checks.
+- **Settings lifetime:** `GifsicleCommand` stores Settings by value (the prior dangling-reference defect is gone); parsing no longer reads uninitialized numeric values.
+- **Real CI breadth:** main run #36 completed both OS jobs, native Windows CLI/engine smoke, GUI builds, and the offscreen harness (a 243-check past measurement).
+- **Not re-audited:** the vendored million-line upstream gifsicle was treated as a pinned third-party dependency; its integration boundary was reviewed, upstream internals were not line-audited.
+
+**Method and limits.** "I reviewed current main rather than accepting COMPILED_AUDIT.md as proof. Existing audit claims were checked against primary source, current workflow metadata, and release/tag APIs. Findings marked Confirmed follow directly from reachable code paths or metadata. Strong-risk items depend on a platform fault or encoding condition and should be reproduced on the target OS." "The target C++/Qt repository was not cloned or executed in this environment; the reproductions are source-derived and intended for a disposable checkout or VM. I did verify the public source revision, CI outcomes, artifacts, tags, and release metadata live." Footer: **"20 findings. 2 immediate release blockers."**
+
+### 16.2 Audit B (Seed 2.1 Pro Preview) — positives, method, severity tally
+
+**"What's working well" (do not regress):**
+- **Core compiles cleanly:** `g++ -std=c++17 -Wall -Wextra -pedantic` produced zero warnings on the CLI + test target; all 20 unit tests passed (as filed, 2026-09-10).
+- **shell/argv discipline:** POSIX `fork+execvp` and Windows `CreateProcessA` both use argv arrays (never shell); Windows MSVCRT quoting is implemented and tested.
+- **Batch per-file semantics:** N inputs → N outputs with the `{name}` template; constant-template collision refused; single-file Save-as honored.
+- **`--crop X,Y+WxH`** matches gifsicle's preferred syntax (not the comma-separated form — see VP-5).
+- **Delay units labeled 1/100 s** (not milliseconds) — avoids the off-by-10 error common in GIF tools.
+- **Session persistence:** saves only Actions state (not the queue, not Save-as); a corrupt file produces an honest status warning instead of silent defaults.
+- **Preview:** debounced, async, uses seq# to discard stale completions; the temp dir is cleaned on exit.
+- **Parity scaffolding:** `web/test/command.test.mjs` cross-checks the JS `command.mjs` output against the C++ `gifscythe-cli` binary.
+- **Settings round-trips:** save/load tested; unknown keys ignored for forward-compat.
+- **MinGW `_spawnvp` was splitting on spaces** → a custom `CreateProcessA` + MSVCRT quoting was added (regression test in unit test #19).
+
+**Method note (tail).** "Audit performed by static analysis + compile + unit-test execution. Core engine binary (gifsicle) was not built in this environment; tests involving actual GIF processing require running build_engine.sh. Some Verified-marked bugs were reproduced with a throwaway test driver."
+
+**Severity tally as filed:** Critical 0 / High 1 / Medium 4 / Low 8 (+ 3 info) = 16 findings.
+
+---
+
+## 17. Recovered reviewer prose — intakes E (5 findings) & F (19 findings, WINNER)
+
+> v2 merged the E/F **findings** into §2E/§2F and §5 (U-53..U-76) but not the reviewers' verdicts, delivery plans, or regression cases. Recovered here so the two uploaded intake files can be folded into this single master and removed. Both intakes were **source-only** (no toolchain in the reviewing sandbox); every row still needs a smoke/harness case before it can move to DONE.
+
+### 17.1 Intake E (NA-01..NA-05) — verdict, delivery path, validation order
+
+**Verdict.** "The project is still viable and should not be rewritten before 1.0.0. Keep C++17 + Qt6 for the Windows desktop, Node ESM for the self-hosted web surface, and gifsicle as a subprocess. Five source-confirmed gaps below are not represented in the compiled audit. They require targeted regression tests before being marked closed."
+
+**Verification boundary.** Independent source review of the pinned public repo (snapshot `dcb9279`); not cloned or executed inside the audit viewer. "Source confirmed" means the control flow is directly present in the source; proposed reproductions still need to be run in the target repository, especially the native-Windows cases. The green upstream CI run (34818891106) proves the existing suite passed, **not** that these new cases are covered.
+
+**Already-tracked release debt (re-confirmed, not new):** GS-203 PARTIAL (GUI still lacks the shared ordinary-output postcondition verifier) · U-06 PARTIAL (web server single-user, no concurrency or rate cap) · GS-205/GS-206 OPEN (desktop input admission; numeric/domain validation) · U-12 OPEN (five GUI waits can still block the UI thread) · GS-204/U-09 PARTIAL/OPEN (packaging architecture checks, clean-Windows proof, release re-cut).
+
+**Recommended delivery path.** (01) *Close the new honesty gaps* — fix NA-01 and NA-02 first, then land NA-03 and NA-04 behind platform-specific tests; patch NA-05 before any further WASM work. (02) *Finish known product correctness* — complete GS-203 in Qt, centralize GIF input admission, finish numeric and enum domains, bound the self-hosted server; keep changes contract-first across C++ and JS. (03) *Prove the Windows artifact* — binary architecture inspection, run the clean-Windows checklist and real desktop probes, apply the one-line workflow drift, re-cut from an exact tagged SHA. (04) *Ship a truthful pre-1.0 build* — prefer 0.2.0 for a public checkpoint; reserve 1.0.0 for the documented clean-machine, UI, and no-open-High bar; APNG/WebP stay after GIF 1.0.
+
+**Language & architecture recommendation.** Desktop: stay on C++17 + Qt6 through 1.0.0 (a rewrite would discard the offscreen harness, Windows packaging, and proven subprocess behavior). Web: keep zero-dependency Node ESM and browser JavaScript; do not add a framework or TypeScript build step solely for this remediation pass. Shared semantics: reduce drift by centralizing fixtures and contract tests now; revisit routing the server through `gifscythe-cli` only after the owner makes OD-05 explicit. WASM: keep experimental and unshipped until NA-05, a real emcc byte proof, and the OD-16 license decision close. Future rewrite trigger: only spike Rust/Tauri after 1.0.0 if a measured bundle-size or web-UI requirement justifies it.
+
+**Suggested validation order** (run the new focused regressions BEFORE the broad suite, so a failure identifies the patch under test):
+```bash
+cd working_code/gifscythe
+./build.sh --all
+./scripts/smoke_cli.sh
+QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
+cd ../..
+node web/test/command.test.mjs
+node web/test/validate.test.mjs
+node web/test/transport.test.mjs
+node web/wasm/glue_harness.mjs
+working_code/gifscythe/scripts/verify_audit.sh
+```
+Native Windows proof remains mandatory for NA-03 (U-55) and NA-04 (U-56).
+
+### 17.2 Intake F (NF-01..NF-19, WINNER) — planning recommendations & regression cases
+
+**Planning recommendations (the reviewer's strategic verdicts):**
+1. **Language/stack — keep the C++17 core, stop adding surfaces.** Do NOT migrate before 1.0.0; the core (`src/core/*.h`) is small, header-only, Qt-free, with 296 unit checks plus JS parity fixtures. The risk is in the *surfaces*, not the language: five surfaces exist or are scaffolded (Qt6 GUI, CLI, Node web server, web/wasm, csharp/spike parked) — for a 0.1.0 product that is scope creep, and this review found the same honesty-bug class independently in GUI, CLI and web. Freeze web at "internal tool" until desktop 1.0.0 ships; keep csharp/spike in a branch; mark web/wasm post-1.0. One shippable artefact = the Windows portable zip (OD-17).
+2. **Fix order for the new findings (evidence first, then code).** The two HIGHs (NF-01, NF-02) are data-integrity bugs of the U-01 class — close them before any release re-cut (U-09). *P0:* NF-01 batch settings snapshot (~30 lines + one harness case); NF-02 partial-output handling on cancel/failure (a snapshot already exists for GS-203; temp+rename is the proper fix). *P1:* NF-03/NF-04 CLI input/output syntax; NF-05 crop-zero false refusal (+ JS mirror); NF-07 web info 422; NF-08 real exe path; NF-09 unify engine discovery before the version bump. *P2:* NF-06, NF-10/11/12 web hygiene, NF-13 preview path boundary, NF-14 exit-code mask, NF-15 cancelling_ lifetime, NF-16/17/19 CLI consistency, NF-18 doc honesty. Every fix ships failing-test-first with executed proof in the row — no narrative-only closes.
+3. **Process — the documentation machine is now a cost centre** *(reviewer's opinion, recorded for the owner; NOT adopted by this compilation)*. The reviewer observes that COMPILED_AUDIT + IMPROVEMENT_LOG + SESSION_HANDOFF + WORKLIST + 18 doc gates is more text than the product source, and that main went red twice from doc drift alone (GS-208, N-01). It suggests keeping two living documents (STATUS.md + a CHANGELOG), archiving the rest as dated snapshots, dropping prose-count gates, and moving to GitHub Issues. **Owner decision pending — until then this compilation keeps the existing doc machine and simply stays internally consistent.**
+4. **Path to 0.2.0 → 1.0.0 (concrete, in order).** *0.2.0:* close NF-01/NF-02, GS-203 GUI integration (P1-25, same code path as NF-02), GS-205 input admission, re-cut artefacts (U-09), run `docs/ci/CLEAN_WINDOWS_SMOKE.md` once on a real VM. *0.3.0:* numeric-domain tri-state (DS-06/07/09 + GS-206 + NF-06) in one PR; engine-discovery unification (NF-08/09); CLI batch = per-file Auto like the GUI (retire `-b`, closes NF-17). *1.0.0:* criteria per `PROJECT_VISION.md`; decide OD-11 then; only after 1.0.0: frame model → WebP/APNG, wasm. Time-box: if 1.0.0 is not reachable in ~5 more sessions at the current pace, the cause is the surface count and doc overhead, not the language.
+
+**Suggested regression cases (one per finding — the acceptance tests the next session must write before closing any U-58..U-76):**
+- **NF-01 / U-58** — queue 3 GIFs, Batch Optimize=1; mid-run change Actions to Optimize=3 / Colors=16; assert the argv of run #2 == run #1 (and all 3 outputs share one settings set).
+- **NF-02 / U-59** — optimize to `out.gif` once (note size); re-run to the same `out.gif` with a stub engine that opens `-o`, truncates, then sleeps; Cancel; assert `out.gif` keeps the OLD bytes. (CLI: kill the engine mid-write → no partial left; rc reflects the signal per U-32.)
+- **NF-03 / U-60** — conf input `#0` → `--run` must not turn it into `/abs/#0`; the engine receives the frame selector.
+- **NF-04 / U-61** — `gifscythe-cli conf --run > out.gif; echo $?` → `out.gif` is a valid GIF **and** exit 0 (not 1).
+- **NF-05 / U-62** — `--crop 2,2+0x0` is accepted (0 = extend to edge); `--strict` rc unchanged for genuinely invalid geometry.
+- **NF-06 / U-63** — produce a play-once GIF: the argv must carry `--no-loopcount`.
+- **NF-07 / U-64** — an `info:true` run returns a structured info response, **not** a 422 "engine produced invalid GIF output" with exitCode 0.
+- **NF-08 / U-65** — invoke the CLI via a symlink / bare PATH name with the engine beside the REAL executable → discovery succeeds.
+- **NF-09 / U-66** — bump `VERSION.md` → CLI/GUI and web all still find the engine (one discovery policy).
+- **NF-10 / U-67** — `serveStatic` rejects `/../` traversal; HEAD returns no body; server source/tests are not served.
+- **NF-11 / U-68** — POST /run with a 50 MB GIF → 413 (not 400); the documented cap matches the real cap. **IMPLEMENTED S21 (PARTIAL):** `web/test/body-limit.test.mjs` proves `/run` *and* `/optimize` → 413 (red→green) via an injected `GS_MAX_BODY`, with no real engine; the cap is now documented as a 64 MB envelope ≈ 48 MB effective decoded GIF (left unchanged). Still owed: the engine-gated `transport.test.mjs` no-regression re-run.
+- **NF-12 / U-69** — after a failed run, the previous After image + download links are cleared (not shown under "Failed —").
+- **NF-13 / U-70** — with a non-ASCII engine path, the preview pane agrees with the main run (UTF-8 boundary honored).
+- **NF-14 / U-71** — a child exiting `0x100` / an NTSTATUS ending `00` → non-zero surfaced (not collapsed to success).
+- **NF-15 / U-72** — Cancel with a slow kill → "Cancelled." only, no spurious "Optimization failed" dialog afterward.
+- **NF-16 / U-73** — a relative input missing next to the conf but present in the CWD is NOT silently picked up from the CWD (CWD-independent contract).
+- **NF-17 / U-74** — Batch + single output + N>1 inputs → refused (or documented and pinned), not an undocumented merge.
+- **NF-18 / U-75** — `-E` without `--name` is greyed out/tooltipped, or `--name` is exposed; the README lists not-exposed engine options.
+- **NF-19 / U-76** — a GUI-exported conf run by the CLI in Explode scatters frames to the SAME `<dir>/<stem>_frame` prefix the GUI would use.
+
+---
+
+## 18. Merge completeness checklist — which audit problems were worked on (2026-09-15 consolidation, v2 → v3)
+
+> Per owner instruction: *"see if you're missing anything from the audit compilation … if you're adding this into that list don't forget to checklist which audit problem you work on … merge the md file from the link into 1 compiled audit md file."* This is the traceability record for the v2 → v3 consolidation. **A tick means that source's content now lives in this single master file.**
+
+**Source files folded into this master, and where each landed:**
+
+- [x] **Audit A** — `AUDIT_A_extracted.md` (branch `codebase-review-and-fix-implementation-b8d7e`; GPT 5.6 sol xhigh; 20 findings GS-001..GS-020). Findings → §3 (A-01..A-20) + §5. **Non-finding sections (decision summary, fix order, positives, method, footer) → §16.1 — NEW this session; v2 had dropped them.**
+- [x] **Audit B** — `AUDIT_B_extracted.md` (same branch; Seed 2.1 Pro Preview; 16 findings BUG-01..BUG-16). Findings → §4 (B-01..B-16) + §5. **Non-finding sections (positives, method note, severity tally) → §16.2 — NEW.**
+- [x] **Audit C** — `docs/audit/POST_S7_AUDIT.md` (Arena S7 agent; 13 findings). → §5 (U-19..U-23 and others). The dated snapshot stays in `docs/audit/` (gate-excluded by policy); not re-merged.
+- [x] **Audit D** — GPT 6 Astra Medium (8 findings GS-101..GS-108). → §2 (D-01..D-08) + §5 (U-45..U-52). Unchanged this session.
+- [x] **Intake E** — the uploaded `gifscythe-audit-…729d….md` content (5 findings NA-01..NA-05; live URL 7b91; gpt 5.6 sol xhigh). Findings → §2E + §5 (U-53..U-57). **Reviewer prose (verdict, verification boundary, already-tracked debt, delivery path, language/architecture recommendation, validation order) → §17.1 — NEW.** The scattered root copy was removed after the merge (see below).
+- [x] **Intake F** — the uploaded `GIFSCYTHE_REVIEW_INTAKE_…7b91….md` content (19 findings NF-01..NF-19; live URL 729d; fable 5.1 low — WINNER). Findings → §2F + §5 (U-58..U-76). **Reviewer prose (method, the four planning recommendations, path to 0.2.0 → 1.0.0, and the 19 suggested regression cases) → §17.2 — NEW.** The scattered root copy was removed after the merge.
+- [x] **Guardrails** — VP-1..VP-5 + the false-positives/bad-prescriptions table (cited by §12 but defined only in `docs/archive/` and the closed branch). → **§15 — NEW; resolves the dangling §12 reference.**
+- [x] **§13 external-review intake** (GS-201..GS-210, DS-06..DS-13) — already present in v2; re-confirmed complete, unchanged.
+
+**Scattered copies removed (so this is the ONE compiled audit md file):** the two root-level uploaded intake files were folded into §2E/§2F/§5/§17 and then deleted, matching the policy already declared in §11.9 and §12 ("all scattered audit copies deleted — this COMPILED_AUDIT.md is the single source of truth"). Removing the `…7b91…` REVIEW_INTAKE copy also **clears the live G17/S2 doc-gate failure**: that file quoted a stale register tally (its OPEN count predated the S15 triage of 18 intake rows), which `sweep_stale.sh` flagged against `STATUS.md`. Their full text is preserved in git history at commit `c4f9e1c` and in §17.
+
+**Completeness verdict — what was missing, now added.** v2 was *finding-complete* (all 76 `U-nn` rows plus the 18 §13 intake rows were present and faithful — verified ID-by-ID and body-by-body against the branch extracts and the two uploaded files). But it had **dropped four classes of non-finding content**: (1) the Audit A/B positives, method notes and fix-order rationale; (2) the VP / false-positive guardrails that §12 explicitly cites; (3) the intake E/F verdicts, delivery plans, language/architecture recommendations and per-finding regression cases; and (4) it left two scattered uploaded copies on `main`, one of which was **actively failing the documentation gate**. All four are addressed in v3 (§15 / §16 / §17 + removal of the scattered copies). **No finding was dropped at any step** — see §14.2.
+
+---
+
+## 19. Next-session review ask — does the code REALLY work? (regression / new-pit hunt)
+
+> Per owner instruction: *"ask for next session to review them to check if the code really work — or there's a missing logic / misaligned code / broken code after fixing the problem (leak problem / closing a pit just to make a new pit)."* **This is a standing task for the next session, not a claim that anything is currently broken.** Nothing in §15–§18 was executed in the consolidating sandbox (no Qt6 / cmake / Windows / mingw / Wine / emcc — the S20 toolchain reality). Every `✅ FIXED` row in §5 is a *documentation* claim until it is re-proven by running the code.
+
+**Mandate.** Before trusting any `✅ FIXED` in §5, and before closing any OPEN row, the next session must:
+
+1. **Re-run the broad suite green** (the §17.1 validation order): `build.sh --all`, `smoke_cli.sh`, the offscreen `test_gui_offscreen`, the three `web/test/*.mjs` **plus the new `web/test/body-limit.test.mjs`** (S21, U-68 — node-only, needs no engine), `web/wasm/glue_harness.mjs`, and `verify_audit.sh`. Quote the **runtime** counters, never the `CHECK(` source-site counts (gate G9 enforces this). *Follow-up owed:* `body-limit.test.mjs` is repo-resident and proven here but is **not yet wired into CI** — `build.yml` lists the web tests explicitly and needs `workflows` scope (the same block as `docs/ci/PENDING_WORKFLOW_CHANGE.md`, and it has a byte-identical twin copy), and `verify_audit.sh` would need a `DOC_GATE_CHECKS` bump (gate G6). Wire it deliberately; do not let it rot as a local-only test (that is the U-18/GS-201 "green CI enforces nothing" failure mode).
+2. **Write the failing test FIRST** for each OPEN row it touches — U-53..U-76 have named regression cases in §17.2; U-01..U-52 have the §7 probes — watch it go red, fix, watch it go green, and paste the command + exit code into the §5 row. **No narrative-only closes** (the repo's standing discipline).
+3. **Hunt for new pits after every fix** — the "leak problem / closing a pit just to make a new pit" class. Run the §7.E "Did we dig a new pit?" probes **plus** these consolidation-specific pairings, because each fix below sits next to a row it could reopen:
+   - **U-01 ↔ U-55 / U-59:** the batch-collision fix (`OutputPlan.h`) must still hold for **non-ASCII case** (U-55) and for **cancel/failure partial output** (U-59). A `path_key()` or temp+rename change that fixes one and reopens the other is a failed fix.
+   - **U-33 ↔ U-53:** the position half-parse fix must not regress U-33 (both-halves-required). Confirm `-p` is emitted only when both coordinates parse, and that `--strict` still exits 3.
+   - **U-46 ↔ U-54:** the web request-generation guard must now also invalidate on a **settings** change, not only a queue change — without breaking the existing queue guard or the AbortController path.
+   - **U-03 ↔ DS-06 / VP-1 / VP-2:** the threads tri-state (`<0` none / `0` bare `-j` / `>0` `-jN`) must not flip the loopcount or optimize sentinels. Unit test 28 pins the mapping — move it deliberately, not accidentally.
+   - **GS-203 ↔ U-57:** the output verifier must not let the WASM singleton read a stale `/out.gif`; the unlink-before-`callMain` fix must not break the first-run path or the signature check.
+   - **§15.1 guardrails:** confirm no fix "aligned the code to a wrong table" (VP-5 crop), clamped `-O0` (VP-2), changed `--loopcount=0` (VP-1), or "fixed" the gamma sentinel (VP-3).
+4. **Native-Windows-only rows cannot be closed in a Linux sandbox** — U-55 (path_key Unicode case fold), U-56 (superscript COM/LPT), U-70 (UTF-8 preview boundary) and U-71 (exit-code mask) need a real Windows VM or the S11 Wine harness. Mark them PARTIAL with the exact remaining proof named, **not** DONE.
+5. **Re-confirm the doc gate is green** (`check_docs.sh` 0 failed, `sweep_stale.sh` 0 failed) after every edit — the consolidation itself must not become the next GS-208 / N-01 doc-drift gate failure.
+
+**Hand-off pointer.** `docs/planning/NEXT_SESSION_PROMPT.md` carries this ask in its recovery block. The authoritative state is `STATUS.md`; this file is the evidence behind it. If a fix contradicts a §5 row, **§5 wins** — correct the narrative, re-emit `STATUS.md` with `check_docs.sh --emit`, and never hand-edit the generated block.
+
+---
+
+*End of compiled audit v3 — 76 findings, 6 audits merged. v3 (2026-09-15) recovered the dropped non-finding sections (§16), the VP / false-positive guardrails §12 cites (§15), the intake E/F reviewer prose and regression cases (§17), and added the merge-completeness checklist (§18) and the next-session review ask (§19). No finding was added or dropped — the register is still 76.*
