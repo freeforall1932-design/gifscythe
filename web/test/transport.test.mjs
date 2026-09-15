@@ -167,6 +167,11 @@ const cases = [
     settings: { resize_kind: "scale", scale_x: 0.5, scale_y: 2 },
     expect: { status: 200, commandIncludes: "--scale 0.5x2" } },
 
+  // --- U-64: info=true is unsupported on the web API and must fail clearly ---
+  { name: "U-64 optimize rejects info=true clearly",
+    settings: { info: true },
+    expect: { status: 400, errorIncludes: "info=true is not supported" } },
+
   // --- malformed / empty requests keep their distinct codes ---
   { name: "sane settings still succeed", settings: { optimize_level: 2 },
     expect: { status: 200 } },
@@ -284,6 +289,9 @@ try {
     }
     if (e.issueField && !(r.json?.issues || []).some((i) => i.field === e.issueField)) {
       problems.push(`no issue for field "${e.issueField}" (got ${JSON.stringify(r.json)})`);
+    }
+    if (e.errorIncludes && !String(r.json?.error || r.json?.stderr || "").includes(e.errorIncludes)) {
+      problems.push(`error lacks ${JSON.stringify(e.errorIncludes)} (got ${JSON.stringify(r.json)})`);
     }
     if (problems.length) {
       failures++;
@@ -491,6 +499,20 @@ try {
     if (r.status !== 422) p.push(`status ${r.status}`);
     if (!(r.json?.issues || []).some((i) => i.field === "colors")) p.push(`issues ${JSON.stringify(r.json?.issues)}`);
     t("U-41 /run refuses out-of-range settings before any run", p);
+
+    // U-64: info=true is not a GIF-producing web API mode. Reject it clearly
+    // before any spawn instead of falling through to GIF verification.
+    {
+      const beforeLaunches = await launches();
+      r = await postRun(port, { mode: "auto", info: true }, [gifFile("clip.gif")]);
+      p = [];
+      if (r.status !== 400) p.push(`status ${r.status}`);
+      if (!String(r.json?.error || "").includes("info=true is not supported")) {
+        p.push(`error ${JSON.stringify(r.json?.error)}`);
+      }
+      if (await launches() !== beforeLaunches) p.push("info=true request launched the engine");
+      t("U-64 /run rejects info=true clearly before any run", p);
+    }
   }
 
   // DS-13: test the actual HTTP response, not only a predicate. Invalid output

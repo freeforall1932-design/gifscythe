@@ -99,6 +99,14 @@ std::string resolve_path(const std::string& p, const fs::path& base_dir) {
   return gs::path_u8string(candidate);
 }
 
+bool is_special_input_token(const std::string& p) {
+  return p == "-" || (!p.empty() && p[0] == '#');
+}
+
+bool is_stream_output_token(const std::string& p) {
+  return p == "-";
+}
+
 fs::path exe_path_of(const char* argv0) {
   std::error_code ec;
   fs::path p = gs::u8path_compat(argv0);
@@ -200,9 +208,14 @@ int main(int argc, char** argv) {
                  w.key.c_str(), w.value.c_str(), w.reason.c_str());
   }
 
-  // Resolve input/output relative paths against the settings file dir.
-  for (auto& in : s.inputs) in = resolve_path(in, base_dir);
-  if (!s.output.empty()) s.output = resolve_path(s.output, base_dir);
+  // Resolve input/output relative paths against the settings file dir, but keep
+  // gifsicle's own special tokens literal: frame selectors like #0 and stdin /
+  // stdout as '-'.
+  for (auto& in : s.inputs) {
+    if (!is_special_input_token(in)) in = resolve_path(in, base_dir);
+  }
+  const bool stream_output = is_stream_output_token(s.output);
+  if (!s.output.empty() && !stream_output) s.output = resolve_path(s.output, base_dir);
 
   auto warnings = gs::validate(s);
   for (const auto& w : warnings) {
@@ -302,16 +315,24 @@ int main(int argc, char** argv) {
   // The desktop GUI refuses runs whose target is a queued source or whose
   // targets collide; the CLI has to hold the same line, or `--run` becomes the
   // easy way around the guard. Explode is exempt: its `output` is a PREFIX and
-  // the engine appends .000/.001, so it cannot land on an input.
-  if (!s.output.empty() && s.mode != gs::Mode::Explode) {
-    const gs::OutputPlan plan = gs::plan_outputs(s.inputs, {s.output});
-    if (!plan.ok) {
-      std::fprintf(stderr, "ERROR: refusing to run — the planned output is not safe:\n");
-      std::fprintf(stderr, "%s\n", plan.describe().c_str());
-      return 2;
+  // the engine appends .000/.001, so it cannot land on an input. Streaming
+  // stdout (`output = -`) is also exempt: there is no on-disk target to plan.
+  if (!s.output.empty() && !stream_output && s.mode != gs::Mode::Explode) {
+    std::vector<std::string> plan_inputs;
+    plan_inputs.reserve(s.inputs.size());
+    for (const auto& in : s.inputs) {
+      if (!is_special_input_token(in)) plan_inputs.push_back(in);
     }
-    for (const auto& p : plan.preexisting) {
-      std::fprintf(stderr, "NOTE: output already exists and will be replaced: %s\n", p.c_str());
+    if (!plan_inputs.empty()) {
+      const gs::OutputPlan plan = gs::plan_outputs(plan_inputs, {s.output});
+      if (!plan.ok) {
+        std::fprintf(stderr, "ERROR: refusing to run — the planned output is not safe:\n");
+        std::fprintf(stderr, "%s\n", plan.describe().c_str());
+        return 2;
+      }
+      for (const auto& p : plan.preexisting) {
+        std::fprintf(stderr, "NOTE: output already exists and will be replaced: %s\n", p.c_str());
+      }
     }
   }
 
@@ -338,8 +359,9 @@ int main(int argc, char** argv) {
   // rc=0 alone used to mean success even when NOT A SINGLE frame was written.
   // Snapshot the prefix candidates BEFORE the run so leftovers from an earlier
   // run cannot fake it, then require at least one new/changed real GIF after.
-  // Streaming stdout and --info deliberately keep their existing contracts.
-  const bool verify_file = !s.output.empty() && s.mode != gs::Mode::Explode && !s.info;
+  // Streaming stdout (`output = -`) and --info deliberately keep their existing
+  // contracts, so there is no output file to verify there.
+  const bool verify_file = !s.output.empty() && !stream_output && s.mode != gs::Mode::Explode && !s.info;
   gs::OutputSnapshot output_before;
   if (verify_file) {
     output_before = gs::snapshot_output(s.output);

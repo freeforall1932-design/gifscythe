@@ -78,7 +78,8 @@ CLI `--run` with an explicit ordinary GIF output verifies a new or size/mtime-
 changed non-empty regular file with a GIF87a/GIF89a signature; failures return 1
 and name the output. This is not full decoding or transactional rollback.
 Byte-identical rewrites within timestamp granularity conservatively fail.
-Streaming stdout, `--info`, and Explode keep their existing contracts.
+Streaming stdout (`output = -`), frame-selector inputs like `#0`, `--info`, and
+Explode keep their existing contracts.
 
 
 Cross-compile the Windows engine (needs mingw-w64):

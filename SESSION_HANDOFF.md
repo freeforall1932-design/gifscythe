@@ -118,6 +118,24 @@ The review of merged PRs **#26** and **#27** found one live gap: the new web reg
 
 **Left:** U-69 (stale After image) is still untouched. U-68 remains PARTIAL only because the limit value is still the existing 64 MB HTTP-envelope cap (about 48 MB effective decoded GIF for `/run`), now documented in source rather than changed.
 
+## S22 continuation — current batch executed on this branch (2026-09-16)
+
+The next owner request after the PR #26/#27 review was to stop deferring the safest remaining intake rows and land them **now**, all at once. This continuation closed **U-53**, **U-60**, **U-61**, **U-62**, **U-64**, and **DS-09** with test-first changes and kept the fixes narrow.
+
+**What changed:**
+- `working_code/gifscythe/src/core/SettingsIO.h`: position is now an all-or-nothing pair even on a half-parse. `set_field()` no longer flips `has_position` on one successful coordinate, and `load_settings()` only enables it when both keys were seen and both parsed; otherwise it clears both coordinates and emits one pair-level warning.
+- `working_code/gifscythe/src/cli/main.cpp`: gifsicle special tokens are preserved. Inputs like `#0` and `-` are no longer path-resolved, `output = -` stays stdout/streaming, stream outputs skip file planning/verification, and the CLI planner ignores non-path inputs.
+- `working_code/gifscythe/src/core/Validate.h` + `web/validate.mjs`: crop width/height `0` now pass validation (matching the engine's "extend to edge" syntax), and `threads < -1` now warns in both native and web validation.
+- `web/server.mjs`: both `/optimize` and `/run` now reject `info:true` early with a clear **HTTP 400** instead of spawning the engine and then blaming GIF verification.
+- Regression coverage was added first in `working_code/gifscythe/tests/test_gifsicle_command.cpp`, `working_code/gifscythe/scripts/smoke_cli.sh`, `web/test/command.test.mjs`, `web/test/validate.test.mjs`, and `web/test/transport.test.mjs`.
+
+**Executed here:** `working_code/gifscythe/./build.sh` → **308/308 PASS**; `node web/test/command.test.mjs`; `node web/test/validate.test.mjs`; `node web/test/transport.test.mjs`; `working_code/gifscythe/./scripts/smoke_cli.sh` → **45 passed / 0 failed**.
+
+**Still open after this batch:**
+- `U-63` (`--no-loopcount` / play once) — so fix-order row **P1-40** is now **PARTIAL**, not done.
+- `U-65` (CLI symlink/PATH engine-beside-executable discovery) and `U-66` (desktop/web version-policy mismatch) — so **P1-41** is also **PARTIAL**.
+- Other intake rows outside this batch (`U-54`..`U-59`, `U-63`, `U-65`, `U-66`, `U-69`...) remain untouched.
+
 ## S21 — COMPILED_AUDIT v3 consolidation + first code fix U-68/NF-11 → 413 (2026-09-15, unmerged branch work)
 
 **Branch:** `audit/compiled-v3-consolidation` (a hand-named branch, not a platform arena branch; **no PR opened** — the owner asked to start a real task rather than open a PR for md-only edits). The header block above still records the last *merged* baseline (S20 / PR #24); this section is the in-flight S21 work.
@@ -430,7 +448,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S22: **90 DONE · 8 PARTIAL · 48 OPEN · 0 UNTRIAGED · 146 total.**
+   `U-nn` row; neither replaces the other. As of S22 continuation: **96 DONE · 8 PARTIAL · 42 OPEN · 0 UNTRIAGED · 146 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —
@@ -508,7 +526,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
      re-synced to the real tip before anything else.
 
 2. **S11 full-toolchain gate baseline (retained; S12 CLI/docs rerun is in
-   the follow-up above):** `./build.sh` **296 checks, 0 failures** ·
+   the follow-up above):** `./build.sh` **308 checks, 0 failures** ·
    `test_engine.sh` **5/5** · `smoke_cli.sh` **14/14** ·
    `test_package.sh` **9/9** · web **17 + 23 + 30** · offscreen harness
    **324 checks, 0 failures** · `check_docs.sh` **21 passed, 0 failed,
@@ -664,7 +682,7 @@ Everything marked ✅ was **run in this sandbox**; ⏳ could not be. Quote the
 
 | Check | Result |
 |---|---|
-| `./build.sh` (engine + CLI + unit tests) | ✅ **296 checks, 0 failures** (runtime counter; blocks 33/34/35 added in S11) |
+| `./build.sh` (engine + CLI + unit tests) | ✅ **308 checks, 0 failures** (current runtime counter in this sandbox after the S22 continuation regressions) |
 | `scripts/test_engine.sh` | ✅ 5/5 |
 | `scripts/smoke_cli.sh` | ✅ **14/14** (S11 added the explode-verification + N-05 refusal cases) |
 | `scripts/test_package.sh` (packaging negative suite) | ✅ 9/9 |

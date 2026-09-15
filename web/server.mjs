@@ -63,6 +63,7 @@ const MAX_BODY = (() => {
   return Number.isInteger(fromEnv) && fromEnv > 0 ? fromEnv : 64 * 1024 * 1024;
 })();
 const ENGINE_TIMEOUT_MS = 120_000;
+const INFO_UNSUPPORTED = "info=true is not supported by the web API; use the CLI for --info text output";
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -258,6 +259,14 @@ async function handleOptimize(req, res, url) {
   } catch {
     res.writeHead(400, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: false, error: "bad settings JSON" }));
+    return;
+  }
+
+  // U-64 / NF-07: the web API is GIF-output only. `--info` writes text, so
+  // letting it fall through to GIF verification produced a misleading 422 that
+  // blamed the engine even though it exited 0 honestly. Reject it clearly here.
+  if (settings.info) {
+    sendJson(res, 400, { ok: false, error: INFO_UNSUPPORTED });
     return;
   }
 
@@ -479,6 +488,13 @@ async function handleRun(req, res) {
   }
   if (mode === "explode" && files.length !== 1) {
     sendJson(res, 400, { ok: false, error: "Explode processes exactly one file per run" });
+    return;
+  }
+
+  // U-64 / NF-07: the web API only returns GIFs/JSON. `info:true` is text-mode,
+  // so reject it clearly before any engine spawn instead of misreporting a 422.
+  if (settings.info) {
+    sendJson(res, 400, { ok: false, error: INFO_UNSUPPORTED });
     return;
   }
 

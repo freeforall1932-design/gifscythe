@@ -90,7 +90,8 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       - [ ] **DS-06** → **P0-2** — (High) `threads <= 0` → bare `-j`; the `-1` sentinel now means 8 threads.
       - [ ] **DS-07** → **P1-30** — (Med) GUI threads spinner cannot express "no flag".
       - [ ] **DS-08** → **P3-5** — (Low) non-strict print mode exits 0 after warnings.
-      - [ ] **DS-09** → **P1-31** — (Info) `threads < -1` accepted silently.
+      - [x] **DS-09** → **P1-31** — **closed S22:** `threads < -1` now warns in
+            native + web validation; unit, web parity, and CLI smoke pin `threads = -7`.
       - [ ] **DS-10** → **P3-11** — (Info) disposal 4..7 unreachable from the desktop picker.
       - [x] **DS-11** → **P2-14** — **closed S17:** S5/G17 checks OPEN vs closed and
             closed vs nonclosed current status; ignores historical tails. 20 regression tests pass.

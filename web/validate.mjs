@@ -35,6 +35,11 @@ export function validate(s) {
   if (delay < -1) {
     add("delay", delay, "must be >= 0 (1/100 s units) or unset (-1)");
   }
+  const threads = num(s.threads, -1);
+  if (threads < -1) {
+    add("threads", threads,
+      "must be >= -1 (-1 = unset/default, 0 = auto, >0 = explicit thread count)");
+  }
   const mode = s.mode || "auto";
   if (s.info && (mode === "batch" || mode === "merge" || mode === "explode")) {
     add("info", "true", "--info cannot be combined with mode options (-m/-b/-e)");
@@ -44,9 +49,9 @@ export function validate(s) {
   if (mode === "explode" && s.inputs && s.inputs.length > 1) {
     add("mode", "explode", "explode with multiple inputs scatters frames: only the LAST input honors the -o prefix, earlier inputs write <basename>.NNN into the CWD (engine exits 0) - run one file at a time");
   }
-  if (s.crop && (!num(s.crop_w, 0) || !num(s.crop_h, 0))) {
-    add("crop", "0x0", "crop width/height must be > 0");
-  }
+  // Crop 0x0 is legal engine syntax: width/height 0 means extend to the edge
+  // (audit U-62). Negative spans are still a model limitation in the shared
+  // settings object rather than a validation refusal here.
 
   // Resize geometry — the same rules added to Validate.h for audit U-22, each
   // derived by probing the bundled gifsicle 1.96:

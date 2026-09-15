@@ -136,7 +136,8 @@ writer; the existing single-user/no-public-exposure limitations still apply.
   data(base64) }], commands:[...], inBytes, outBytes }` — one output per
   result file, one quoted command line per engine run.
 - `400` → usage errors: bad JSON, unknown mode, wrong file count for the
-  mode, empty file data, unsafe upload names (`invalid upload name` and `file`).
+  mode, empty file data, unsafe upload names (`invalid upload name` and `file`),
+  and `info:true` (the web API is GIF-output only; use the CLI for `--info`).
 - `422` → settings validation issues (`issues[]`, same layer as `/optimize`),
   batch target collisions / target-equals-source refusals, engine failure
   (`exitCode`, `stderr`, `command`), rc=0-with-no-output, and explode
@@ -156,7 +157,8 @@ pinned by the transport suite's U-49/U-50 cases).
   of `200 image/gif`. The signature is checked on the exact response buffer;
   this is not full decoding or a guarantee that all GIF frames are intact.
   Missing/empty output and engine failure retain their existing diagnostics.
-- `400/503` → malformed settings / engine missing.
+- `400/503` → malformed settings, `info:true` (unsupported on this GIF-only
+  endpoint), or engine missing.
 
 The `settings` object mirrors `gs::Settings` (see `command.mjs`): `mode`,
 `optimize_level`, `lossy`, `color_count`, `dither`, `dither_method`,
