@@ -37,12 +37,12 @@ import {
 } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, extname, normalize, resolve, dirname, basename } from "node:path";
+import { join, extname, resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildArgs, shellQuote } from "./command.mjs";
 import { validate } from "./validate.mjs";
 import { hasGifMagic, snapshotOutput, verifyOutput } from "./output-verify.mjs";
-import { uploadNameError, outputNameKey, requestPath } from "./run-paths.mjs";
+import { uploadNameError, outputNameKey, requestPath, assertContainedPath } from "./run-paths.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url)); // web/
 const PRODUCT = resolve(ROOT, "..", "working_code", "gifscythe");
@@ -183,25 +183,67 @@ function sendTooLarge(res, req, limit) {
   res.once("finish", () => { req.destroy(); });
 }
 
-async function serveStatic(res, urlPath) {
-  const rel = urlPath === "/" ? "index.html" : urlPath;
-  const file = normalize(join(ROOT, rel));
-  if (!file.startsWith(ROOT)) {
-    res.writeHead(403, { "Content-Type": "text/plain" });
-    res.end("forbidden");
+// U-67 / NF-10, narrowed by measurement in S21. The shipped UI is a closed set:
+// index.html -> style.css + app.js -> command.mjs (a leaf module), and app.js
+// posts to /run. web/wasm/ is experimental and not shippable (owner decision
+// S21), so it is deliberately NOT routable here — serve that page with any
+// static server rooted at web/, per web/wasm/README.md.
+//
+// The old handler had no allow-list, so it served the whole tree: server.mjs
+// itself (26 KB, disclosing the loopback bind and GS_ENGINE handling — which
+// matters because GS_WEB_HOST=0.0.0.0 is a documented opt-in), the test suite,
+// run-paths/validate/output-verify, and the docs.
+const STATIC_FILES = new Map([
+  ["/", "index.html"],
+  ["/index.html", "index.html"],
+  ["/style.css", "style.css"],
+  ["/app.js", "app.js"],
+  ["/command.mjs", "command.mjs"],
+]);
+
+const STATIC_NOT_FOUND = Buffer.from("not found");
+const STATIC_FORBIDDEN = Buffer.from("forbidden");
+
+// One response path for every static outcome, so 200/403/404 share a single HEAD
+// contract. Node already suppresses a HEAD body on the wire; not writing one here
+// makes that contract ours rather than incidental, and pins Content-Length either
+// way. static-hygiene.test.mjs asserts it.
+function sendStatic(req, res, status, contentType, body) {
+  res.writeHead(status, {
+    "Content-Type": contentType,
+    "Content-Length": body.length,
+    "Cache-Control": "no-store",
+  });
+  res.end(req.method === "HEAD" ? undefined : body);
+}
+
+async function serveStatic(req, res, urlPath) {
+  const name = STATIC_FILES.get(urlPath);
+  if (!name) {
+    sendStatic(req, res, 404, "text/plain", STATIC_NOT_FOUND);
+    return;
+  }
+  // Defence in depth. The allow-list already pins these names, so this cannot
+  // fire today; it exists so a future entry cannot reintroduce the raw
+  // `startsWith(ROOT)` prefix check that this replaces. Note the old check was
+  // NOT a demonstrated traversal: new URL() normalises dot-segments before we see
+  // them, and /../STATUS.md and /../../etc/hostname already returned 404. What it
+  // was is brittle hygiene — a sibling like /tmp/web-x passes a string prefix.
+  // assertContainedPath is the same resolved-path check run-paths.mjs enforces on
+  // every engine output target, and transport.test.mjs already unit-tests it.
+  let file;
+  try {
+    file = assertContainedPath(ROOT, join(ROOT, name));
+  } catch {
+    sendStatic(req, res, 403, "text/plain", STATIC_FORBIDDEN);
     return;
   }
   let data;
   try { data = await readFile(file); } catch {
-    res.writeHead(404, { "Content-Type": "text/plain" });
-    res.end("not found");
+    sendStatic(req, res, 404, "text/plain", STATIC_NOT_FOUND);
     return;
   }
-  res.writeHead(200, {
-    "Content-Type": MIME[extname(file)] || "application/octet-stream",
-    "Cache-Control": "no-store",
-  });
-  res.end(data);
+  sendStatic(req, res, 200, MIME[extname(file)] || "application/octet-stream", data);
 }
 
 async function handleOptimize(req, res, url) {
@@ -617,7 +659,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", "http://localhost");
   try {
     if (req.method === "GET" || req.method === "HEAD") {
-      await serveStatic(res, url.pathname);
+      await serveStatic(req, res, url.pathname);
       return;
     }
     if (req.method === "POST" && url.pathname === "/optimize") {
