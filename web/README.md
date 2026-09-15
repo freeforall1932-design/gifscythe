@@ -108,8 +108,9 @@ JS side, so the two clients cannot drift silently:
   checked, with the spawn log proving invalid overrides launch nothing. The POSIX
   execute-bit group is omitted on Windows (62 groups there; not measured locally).
 
-All three are run by the CI linux job and by `scripts/verify_audit.sh`
-(gates W1/W2/W3).
+All five are run by the CI linux job and by `scripts/verify_audit.sh`
+(gates W1/W2/W3/W4/W5): command parity, validation parity, live transport,
+oversized-body 413, and static allow-list / HEAD-contract hygiene.
 
 ## API
 
