@@ -257,6 +257,109 @@ else
   bad "--strict mishandled a clean conf (rc=$rc)"
 fi
 
+# 12b. A half-parsed position pair is ignored (audit U-53): plain print must
+#      not emit -p X,0, and --strict still refuses the warned conf.
+cat > "$WORK/pos_half.conf" <<EOF
+mode = auto
+position_x = 12
+position_y = nope
+input = $SRC_GIF
+EOF
+set +e
+"$CLI" "$WORK/pos_half.conf" --engine "$ENGINE" >"$WORK/out8b.txt" 2>"$WORK/err8b.txt"
+rc_pos_plain=$?
+"$CLI" "$WORK/pos_half.conf" --strict --engine "$ENGINE" >"$WORK/out8bs.txt" 2>"$WORK/err8bs.txt"
+rc_pos_strict=$?
+set -e
+if [[ "$rc_pos_plain" -eq 0 && "$rc_pos_strict" -eq 3 ]] \
+   && ! grep -q -- ' -p ' "$WORK/out8b.txt" \
+   && grep -q 'position needs both position_x and position_y' "$WORK/err8b.txt" \
+   && grep -q -- '--strict' "$WORK/err8bs.txt"; then
+  ok "U-53 half-parsed position pair is dropped; strict still refuses the warning"
+else
+  bad "U-53 position half-parse regressed (plain=$rc_pos_plain strict=$rc_pos_strict)"
+fi
+
+# 12c. crop 0x0 is legal engine syntax (audit U-62), so --strict must not stop it.
+cat > "$WORK/crop0.conf" <<EOF
+mode = auto
+crop = true
+crop_x = 2
+crop_y = 2
+crop_w = 0
+crop_h = 0
+input = $SRC_GIF
+output = $WORK/crop0.gif
+EOF
+set +e
+"$CLI" "$WORK/crop0.conf" --run --strict --engine "$ENGINE" >"$WORK/out8c.txt" 2>"$WORK/err8c.txt"
+rc_crop0=$?
+set -e
+if [[ "$rc_crop0" -eq 0 && -s "$WORK/crop0.gif" ]] \
+   && ! grep -q 'crop width/height must be > 0' "$WORK/err8c.txt"; then
+  ok "U-62 crop 0x0 survives validation and runs under --strict"
+else
+  bad "U-62 crop 0x0 was still blocked (rc=$rc_crop0)"
+fi
+
+# 12d. Special frame selectors stay literal (audit U-60): #0 reaches the engine
+#      unchanged, and the run succeeds with a one-frame output.
+cat > "$WORK/frame_selector.conf" <<EOF
+mode = auto
+input = $SRC_GIF
+input = #0
+output = $WORK/frame0.gif
+EOF
+set +e
+"$CLI" "$WORK/frame_selector.conf" --run --engine "$ENGINE" >"$WORK/out8d.txt" 2>"$WORK/err8d.txt"
+rc_frame0=$?
+set -e
+INFO_FRAME0="$($ENGINE --info "$WORK/frame0.gif" 2>/dev/null || true)"
+if [[ "$rc_frame0" -eq 0 && -s "$WORK/frame0.gif" ]] \
+   && grep -q '1 image' <<<"$INFO_FRAME0" \
+   && ! grep -q '/#0' "$WORK/err8d.txt"; then
+  ok "U-60 frame selector #0 is not path-resolved and the run succeeds"
+else
+  bad "U-60 frame selector still broke run honesty (rc=$rc_frame0)"
+fi
+
+# 12e. output = - keeps stdout streaming semantics (audit U-61): the CLI must
+#      not turn it into a literal file named '-'.
+cat > "$WORK/stdout_dash.conf" <<EOF
+mode = auto
+input = $SRC_GIF
+output = -
+EOF
+set +e
+"$CLI" "$WORK/stdout_dash.conf" --run --engine "$ENGINE" >"$WORK/stdout_dash.gif" 2>"$WORK/err8e.txt"
+rc_dash=$?
+set -e
+"$ENGINE" "$SRC_GIF" -o - >"$WORK/direct_dash.gif" 2>/dev/null
+if [[ "$rc_dash" -eq 0 && -s "$WORK/stdout_dash.gif" ]] \
+   && cmp -s "$WORK/stdout_dash.gif" "$WORK/direct_dash.gif" \
+   && [[ ! -e "$WORK/-" ]] \
+   && grep -q -- ' -o -' "$WORK/err8e.txt"; then
+  ok "U-61 output=- streams to stdout and does not create a literal dash file"
+else
+  bad "U-61 output=- did not keep stdout semantics (rc=$rc_dash, dash-file=$([[ -e "$WORK/-" ]] && echo y || echo n))"
+fi
+
+# 12f. threads < -1 is warned and therefore refused by --strict (audit DS-09).
+cat > "$WORK/threads_neg.conf" <<EOF
+mode = auto
+threads = -7
+input = $SRC_GIF
+EOF
+set +e
+"$CLI" "$WORK/threads_neg.conf" --strict --engine "$ENGINE" >"$WORK/out8f.txt" 2>"$WORK/err8f.txt"
+rc_threads=$?
+set -e
+if [[ "$rc_threads" -eq 3 ]] && grep -q 'WARNING: threads=-7' "$WORK/err8f.txt"; then
+  ok "DS-09 threads<-1 surfaces a warning and strict refusal"
+else
+  bad "DS-09 threads<-1 warning/refusal missing (rc=$rc_threads)"
+fi
+
 # 13. Explode E2E (audit U-17): real engine writes prefix.NNN frames and the
 #    CLI reports the verified count on stderr. logo.gif has 12 frames.
 mkdir -p "$WORK/ex"

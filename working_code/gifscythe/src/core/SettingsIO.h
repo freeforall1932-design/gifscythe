@@ -70,6 +70,13 @@ inline bool to_double(const std::string& s, double* out) {
   *out = v;
   return true;
 }
+inline bool to_ulong_nonneg(const std::string& s, unsigned* out) {
+  if (!out) return false;
+  long v = 0;
+  if (!to_long(s, &v) || v < 0) return false;
+  *out = static_cast<unsigned>(v);
+  return true;
+}
 
 // Make a string value safe to write on ONE `key = value` line.
 //
@@ -170,12 +177,8 @@ inline bool set_field(Settings& s, const std::string& key, const std::string& va
     else if (v == "none" || v == "0" || v.empty()) s.rotation = Rotation::None;
     else { warn("unknown rotation"); s.rotation = Rotation::None; }
   }
-  else if (k == "position_x") {
-    if (need_ulong_nonneg(&s.position_x)) s.has_position = true;
-  }
-  else if (k == "position_y") {
-    if (need_ulong_nonneg(&s.position_y)) s.has_position = true;
-  }
+  else if (k == "position_x") need_ulong_nonneg(&s.position_x);
+  else if (k == "position_y") need_ulong_nonneg(&s.position_y);
   else if (k == "crop") need_bool(&s.crop);
   else if (k == "crop_x") need_ulong_nonneg(&s.crop_x);
   else if (k == "crop_y") need_ulong_nonneg(&s.crop_y);
@@ -274,6 +277,8 @@ inline Settings load_settings(std::istream& in, std::vector<LoadWarning>* warnin
   std::string line;
   bool saw_position_x = false;
   bool saw_position_y = false;
+  bool valid_position_x = false;
+  bool valid_position_y = false;
   while (std::getline(in, line)) {
     std::string t = trim(line);
     if (t.empty() || t[0] == '#') continue;
@@ -283,8 +288,14 @@ inline Settings load_settings(std::istream& in, std::vector<LoadWarning>* warnin
     std::string val = trim(t.substr(eq + 1));
     if (key.empty()) continue;
     const std::string lk = lower(key);
-    if (lk == "position_x") saw_position_x = true;
-    else if (lk == "position_y") saw_position_y = true;
+    unsigned parsed_position = 0;
+    if (lk == "position_x") {
+      saw_position_x = true;
+      valid_position_x = to_ulong_nonneg(val, &parsed_position);
+    } else if (lk == "position_y") {
+      saw_position_y = true;
+      valid_position_y = to_ulong_nonneg(val, &parsed_position);
+    }
     // Unknown keys stay ignored for the core Settings (forward compatible),
     // but when a caller asks, they are collected here — lowercased key,
     // trimmed value, last occurrence wins (same override semantics as the
@@ -292,18 +303,24 @@ inline Settings load_settings(std::istream& in, std::vector<LoadWarning>* warnin
     // (audit U-36: it used to re-parse the file with its own third parser).
     if (!set_field(s, key, val, warnings) && extra_keys) (*extra_keys)[lk] = val;
   }
-  // -p takes BOTH halves. A conf that sets only position_x (or only _y) used
-  // to set has_position anyway and emit a half-specified `-p X,0`, silently
-  // relocating every frame to row 0 (audit U-33). Drop the pair and say so.
-  if (saw_position_x != saw_position_y) {
-    if (warnings) {
-      warnings->push_back(LoadWarning{
-          saw_position_x ? "position_x" : "position_y", "(set without its pair)",
-          "position needs both position_x and position_y; the pair was ignored"});
+  // -p takes BOTH halves. A conf that sets only one coordinate, or sets both
+  // keys but fails to parse one of them, must not leave a half-live `-p X,0`
+  // behind (audit U-33 / U-53). Enable the pair only when BOTH keys were seen
+  // and BOTH conversions succeeded; otherwise drop the pair and say so once.
+  if (saw_position_x || saw_position_y) {
+    if (saw_position_x && saw_position_y && valid_position_x && valid_position_y) {
+      s.has_position = true;
+    } else {
+      if (warnings) {
+        warnings->push_back(LoadWarning{
+            (saw_position_x && saw_position_y) ? "position" : (saw_position_x ? "position_x" : "position_y"),
+            (saw_position_x && saw_position_y) ? "(incomplete or invalid pair)" : "(set without its pair)",
+            "position needs both position_x and position_y; the pair was ignored"});
+      }
+      s.has_position = false;
+      s.position_x = 0;
+      s.position_y = 0;
     }
-    s.has_position = false;
-    s.position_x = 0;
-    s.position_y = 0;
   }
   return s;
 }

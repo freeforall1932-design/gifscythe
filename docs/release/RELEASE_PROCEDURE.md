@@ -72,7 +72,7 @@ QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen   # -> 0 failures
 node ../../web/test/command.test.mjs                         # -> ALL PASSED
 ```
 
-Expected counts as of S12 (2026-09-12): unit suite **296 checks, 0 failures**
+Expected counts as of S22 continuation (2026-09-16): unit suite **308 checks, 0 failures**
 (the runtime counter, not the 261 `CHECK(` source sites), GUI harness **324
 runtime checks** *(measured in the S11 sandbox, which had Qt 6.4.2 — re-run it
 on a Qt machine before trusting the number; the file now holds 250 `CHECK(`

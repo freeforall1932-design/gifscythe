@@ -37,6 +37,10 @@ inline std::vector<Warning> validate(const Settings& s) {
   if (s.delay_cs < -1) {
     add("delay", std::to_string(s.delay_cs), "must be >= 0 (1/100 s units) or unset (-1)");
   }
+  if (s.threads < -1) {
+    add("threads", std::to_string(s.threads),
+        "must be >= -1 (-1 = unset/default, 0 = auto, >0 = explicit thread count)");
+  }
   if (s.info && (s.mode == Mode::Batch || s.mode == Mode::Merge || s.mode == Mode::Explode)) {
     add("info", "true", "--info cannot be combined with mode options (-m/-b/-e)");
   }
@@ -49,9 +53,9 @@ inline std::vector<Warning> validate(const Settings& s) {
     add("mode", "explode",
         "explode with multiple inputs scatters frames: only the LAST input honors the -o prefix, earlier inputs write <basename>.NNN into the CWD (engine exits 0) - run one file at a time");
   }
-  if (s.crop && (s.crop_w == 0 || s.crop_h == 0)) {
-    add("crop", "0x0", "crop width/height must be > 0");
-  }
+  // Crop 0x0 is legal engine syntax: width/height 0 means extend to the edge
+  // (audit U-62). Negative spans are still unrepresentable here because the
+  // Settings fields are unsigned; that wider model change stays separate.
   // Resize geometry (audit U-22). Verified against the bundled 1.96 engine:
   //   --resize-fit 0x0 / --resize 0x0 / --resize-touch 0x0 -> rc=1
   //       "one of W and H must be positive"   (40x0 and 0x40 are fine)

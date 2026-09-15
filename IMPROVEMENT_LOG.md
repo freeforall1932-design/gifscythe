@@ -4,6 +4,34 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S22 continuation — closed U-53/U-60/U-61/U-62/U-64 and DS-09 on this branch (2026-09-16)
+
+**Changed:**
+
+- `src/core/SettingsIO.h` now treats frame position as an all-or-nothing pair even when one coordinate parses and the other does not: `set_field()` no longer flips `has_position` on a single successful half, and `load_settings()` only enables the pair when both keys were seen and both parsed. Otherwise it emits one pair-level warning and clears both coordinates.
+- `src/cli/main.cpp` now preserves gifsicle special tokens instead of path-resolving them: input selectors like `#0` and stdin `-` stay literal, `output = -` stays stdout/streaming, stream outputs bypass file planning/verification, and the planner ignores non-path inputs.
+- `src/core/Validate.h` and `web/validate.mjs` now accept crop width/height `0` (the engine's "extend to edge" syntax) and warn on `threads < -1` in lockstep.
+- `web/server.mjs` now rejects `info:true` early with a clear HTTP 400 on both `/optimize` and `/run`, instead of falling through to GIF verification and misreporting a 422 with `exitCode: 0`.
+- Regression coverage landed first in the native unit suite, `scripts/smoke_cli.sh`, `web/test/command.test.mjs`, `web/test/validate.test.mjs`, and `web/test/transport.test.mjs`.
+
+**Partial / left:**
+
+- `U-63` (`--no-loopcount` / play once) remains open, so fix-order row **P1-40** is now only **PARTIAL S22**.
+- `U-65` (CLI symlink/PATH engine-beside-executable discovery) and `U-66` (desktop/web version-policy split) remain open, so **P1-41** is also **PARTIAL S22**.
+- The other E/F intake rows (`U-54`..`U-59`, `U-63`, `U-65`, `U-66`, `U-69`..) are untouched here.
+
+**Verified:**
+
+- `working_code/gifscythe/./build.sh` → **308/308 PASS**
+- `node web/test/command.test.mjs`
+- `node web/test/validate.test.mjs`
+- `node web/test/transport.test.mjs`
+- `working_code/gifscythe/./scripts/smoke_cli.sh` → **45 passed / 0 failed**
+
+**Docs touched:** `COMPILED_AUDIT.md`, `STATUS.md` (re-emitted after the row-state updates), `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`, `WORKLIST.md`, `web/README.md`, `working_code/gifscythe/README.md`, `docs/planning/NEXT_SESSION_PROMPT.md`.
+
+---
+
 ## S22 — PR #26/#27 automation gap fixed; PR #27 web files ported to this branch (2026-09-16)
 
 **Changed:**
