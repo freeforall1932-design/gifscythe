@@ -455,7 +455,7 @@ lifetime on the input side.
 ## 2E. Independent Source Audit (E) — 5 findings — 01a0a4f2-59e2-7b91-a71d-c630bb77209a — gpt 5.6 sol xhigh
 
 **Source:** https://01a0a4f2-59e2-7b91-a71d-c630bb77209a.arena.site/
-**Repo file:** gifscythe-audit-01a0a4f2-59e2-729d-ba6e-9030c6b52dcb 2026-09-15.md from commit ca48bf8 and origin/main (307 lines, 5 findings) — *note: file name 729d on repo contains 5 findings but live URL 7b91 also contains 5 findings; content matched by finding count, URL verified 2026-09-15 via fetch_page*
+**Repo file:** gifscythe-audit-01a0a4f2-59e2-729d-ba6e-9030c6b52dcb 2026-09-15.md from commit ca48bf8 (307 lines, 5 findings) — **removed from `main` in v3 (2026-09-15): folded into this file (§2E findings + §17.1 prose); full text preserved in git history at `c4f9e1c`.** *note: file name 729d on repo contains 5 findings but live URL 7b91 also contains 5 findings; content matched by finding count, URL verified 2026-09-15 via fetch_page*
 **Model:** gpt 5.6 sol xhigh (per owner mapping, non-winner)
 **Rank:** Highest (source-confirmed, 0 runtime claims, CI green check 34818891106)
 **Date:** 2026-09-15
@@ -568,7 +568,7 @@ outBytes = M.FS.readFile("/out.gif");
 ## 2F. Code Review Intake (F) — 19 findings — 01a0a4f2-59e2-729d-ba6e-9030c6b52dcb — fable 5.1 low — WINNER
 
 **Source:** https://01a0a4f2-59e2-729d-ba6e-9030c6b52dcb.arena.site/
-**Repo file:** GIFSCYTHE_REVIEW_INTAKE_01a0a4f2-59e2-7b91-a71d-c630bb77209a 2026-09-15.md from commit ca48bf8 and origin/main (703 lines, 19 findings) — *note: file name 7b91 on repo contains 19 findings but live URL 729d also contains 19 findings; content matched by finding count, URL verified 2026-09-15 via fetch_page — 19 findings = fable WINNER per owner check*
+**Repo file:** GIFSCYTHE_REVIEW_INTAKE_01a0a4f2-59e2-7b91-a71d-c630bb77209a 2026-09-15.md from commit ca48bf8 (703 lines, 19 findings) — **removed from `main` in v3 (2026-09-15): folded into this file (§2F findings + §17.2 prose); full text preserved in git history at `c4f9e1c`. Its stale register tally was the live G17/S2 gate failure that v3 clears.** *note: file name 7b91 on repo contains 19 findings but live URL 729d also contains 19 findings; content matched by finding count, URL verified 2026-09-15 via fetch_page — 19 findings = fable WINNER per owner check*
 **Model:** fable 5.1 low — WINNER (per owner latest check, arena comparison winner, 19 findings)
 **Rank:** Highest (source-confirmed, checked against 122 rows, 0 runtime, needs smoke/harness)
 **Date:** 2026-09-15
