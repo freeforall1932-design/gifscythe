@@ -30,26 +30,64 @@ Chronological log of decisions and changes. **Newest at the top.**
   `400` parse error; `GS_MAX_BODY` injects the limit for tests; the 64 MB
   envelope ≈ 48 MB effective decoded GIF is documented at the constant.
 
-**Why this task:** the sandbox has **no compiler** (node v20.20.2 / python3 / git
+- Code — second task, same session: **U-67 / NF-10** (`serveStatic` hygiene),
+  **measured before fixing**. Probing the live server with raw un-normalised HTTP
+  (`http.request`, because `fetch()` normalises the URL before it goes on the
+  wire) showed only **one of the finding's three sub-claims reproduced**:
+  "every file under `web/` served" is TRUE (`/server.mjs` → 200 / 26 KB,
+  `/test/transport.test.mjs` → 200 / 35 KB, plus `run-paths.mjs`, `validate.mjs`,
+  `output-verify.mjs`, `README.md`, `WEB_PLAN_TEMPLATE.md`, `wasm/*`);
+  "raw prefix containment" is OVERSTATED (`new URL()` collapses dot-segments
+  first, so `/../STATUS.md`, `/../../etc/hostname` and
+  `/../working_code/gifscythe/VERSION.md` already returned 404 — `/../server.mjs`
+  returned 200 only because it normalises to `/server.mjs`, inside ROOT, and the
+  intake text itself conceded "not exploitable today"); "HEAD returns a body" is
+  **FALSE** (measured `bodyLen=0` — Node suppresses HEAD bodies; proven at socket
+  level, server wrote 5000 bytes and the client received 0). Two confident-looking
+  fixes for non-bugs avoided.
+  Owner decisions taken first: allow-list is **UI-only** (this Node server is the
+  supported shipped surface; `web/wasm/` is experimental and not shippable), and
+  **U-67 is corrected to match the measurements** rather than preserving the
+  inaccurate three-part wording — §2F keeps the intake text verbatim for
+  attribution and gains a per-claim measurement table, §5 states only what is true.
+  `web/server.mjs`: `STATIC_FILES` allow-list of the four files the UI actually
+  loads (`/`→`index.html`, `/index.html`, `/style.css`, `/app.js`,
+  `/command.mjs`) — a closed set verified from `index.html`'s only two asset
+  references and `app.js`'s only import (`./command.mjs`, a leaf module);
+  everything else under `web/` → 404; `assertContainedPath(ROOT, …)` replaces the
+  raw `startsWith` prefix check as defence in depth (same resolved-path
+  containment `run-paths.mjs` enforces on engine outputs, already unit-tested by
+  `transport.test.mjs`); one `sendStatic()` path gives 200/403/404 a single
+  explicit HEAD contract with `Content-Length`; `serveStatic()` gained a `req`
+  parameter and `normalize` is no longer imported.
+
+**Why these two tasks:** the sandbox has **no compiler** (node v20.20.2 / python3 / git
 only — no gcc/g++/cmake/Qt6/mingw/wine/emcc), so every C++/CLI/Qt/Windows/wasm
 finding is unprovable here and the existing web suites cannot run (command and
 validate spawn the C++ CLI; transport needs a discoverable engine; glue needs
-emcc). U-68 is HTTP-transport-only — the desktop has no HTTP server, so there is
-**no C++ parity mirror to diverge from** — and `/run` reads the body before
-`findEngine()`, so the 413 is provable with no engine present.
+emcc). Both U-68 and U-67 are HTTP-transport/static-serving concerns — the
+desktop has no HTTP server, so there is **no C++ parity mirror to diverge from**
+(unlike a JS-only `validate.mjs` or `command.mjs` fix, which would silently break
+parity fixtures this sandbox cannot run). And both are provable with no engine:
+`/run` reads the body before `findEngine()`, and `serveStatic` never calls it.
 
-**Partial:** U-68 is **PARTIAL**, not DONE. The 413 mapping is executed-proven
-for both endpoints, but the full `web/test/transport.test.mjs` no-regression
-re-run is engine-gated (no gifsicle buildable here), and the numeric cap is
-documented rather than changed (the owner may want a deliberate value). U-67
-(`serveStatic` hygiene) and U-69 (stale After image) — the other two thirds of
-fix-order row **P2-16** — are untouched.
+**Partial:** U-68 and U-67 are both **PARTIAL**, not DONE. Each is
+executed-proven for its own behaviour, but the full `web/test/transport.test.mjs`
+no-regression re-run is engine-gated (no gifsicle buildable here) and neither new
+test is wired into CI yet. For U-68 the numeric cap is also documented rather than
+changed (the owner may want a deliberate value). For U-67 the transport suite's
+only static dependency is the readiness `GET /`, which is preserved and
+byte-exact verified. U-69 (stale After image) — the last third of fix-order row
+**P2-16** — is untouched: it is browser-DOM behaviour this sandbox cannot
+exercise.
 
 **Left:** execute `COMPILED_AUDIT.md` §19 in a tooled session (re-prove every
-fixed row, failing-test-first, the new-pit pairings); close U-67/U-69; the
-engine-gated transport re-run for U-68; wire `body-limit.test.mjs` into CI
-(`build.yml` needs `workflows` scope + has a byte-identical twin copy;
-`verify_audit.sh` needs a `DOC_GATE_CHECKS` bump for a new W-gate). The owner
+fixed row, failing-test-first, the new-pit pairings, and measure each sub-claim
+before fixing it); close U-69 (browser-DOM, not exercisable here); finish U-67
+and U-68 to DONE via the engine-gated `transport.test.mjs` re-run; wire both
+`body-limit.test.mjs` and `static-hygiene.test.mjs` into CI (`build.yml` needs
+`workflows` scope + has a byte-identical twin copy; `verify_audit.sh` needs a
+`DOC_GATE_CHECKS` bump for the new W-gates). The owner
 approved opening the PR after this entry was first written, so it is now open
 from branch `audit/compiled-v3-consolidation`. This session also completed the
 **PR #25 doc sync** that `034ad65` had landed without (ledger row + the
@@ -66,6 +104,23 @@ from branch `audit/compiled-v3-consolidation`. This session also completed the
   `/run` is pre-discovery, and `/optimize` reaches `readBody` through an inert
   `GS_ENGINE` stub (`process.execPath`) that is never executed because the
   oversize rejection precedes `run()`.
+- `web/test/static-hygiene.test.mjs` **43/43, red to green**: stashing the fix
+  reproduces **18** failures (every over-exposed path, the `server.mjs`
+  disclosure check, and the two traversals that normalise to a file inside ROOT)
+  while the UI byte-exact cases, the HEAD-contract cases and the above-ROOT
+  traversal cases already passed — so the test isolates the real defect rather
+  than the two sub-claims that did not reproduce. Asserts the four allow-listed
+  assets are served **byte-exact** against the on-disk files with correct MIME,
+  that `index.html`'s `style.css`/`app.js` references and `app.js`'s
+  `./command.mjs` import still resolve (so the allow-list cannot silently break
+  the shipped page), 14 internal paths 404, six raw traversals never yield a
+  body, HEAD is empty-bodied with headers intact, and `POST /run` / `PUT /` are
+  unaffected. `body-limit.test.mjs` re-run afterwards: still 8/8.
+- `web/wasm/README.md`'s "use any static server rooted at `web/`" advice
+  re-verified by execution (`python3 -m http.server -d web`): `/wasm/index.html`
+  200 and its `../style.css` / `../command.mjs` / `../validate.mjs` imports all
+  resolve. That page needs `validate.mjs`, which the shipped UI does not — the
+  concrete reason it must not be routed through the allow-listed server.
 - `check_docs.sh` 23/0 after `--emit` regenerated `STATUS.md` (89 DONE · 8
   PARTIAL · 49 OPEN · 0 UNTRIAGED · 146 total); `sweep_stale.sh` green. The
   consolidation also cleared the G17/S2 failure that was live on `main`.
@@ -74,10 +129,13 @@ from branch `audit/compiled-v3-consolidation`. This session also completed the
 C++/Qt/Windows/wasm row, the `/optimize` 413 against a *real* engine, and whether
 the cap value should change — no compiler, no engine, no Qt, no Windows, no emcc.
 
-**Docs touched:** `COMPILED_AUDIT.md` (v3 — new §15–§19; §5 U-68; §2F F-11;
-§6 P2-16; §10; §11; §12), `STATUS.md` (re-emitted), `SESSION_HANDOFF.md` (S21
-section + tally), `docs/planning/NEXT_SESSION_PROMPT.md` (§19 ask),
-`web/server.mjs`, `web/test/body-limit.test.mjs` (new).
+**Docs touched:** `COMPILED_AUDIT.md` (v3 — new §15–§19; §5 U-67 + U-68; §2F
+F-10 + F-11; §6 P2-16; §10; §11 items 10–12; §12; §19 measure-before-fixing
+mandate), `STATUS.md` (re-emitted), `SESSION_HANDOFF.md` (S21 section, tally,
+PR #25 sync + ledger rows #25/#26), `docs/planning/NEXT_SESSION_PROMPT.md` (§19
+ask), `web/wasm/README.md` (the server does not route `wasm/`, by design),
+`web/server.mjs`, `web/test/body-limit.test.mjs` (new),
+`web/test/static-hygiene.test.mjs` (new).
 
 ---
 
