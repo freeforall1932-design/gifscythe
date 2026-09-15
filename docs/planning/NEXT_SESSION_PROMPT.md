@@ -52,6 +52,27 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S20.
    (U-55/U-56/U-70/U-71) cannot be closed on Linux — mark PARTIAL with the exact
    remaining proof, never DONE.
 
+   §19 mandate 5, learned in S21: MEASURE each sub-claim against the running code
+   BEFORE fixing it. NF-10 filed three sub-claims and only one reproduced — "HEAD
+   returns a body" is false (Node suppresses HEAD bodies) and the "raw prefix
+   containment" traversal was latent, not reachable (new URL() normalises
+   dot-segments first). §2F F-10 has the per-claim table; U-67 in §5 states only
+   what measured true. Fixing all three would have shipped two confident fixes for
+   non-bugs and called the row closed.
+
+   Two node-only tests now exist that need NO engine (this sandbox has no compiler,
+   so they are the only web coverage runnable without a build):
+     node web/test/body-limit.test.mjs       # U-68, 8 cases
+     node web/test/static-hygiene.test.mjs   # U-67, 43 cases
+   Both are red→green proven. NEITHER IS WIRED INTO CI — build.yml lists the web
+   tests explicitly and needs workflows scope (same block as
+   docs/ci/PENDING_WORKFLOW_CHANGE.md, byte-identical twin copy), and
+   verify_audit.sh needs a DOC_GATE_CHECKS bump for new W-gates (gate G6). Wire
+   them deliberately; an unwired test is the U-18/GS-201 "green CI enforces
+   nothing" failure mode. U-67/U-68 are PARTIAL pending that plus the engine-gated
+   transport.test.mjs no-regression re-run. U-69 (stale After image) is browser-DOM
+   behaviour — not exercisable headless here.
+
 3. SKILLOPT ASK (owner): incorporate microsoft/SkillOpt INTO THIS REPO so any
    session's agent has it. See docs/planning/SKILLOPT_INTEGRATION_QUERY.md for
    the verified facts, the three non-negotiable conditions (quarantined /
