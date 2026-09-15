@@ -10,7 +10,7 @@ and guessing it is how stale claims get born.
 this against the newest merged PR and fails when a merge landed with no doc sync — that is the
 "we jumped a merge without updating any docs" case. Move this line as part of the sync, never
 before the writing is done.)*
-Based on `main` commit `8230247` ·
+Based on `main` commit `c4f9e1c` ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: not yet — stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the
@@ -399,7 +399,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S19: **89 DONE · 7 PARTIAL · 26 OPEN · 0 UNTRIAGED · 122 total.**
+   `U-nn` row; neither replaces the other. As of S19: **89 DONE · 7 PARTIAL · 50 OPEN · 0 UNTRIAGED · 146 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —

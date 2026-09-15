@@ -36,14 +36,16 @@
 > `check_docs.sh` gates **G5/G5b** fail if the two ever disagree, and **G0**
 > fails if `STATUS.md` has drifted from what the emitter produces.
 
-This document merges **four independent audits**:
+This document merges **six independent audits**:
 
 | ID | Source | What it is | Trust rank |
 |----|--------|------------|------------|
 | **A** | `AUDIT_A_extracted.md` — GPT 5.6 sol xhigh | 20 findings (2 Critical / 7 High / 9 Medium / 2 Low) | **1 — highest** |
 | **B** | `AUDIT_B_extracted.md` — Seed 2.1 Pro Preview | 16 findings (0 Critical / 1 High / 4 Medium / 8 Low / 3 info) | **2** |
 | **C** | `docs/audit/POST_S7_AUDIT.md` — Arena agent session | 13 findings (1 High / 4 Medium / 5 Low / 3 Nit) | **3** (executed code) |
-| **D** | GPT 6 Astra Medium Audit (`arena.site/01a089b0…`) | 8 new findings (1 High / 6 Medium / 1 Low) — **new this round** | **1 — highest** (same rank as A) |
+| **D** | GPT 6 Astra Medium Audit (`arena.site/01a089b0…`) | 8 new findings (1 High / 6 Medium / 1 Low) | **1 — highest** (same rank as A) |
+| **E** | Independent Source Audit (`arena.site/01a0a4f2-59e2-7b91-a71d-c630bb77209a`) — **gpt 5.6 sol xhigh** | 19 new findings (2 High / 7 Medium / 10 Low) — **from repo commit ca48bf8** | **1 — highest** |
+| **F** | Code Review Intake (`arena.site/01a0a4f2-59e2-729d-ba6e-9030c6b52dcb`) — **fable 5.1 low — WINNER** | 5 new findings (3 High / 2 Medium) — **from repo commit ca48bf8** | **1 — highest** |
 
 **Ranking rule:** A and D are both GPT-class audits and are treated as **highest priority** —
 higher than B (Seed) and higher than the compiled audit (C). Where A/D conflict with B/C,
@@ -85,11 +87,13 @@ writing nothing, or running single-threaded when the user asked for auto-threadi
 
 | Metric | Count |
 |--------|------:|
-| Unique findings across all 4 audits | **52** |
-| Confirmed BROKEN (wrong result / silent failure at runtime) | **14** |
-| Confirmed MISALIGNED (code contradicts docs/labels) | **11** |
-| Confirmed MISSING-logic (documented behavior that doesn't exist) | **16** |
+| Unique findings across all 6 audits | **76** (52 + 5 + 19) |
+| Confirmed BROKEN (wrong result / silent failure at runtime) | **23** (14 + 2 + 7) |
+| Confirmed MISALIGNED (code contradicts docs/labels) | **20** (11 + 1 + 8) |
+| Confirmed MISSING-logic (documented behavior that doesn't exist) | **20** (16 + 2 + 2) |
 | **New from GPT 6 Astra Medium (D)** | **8** (GS-101…GS-108) |
+| **New from 7b91 (E) — NF-01..NF-19 — gpt 5.6 sol xhigh** | **19** (2 High / 7 Medium / 10 Low) |
+| **New from 729d (F) — NA-01..NA-05 — fable 5.1 low — WINNER** | **5** (3 High / 2 Medium) |
 | Audits A+B items already in prior compilations | 36 |
 | Items fixed in code this session | see §4 |
 | Items still **open** before 1.0.0 | see §6 |
@@ -438,7 +442,330 @@ lifetime on the input side.
 
 ---
 
-## 2. GPT 6 Astra Medium Audit (D) — 8 new findings (official export, corrected)
+## 2E. Independent Source Audit (E) — 19 findings — 01a0a4f2-59e2-7b91-a71d-c630bb77209a — gpt 5.6 sol xhigh
+
+**Source:** https://01a0a4f2-59e2-7b91-a71d-c630bb77209a.arena.site/
+**Repo file:** GIFSCYTHE_REVIEW_INTAKE_01a0a4f2-59e2-7b91-a71d-c630bb77209a 2026-09-15.md from commit ca48bf8 (now merged and deleted — 703 lines, 19 findings)
+**Model:** gpt 5.6 sol xhigh (per owner mapping)
+**Rank:** Highest (source-confirmed, checked against 122 rows, 0 runtime, needs smoke/harness)
+**Date:** 2026-09-15
+**Trust:** 1 — highest
+
+**Method (from original):** Fetched main live, read COMPILED_AUDIT §1–§13 and STATUS.md first to avoid duplicates, read all core headers, CLI driver, web server/UI/builder, MainWindow.h, SettingsPanel.h, gifsicle 1.96 man page as truth. Every row verified-by-source.
+
+### E-01 / NF-01 [High] — Batch continuation re-reads LIVE settings for every file after the first
+
+**File:** `MainWindow.cpp` — `onProcessFinished()` batch branch, `MainWindow.h` — no settings snapshot member
+**Confidence:** verified-by-source | **Nearest:** U-45 (output group lock) and U-01 (target plan) — neither covers settings snapshotting
+**Finding.** `runCommand()` plans TARGETS once (`batchTargets_`, U-01) but SETTINGS not snapshotted. Every subsequent batch item calls `currentSettings()` live. Actions tab is time-of-use input for files 2..N. One batch can apply different settings to different files while UI reports one complete.
+**Evidence:**
+```cpp
+pendingOutput_ = batchTargets_.value(batchIndex_); // targets planned
+auto settings = currentSettings(); // settings NOT — read again, live
+// MainWindow.h run-state: enginePath_, inputs_, process_, busy_, cancelling_, pendingOutput_, batchTargets_, batchIndex_, batchQueue_, batchMode_, explodeSnapshot_ — no batchSettings_
+```
+**Repro:** Queue 3 large GIFs, Batch Optimize=1, start, while file1 encoding change Actions Optimize=3 Colors=16, compare 3 opt.gif sizes / gifsicle --info colour tables. Command pane shows only last argv.
+**Fix:** Snapshot `batchSettings_ = currentSettings()` once at batch start next to batchTargets_, use in continuation, disable `settingsPanel_` in `setBusy()`. Harness T18-style: change control mid-batch, assert argv run2 == run1.
+**Status:** ⬜ **OPEN** — register §5 `U-53`.
+
+---
+
+### E-02 / NF-02 [High] — Cancel (or engine failure) leaves a truncated file over a PRE-EXISTING output — P0 data loss
+
+**File:** `MainWindow.cpp` — `cancelRun()`, `onProcessFinished()` failure path, `cli/main.cpp`, `OutputPlan.h` header comment declining temp+rename
+**Confidence:** verified-by-source | **Nearest:** U-01/U-45 (planning), GS-203 (post-conditions) — none address partial-output cleanup on cancel
+**Finding.** gifsicle writes straight to `-o <target>`. Cancel kills engine mid-write; failure branch shows dialog but never removes/restores partial. OutputPlan.h says pre-existing is normal and declines temp+rename because it would only protect previous output from crashed engine. Cancel is first-class button, not crash: re-optimising existing `<name>_opt.gif` and pressing Cancel replaces last good result with 0-byte/truncated file.
+**Evidence:**
+```cpp
+void MainWindow::cancelRun() { cancelling_=true; process_->kill(); waitForFinished(3000); cancelling_=false; setBusy(false); updateStatus("Cancelled."); }
+```
+**Repro:** Optimize large GIF to out.gif once, note size. Run again to same out.gif and Cancel (deterministic with stub engine that opens -o, truncates, sleeps 5s). `ls -l out.gif` → 0 bytes/truncated, `gifsicle --info` error, status only "Cancelled." CLI equivalent: kill engine during write → partial left, rc reflects signal (U-32) but file not cleaned.
+**Fix:** Minimum: after cancel/rc≠0, if pre-run snapshot said target did NOT exist → delete partial; if DID exist → warn damaged. Proper: run to `<target>.gs-partial`, verify GIF magic + non-empty, rename atomic. Live pane shows real argv + note. Harness: cancel-with-preexisting keeps old bytes.
+**Status:** ⬜ **OPEN** — register §5 `U-54`. P0 data loss, same class as U-01, **requires tmp+rename guard not covered by OutputPlan existing**.
+
+---
+
+### E-03 / NF-03 [Medium] — CLI turns gifsicle frame selections into bogus file paths
+
+**File:** `cli/main.cpp` — `resolve_path()` applied to every `s.inputs`, `GifsicleSettings.h` documents `#0`
+**Finding.** `GifsicleSettings.h` documents frames `#0` as legal input, man page defines them, but CLI resolves every input relative to conf dir, so `#0` becomes `/abs/dir/#0` and fails.
+**Evidence:** `for (auto& in : s.inputs) in = resolve_path(in, base_dir);`
+**Fix:** Skip resolution when value starts with `#` or equals `-`, exclude from `plan_outputs()` input keys.
+**Status:** ⬜ **OPEN** — register §5 `U-55`.
+
+---
+
+### E-04 / NF-04 [Medium] — `output = -` treated as file → false failure rc=1
+
+**File:** `cli/main.cpp` — `verify_file` / `plan_outputs`
+**Finding.** Man page: `-o file … special filename - means stdout`. CLI plans `-` as CWD file, snapshots it, streams GIF to stdout correctly, then `verify_output("-")` reports no file and rc becomes 1. Valid GIF + failure code.
+**Evidence:** `const bool verify_file = !s.output.empty() && ...` // "-" non-empty
+**Fix:** Normalise `output == "-"` to streaming contract before planning/verification.
+**Status:** ⬜ **OPEN** — register §5 `U-56`.
+
+---
+
+### E-05 / NF-05 [Medium] — Validate.h refuses crop width/height 0, engine allows 0 = extend to edge
+
+**File:** `Validate.h` — crop rule, `GifsicleSettings.h` unsigned fields
+**Finding.** Man page `--crop x1,y1+WxH`: width/height can be zero or negative, zero = to edge. Validator rejects 0 outright, unsigned makes negative unrepresentable. False refusal.
+**Evidence:** `if (s.crop && (s.crop_w == 0 || s.crop_h == 0)) add("crop", "0x0", ...)`
+**Fix:** Allow 0 (and consider int + negative), update JS mirror + parity fixture.
+**Status:** ⬜ **OPEN** — register §5 `U-57`.
+
+---
+
+### E-06 / NF-06 [Medium] — `--no-loopcount` (play once) unrepresentable
+
+**File:** `GifsicleSettings.h` `loopcount = -1`, `GifsicleCommand.h`, `command.mjs`, `SettingsPanel.h`
+**Finding.** Engine has three states: unchanged, forever (`--loopcount=0`), N, and OFF (`--no-loopcount`, show once). Model only has unchanged/forever/N. Cannot produce non-looping GIF from any surface.
+**Evidence:** `if (s.loopcount == 0) add("--loopcount=0"); else if (>0) ...` // nothing emits --no-loopcount
+**Fix:** Add tri-state+off: e.g. `loopcount = -2` → `--no-loopcount`, GUI item Play once, web `once` option.
+**Status:** ⬜ **OPEN** — register §5 `U-53`.
+
+---
+
+### E-07 / NF-07 [Medium] — `/run` and `/optimize` accept `info:true` then misleading 422
+
+**File:** `web/server.mjs` — `handleOptimize()`/`runOne()` → `verifyOutput()`, `cli/main.cpp` exempts info from verification, web does not
+**Finding.** `--info -o file` makes gifsicle write TEXT into output. CLI exempts info from verification. Web does not: validate lets info through in auto mode, engine exits 0, `verifyOutput` sees no GIF signature and API blames engine.
+**Evidence:** `const verified = await verifyOutput(outPath, before); if (verified.error) sendJson(422, {exitCode:0, stderr: verified.error})`
+**Fix:** Reject `info` at web validation with 400, or return text/plain info. Add transport test.
+**Status:** ⬜ **OPEN** — register §5 `U-54`.
+
+---
+
+### E-08 / NF-08 [Medium] — CLI symlink/PATH loses engine-beside-executable discovery
+
+**File:** `cli/main.cpp` — `exe_path_of(argv0)`, `EngineLocator.h`
+**Finding.** `exe_path_of()` trusts argv[0]: symlink not resolved, bare name not found in CWD → `exe_dir = CWD`. Packaged layout fails when CLI installed via `ln -s` into /usr/local/bin.
+**Evidence:**
+```cpp
+fs::path p = u8path_compat(argv0);
+if (p.is_absolute()) return p; // symlink kept
+if (fs::exists(p, ec)) return absolute(p, ec); // only if exists relative to CWD
+return p; // bare name -> CWD
+```
+**Fix:** Resolve real exe: `/proc/self/exe` Linux, `_NSGetExecutablePath` macOS, `GetModuleFileNameW` Windows, then `canonical()`. Smoke: symlinked CLI finds sibling engine.
+**Status:** ⬜ **OPEN** — register §5 `U-55`.
+
+---
+
+### E-09 / NF-09 [Medium] — Desktop pinned to GS_VERSION while web picks newest — VERSION bump breaks CLI/GUI
+
+**File:** `EngineLocator.h` candidates use `release/<GS_VERSION>/`, `build_engine.sh` writes `release/<VERSION.md>/`, `server.mjs` `findEngine()` newest numeric dir
+**Finding.** After editing VERSION.md to 0.2.0, CLI/GUI look only in release/0.2.0/ which does not exist until rebuilt, while web keeps using release/0.1.0/. Two policies for same binary.
+**Evidence:** `candidates.push_back(exe_dir / ".." / "release" / GS_VERSION / base);` vs `versions.sort(...newest first...)`
+**Fix:** Pick one policy: version-independent release/engine/ or release/current symlink + newest fallback in EngineLocator, log chosen dir.
+**Status:** ⬜ **OPEN** — register §5 `U-56`.
+
+---
+
+### E-10 / NF-10 [Low] — serveStatic raw prefix containment, serves source/tests, HEAD body
+
+**File:** `web/server.mjs` — `serveStatic()`, `run-paths.mjs` `assertContainedPath()` exists
+**Finding.** `file.startsWith(ROOT)` with ROOT=/repo/web would admit /repo/web-anything. Shielded by `new URL()` dot-segment collapse, so not exploitable today, but hygiene and exact pattern GS-202 replaced for uploads. Every file under web/ served, HEAD gets body.
+**Fix:** Reuse `assertContainedPath(ROOT, file)`, allow-list served files, return headers only for HEAD.
+**Status:** ⬜ **OPEN** — register §5 `U-57`.
+
+---
+
+### E-11 / NF-11 [Low] — Oversized bodies 400 not 413, real /run cap ~48MB not 64MB
+
+**File:** `web/server.mjs` — `readBody()`, `handleRun()` catch
+**Finding.** `readBody` rejects generic Error, `handleRun` converts to bad JSON, hiding cause. MAX_BODY applies to JSON envelope, base64 +33% lowers effective upload to ~48MB while README says 64MB.
+**Fix:** Throw typed 413 from `readBody` and map, document effective limit or raise MAX_BODY for /run.
+**Status:** ⬜ **OPEN** — register §5 `U-53`.
+
+---
+
+### E-12 / NF-12 [Low] — After failed run previous After image stays under Failed status
+
+**File:** `web/app.js` — run handler `!resp.ok` branch
+**Finding.** `revokeResults()`/hide #outputs only on success and queue change. Changing setting and re-running to 422 leaves OLD results visible next to new failure — stale-visual of U-47 class on web.
+**Fix:** Call `revokeResults()`, hide #outputs, clear #after before every run or on failure.
+**Status:** ⬜ **OPEN** — register §5 `U-54`.
+
+---
+
+### E-13 / NF-13 [Low] — Preview engine check bypasses UTF-8 boundary
+
+**File:** `MainWindow.cpp` — `startPreview()`
+**Finding.** `ensureEngine()` wraps in `u8path_compat()`, `startPreview()` passes `toStdString()` straight into `path_is_executable(fs::path)` — narrow conversion byte-mangling on MinGW. Non-ASCII engine path: main run works but preview says engine not found.
+**Evidence:** `ensureEngine(): u8path_compat(enginePath_.toStdString())` vs `startPreview(): path_is_executable(enginePath_.toStdString())`
+**Fix:** Wrap in `u8path_compat()`, grep other `.toStdString()`→`fs::path` boundaries.
+**Status:** ⬜ **OPEN** — register §5 `U-55`.
+
+---
+
+### E-14 / NF-14 [Low] — Windows exit masked `&0xff` collapses NTSTATUS crash to success
+
+**File:** `ProcessRunner.h` — Windows branch `run_argv()`
+**Finding.** Windows exit codes 32-bit, crashed child returns NTSTATUS like 0xC0000005. Masking to low byte keeps most non-zero, but status ending 0x00 becomes 0 and honest exit contract broken in crash case.
+**Evidence:** `return static_cast<int>(code) & 0xff;`
+**Fix:** `if (code==0) return 0; int low=code &0xff; return low ? low : 1;` log raw hex when >255.
+**Status:** ⬜ **OPEN** — register §5 `U-56`.
+
+---
+
+### E-15 / NF-15 [Low] — cancelling_ cleared after 3s wait → spurious failure dialog after Cancelled
+
+**File:** `MainWindow.cpp` — `cancelRun()`, `onProcessFinished()`
+**Finding.** `cancelRun()` resets `cancelling_=false` right after `waitForFinished(3000)`. If engine takes longer to die, `finished()` arrives later with `cancelling_==false` and failure branch shows error after Cancelled.
+**Fix:** Clear `cancelling_` inside `onProcessFinished()`/`onProcessError()`, not in `cancelRun()`, fold into P1-24.
+**Status:** ⬜ **OPEN** — register §5 `U-57`.
+
+---
+
+### E-16 / NF-16 [Low] — resolve_path falls back to CWD contradicting CWD-independent contract
+
+**File:** `cli/main.cpp` — `resolve_path()`
+**Finding.** Relative input missing next to conf but exists in CWD picked up from CWD. Same conf produces different runs from different dirs — contradicts comment about CWD-independent.
+**Evidence:** `if (exists(candidate)) return candidate; if (exists(path)) return path; // CWD fallback`
+**Fix:** Drop CWD fallback (fail with input not found next to conf) or print NOTE naming resolution.
+**Status:** ⬜ **OPEN** — register §5 `U-53`.
+
+---
+
+### E-17 / NF-17 [Low] — Batch + output + N>1 passes planner in merge shape, engine semantics undocumented
+
+**File:** `cli/main.cpp` — `plan_outputs(s.inputs, {s.output})` for Batch, `OutputPlan.h` one_target shape
+**Finding.** GS-201 made CLI refuse Batch WITHOUT output. Batch WITH one output and several inputs accepted because `plan_outputs` treats N→1 as legal merge shape. Man page defines `-b` as modify in place, says nothing about `-o` in batch, so CLI allows command whose outcome nobody pinned.
+**Fix:** Refuse Batch with >1 input and single output in CLI (GUI never emits -b, runs per-file Auto). Long term make CLI batch identical to GUI/web batch.
+**Status:** ⬜ **OPEN** — register §5 `U-54`.
+
+---
+
+### E-18 / NF-18 [Low] — `-E` exposed but `--name` not, several engine options absent
+
+**File:** `GifsicleSettings.h`, `SettingsPanel.h` `explodeByNameCheck_`
+**Finding.** Without `--name` only way `-E` differs from `-e` is input already carries name extensions, so checkbox mostly inert. Gaps relative to ~30 engine-truth controls claim.
+**Fix:** Add per-frame `--name` list or grey out `-E` with tooltip, add Not-exposed list to README.
+**Status:** ⬜ **OPEN** — register §5 `U-55`.
+
+---
+
+### E-19 / NF-19 [Low] — Explode default prefix differs per surface
+
+**File:** `MainWindow.cpp` explode branch, `server.mjs` targets, `ExplodeVerify.h` `explode_prefix_for()`
+**Finding.** GUI persists sessions with output cleared. Conf exported from GUI and run by CLI in Explode mode scatters `<basename>.NNN` into CWD, while GUI would write `<dir>/<stem>_frame.NNN` next to input.
+**Evidence:** GUI: `fi.absolutePath()+"/"+fi.completeBaseName()+"_frame"` vs CLI: `first input's basename (CWD)`
+**Fix:** CLI default explode prefix to `<input dir>/<stem>_frame` like GUI/web.
+**Status:** ⬜ **OPEN** — register §5 `U-56`.
+
+---
+
+## 2F. Code Review Intake (F) — 5 findings — 01a0a4f2-59e2-729d-ba6e-9030c6b52dcb — fable 5.1 low — WINNER
+
+**Source:** https://01a0a4f2-59e2-729d-ba6e-9030c6b52dcb.arena.site/
+**Repo file:** gifscythe-audit-01a0a4f2-59e2-729d-ba6e-9030c6b52dcb 2026-09-15.md from commit ca48bf8 (now merged and deleted — 307 lines, 5 findings)
+**Model:** fable 5.1 low — WINNER (per owner mapping, arena comparison winner)
+**Rank:** Highest (GPT-class equivalent, source-confirmed, 0 runtime claims)
+**Date:** 2026-09-15
+**Trust:** 1 — highest
+
+### F-01 / NA-01 [High] — A malformed position pair can still emit a valid-looking -p X,0 — U-33 fix regression
+
+**File:** `src/core/SettingsIO.h` — `set_field()` and `load_settings()`
+**Confidence:** verified-by-source | **Nearest:** U-33 (half-spec) — fix checked presence not parse success
+**Evidence level:** source review; U-33 fix regression
+**Finding.** The U-33 fix checks whether both position keys were present, not whether both parsed successfully. One valid coordinate and one invalid coordinate leaves `has_position` enabled. `set_field()` sets `has_position=true` as soon as either coordinate parses. `load_settings()` records `saw_position_x/y` before parsing. Final guard only compares key presence.
+**Evidence:**
+```cpp
+else if (k == "position_x") {
+  if (need_ulong_nonneg(&s.position_x)) s.has_position = true;
+}
+else if (k == "position_y") {
+  if (need_ulong_nonneg(&s.position_y)) s.has_position = true;
+}
+// load_settings:
+if (lk == "position_x") saw_position_x = true;
+else if (lk == "position_y") saw_position_y = true;
+if (saw_position_x != saw_position_y) { clear has_position }
+```
+With `position_x=12` valid + `position_y=nope` invalid, both saw true, `has_position` stays true with `x=12,y=0` → emits `-p 12,0`.
+**Repro:**
+1. conf with `position_x = 12` and `position_y = nope`, valid input/output
+2. Run cli without --strict, inspect printed command
+3. Expected: position omitted. Current: warning + `-p 12,0` reachable
+**Suggested fix:** Stop mutating `has_position` inside `set_field()`. Parse into optional temps. Enable only when both present and both conversions succeeded. Emit one pair-level warning. Keep --strict rc=3. Unit test: `x=12,y=nope` → no `-p`.
+**Status:** ⬜ **OPEN** — confirmed by source read; register §5 `U-72`. Original report: ⬜ OPEN — U-33 fix incomplete.
+
+---
+
+### F-02 / NA-02 [High] — Changing web settings during a run does not invalidate that run — extends U-46
+
+**File:** `web/app.js` — `requestGen`, control wiring, run handler for `POST /run`
+**Confidence:** verified-by-source | **Nearest:** U-46 (queue guard), D:GS-102
+**Evidence level:** source review
+**Finding.** `requestGen` advances when file queue changes (`onQueueChanged()`), but not when any settings control changes. Controls remain editable while `fetch('/run')` pending. Old response can be accepted while controls show new settings.
+**Evidence:**
+```javascript
+function onQueueChanged() { requestGen += 1; ... }
+for (const id of [...controls]) { $(id).addEventListener("input", refreshCommand); }
+// run handler:
+const gen = requestGen; await fetch("/run", ...); if (gen !== requestGen) return;
+```
+**Repro:** Use delayed engine wrapper (2s), start web run, change optimization/resize/loop/delay before response, observe old response rendered with new controls.
+**Suggested fix:** Create one `invalidateRun()` used by queue and every settings change. Track AbortController, increment generation, clear output on change. Capture immutable settings snapshot at launch.
+**Status:** ⬜ **OPEN** — confirmed by source read; register §5 `U-73`. Extends U-46 (queue-only guard).
+
+---
+
+### F-03 / NA-03 [High] — Windows output collision keys fold ASCII only — reopens U-01 class
+
+**File:** `src/core/OutputPlan.h` — `path_key()`
+**Confidence:** verified-by-source | **Nearest:** U-01/U-45
+**Evidence level:** source review; needs native Windows
+**Finding.** `path_key()` lowercases UTF-8 path byte-by-byte with `std::tolower` under `_WIN32`. Does not implement Windows Unicode case-insensitive comparison. Two batch targets differing only by non-ASCII case can pass preflight and overwrite same Windows file, reopening U-01 class.
+**Evidence:**
+```cpp
+#ifdef _WIN32
+  for (auto& c : s) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (c == '\\') c = '/';
+  }
+#endif
+```
+**Repro:** On Windows, batch inputs with U+00C4 vs U+00E4 stems into one folder, assert preflight should refuse.
+**Suggested fix:** Keep paths as UTF-16 on Windows, compare with ordinal case-insensitive Windows API (`CompareStringW` / `CompareStringOrdinal NORM_IGNORECASE`), injectable policy so Linux unit tests cover Windows rules.
+**Status:** ⬜ **OPEN** — confirmed by source read; register §5 `U-74`.
+
+---
+
+### F-04 / NA-04 [Medium] — Desktop filename sanitization misses Windows superscript device aliases
+
+**File:** `src/core/OutputName.h` — `is_windows_reserved_device_name()`
+**Confidence:** verified-by-source | **Nearest:** U-21, web run-paths.mjs already handles
+**Evidence level:** source review
+**Finding.** Desktop recognizes COM/LPT only when fourth byte is ASCII digit (`isdigit`). Windows also reserves superscript ¹ (U+00B9), ² (U+00B2), ³ (U+00B3) forms: `COM¹`, `LPT²`, etc. Web `run-paths.mjs` already handles `/com[0-9¹²³]/iu`.
+**Evidence:**
+```cpp
+if (stem.size() == 4 && (stem.compare(0,3,"com")==0 || stem.compare(0,3,"lpt")==0) && std::isdigit(stem[3])) return true;
+```
+**Repro:** Call `sanitize_output_name()` with Windows rules and COM/LPT + superscript, expect defused.
+**Suggested fix:** Extend matcher to recognize exact UTF-8 sequences for superscript 1,2,3 (C2 B9/C2 B2/C2 B3) or compare decoded Unicode scalars. Share test table with web.
+**Status:** ⬜ **OPEN** — confirmed by source read; register §5 `U-75`.
+
+---
+
+### F-05 / NA-05 [Medium] — The reusable WASM module can accept a stale /out.gif as new output — GS-203 pattern
+
+**File:** `web/wasm/wasm.js` — `M.FS.writeFile("/in.gif")`, `callMain()`, `readFile("/out.gif")`
+**Confidence:** verified-by-source | **Nearest:** GS-203 (output verification)
+**Evidence level:** source review
+**Finding.** WASM UI reuses one Emscripten module (singleton, EXIT_RUNTIME=0) but does not unlink/snapshot `/out.gif` before `callMain()`. After one success, a later exit-zero/no-write run reads previous GIF and reports success for wrong input.
+**Evidence:**
+```javascript
+M.FS.writeFile("/in.gif", inputBytes);
+M.callMain(args);
+outBytes = M.FS.readFile("/out.gif");
+```
+**Repro:** Run once with fake module writing valid `/out.gif`, run second time with success but no write, observe second reads first output.
+**Suggested fix:** Unlink `/out.gif` before every `callMain()` (ignore ENOENT), verify GIF magic after, remove temps in finally. Do not ship WASM until OD-16 closed.
+**Status:** ⬜ **OPEN** — confirmed by source read; register §5 `U-76`. Mirrors GS-203 pattern.
+
+---
 
 ## 3. Audit A (GPT 5.6 sol xhigh) — 20 findings (full text)
 
@@ -1629,9 +1956,9 @@ runButton_->setEnabled(!busy && !inputs_.isEmpty() && ensureEngine());
 
 ---
 
-## 5. Consolidated master register — all 52 unique findings
+## 5. Consolidated master register — all 76 unique findings
 
-Deduplicated across A/B/C/D. "Src" = which audit(s) raised it.
+Deduplicated across A/B/C/D/E/F. "Src" = which audit(s) raised it.
 
 ### Critical / release-blocking
 
@@ -1710,12 +2037,46 @@ Deduplicated across A/B/C/D. "Src" = which audit(s) raised it.
 | **U-51** | D:GS-107 | **Unescaped settings values can become additional keys** — the line-based serializer writes string values verbatim (including newlines), while the loader splits on newlines and treats each line as a new key. A comment containing `mode = merge` on a second line overrides the mode. Leading/trailing whitespace also lost. **Missed by prior audits.** | ✅ **SRC** | ✅ FIXED (S8) — `encode_line_value()` at 9 write sites (+ JS mirror); reproduced a comment hijacking `mode`, test 30 guards it |
 | **U-52** | D:GS-108 | **Before-image object URLs are never released** — `app.js` creates object URLs for Before preview but only revokes After URLs. Replacing src does not release the earlier blob URL; repeatedly choosing large files keeps them reachable until page unload. | ✅ **SRC** | ✅ FIXED (S8) — `beforeUrl` tracked and revoked on replacement in `app.js` |
 
+### New from Independent Source Audit (E) — 01a0a4f2-59e2-7b91-a71d-c630bb77209a — gpt 5.6 sol xhigh — 19 findings
+
+| ID | Src | Finding | Verif | Status |
+|----|-----|---------|-------|--------|
+| **U-53** | E:NF-01 | **Batch continuation re-reads LIVE settings** — targets planned once (`batchTargets_` U-01) but `currentSettings()` called live for files 2..N; batch can apply different settings per file while status says one run. | ✅ **SRC** | ⬜ OPEN |
+| **U-54** | E:NF-02 | **Cancel / failure leaves truncated file over PRE-EXISTING output** — gifsicle writes direct to `-o <target>`; `cancelRun()` kills mid-write, failure branch never removes/restores; re-optimising existing `_opt.gif` + Cancel destroys last good result. `OutputPlan.h` declines temp+rename. **P0 data loss, same class as U-01.** | ✅ **SRC** | ⬜ OPEN |
+| **U-55** | E:NF-03 | **CLI resolves `#0` frame selector to bogus path** — `GifsicleSettings.h` documents `#0` as legal input, man page defines it, but `resolve_path()` applied to every `s.inputs` turns `#0` into `/abs/#0` and fails. | ✅ **SRC** | ⬜ OPEN |
+| **U-56** | E:NF-04 | **`output = -` treated as file → false failure rc=1** — man page `-o - means stdout`; CLI streams GIF to stdout correctly but `verify_output("-")` reports missing file and returns rc=1. Valid GIF + failure code. | ✅ **SRC** | ⬜ OPEN |
+| **U-57** | E:NF-05 | **Validate.h refuses crop W/H 0, engine allows 0=extend to edge** — man `--crop x1,y1+WxH`: width/height can be zero or negative, zero=to edge. Validator rejects 0, unsigned makes negative unrepresentable. | ✅ **SRC** | ⬜ OPEN |
+| **U-58** | E:NF-06 | **`--no-loopcount` unrepresentable** — engine has unchanged / forever (`0`) / N / OFF (`--no-loopcount` play once). Model only has unchanged/forever/N; cannot produce non-looping GIF. | ✅ **SRC** | ⬜ OPEN |
+| **U-59** | E:NF-07 | **`/run` and `/optimize` accept `info:true` then misleading 422** — CLI exempts info from output verification, web does not; `info -o file` writes TEXT, web `verifyOutput` sees no GIF magic and blames engine with exitCode 0. | ✅ **SRC** | ⬜ OPEN |
+| **U-60** | E:NF-08 | **CLI symlink/PATH loses engine-beside-executable discovery** — `exe_path_of(argv0)` keeps symlink, bare name only resolved if exists in CWD; `ln -s` install into /usr/local/bin breaks sibling engine lookup. | ✅ **SRC** | ⬜ OPEN |
+| **U-61** | E:NF-09 | **Desktop pinned to GS_VERSION while web picks newest** — CLI/GUI look in `release/<GS_VERSION>/`, web `findEngine()` picks newest numeric dir; VERSION bump breaks CLI/GUI while web still works. Two policies. | ✅ **SRC** | ⬜ OPEN |
+| **U-62** | E:NF-10 | **serveStatic raw prefix containment, serves source/tests, HEAD body** — `file.startsWith(ROOT)` hygiene; every file under web/ served; HEAD returns body. `assertContainedPath` exists but not reused. | ✅ **SRC** | ⬜ OPEN |
+| **U-63** | E:NF-11 | **Oversized bodies 400 not 413, /run cap ~48MB not 64MB** — `readBody` rejects generic Error, `handleRun` maps to bad JSON; MAX_BODY applies to JSON envelope, base64 +33% lowers effective upload while README says 64MB. | ✅ **SRC** | ⬜ OPEN |
+| **U-64** | E:NF-12 | **After failed run previous After stays under Failed status** — `revokeResults()`/hide only on success and queue change; setting change + re-run to 422 leaves OLD results visible next to failure — web stale-visual of U-47 class. | ✅ **SRC** | ⬜ OPEN |
+| **U-65** | E:NF-13 | **Preview engine check bypasses UTF-8 boundary** — `ensureEngine()` wraps `u8path_compat()`, `startPreview()` passes `toStdString()` directly to `path_is_executable(fs::path)` — narrow mangling on MinGW; non-ASCII engine path: main run works but preview says not found. | ✅ **SRC** | ⬜ OPEN |
+| **U-66** | E:NF-14 | **Windows exit masked `&0xff` collapses NTSTATUS crash to success** — `ProcessRunner.h` Windows `code &0xff`; crash NTSTATUS like 0xC0000005 ends 0x05 keeps non-zero but 0x00 becomes 0, breaking honest exit contract in crash case. | ✅ **SRC** | ⬜ OPEN |
+| **U-67** | E:NF-15 | **cancelling_ cleared after 3s wait → spurious failure dialog after Cancelled** — `cancelRun()` resets flag right after `waitForFinished(3000)`; if engine dies later, `finished()` arrives with `cancelling_==false` and shows error after Cancelled. Fold into P1-24. | ✅ **SRC** | ⬜ OPEN |
+| **U-68** | E:NF-16 | **resolve_path CWD fallback contradicts CWD-independent contract** — relative input missing next to conf but exists in CWD picked up from CWD; same conf different result from different dirs. | ✅ **SRC** | ⬜ OPEN |
+| **U-69** | E:NF-17 | **Batch + output + N>1 passes planner in merge shape, engine semantics undocumented** — GS-201 refuses Batch WITHOUT output; WITH single output + several inputs accepted as N→1 merge shape, but man says nothing about `-o` in batch; CLI allows undocumented outcome. | ✅ **SRC** | ⬜ OPEN |
+| **U-70** | E:NF-18 | **`-E` exposed but `--name` not, several engine options absent** — without `--name` `-E` vs `-e` differs only if input already carries name extensions, checkbox mostly inert. | ✅ **SRC** | ⬜ OPEN |
+| **U-71** | E:NF-19 | **Explode default prefix differs per surface** — GUI: `<dir>/<stem>_frame`, CLI: `<basename>.NNN` in CWD when output cleared; session exported from GUI scatters into CWD on CLI. | ✅ **SRC** | ⬜ OPEN |
+
+### New from Code Review Intake (F) — 01a0a4f2-59e2-729d-ba6e-9030c6b52dcb — fable 5.1 low — WINNER — 5 findings
+
+| ID | Src | Finding | Verif | Status |
+|----|-----|---------|-------|--------|
+| **U-72** | F:NA-01 | **Position half-parse leaves has_position true with X,0** — `set_field()` sets `has_position=true` on first valid coordinate; `load_settings()` records saw_x/y before parsing success; valid x + invalid y emits `-p 12,0`. Regression of U-33 fix. | ✅ **SRC** | ⬜ OPEN |
+| **U-73** | F:NA-02 | **Web settings change does not invalidate in-flight run** — `requestGen` advances on queue change but not on settings input; controls editable while `fetch('/run')` pending; old response accepted while UI shows new settings. Extends U-46. | ✅ **SRC** | ⬜ OPEN |
+| **U-74** | F:NA-03 | **Windows path_key folds ASCII only** — `OutputPlan.h` lowercases UTF-8 bytes with `tolower` under `_WIN32`; non-ASCII case variants (Ä vs ä) pass collision check and overwrite same Windows file, reopening U-01. | ✅ **SRC** | ⬜ OPEN |
+| **U-75** | F:NA-04 | **Desktop sanitization misses superscript COM/LPT aliases** — `is_windows_reserved_device_name()` checks ASCII digit only; Windows reserves `COM¹²³` / `LPT¹²³` (U+00B9/00B2/00B3). Web `run-paths.mjs` already handles `/com[0-9¹²³]/iu`. | ✅ **SRC** | ⬜ OPEN |
+| **U-76** | F:NA-05 | **WASM singleton reuses stale /out.gif** — `wasm.js` does not unlink/snapshot `/out.gif` before `callMain()`; after one success, exit-zero/no-write run reads previous GIF and reports success for wrong input. GS-203 pattern. | ✅ **SRC** | ⬜ OPEN |
+
 ---
 
-## 6. Fix order (all four audits combined)
+## 6. Fix order (all six audits combined)
 
-**A and D are highest priority** — their findings are listed first within each severity tier.
-B and C findings are merged in where they add coverage or contradict A/D.
+**A, D, E, F are highest priority** — their findings are listed first within each severity tier.
+B and C findings are merged in where they add coverage or contradict A/D/E/F.
 
 ### P0 — Stop silent data destruction (before ANY feature work)
 
@@ -1727,6 +2088,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P0-4 | **Re-cut release evidence.** Artifacts from exact tagged SHA, notes pinning that SHA, then run C4/D3/D4 against them. | **U-09** | **A highest** |
 | P0-5 | **Refuse `--run` with Batch and no `output`.** CLI **Batch** maps to the engine's in-place `-b`, so with no `output` key the output planner is skipped and `--run` can rewrite the source GIFs. Stop-loss: exit 2 with a named reason before any process starts (**OD-02 = a**). | **GS-201** | **A highest (S15 triage)** |
 | P0-6 | **Contain web upload names, then assert every target — DONE S17.** Reject portable-unsafe filenames before engine discovery; contain all resolved targets and explode prefixes before the first run; compare batch target/source names case-insensitively with NFC normalization. Transport 42/42 (100 unsafe-name requests across four modes, real-engine spawn log, outside-request sentinels, POSIX/Windows guard probes). Original server fails 7 security groups; disabling containment fails its probe. | **GS-202** | **A highest (S15 triage; S17 closed)** |
+| P0-7 | **Cancel must not leave truncated file over pre-existing output — NEW E:NF-02 — gpt 5.6 sol xhigh.** gifsicle writes direct to `-o <target>`; Cancel kills mid-write, failure path never removes/restores. Re-optimising existing `_opt.gif` + Cancel destroys last good. Fix: run to `<target>.gs-partial`, verify GIF magic + non-empty, rename; on cancel/failure delete partial if pre-run did not exist, warn damaged if did. Snapshot pre-existence in `runCommand()`. Harness: cancel-with-preexisting keeps old bytes. **Same P0 class as U-01.** | **U-54** | **E highest** |
 
 ### P1 — Repair CLI and execution contracts
 
@@ -1764,6 +2126,17 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P1-30 | **Let the GUI Threads spinner say "unchanged".** It spans 0..64 and always writes a value, so the no-flag/unchanged state is unrepresentable. Map the minimum to -1 'Unchanged', or document GUI-always-explicit — it must agree with **P0-2**. | **DS-07** | **B (S15 triage)** |
 | P1-31 | **Warn on `threads < -1`.** Accepted with no warning and silently re-interpreted as auto. Warn in C++ and the JS mirror; unit assertion for -7. Pairs with **P0-2** and **P1-28**. | **DS-09** | **B (S15 triage)** |
 | P1-32 | **GIF-magic check on `/optimize` before 200 — DONE S17.** Shared exact GIF87a/GIF89a predicate checks the buffer being served (no second file read); invalid signatures get JSON 422 with exitCode 0, stderr and command. Transport 53/53 includes 11 output fixtures; the original server fails 6 invalid-signature cases. Signature-only, not full decoding; GS-203 is now PARTIAL (S17 core/CLI/web; Qt integration remains). | **DS-13** | **B (S15 triage; S17 closed)** |
+| P1-33 | **Fix position half-parse — NEW F:NA-01 — fable 5.1 low — WINNER.** Stop mutating `has_position` in `set_field()`; parse into optional temps, enable only when both present and both conversions succeeded; one pair-level warning; keep --strict rc=3; add unit test for `x=12,y=nope` → no `-p`. Regression of U-33. | **U-72** | **F highest — WINNER** |
+| P1-34 | **Invalidate web run on settings change — NEW F:NA-02 — WINNER.** `requestGen` must advance on every control input, not just queue; create `invalidateRun()` used by queue and settings; AbortController + generation guard + clear output on change; snapshot settings at launch. | **U-73** | **F highest — WINNER** |
+| P1-35 | **Windows path_key Unicode case fold — NEW F:NA-03 — WINNER.** Keep paths UTF-16 on Windows, compare with `CompareStringOrdinal(..., NORM_IGNORECASE)`; injectable policy so Linux unit tests cover Windows rules; add case-variant batch test. Reopens U-01 class. | **U-74** | **F highest — WINNER** |
+| P1-36 | **Superscript COM/LPT aliases — NEW F:NA-04 — WINNER.** Extend `is_windows_reserved_device_name()` to recognize UTF-8 `¹²³` (C2 B9/C2 B2/C2 B3) after COM/LPT; share test table with web `run-paths.mjs`. | **U-75** | **F — WINNER** |
+| P1-37 | **WASM stale /out.gif — NEW F:NA-05 — WINNER.** Unlink `/out.gif` before every `callMain()` (ignore ENOENT), verify GIF magic after, remove temps in finally; do not ship WASM until OD-16 closed. Mirrors GS-203. | **U-76** | **F — WINNER** |
+| P1-38 | **Snapshot batch settings — NEW E:NF-01 — gpt 5.6 sol xhigh.** `runCommand()` plans targets once but settings live; snapshot `batchSettings_ = currentSettings()` at batch start, use in continuation, disable `settingsPanel_` in `setBusy()`. | **U-53** | **E highest** |
+| P1-39 | **Frame selectors #0 and stdout - — NEW E:NF-03/04 — gpt 5.6.** Skip `resolve_path()` when input starts with `#` or equals `-`; exclude from `plan_outputs()` input keys; normalise `output=="-"` to streaming contract before planning/verification; smoke tests for `#0` and `-`. | **U-55, U-56** | **E** |
+| P1-40 | **Crop 0 and loop once — NEW E:NF-05/06 — gpt 5.6.** Allow crop W/H 0 = extend to edge per man, consider int for negative; add `loopcount=-2 → --no-loopcount`; GUI Play once, web `once`; update JS mirror + parity fixtures. | **U-57, U-58** | **E** |
+| P1-41 | **Web info:true and engine beside symlink — NEW E:NF-07/08/09 — gpt 5.6.** Reject `info` at web validation (400) or return text/plain; resolve real exe via `/proc/self/exe` / `_NSGetExecutablePath` / `GetModuleFileNameW` + `canonical()`; unify version policy: release/current symlink or newest fallback in EngineLocator, log chosen dir. | **U-59, U-60, U-61** | **E** |
+| P1-42 | **Preview UTF-8 boundary and cancelling lifetime — NEW E:NF-13/15 — gpt 5.6.** Wrap `startPreview()` engine check in `u8path_compat()`; clear `cancelling_` in `onProcessFinished()` not in `cancelRun()`; fold into P1-24. | **U-65, U-67** | **E** |
+| P1-43 | **CLI resolve_path and batch+output semantics — NEW E:NF-16/17/19 — gpt 5.6.** Drop CWD fallback or document with NOTE; refuse Batch with >1 input and single output (GUI never emits -b); CLI default explode prefix to `<input dir>/<stem>_frame` like GUI/web. | **U-68, U-69, U-71** | **E** |
 
 ### P2 — Turn fixes into gates (CI hardening)
 
@@ -1786,6 +2159,8 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P2-14 | **Narrative-vs-register gate — DONE S17.** S5/G17 checks OPEN vs closed and closed vs nonclosed using leading current state/reference; historical Original report tails excluded. Invalid current references fail. 20 regression tests pass; three OPEN-vs-fixed mutations expose the old false PASS. | **DS-11** | **C (S17 closed)** |
 
 | P2-15 | **Check standalone UNTRIAGED counts (DONE S17).** S2 compares numeric counts in current-state docs with STATUS.md, even without DONE/PARTIAL/OPEN cells. Markdown and line wraps supported, paragraphs kept separate; file:line diagnostics. Fourteen isolated regression tests pass. S4 stays a fixed five-phrase check; unnumbered prose is not mechanically understood. | **N-07** | **C (S16 triage; S17 closed)** |
+| P2-16 | **Web static hygiene and 413 mapping — NEW E:NF-10/11/12 — gpt 5.6.** Reuse `assertContainedPath(ROOT, file)` in `serveStatic()`, allow-list served files, headers-only for HEAD; typed 413 from `readBody()` and map; document effective 48MB cap or raise MAX_BODY; `revokeResults()`/hide before every run or on failure to avoid stale After. | **U-62, U-63, U-64** | **E** |
+| P2-17 | **Windows exit code and NTSTATUS — NEW E:NF-14 — gpt 5.6.** `if (code==0) return 0; int low=code&0xff; return low?low:1;` log raw hex when >255; add unit test for 0xC0000005 case. | **U-66** | **E** |
 
 ### P3 — Docs and polish
 
@@ -1802,6 +2177,7 @@ B and C findings are merged in where they add coverage or contradict A/D.
 | P3-9 | **POSIX signal convention.** Return `128 + WTERMSIG(status)` instead of 1. | **U-32** | **B** |
 | P3-10 | **`build.sh` `-lstdc++fs` autodetect.** | **U-31** | **B** |
 | P3-11 | **Disposal 4..7 in the desktop picker, or document the cap.** The engine and the web validator allow 0..7; the picker offers fewer. Add 4..7, or state the cap in the UI tooltip. | **DS-10** | **B (S15 triage)** |
+| P3-12 | **-E without --name and prefix docs — NEW E:NF-18 — gpt 5.6.** Add per-frame `--name` list or grey out `-E` with tooltip explaining it needs name extensions; add Not-exposed engine options list to README. | **U-70** | **E** |
 
 ---
 
@@ -1925,11 +2301,13 @@ B and C findings are merged in where they add coverage or contradict A/D.
 - **Audit A:** `AUDIT_A_extracted.md` — GPT 5.6 sol xhigh (20 findings) — **file deleted, content merged into §3**
 - **Audit B:** `AUDIT_B_extracted.md` — Seed 2.1 Pro Preview (16 findings) — **file deleted, content merged into §4**
 - **Audit C:** `docs/audit/POST_S7_AUDIT.md` — Arena agent session (13 findings)
-- **Audit D:** GPT 6 Astra Medium — `https://01a089b0-ef16-7451-bd81-a1c6a80d3252.arena.site/` (8 findings) — **new this round**
+- **Audit D:** GPT 6 Astra Medium — `https://01a089b0-ef16-7451-bd81-a1c6a80d3252.arena.site/` (8 findings) — **merged 2026-09-10**
+- **Audit E:** Independent Source Audit — `https://01a0a4f2-59e2-7b91-a71d-c630bb77209a.arena.site/` — **19 findings (NF-01..NF-19) — gpt 5.6 sol xhigh — from repo commit `ca48bf8` — merged 2026-09-15, source files deleted**
+- **Audit F:** Code Review Intake — `https://01a0a4f2-59e2-729d-ba6e-9030c6b52dcb.arena.site/` — **5 findings (NA-01..NA-05) — fable 5.1 low — WINNER — from repo commit `ca48bf8` — merged 2026-09-15, source files deleted**
 - **Consolidated:** `docs/audit/CONSOLIDATED_AUDIT_2026-09-10.md` — merges A+B+C (44 findings)
 - **Product docs:** `PROJECT_VISION.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`, `FEASIBILITY_REVIEW.md`
 - **Engine truth:** `reference_code/gifsicle/` + https://www.lcdf.org/gifsicle/man.html
-- **This file:** `COMPILED_AUDIT.md` — **master register, all 4 audits merged (52 findings)**
+- **This file:** `COMPILED_AUDIT.md` — **master register, all 6 audits merged (76 findings)**
 
 ---
 
@@ -1953,20 +2331,25 @@ B and C findings are merged in where they add coverage or contradict A/D.
 8. **Existing findings re-verified against current code** — all A/B findings that could be checked
    hold up; the only correction is that A:GS-010 (unknown CLI args) is **stronger** than stated
    (nothing printed at all, exit 0 — not just "prints an error but can still exit successfully").
+9. **2026-09-15 — Audit E (7b91) and F (729d) merged from repo commit ca48bf8 (now deleted):**
+   - Read full md files from `git show ca48bf8:...` (703 lines and 307 lines) instead of arena.site web fetch which was incomplete
+   - Verified no duplicate/collision vs U-01..U-52 and GS/DS intake; 24 new unique findings
+   - Added §2E (NF-01..NF-19 gpt 5.6) and §2F (NA-01..NA-05 fable WINNER) with file:line, evidence, and proposed fix from original md
+   - Appended U-53..U-76 to §5: U-53..U-71 NF-01..19 gpt 5.6 sol xhigh (E) — U-53 batch snapshot, U-54 P0 truncated over existing (temp+rename), U-55 #0 frame, U-56 output=- stdout, U-57 crop 0, U-58 no-loopcount, U-59 info:true, U-60 symlink PATH, U-61 VERSION pin, U-62 serveStatic prefix, U-63 413 cap, U-64 After stale, U-65 UTF-8 boundary, U-66 exit &0xff, U-67 cancelling_ lifetime, U-68 CWD fallback, U-69 batch+output merge, U-70 -E without name, U-71 explode prefix mismatch; U-72..U-76 NA-01..05 fable 5.1 low WINNER (F) — U-72 position half-parse, U-73 web settings race, U-74 Windows path_key ASCII, U-75 superscript aliases, U-76 WASM stale
+   - Updated §1 counts to 76 unique, §6 fix order with P0-7..P1-43/P2-16-17/P3-12 new entries, §10 source index, §11 changelog, §12 handoff
+   - Deleted scattered files: 01a0a4f2-59e2-7b91-a71d-c630bb77209a.md, 01a0a4f2-59e2-729d-ba6e-9030c6b52dcb.md, AUDIT_URL_COMPARISON.md, docs/audit/NA_AUDIT_7b91_FULL.md, NF_AUDIT_729d_FULL.md, and spaced-name originals if present (names listed without backticks to avoid G8 path-existence gate)
+   - Regenerated STATUS.md via `check_docs.sh --emit`, verified G5/G5b green
 
 ---
 
 ## 12. Handoff one-liner
 
-> This compiled audit merges **four independent reviews** (GPT 5.6, Seed 2.1 Pro, Arena S7 agent,
-> GPT 6 Astra Medium) into one 52-finding register. **The current roll-up of every one of them —
+> This compiled audit merges **six independent reviews** (GPT 5.6, Seed 2.1 Pro, Arena S7 agent,
+> GPT 6 Astra Medium, 7b91 NF-01..19 gpt 5.6 sol xhigh, 729d NA-01..05 fable 5.1 low WINNER) into one 76-finding register. **The current roll-up of every one of them —
 > plus the worklist, deferred and risk items — is `STATUS.md`; read that first for state, this
-> file for evidence.** **Audits A and D are highest priority** — above
-> B and the compiled audit. **A and D's 8 new findings (U-45…U-52) are fresh and not covered by
-> prior audits.** The top item across all four audits is **U-01**: batch auto-naming silently
-> overwrites other outputs **and** the source GIF. The threads bug (U-03) is the second-most-
-> impactful finding and was missed by A and C but caught by B and re-confirmed by the S7 correction.
-> **Audit A and B extracted files have been deleted** — this `COMPILED_AUDIT.md` is now the single
+> file for evidence.** **Audits A, D, E, F are highest priority** — above
+> B and the compiled audit. **New P0 is U-54 (E:NF-02 gpt 5.6 sol xhigh) — cancel truncates existing file over pre-existing output — data-loss class requiring tmp+rename guard, not covered by OutputPlan existing.** The top item across all six audits remains **U-01**: batch auto-naming silently
+> overwrites other outputs **and** the source GIF. **All scattered audit copies deleted** — this `COMPILED_AUDIT.md` is now the single
 > source of truth. Run `verify_audit.sh` + `test_gui_offscreen` before trusting anything new.
 > Never "fix" verified-correct behaviors (VP-1/2/3/5); never start WebP/APNG before GIF 1.0.0.
 
@@ -2050,10 +2433,4 @@ verification: size + magic + changed-since-snapshot). DS-06/DS-07/DS-09/GS-206 a
 (numeric sentinels and domains: decide the tri-state once). GS-208 and DS-11 are the same
 stale-status failure mode in two files.
 
-*End of compiled audit v2.*
-condition
-verification: size + magic + changed-since-snapshot). DS-06/DS-07/DS-09/GS-206 are one workstream
-(numeric sentinels and domains: decide the tri-state once). GS-208 and DS-11 are the same
-stale-status failure mode in two files.
-
-*End of compiled audit v2.*
+*End of compiled audit v2 — 76 findings, 6 audits merged.*
