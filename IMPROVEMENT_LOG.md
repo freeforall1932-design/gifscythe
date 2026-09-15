@@ -47,8 +47,14 @@ fix-order row **P2-16** — are untouched.
 
 **Left:** execute `COMPILED_AUDIT.md` §19 in a tooled session (re-prove every
 fixed row, failing-test-first, the new-pit pairings); close U-67/U-69; the
-engine-gated transport re-run for U-68. No PR opened — the owner asked to start a
-task rather than open a PR for md-only edits. Branch
+engine-gated transport re-run for U-68; wire `body-limit.test.mjs` into CI
+(`build.yml` needs `workflows` scope + has a byte-identical twin copy;
+`verify_audit.sh` needs a `DOC_GATE_CHECKS` bump for a new W-gate). The owner
+approved opening the PR after this entry was first written, so it is now open
+from branch `audit/compiled-v3-consolidation`. This session also completed the
+**PR #25 doc sync** that `034ad65` had landed without (ledger row + the
+`Docs synced through:` line moved to #25 + the S21 header), which is what
+`pr_preflight.sh --online` step **P6** requires before merge. Branch
 `audit/compiled-v3-consolidation`.
 
 **Verified:**
