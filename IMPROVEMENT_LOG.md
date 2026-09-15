@@ -4,6 +4,77 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S21 — COMPILED_AUDIT v3 consolidation + U-68/NF-11 oversized-body 413 (2026-09-15)
+
+**Changed:**
+
+- Docs — `COMPILED_AUDIT.md` → **v3**. The owner pointed at the closed branch
+  `codebase-review-and-fix-implementation-b8d7e` (it still carries
+  `AUDIT_A_extracted.md` / `AUDIT_B_extracted.md`) and asked whether the
+  compilation was missing anything. Checked ID-by-ID and body-by-body: all 36
+  A+B findings and all 24 E+F findings were already present and faithful, so the
+  register stayed 76. What v2 had *dropped* was non-finding content, recovered
+  here — **§15** the VP-1..VP-5 + false-positive guardrails (§12 cited
+  "VP-1/2/3/5" but v2 never defined them), **§16** Audit A/B positives + method +
+  fix-order rationale, **§17** intake E/F verdicts + delivery paths + the 19
+  regression cases, **§18** the merge-completeness checklist, **§19** the
+  next-session review ask. The two scattered root intake copies were folded in
+  and removed (one was actively failing gate **G17/S2** on a stale tally); their
+  text survives in git history at `c4f9e1c`.
+- Code — one task, the highest-confidence one this sandbox can actually prove:
+  **U-68 / NF-11**. An oversized HTTP body answered `400 "bad JSON request body"`
+  on `/run` and `500` on `/optimize` instead of `413`. In `web/server.mjs`,
+  `readBody` now rejects with a typed `BodyTooLargeError` (`statusCode 413`) and
+  stops accumulating without destroying the socket; both handlers map that tag to
+  a real `413` via `sendTooLarge` (destroy-after-flush), kept distinct from a
+  `400` parse error; `GS_MAX_BODY` injects the limit for tests; the 64 MB
+  envelope ≈ 48 MB effective decoded GIF is documented at the constant.
+
+**Why this task:** the sandbox has **no compiler** (node v20.20.2 / python3 / git
+only — no gcc/g++/cmake/Qt6/mingw/wine/emcc), so every C++/CLI/Qt/Windows/wasm
+finding is unprovable here and the existing web suites cannot run (command and
+validate spawn the C++ CLI; transport needs a discoverable engine; glue needs
+emcc). U-68 is HTTP-transport-only — the desktop has no HTTP server, so there is
+**no C++ parity mirror to diverge from** — and `/run` reads the body before
+`findEngine()`, so the 413 is provable with no engine present.
+
+**Partial:** U-68 is **PARTIAL**, not DONE. The 413 mapping is executed-proven
+for both endpoints, but the full `web/test/transport.test.mjs` no-regression
+re-run is engine-gated (no gifsicle buildable here), and the numeric cap is
+documented rather than changed (the owner may want a deliberate value). U-67
+(`serveStatic` hygiene) and U-69 (stale After image) — the other two thirds of
+fix-order row **P2-16** — are untouched.
+
+**Left:** execute `COMPILED_AUDIT.md` §19 in a tooled session (re-prove every
+fixed row, failing-test-first, the new-pit pairings); close U-67/U-69; the
+engine-gated transport re-run for U-68. No PR opened — the owner asked to start a
+task rather than open a PR for md-only edits. Branch
+`audit/compiled-v3-consolidation`.
+
+**Verified:**
+
+- `web/test/body-limit.test.mjs` **8/8, red to green**: stashing the `server.mjs`
+  fix reproduces `/run 400` and `/optimize 500` where 413 is expected, while the
+  4 control cases still pass (so the test isolates the bug instead of passing
+  vacuously); restoring the fix turns all 8 green. No real engine was used —
+  `/run` is pre-discovery, and `/optimize` reaches `readBody` through an inert
+  `GS_ENGINE` stub (`process.execPath`) that is never executed because the
+  oversize rejection precedes `run()`.
+- `check_docs.sh` 23/0 after `--emit` regenerated `STATUS.md` (89 DONE · 8
+  PARTIAL · 49 OPEN · 0 UNTRIAGED · 146 total); `sweep_stale.sh` green. The
+  consolidation also cleared the G17/S2 failure that was live on `main`.
+
+**Not verifiable here:** the full transport and parity suites, every
+C++/Qt/Windows/wasm row, the `/optimize` 413 against a *real* engine, and whether
+the cap value should change — no compiler, no engine, no Qt, no Windows, no emcc.
+
+**Docs touched:** `COMPILED_AUDIT.md` (v3 — new §15–§19; §5 U-68; §2F F-11;
+§6 P2-16; §10; §11; §12), `STATUS.md` (re-emitted), `SESSION_HANDOFF.md` (S21
+section + tally), `docs/planning/NEXT_SESSION_PROMPT.md` (§19 ask),
+`web/server.mjs`, `web/test/body-limit.test.mjs` (new).
+
+---
+
 ## S20 — Windows-only product, Linux demoted to test rig (2026-09-14)
 
 **Changed:**
