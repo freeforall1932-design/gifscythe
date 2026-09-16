@@ -97,8 +97,13 @@ groups, `web/test/command.test.mjs`, `web/test/validate.test.mjs` (with the new
 `expect:` mechanism so two empty lists can no longer pass as parity),
 `web/test/transport.test.mjs` (69 PASS lines), `web/test/static-hygiene.test.mjs`
 (48 — the same number `verify_audit.sh` **W5** reports), `web/test/body-limit.test.mjs`
-all green: eight suites, and CI runs all eight. `scripts/check_docs.sh` green;
-`scripts/verify_audit.sh` **29 passed / 0 failed / 6 skipped** in this sandbox (the skips
+all green. The three new suites are then wired into the linux CI job's web step
+(and the `docs/ci/build.yml.proposed` copy, kept in step the way #28 left it) and
+into `verify_audit.sh` as **W6** (18 PASS lines), so CI runs all eight — a web
+regression no gate executes is not a regression test, which is the exact finding
+#28 had just closed for its own two suites, and the reason this batch did not
+leave its own three as repo-only files. `scripts/check_docs.sh` green;
+`scripts/verify_audit.sh` **30 passed / 0 failed / 6 skipped** in this sandbox (the skips
 are Qt/CMake, clean-Windows and the declared workflow item). Engine probes for every claim
 quoted above were run on the bundled 1.96 build.
 

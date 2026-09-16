@@ -68,8 +68,16 @@ From `working_code/gifscythe/`:
 cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON
 cmake --build build-cmake -j2
 QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen   # -> 0 failures
-# Web app parity harness (must still mirror the core command layer):
+# Web app parity + regression harnesses (must still mirror the core command
+# layer). All eight also run in the linux CI job and in verify_audit.sh W1-W6:
 node ../../web/test/command.test.mjs                         # -> ALL PASSED
+node ../../web/test/validate.test.mjs                        # -> ALL PASSED
+node ../../web/test/transport.test.mjs                       # -> ALL PASSED
+node ../../web/test/body-limit.test.mjs                      # -> all cases passed
+node ../../web/test/static-hygiene.test.mjs                  # -> all cases passed
+node ../../web/test/request-guard.test.mjs                   # -> all cases passed
+node ../../web/test/device-names.test.mjs                    # -> 27 rows vs the shared table
+node ../../web/test/server-bounds.test.mjs                   # -> 5 groups
 ```
 
 Expected counts as of S23 (2026-09-16, measured after the PR #28 merge): unit suite
@@ -81,8 +89,8 @@ source sites, which is a different quantity)*, smoke **54/54**, web-node suites
 (PASS lines as run) **24 + 33 + 69 + 48 + 8 + 13 + 27 + 5** — command,
 validate, transport, static-hygiene, body-limit, request-guard, device-names,
 server-bounds, `verify_audit.sh` **30 PASS / 0 FAIL / 3 SKIP, exit 0**
-(at the last full-toolchain checkpoint; **29 PASS / 0 FAIL / 6 SKIP** re-measured
-in the S23 sandbox, which has no Qt)
+(at the last full-toolchain checkpoint; **30 PASS / 0 FAIL / 6 SKIP** re-measured
+in the S23 sandbox, which has no Qt — S23 added **W6** for its three web suites)
 (skips are the declared-pending workflow change and the CI-gated + clean-Windows
 items; a toolchain-less sandbox additionally skips C6/C7*/C9/B). If a count changed,
 update the docs in the same PR — stale counts are treated as a finding, and

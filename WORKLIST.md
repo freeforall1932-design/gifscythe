@@ -183,7 +183,10 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       web regressions; skips: E9 declared-pending workflow, CI-gated,
       clean-Windows; measured in the last full-toolchain checkpoint plus the
       S22 Node-web additions — a toolchain-less sandbox skips C6/C7*/C9/B as
-      well; S11 added gate C9, the cmake source-tree-purity check for U-15)
+      well; S11 added gate C9, the cmake source-tree-purity check for U-15).
+      **S23 added W6** for its own three web suites, which is why the S23 sandbox
+      reports **30 PASS / 0 FAIL / 6 SKIP** (that is 31 at the next full-toolchain
+      run: this box loses C6/C7*/C9/B, W6 adds one)
 - [x] **Documentation gate** (NEW S9) — `scripts/check_docs.sh` emits and
       enforces `STATUS.md`; wired into `verify_audit.sh` as **F1/F2**, into CI
       (pending — see `docs/ci/PENDING_WORKFLOW_CHANGE.md`) and into
@@ -470,7 +473,8 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 Chosen by *sandbox capability*, not by severity: every row here is provable with
 g++ + node on Linux, because this box has no cmake, Qt6, mingw, Wine, emscripten
 or package network. The list was built by reading `STATUS.md`, then measuring the
-sandbox (engine + CLI + unit + smoke + all five web suites green before any edit).
+sandbox (engine + CLI + unit + smoke + the five web suites then present, green,
+before any edit — eight after S23 added three)
 
 - [x] **P0-2** threads tri-state; **P1-28** int-width parsing + validation domains;
       **P1-40 (loop half)** `loopcount = -2` → `--no-loopcount` (C++, JS mirror, the

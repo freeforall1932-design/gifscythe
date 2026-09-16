@@ -48,6 +48,9 @@ jobs:
           node web/test/transport.test.mjs
           node web/test/body-limit.test.mjs
           node web/test/static-hygiene.test.mjs
+          node web/test/request-guard.test.mjs
+          node web/test/device-names.test.mjs
+          node web/test/server-bounds.test.mjs
 
       - name: GUI offscreen tests (COMPILED_AUDIT 6.B harness)
         timeout-minutes: 12
