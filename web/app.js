@@ -10,6 +10,7 @@
 // template controls stay desktop-only (documented in web/README.md).
 
 import { buildArgs, shellQuote } from "./command.mjs";
+import { createRequestGuard } from "./request-guard.mjs";
 
 const $ = (id) => document.getElementById(id);
 
@@ -20,9 +21,12 @@ let currentFiles = [];
 // rendered result.
 let beforeUrl = null;
 let resultUrls = [];
-// Request ownership (audit U-46): a generation counter makes a stale
-// completion a no-op when the queue changed while a run was in flight.
-let requestGen = 0;
+// Request ownership (audit U-46, extended by U-54 / P1-34): the rule is a pure
+// module — web/request-guard.mjs — so it is testable without a DOM, and it now
+// invalidates on SETTINGS changes as well as queue changes. A stale completion is
+// a no-op, AND the stale result is taken off screen rather than left under the
+// new settings (that second half is U-69's complaint about the failure path).
+const guard = createRequestGuard();
 
 // QFileInfo::completeBaseName parity with the server (<stem>_opt.gif naming).
 const stemOf = (name) => {
@@ -51,7 +55,10 @@ function settings() {
     // both axes to the same factor — a parity gap the desktop never had.
     scale_x: Number($("scalePctX").value) / 100,
     scale_y: Number($("scalePctY").value) / 100,
-    loopcount: loop === "keep" ? -1 : loop === "forever" ? 0 : Number($("loopN").value),
+    // -2 is the "play once" sentinel (U-63 / P1-40): the engine expresses it by
+    // ABSENTING the loop extension, which no count value can do.
+    loopcount: loop === "keep" ? -1 : loop === "forever" ? 0
+      : loop === "once" ? -2 : Number($("loopN").value),
     delay_cs: $("delayOn").checked ? Number($("delay").value) : -1,
   };
 }
@@ -124,14 +131,22 @@ function revokeResults() {
   resultUrls = [];
 }
 
-function onQueueChanged() {
-  requestGen += 1;               // U-46: anything in flight is now stale
+// Take the previous run's results off screen. Used by the queue change, by a
+// settings change (U-54) and by a failed run (U-69) — three names for one rule:
+// what is displayed must belong to the settings that are displayed.
+function clearResults(statusText) {
+  guard.invalidate();            // aborts the fetch; every in-flight result is stale
   revokeResults();
   $("outputs").hidden = true;
   $("outputList").textContent = "";
   $("after").removeAttribute("src");
   $("after").alt = "—";
   $("savings").textContent = "";
+  if (statusText !== undefined) $("status").textContent = statusText;
+}
+
+function onQueueChanged() {
+  clearResults();                // U-46: anything in flight is now stale
   renderFileList();
   // Before preview = first queued file (U-52: revoke the previous URL).
   if (beforeUrl) { URL.revokeObjectURL(beforeUrl); beforeUrl = null; }
@@ -183,7 +198,16 @@ function addFiles(list) {
 // controls -> live pane
 for (const id of ["mode", "explodeByName", "optimize", "lossy", "colors", "colorsOn",
   "dither", "resize", "w", "h", "scalePctX", "scalePctY", "loop", "loopN", "delay", "delayOn"]) {
-  $(id).addEventListener("input", refreshCommand);
+  // U-54 / P1-34: a control change invalidates the run in flight AND clears the
+  // result it already showed. Before this, the After image on screen could have
+  // been produced by settings that were no longer in the form — the page looked
+  // like a successful run with the new numbers.
+  $(id).addEventListener("input", () => {
+    // `guard.busy` only decides the wording: the result is stale either way, but
+    // "discarded" is only true if a run was actually mid-flight.
+    clearResults(guard.busy ? "Settings changed — in-flight result discarded." : undefined);
+    refreshCommand();
+  });
   $(id).addEventListener("change", () => { updateControlState(); refreshCommand(); });
 }
 
@@ -218,7 +242,9 @@ $("run").addEventListener("click", async () => {
   run.disabled = true;
   const s = settings();
   $("status").textContent = `Running (${s.mode})…`;
-  const gen = requestGen;               // U-46: which queue this run belongs to
+  // The settings are SNAPSHOT here and never re-read: this run's result belongs
+  // to these values, and a control moved afterwards invalidates the token below.
+  const token = guard.begin(s);
   try {
     const payload = {
       settings: s,
@@ -227,19 +253,24 @@ $("run").addEventListener("click", async () => {
     for (const f of currentFiles) {
       payload.files.push({ name: f.name, data: bufToBase64(await f.arrayBuffer()) });
     }
-    if (gen !== requestGen) return;     // queue changed while reading files
+    if (!guard.isCurrent(token)) return;   // queue or settings changed while reading files
     const resp = await fetch("/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      signal: token.signal,               // invalidate() aborts the request itself
     });
-    if (gen !== requestGen) return;     // ...and again after the response
+    if (!guard.isCurrent(token)) return;   // ...and again after the response
     const body = await resp.json().catch(() => null);
-    if (gen !== requestGen) return;
+    if (!guard.isCurrent(token)) return;
     if (!resp.ok || !body || !body.ok) {
       const issues = body && Array.isArray(body.issues) && body.issues.length
         ? body.issues.map((i) => `${i.field}=${i.value}: ${i.reason}`).join("; ")
         : "";
+      // U-69 / P2-16: a failed run must not leave the PREVIOUS success on screen
+      // under a "Failed" line — the After image, the output list and the size
+      // summary all belong to a run that is no longer the current one.
+      clearResults();
       $("status").textContent =
         `Failed — ${body ? (issues || body.error || body.stderr || ("HTTP " + resp.status)) : ("HTTP " + resp.status)}`;
       run.disabled = false;
@@ -278,10 +309,14 @@ $("run").addEventListener("click", async () => {
     }
     $("status").textContent = `Done (${body.mode}).`;
   } catch (e) {
-    if (gen !== requestGen) return;     // U-46: do not report a stale failure
+    if (!guard.isCurrent(token)) return;  // do not report a stale failure — the
+                                          // abort that made it stale already said so
+    if (e && e.name === "AbortError") return;
+    clearResults();
     $("status").textContent = "Failed — " + (e && e.message ? e.message : e);
   } finally {
-    if (gen === requestGen) run.disabled = false;
+    guard.finish(token);
+    if (!guard.busy) run.disabled = false;
   }
 });
 

@@ -38,6 +38,7 @@ import {
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, extname, resolve, dirname, basename } from "node:path";
+import { realpath } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { buildArgs, shellQuote } from "./command.mjs";
 import { validate } from "./validate.mjs";
@@ -62,7 +63,76 @@ const MAX_BODY = (() => {
   const fromEnv = Number(process.env.GS_MAX_BODY);
   return Number.isInteger(fromEnv) && fromEnv > 0 ? fromEnv : 64 * 1024 * 1024;
 })();
-const ENGINE_TIMEOUT_MS = 120_000;
+// The engine-run bound (U-06 / P1-5). It existed as a hard 120 s, which is a
+// long time to hold a socket for a GIF optimizer and impossible to size from a
+// reverse proxy. Now configurable, still on by default; 0 disables it.
+const ENGINE_TIMEOUT_MS = (() => {
+  const fromEnv = Number(process.env.GS_ENGINE_TIMEOUT_MS);
+  return Number.isInteger(fromEnv) && fromEnv >= 0 ? fromEnv : 120_000;
+})();
+
+// ---- U-06 / P1-5: concurrency + per-client request bounds ----
+// The finding was "no auth, no concurrency cap, 64 MB bodies, 120 s engine
+// runs": every accepted request spawned a process and a temp tree, so N clients
+// meant N+1 gifsicles competing for CPU. S8 landed the loopback bind; these are
+// the remaining two bounds.
+//   * at most GS_MAX_CONCURRENT engine runs at once (default 2 — a self-hosted
+//     box is usually doing one job at a time), excess requests queue up to
+//     GS_MAX_QUEUED (default 8) and beyond that get 429 with Retry-After;
+//   * each client address gets GS_RATE_LIMIT_PER_MIN requests per minute
+//     (default 300; 0 disables). Generous on purpose: the transport suite is a
+//     burst of ~70 requests from loopback, and a limit that trips the product's
+//     own test suite is a wrong limit.
+const MAX_CONCURRENT = (() => {
+  const v = Number(process.env.GS_MAX_CONCURRENT);
+  return Number.isInteger(v) && v >= 1 ? v : 2;
+})();
+const MAX_QUEUED = (() => {
+  const v = Number(process.env.GS_MAX_QUEUED);
+  return Number.isInteger(v) && v >= 0 ? v : 8;
+})();
+const RATE_LIMIT_PER_MIN = (() => {
+  const v = Number(process.env.GS_RATE_LIMIT_PER_MIN);
+  return Number.isInteger(v) && v >= 0 ? v : 300;
+})();
+
+const engineSlots = { running: 0, waiters: [] };
+
+function acquireEngineSlot() {
+  if (engineSlots.running < MAX_CONCURRENT) {
+    engineSlots.running += 1;
+    return Promise.resolve(true);
+  }
+  if (engineSlots.waiters.length >= MAX_QUEUED) return Promise.resolve(false);
+  return new Promise((done) => {
+    engineSlots.waiters.push(() => { engineSlots.running += 1; done(true); });
+  });
+}
+
+function releaseEngineSlot() {
+  engineSlots.running -= 1;
+  const next = engineSlots.waiters.shift();
+  if (next) next();
+}
+
+const requestWindow = new Map();   // address -> [timestamps]
+
+function rateLimited(addr, now = Date.now()) {
+  if (!RATE_LIMIT_PER_MIN) return false;
+  const hits = (requestWindow.get(addr) || []).filter((t) => now - t < 60_000);
+  if (hits.length >= RATE_LIMIT_PER_MIN) {
+    requestWindow.set(addr, hits);
+    return true;
+  }
+  hits.push(now);
+  requestWindow.set(addr, hits);
+  return false;
+}
+
+// Test seam: the window has to be resettable, or a rate-limit case would make
+// every later case in the same process a 429.
+export function resetRateLimit() { requestWindow.clear(); }
+
 const INFO_UNSUPPORTED = "info=true is not supported by the web API; use the CLI for --info text output";
 
 const MIME = {
@@ -97,6 +167,15 @@ async function findEngine() {
       `GS_ENGINE override is not an executable regular file: ${JSON.stringify(override)}; refusing automatic fallback` };
   }
   const rel = join(PRODUCT, "release");
+  // U-66: `release/current` is the shared pin both surfaces honour FIRST, so a
+  // VERSION.md bump cannot leave the desktop looking for a directory the web
+  // server has already moved past. Mirrors GS_ENGINE_CURRENT in EngineLocator.h.
+  for (const name of ["gifsicle", "gifsicle.exe"]) {
+    const pinned = join(rel, "current", name);
+    if (await isExecutableFile(pinned)) {
+      return { path: await realpath(pinned).catch(() => pinned), source: "release/current", error: null };
+    }
+  }
   let versions = [];
   try { versions = await readdir(rel); } catch { versions = []; }
   // U-26: a lexicographic sort ranks 0.9.0 above 0.10.0. Compare numerically
@@ -177,6 +256,17 @@ function readBody(req, limit) {
   });
 }
 
+// U-06 / P1-5: back-pressure is a status code, not a hang. A caller that cannot
+// be queued gets 429 + Retry-After so a proxy or script can back off.
+function sendTooMany(req, res) {
+  sendJson(res, 429, {
+    ok: false,
+    error: `too many engine runs in flight (cap ${MAX_CONCURRENT}, queue ${MAX_QUEUED}); retry later`,
+    retryAfterMs: 250,
+  });
+  res.once("finish", () => { /* keep the socket; the caller may retry on it */ });
+}
+
 // Write the 413 and only then close the socket, so the status actually reaches
 // the client instead of being cut off mid-flight.
 function sendTooLarge(res, req, limit) {
@@ -200,6 +290,10 @@ const STATIC_FILES = new Map([
   ["/style.css", "style.css"],
   ["/app.js", "app.js"],
   ["/command.mjs", "command.mjs"],
+  // U-54 / P1-34: app.js imports this module, so it MUST be routable — an
+  // allow-list that lags the UI's import list breaks the shipped page with a
+  // 404 on module load. static-hygiene.test.mjs now asserts the two lists agree.
+  ["/request-guard.mjs", "request-guard.mjs"],
 ]);
 
 const STATIC_NOT_FOUND = Buffer.from("not found");
@@ -298,6 +392,11 @@ async function handleOptimize(req, res, url) {
   }
 
   const engine = resolution.path;
+  // U-06 / P1-5: the bounded resource is the ENGINE RUN, so the slot is taken
+  // here — after validation (a refused request must not consume capacity) and
+  // before the temp tree exists.
+  if (!(await acquireEngineSlot())) { sendTooMany(req, res); return; }
+  let slotHeld = true;
   const dir = await mkdtemp(join(tmpdir(), "gsweb-"));
   try {
     const body = await readBody(req, MAX_BODY);
@@ -355,6 +454,7 @@ async function handleOptimize(req, res, url) {
     res.writeHead(500, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: false, error: String(err && err.message ? err.message : err) }));
   } finally {
+    if (slotHeld) { releaseEngineSlot(); slotHeld = false; }
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
 }
@@ -520,6 +620,10 @@ async function handleRun(req, res) {
   }
 
   const engine = resolution.path;
+  // U-06 / P1-5: one gifscyle at a time, per server, past the cap a caller is
+  // told to come back rather than queued onto an unbounded heap.
+  if (!(await acquireEngineSlot())) { sendTooMany(req, res); return; }
+  let slotHeld = true;
   const dir = await mkdtemp(join(tmpdir(), "gsweb-"));
   try {
     // ---- plan + refuse BEFORE anything runs (desktop batch parity, U-01) ----
@@ -667,6 +771,7 @@ async function handleRun(req, res) {
   } catch (err) {
     sendJson(res, 500, { ok: false, error: String(err && err.message ? err.message : err) });
   } finally {
+    if (slotHeld) { releaseEngineSlot(); slotHeld = false; }
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
 }
@@ -677,6 +782,24 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" || req.method === "HEAD") {
       await serveStatic(req, res, url.pathname);
       return;
+    }
+    if (req.method === "POST") {
+      // U-06 / P1-5: a per-client bound on the endpoints that cost anything.
+      // Static is exempt — a page load is several GETs by design.
+      if (rateLimited(req.socket?.remoteAddress || "unknown")) {
+        res.writeHead(429, {
+          "Content-Type": "application/json",
+          "Retry-After": "1",
+          "Content-Length": 0,
+        });
+        res.end();
+        return;
+      }
+      if (url.pathname !== "/optimize" && url.pathname !== "/run") {
+        res.writeHead(405, { "Content-Type": "text/plain" });
+        res.end("method not allowed");
+        return;
+      }
     }
     if (req.method === "POST" && url.pathname === "/optimize") {
       await handleOptimize(req, res, url);

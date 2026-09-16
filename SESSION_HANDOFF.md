@@ -5,7 +5,8 @@
 **PR #27 merged as `6cd7c7b`** (2026-09-15, reviewed from history in S22); PR #26 merged as `d1d7939` (2026-09-15, reviewed from history in S22); PR #25 merged as `034ad65` (2026-09-15, reviewed earlier in S21); PR #24 merged as `dcb9279` (2026-09-14).
 This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written here: a session cannot know it at write time,
 and guessing it is how stale claims get born.
-**Docs synced through:** PR #27 · branch `audit/u67-serve-static-allowlist` · merged as `6cd7c7b`
+**Docs synced through:** PR #28 · branch `arena/01a0a5bc-gifscythe` · merged as `794a996`
+(reviewed here in S23, which wrote up #28 and then replayed this batch onto it)
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares
 this against the newest merged PR and fails when a merge landed with no doc sync — that is the
 "we jumped a merge without updating any docs" case. Move this line as part of the sync, never
@@ -89,7 +90,7 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 
 | #26 | S21 | `audit/compiled-v3-consolidation` | `d1d7939` | Merged 2026-09-15; reviewed from history in S22: `COMPILED_AUDIT.md` → v3 (recovered §15 VP/false-positive guardrails, §16 Audit A/B non-finding sections, §17 intake E/F prose + 19 regression cases; added §18 merge checklist, §19 next-session review ask; folded in + removed the two scattered root intake copies, clearing the live G17/S2 failure) **+ the U-68/NF-11 code fix** (oversized body → 413; `web/server.mjs` + new `web/test/body-limit.test.mjs`, 8/8 red→green, no engine needed) **+ the PR #25 doc sync** P6 required. Register unchanged at 76; U-68 OPEN→PARTIAL |
 | #27 | S21 | `audit/u67-serve-static-allowlist` | `6cd7c7b` | Merged 2026-09-15; reviewed from history in S22: measured U-67/NF-10 before fixing it, narrowed the finding to the over-exposure that actually reproduced, then landed the static allow-list + explicit HEAD/static contract in `web/server.mjs`, added `web/test/static-hygiene.test.mjs` (43/43), updated `web/wasm/README.md`, and synced docs through the PR #26 merge. |
-| #28 | S22 | `arena/01a0a5bc-gifscythe` | **open** | Opened 2026-09-16 from this Arena branch: ports the PR #27 web files + wires W4/W5 into CI / `verify_audit.sh`, then closes U-53, U-60, U-61, U-62, U-64 and DS-09 with test-first C++/web fixes; P1-40 and P1-41 remain partial because U-63/U-65/U-66 stay open. |
+| #28 | S22 | `arena/01a0a5bc-gifscythe` | `794a996` | Merged 2026-09-16; reviewed in S23 before this branch replayed onto it (see that section's "How the two PRs actually met"): ports the PR #27 web files + wires W4/W5 into CI / `verify_audit.sh`, then closes U-53, U-60, U-61, U-62, U-64 and DS-09 with test-first C++/web fixes; P1-40 and P1-41 remain partial because U-63/U-65/U-66 stay open. |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
@@ -105,6 +106,67 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**, and
 `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing branch names
 alone would have passed straight through both skipped syncs.
+
+## S23 — Tier-1 batch: settings model, CLI honesty, web bounds + request ownership (2026-09-16)
+
+- **What shipped** (P0-2, P1-5, P1-13, P1-28, P1-34, P1-36, P1-40 loop half,
+  P1-41 U-65/U-66 halves, P1-43, P2-16, P3-5, P3-12):
+  **P0-2** threads tri-state · **P1-28** int-width parsing + the missing validation
+  domains · **P1-40 (loop half)** `--no-loopcount` via `loopcount = -2` ·
+  **P1-13** settings values round-trip exactly · **P1-43** `resolve_path` CWD
+  fallback announced + `--strict`-refused, Batch+N→1 output refused, explode
+  prefix name unified · **P3-5** greppable advisory-warning summary ·
+  **P1-41** symlink-safe engine discovery and the shared `release/current` pin ·
+  **P1-5** web concurrency/rate/timeout bounds · **P1-36** superscript device
+  aliases on ONE table shared by both surfaces · **P3-12** the "what we do not
+  model" table · **P1-34/U-69** request ownership as a tested module.
+- **Register after the merge: 110 DONE · 8 PARTIAL · 29 OPEN · 0 UNTRIAGED · 147
+  total.** S23 alone reached 104/9/34 on the pre-#28 base; the five rows PR #28
+  closed (`U-53`, `U-60`, `U-61`, `U-62`, `U-64`) account for the rest.
+- **How the two PRs actually met.** PR #28 was merged as `794a996` while this batch
+  sat unpushed, and the sandbox lost the six S23 commits to a re-clone, so the whole
+  batch was replayed onto the new `main` as one commit and every overlap was resolved
+  by hand rather than stacked:
+  - `main.cpp` keeps **#28's** `is_special_input_token()` / `is_stream_output_token()`
+    (their callers are already merged) plus S23's CWD-tracking resolution; S23's
+    duplicate `gs_is_special_token` is gone. `exe_path_of()` keeps #28's name and
+    S23's body — #28's version only tried argv[0] and the CWD, so a symlink install
+    still missed the engine beside the real binary.
+  - `Validate.h` keeps ONE `threads < -1` rule (S23's, written against
+    `GS_THREADS_UNSET`, whose message #28 had documented as intent), plus S23's
+    loopcount/method domains; #28's crop-`0x0` rule and `INFO_UNSUPPORTED` 400 are
+    kept as shipped.
+  - #28's unit block 21b pinned `threads=-7 → bare -j`, which P0-2 makes wrong.
+    Rather than delete their coverage, the block still warns-checks as before and now
+    builder-checks all three states (`-7` nothing, `-1` nothing, `0` the only `-j`).
+  - #28's §5 edit had reverted `U-67`'s **Finding** text to the pre-measurement
+    wording S21 narrowed; the narrowed text is restored and #28's FIXED (S22)
+    status cell kept. S23's own "PARTIAL, CI wiring left to #28" note is dropped —
+    with #28 merged there is nothing partial left in that row.
+  - `smoke_cli.sh` keeps **both** case sets side by side (12b–12f from #28, 12g–12o
+    from S23) and `WORKLIST.md` now closes **both** DS-08 (S23) and DS-09 (#28).
+    Every count was re-measured on the merged tree: unit **372**, smoke **54/54**
+    (the predicted "~53" was 54), `verify_audit.sh` **28 PASS / 0 FAIL / 6 SKIP** here.
+  - `web/test/validate.test.mjs` keeps #28's `crop 0x0` fixture and one `threads = -7`
+    fixture, plus S23's sentinel/domain fixtures; both crop cases carry explicit
+    `expect: []`, because without it two empty lists pass as parity.
+- **Still open after S23** (all Tier 2/3 by sandbox capability, not by scope):
+  every Qt row (`U-58`, `U-59`/P0-7, `U-70`/`U-72`, GS-205, DS-07, DS-10,
+  GS-210, GS-203/204 remainders) · **P1-35** (U-55, needs a Windows host to verify
+  the case-fold against `CompareStringOrdinal` — a C++-side guess would refuse
+  legal names) · `U-68`'s cap value (documented, deliberately unchanged) ·
+  `U-76`'s directory policy → **OD-18** · CI/gate wiring (P2-7/GS-208, P2-1) and
+  the `workflows`-scoped push, which PR #28 has now proved is possible.
+- **Gotchas learned this session, recorded so the next one does not re-learn them:**
+  `gifsicle` image options must come BEFORE the filename or they apply to nothing
+  (a `--crop` after the file warns "useless crop-related frame option" and exits 0
+  — measured while checking U-62); `--info` prints the file name, so a test that
+  greps its output for "loop" must not name the fixture `loop_once.gif`; a `grep`
+  pattern is not a parser, but a **parity** check that compares two empty lists
+  proves nothing either — which is why `validate.test.mjs` gained explicit
+  `expect:` lists; and `set_field()` re-trims its value, so any decode added to
+  `load_settings()` alone is silently undone (that is how the DS-12 fix first
+  failed its own parity test).
 
 ## S22 — PR #26/#27 review follow-up: automation gap fixed on this branch (2026-09-16)
 
@@ -449,7 +511,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S22 continuation: **96 DONE · 8 PARTIAL · 42 OPEN · 0 UNTRIAGED · 146 total.**
+   `U-nn` row; neither replaces the other. As of S23 (after the PR #28 merge): **110 DONE · 8 PARTIAL · 29 OPEN · 0 UNTRIAGED · 147 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —
@@ -527,7 +589,9 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
      re-synced to the real tip before anything else.
 
 2. **S11 full-toolchain gate baseline (retained; S12 CLI/docs rerun is in
-   the follow-up above):** `./build.sh` **308 checks, 0 failures** ·
+   the follow-up above):** `./build.sh` **296 unit checks / 0 failures at the
+   time** — 372 as of S23 after the PR #28 merge; the shape is spelled this way so
+   G9 cannot read a dated baseline as a current count ·
    `test_engine.sh` **5/5** · `smoke_cli.sh` **14/14** ·
    `test_package.sh` **9/9** · web **17 + 23 + 30** · offscreen harness
    **324 checks, 0 failures** · `check_docs.sh` **21 passed, 0 failed,
@@ -683,7 +747,7 @@ Everything marked ✅ was **run in this sandbox**; ⏳ could not be. Quote the
 
 | Check | Result |
 |---|---|
-| `./build.sh` (engine + CLI + unit tests) | ✅ **308 checks, 0 failures** (current runtime counter in this sandbox after the S22 continuation regressions) |
+| `./build.sh` (engine + CLI + unit tests) | ✅ **372 checks, 0 failures** (runtime counter, re-measured on the merged tree; S23 added the threads/loop/sentinel, validation-domain, shared device-name table and settings-quoting blocks, and re-pinned PR #28's `threads` builder assertion) |
 | `scripts/test_engine.sh` | ✅ 5/5 |
 | `scripts/smoke_cli.sh` | ✅ **14/14** (S11 added the explode-verification + N-05 refusal cases) |
 | `scripts/test_package.sh` (packaging negative suite) | ✅ 9/9 |

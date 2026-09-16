@@ -510,7 +510,7 @@ const gen = requestGen; await fetch("/run", ...); if (gen !== requestGen) return
 ```
 **Repro:** Use delayed engine wrapper (2s), start web run, change optimization/resize/loop/delay before response, observe old response rendered with new controls.
 **Suggested fix:** Create one `invalidateRun()` used by queue and every settings change. Track AbortController, increment generation, clear output on change. Capture immutable settings snapshot at launch.
-**Status:** ⬜ **OPEN** — confirmed by source read; register §5 `U-54`. Extends U-46 (queue-only guard).
+**Status:** ✅ **FIXED (S23)** — resolved; register §5 `U-54`. The ownership counter is now a pure module (`web/request-guard.mjs`) invalidated by every control change, snapshotting the launch-time settings and aborting the fetch; `web/test/request-guard.test.mjs` pins it (13 assertions). Original report: ⬜ **OPEN** — confirmed by source read; extends U-46 (queue-only guard).
 
 ---
 
@@ -547,7 +547,7 @@ if (stem.size() == 4 && (stem.compare(0,3,"com")==0 || stem.compare(0,3,"lpt")==
 ```
 **Repro:** Call `sanitize_output_name()` with Windows rules and COM/LPT + superscript, expect defused.
 **Suggested fix:** Extend matcher to recognize exact UTF-8 sequences for superscript 1,2,3 (C2 B9/C2 B2/C2 B3) or compare decoded Unicode scalars. Share test table with web.
-**Status:** ⬜ **OPEN** — confirmed by source read; register §5 `U-56`.
+**Status:** ✅ **FIXED (S23)** — resolved; register §5 `U-56`. Original report: ⬜ **OPEN** — confirmed by source read; register §5 `U-56`.
 
 ---
 
@@ -649,7 +649,7 @@ void MainWindow::cancelRun() { cancelling_=true; process_->kill(); waitForFinish
 **Finding.** Engine has three states: unchanged, forever (`--loopcount=0`), N, and OFF (`--no-loopcount`, show once). Model only has unchanged/forever/N. Cannot produce non-looping GIF from any surface.
 **Evidence:** `if (s.loopcount == 0) add("--loopcount=0"); else if (>0) ...` // nothing emits --no-loopcount
 **Fix:** Add tri-state+off: e.g. `loopcount = -2` → `--no-loopcount`, GUI item Play once, web `once` option.
-**Status:** ⬜ **OPEN** — register §5 `U-63`.
+**Status:** ✅ **FIXED (S23)** — resolved; register §5 `U-63`. Original report: ⬜ **OPEN** — register §5 `U-63`.
 
 ---
 
@@ -675,7 +675,7 @@ if (fs::exists(p, ec)) return absolute(p, ec); // only if exists relative to CWD
 return p; // bare name -> CWD
 ```
 **Fix:** Resolve real exe: `/proc/self/exe` Linux, `_NSGetExecutablePath` macOS, `GetModuleFileNameW` Windows, then `canonical()`. Smoke: symlinked CLI finds sibling engine.
-**Status:** ⬜ **OPEN** — register §5 `U-65`.
+**Status:** ✅ **FIXED (S23)** — resolved; register §5 `U-65`. Original report: ⬜ **OPEN** — register §5 `U-65`.
 
 ---
 
@@ -685,7 +685,7 @@ return p; // bare name -> CWD
 **Finding.** After editing VERSION.md to 0.2.0, CLI/GUI look only in release/0.2.0/ which does not exist until rebuilt, while web keeps using release/0.1.0/. Two policies for same binary.
 **Evidence:** `candidates.push_back(exe_dir / ".." / "release" / GS_VERSION / base);` vs `versions.sort(...newest first...)`
 **Fix:** Pick one policy: version-independent release/engine/ or release/current symlink + newest fallback in EngineLocator, log chosen dir.
-**Status:** ⬜ **OPEN** — register §5 `U-66`.
+**Status:** ✅ **FIXED (S23)** — resolved; register §5 `U-66`. Original report: ⬜ **OPEN** — register §5 `U-66`.
 
 ---
 
@@ -712,7 +712,7 @@ return p; // bare name -> CWD
 **File:** `web/app.js` — run handler `!resp.ok` branch
 **Finding.** `revokeResults()`/hide #outputs only on success and queue change. Changing setting and re-running to 422 leaves OLD results visible next to new failure — stale-visual of U-47 class on web.
 **Fix:** Call `revokeResults()`, hide #outputs, clear #after before every run or on failure.
-**Status:** ⬜ **OPEN** — register §5 `U-69`.
+**Status:** ✅ **FIXED (S23)** — resolved; register §5 `U-69`. Original report: ⬜ **OPEN** — register §5 `U-69`.
 
 ---
 
@@ -751,7 +751,7 @@ return p; // bare name -> CWD
 **Finding.** Relative input missing next to conf but exists in CWD picked up from CWD. Same conf produces different runs from different dirs — contradicts comment about CWD-independent.
 **Evidence:** `if (exists(candidate)) return candidate; if (exists(path)) return path; // CWD fallback`
 **Fix:** Drop CWD fallback (fail with input not found next to conf) or print NOTE naming resolution.
-**Status:** ⬜ **OPEN** — register §5 `U-73`.
+**Status:** ✅ **FIXED (S23)** — resolved; register §5 `U-73`. Original report: ⬜ **OPEN** — register §5 `U-73`.
 
 ---
 
@@ -760,7 +760,7 @@ return p; // bare name -> CWD
 **File:** `cli/main.cpp` — `plan_outputs(s.inputs, {s.output})` for Batch, `OutputPlan.h` one_target shape
 **Finding.** GS-201 made CLI refuse Batch WITHOUT output. Batch WITH one output and several inputs accepted because `plan_outputs` treats N→1 as legal merge shape. Man page defines `-b` as modify in place, says nothing about `-o` in batch, so CLI allows command whose outcome nobody pinned.
 **Fix:** Refuse Batch with >1 input and single output in CLI (GUI never emits -b, runs per-file Auto). Long term make CLI batch identical to GUI/web batch.
-**Status:** ⬜ **OPEN** — register §5 `U-74`.
+**Status:** ✅ **FIXED (S23)** — resolved; register §5 `U-74`. Original report: ⬜ **OPEN** — register §5 `U-74`.
 
 ---
 
@@ -769,7 +769,7 @@ return p; // bare name -> CWD
 **File:** `GifsicleSettings.h`, `SettingsPanel.h` `explodeByNameCheck_`
 **Finding.** Without `--name` only way `-E` differs from `-e` is input already carries name extensions, so checkbox mostly inert. Gaps relative to ~30 engine-truth controls claim.
 **Fix:** Add per-frame `--name` list or grey out `-E` with tooltip, add Not-exposed list to README.
-**Status:** ⬜ **OPEN** — register §5 `U-75`.
+**Status:** ✅ **FIXED (S23)** — resolved; register §5 `U-75`. Original report: ⬜ **OPEN** — register §5 `U-75`.
 
 ---
 
@@ -779,7 +779,7 @@ return p; // bare name -> CWD
 **Finding.** GUI persists sessions with output cleared. Conf exported from GUI and run by CLI in Explode mode scatters `<basename>.NNN` into CWD, while GUI would write `<dir>/<stem>_frame.NNN` next to input.
 **Evidence:** GUI: `fi.absolutePath()+"/"+fi.completeBaseName()+"_frame"` vs CLI: `first input's basename (CWD)`
 **Fix:** CLI default explode prefix to `<input dir>/<stem>_frame` like GUI/web.
-**Status:** ⬜ **OPEN** — register §5 `U-76`.
+**Status:** ◐ **PARTIAL (S23)** — register §5 `U-76`. The NAME is unified (`<stem>_frame`, under `--run` so print mode and the JS⇄C++ parity stay exact). The DIRECTORY was deliberately NOT moved beside the input as suggested: tried literally, it wrote 12 frames into `reference_code/`. That policy is owner decision `OD-18`. Original report: ⬜ **OPEN** — register §5 `U-76`.
 
 ---
 
@@ -974,7 +974,7 @@ before spawning. Add a small concurrency semaphore, queue limit, output/stderr c
 per-client rate limit. Sandbox the engine and document that the POC is not a deployable
 service.
 
-**Status:** ◐ **PARTIAL (S8)** — loopback default + `GS_WEB_HOST` opt-in landed; the concurrency cap, per-client rate limit, request-size and engine-run bounds named in this finding are still missing — see §13; register §5 `U-06`. Original report: ⬜ **OPEN** — confirmed by execution (C:U-06). `server.mjs:208`:
+**Status:** ✅ **FIXED (S23)** — resolved; register §5 `U-06`. The loopback bind and `GS_WEB_HOST` opt-in landed in S8; the remaining bounds named here — engine-run concurrency, a per-client request window, and a configurable engine timeout — landed with `web/test/server-bounds.test.mjs`. Original report: ◐ **PARTIAL (S8)** — the concurrency cap, per-client rate limit and request-size bound were still missing.
 `server.listen(PORT, "0.0.0.0", ...)`. No auth, no concurrency cap.
 
 ---
@@ -1993,7 +1993,7 @@ Deduplicated across A/B/C/D/E/F. "Src" = which audit(s) raised it.
 | **U-03** | B:BUG-01 · C:F-02 correction | **Threads "Auto" runs single-threaded.** `threads=0` emits no flag; gifsicle default is single-threaded. Real auto is bare `-j` (→ 8 threads). | ✅ **EXEC**+SRC | ✅ FIXED (S8) — bare `-j` for Auto (C++ + JS parity) |
 | **U-04** | A:GS-003 | **CLI `--run` without `output` corrupts its own stdout.** Status text and binary data share stdout. | ✅ **EXEC** | ✅ FIXED (S8) — `--run` commentary moved to stderr |
 | **U-05** | A:GS-004 | **Documented PATH engine fallback is dead code.** `locate_engine()` returns bare `"gifsicle"`; `path_is_executable()` checks CWD, not PATH. | ✅ **EXEC** | ✅ FIXED (S8) — real `find_on_path()`; `""` when not found |
-| **U-06** | A:GS-005 · D:GS-102 | **Web demo binds `0.0.0.0` with no auth, no concurrency cap, 64 MB bodies, 120 s engine runs.** Concurrent requests can race on temp dirs. | ✅ **EXEC** | ◐ PARTIAL (S8) — loopback bind + `GS_WEB_HOST` opt-in landed; the concurrency cap, per-client rate limit and engine-run bound named in the finding are still missing (see §13 intake) |
+| **U-06** | A:GS-005 · D:GS-102 | **Web demo binds `0.0.0.0` with no auth, no concurrency cap, 64 MB bodies, 120 s engine runs.** Concurrent requests can race on temp dirs. | ✅ **EXEC** | ✅ FIXED (S23) — loopback bind (S8) + engine semaphore `GS_MAX_CONCURRENT`/`GS_MAX_QUEUED` + `GS_RATE_LIMIT_PER_MIN` window + configurable `GS_ENGINE_TIMEOUT_MS`; 429 past the cap, refusals cost no capacity |
 | **U-07** | A:GS-006 | **Windows CLI execution is ANSI-only.** `CreateProcessA` + `std::string` cmdline ⇒ non-ASCII paths cannot be passed to the engine. | ✅ **EXEC** (wine 8, mingw 12) | ✅ FIXED (S11) — `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly |
 | **U-08** | A:GS-007 | **License set can ship incomplete, silently.** Root has `LICENSE` + `COPYING.gifsicle` but **no `COPYING`**; every license copy is `if [[ -f ]]`-guarded. | ✅ **EXEC**+SRC | ✅ FIXED (S19) — both packagers stage COPYING.lgplv3 + COPYING.gplv3 + GUI QT_NOTICE.txt; 36 packaging checks; CI manifest asserts the set |
 | **U-09** | A:GS-008 | **Banked Windows snapshot is 5 commits behind the SHA its own notes claim.** Release body pins `d3544b1`; main is `8190c08`. | ✅ **EXEC** | ⬜ OPEN |
@@ -2061,9 +2061,9 @@ Deduplicated across A/B/C/D/E/F. "Src" = which audit(s) raised it.
 | ID | Src | Finding | Verif | Status |
 |----|-----|---------|-------|--------|
 | **U-53** | E:NA-01 | **Position half-parse leaves has_position true with X,0** — `set_field()` sets `has_position=true` on first valid coordinate; `load_settings()` records saw_x/y before parsing success; valid x + invalid y emits `-p 12,0`. Regression of U-33 fix. | ✅ **EXEC** (S22) | ✅ FIXED (S22) — `set_field()` no longer toggles `has_position`; pair enabled only when both keys were seen and both parsed. Proof: `./build.sh` 308/308 + `scripts/smoke_cli.sh` 45/45 with the half-parse/plain-print/strict regressions pinned. |
-| **U-54** | E:NA-02 | **Web settings change does not invalidate in-flight run** — `requestGen` advances on queue change but not on settings input; controls editable while `fetch('/run')` pending; old response accepted while UI shows new settings. Extends U-46. | ✅ **SRC** | ⬜ OPEN |
+| **U-54** | E:NA-02 | **Web settings change does not invalidate in-flight run** — `requestGen` advances on queue change but not on settings input; controls editable while `fetch('/run')` pending; old response accepted while UI shows new settings. Extends U-46. | ✅ **SRC** | ✅ FIXED (S23) — ownership rule extracted to `web/request-guard.mjs`: every control change invalidates + clears, `begin()` snapshots settings, `invalidate()` aborts; 13 assertions in `web/test/request-guard.test.mjs` |
 | **U-55** | E:NA-03 | **Windows path_key folds ASCII only** — `OutputPlan.h` lowercases UTF-8 bytes with `tolower` under `_WIN32`; non-ASCII case variants (Ä vs ä) pass collision check and overwrite same Windows file, reopening U-01. | ✅ **SRC** | ⬜ OPEN |
-| **U-56** | E:NA-04 | **Desktop sanitization misses superscript COM/LPT aliases** — `is_windows_reserved_device_name()` checks ASCII digit only; Windows reserves `COM¹²³` / `LPT¹²³` (U+00B9/00B2/00B3). Web `run-paths.mjs` already handles `/com[0-9¹²³]/iu`. | ✅ **SRC** | ⬜ OPEN |
+| **U-56** | E:NA-04 | **Desktop sanitization misses superscript COM/LPT aliases** — `is_windows_reserved_device_name()` checks ASCII digit only; Windows reserves `COM¹²³` / `LPT¹²³` (U+00B9/00B2/00B3). Web `run-paths.mjs` already handles `/com[0-9¹²³]/iu`. | ✅ **SRC** | ✅ FIXED (S23) — `is_windows_reserved_device_name()` folds U+00B9/B2/B3 after COM/LPT; one shared table `tests/windows_reserved_names.txt` (27 rows) drives the C++ unit case AND `web/test/device-names.test.mjs` |
 | **U-57** | E:NA-05 | **WASM singleton reuses stale /out.gif** — `wasm.js` does not unlink/snapshot `/out.gif` before `callMain()`; after one success, exit-zero/no-write run reads previous GIF and reports success for wrong input. GS-203 pattern. | ✅ **SRC** | ⬜ OPEN |
 
 ### New from Code Review Intake (F) — 01a0a4f2-59e2-729d-ba6e-9030c6b52dcb — fable 5.1 low — WINNER — 19 findings
@@ -2075,20 +2075,20 @@ Deduplicated across A/B/C/D/E/F. "Src" = which audit(s) raised it.
 | **U-60** | F:NF-03 | **CLI resolves `#0` frame selector to bogus path** — `GifsicleSettings.h` documents `#0` as legal input, man page defines it, but `resolve_path()` applied to every `s.inputs` turns `#0` into `/abs/#0` and fails. | ✅ **EXEC** (S22) | ✅ FIXED (S22) — special input tokens (`#...`, `-`) now stay literal through CLI resolution/planning. Proof: `web/test/command.test.mjs` parity fixtures + `scripts/smoke_cli.sh` frame-selector run. |
 | **U-61** | F:NF-04 | **`output = -` treated as file → false failure rc=1** — man page `-o - means stdout`; CLI streams GIF to stdout correctly but `verify_output("-")` reports missing file and returns rc=1. Valid GIF + failure code. | ✅ **EXEC** (S22) | ✅ FIXED (S22) — stream output is now normalized before path resolution, planning, and verification. Proof: `web/test/command.test.mjs` pins `-o -`; `scripts/smoke_cli.sh` compares streamed stdout against the real engine and asserts no literal `-` file. |
 | **U-62** | F:NF-05 | **Validate.h refuses crop W/H 0, engine allows 0=extend to edge** — man `--crop x1,y1+WxH`: width/height can be zero or negative, zero=to edge. Validator rejects 0, unsigned makes negative unrepresentable. | ✅ **EXEC** (S22) | ✅ FIXED (S22) — crop `0x0` now passes native and web validation. Proof: `./build.sh` 308/308, `web/test/validate.test.mjs`, and `scripts/smoke_cli.sh` strict crop regression. |
-| **U-63** | F:NF-06 | **`--no-loopcount` unrepresentable** — engine has unchanged / forever (`0`) / N / OFF (`--no-loopcount` play once). Model only has unchanged/forever/N; cannot produce non-looping GIF. | ✅ **SRC** | ⬜ OPEN |
+| **U-63** | F:NF-06 | **`--no-loopcount` unrepresentable** — engine has unchanged / forever (`0`) / N / OFF (`--no-loopcount` play once). Model only has unchanged/forever/N; cannot produce non-looping GIF. | ✅ **SRC** | ✅ FIXED (S23) — `loopcount = -2` → `--no-loopcount` in C++ + JS mirror + the web Loop control; serialiser guard is `!= unset` so the state survives a round trip; smoke proves the written GIF has no loop extension |
 | **U-64** | F:NF-07 | **`/run` and `/optimize` accept `info:true` then misleading 422** — CLI exempts info from output verification, web does not; `info -o file` writes TEXT, web `verifyOutput` sees no GIF magic and blames engine with exitCode 0. | ✅ **EXEC** (S22) | ✅ FIXED (S22) — web transport now rejects `info:true` with an honest 400 before any GIF verification. Proof: `web/test/transport.test.mjs` exercises both endpoints and asserts `/run` does not spawn the engine. |
-| **U-65** | F:NF-08 | **CLI symlink/PATH loses engine-beside-executable discovery** — `exe_path_of(argv0)` keeps symlink, bare name only resolved if exists in CWD; `ln -s` install into /usr/local/bin breaks sibling engine lookup. | ✅ **SRC** | ⬜ OPEN |
-| **U-66** | F:NF-09 | **Desktop pinned to GS_VERSION while web picks newest** — CLI/GUI look in `release/<GS_VERSION>/`, web `findEngine()` picks newest numeric dir; VERSION bump breaks CLI/GUI while web still works. Two policies. | ✅ **SRC** | ⬜ OPEN |
-| **U-67** | F:NF-10 | **serveStatic raw prefix containment, serves source/tests, HEAD body** — `file.startsWith(ROOT)` hygiene; every file under web/ served; HEAD returns body. `assertContainedPath` exists but not reused. | ✅ **EXEC** (S22) | ✅ FIXED (S22) — allow-list `/`, `/index.html`, `/style.css`, `/app.js`, `/command.mjs`; everything else under `web/` 404; `assertContainedPath()` reused as defence in depth; one `sendStatic()` path pins the HEAD contract with `Content-Length`. Proof: `web/test/static-hygiene.test.mjs` 43/43 red→green, `web/test/transport.test.mjs` 67/67 re-run, and the regression now runs in CI plus `verify_audit.sh` W5. |
+| **U-65** | F:NF-08 | **CLI symlink/PATH loses engine-beside-executable discovery** — `exe_path_of(argv0)` keeps symlink, bare name only resolved if exists in CWD; `ln -s` install into /usr/local/bin breaks sibling engine lookup. | ✅ **SRC** | ✅ FIXED (S23) — `exe_path_of` asks the OS (`/proc/self/exe`, `_NSGetExecutablePath`, `GetModuleFileNameW`), falling back to argv0 → PATH → CWD; smoke 12n runs a symlinked CLI and finds the engine beside the real binary |
+| **U-66** | F:NF-09 | **Desktop pinned to GS_VERSION while web picks newest** — CLI/GUI look in `release/<GS_VERSION>/`, web `findEngine()` picks newest numeric dir; VERSION bump breaks CLI/GUI while web still works. Two policies. | ✅ **SRC** | ✅ FIXED (S23) — `GS_ENGINE_CURRENT` = `release/current` is checked before `release/<GS_VERSION>/` in EngineLocator.h and before newest-numeric in `web/server.mjs`; smoke 12o + a server-bounds startup-log case pin the order |
+| **U-67** | F:NF-10 | **`serveStatic()` served the whole `web/` tree — server source, test suite and docs were world-readable** (narrowed by S21 measurement; two of the three original sub-claims did not survive it — see §2F F-10). Confirmed true: with no allow-list, `GET /server.mjs` returned 26 KB of server source (disclosing the loopback bind and `GS_ENGINE` handling, which matters because `GS_WEB_HOST=0.0.0.0` is a documented opt-in), and `/test/transport.test.mjs` (35 KB), `/run-paths.mjs`, `/validate.mjs`, `/output-verify.mjs`, `/README.md`, `/WEB_PLAN_TEMPLATE.md` and `/wasm/*` were all served. Overstated as filed: the `file.startsWith(ROOT)` prefix check is brittle *hygiene*, not a demonstrated reachable traversal — `new URL()` normalises dot-segments before `serveStatic` sees them, so `/../STATUS.md`, `/../../etc/hostname` and `/../working_code/gifscythe/VERSION.md` already returned 404; `/../server.mjs` returned 200 only because it normalises to `/server.mjs`, which is inside ROOT. False as filed: "HEAD returns a body" does not reproduce — Node suppresses HEAD bodies itself (measured: server wrote 5000 bytes, client received 0). | ✅ **EXEC** (S22) | ✅ FIXED (S22) — allow-list `/`, `/index.html`, `/style.css`, `/app.js`, `/command.mjs`; everything else under `web/` 404; `assertContainedPath()` reused as defence in depth; one `sendStatic()` path pins the HEAD contract with `Content-Length`. Proof: `web/test/static-hygiene.test.mjs` 43/43 red→green, `web/test/transport.test.mjs` 67/67 re-run (again in S23, still green), and the regression now runs in CI plus `verify_audit.sh` W5. |
 | **U-68** | F:NF-11 | **Oversized bodies 400 not 413, /run cap ~48MB not 64MB** — `readBody` rejects generic Error, `handleRun` maps to bad JSON; MAX_BODY applies to JSON envelope, base64 +33% lowers effective upload while README says 64MB. | ✅ **EXEC** (S22) | ◐ PARTIAL (S22) — 413 mapping shipped, re-proven and now automated: `readBody` rejects with a typed `BodyTooLargeError` (413) and stops accumulating without destroying the socket; both handlers map it to a real 413 (`sendTooLarge`, destroy-after-flush) distinct from a 400 parse error; `GS_MAX_BODY` injects the limit for tests. Proof: `web/test/body-limit.test.mjs` 8/8, `web/test/transport.test.mjs` 67/67 re-run, and CI + `verify_audit.sh` W4 now execute it. REMAINING: the limit value itself is unchanged — a 64MB HTTP envelope, about a 48MB effective decoded GIF for `/run`, now documented in source. |
-| **U-69** | F:NF-12 | **After failed run previous After stays under Failed status** — `revokeResults()`/hide only on success and queue change; setting change + re-run to 422 leaves OLD results visible next to failure — web stale-visual of U-47 class. | ✅ **SRC** | ⬜ OPEN |
+| **U-69** | F:NF-12 | **After failed run previous After stays under Failed status** — `revokeResults()`/hide only on success and queue change; setting change + re-run to 422 leaves OLD results visible next to failure — web stale-visual of U-47 class. | ✅ **SRC** | ✅ FIXED (S23) — the failure branch now calls the same `clearResults()` the success path uses (revoke, hide #outputs, clear #after/#savings) via `web/request-guard.mjs`; static-hygiene proves the module is routable |
 | **U-70** | F:NF-13 | **Preview engine check bypasses UTF-8 boundary** — `ensureEngine()` wraps `u8path_compat()`, `startPreview()` passes `toStdString()` directly to `path_is_executable(fs::path)` — narrow mangling on MinGW; non-ASCII engine path: main run works but preview says not found. | ✅ **SRC** | ⬜ OPEN |
 | **U-71** | F:NF-14 | **Windows exit masked `&0xff` collapses NTSTATUS crash to success** — `ProcessRunner.h` Windows `code &0xff`; crash NTSTATUS like 0xC0000005 ends 0x05 keeps non-zero but 0x00 becomes 0, breaking honest exit contract in crash case. | ✅ **SRC** | ⬜ OPEN |
 | **U-72** | F:NF-15 | **cancelling_ cleared after 3s wait → spurious failure dialog after Cancelled** — `cancelRun()` resets flag right after `waitForFinished(3000)`; if engine dies later, `finished()` arrives with `cancelling_==false` and shows error after Cancelled. Fold into P1-24. | ✅ **SRC** | ⬜ OPEN |
-| **U-73** | F:NF-16 | **resolve_path CWD fallback contradicts CWD-independent contract** — relative input missing next to conf but exists in CWD picked up from CWD; same conf different result from different dirs. | ✅ **SRC** | ⬜ OPEN |
-| **U-74** | F:NF-17 | **Batch + output + N>1 passes planner in merge shape, engine semantics undocumented** — GS-201 refuses Batch WITHOUT output; WITH single output + several inputs accepted as N→1 merge shape, but man says nothing about `-o` in batch; CLI allows undocumented outcome. | ✅ **SRC** | ⬜ OPEN |
-| **U-75** | F:NF-18 | **`-E` exposed but `--name` not, several engine options absent** — without `--name` `-E` vs `-e` differs only if input already carries name extensions, checkbox mostly inert. | ✅ **SRC** | ⬜ OPEN |
-| **U-76** | F:NF-19 | **Explode default prefix differs per surface** — GUI: `<dir>/<stem>_frame`, CLI: `<basename>.NNN` in CWD when output cleared; session exported from GUI scatters into CWD on CLI. | ✅ **SRC** | ⬜ OPEN |
+| **U-73** | F:NF-16 | **resolve_path CWD fallback contradicts CWD-independent contract** — relative input missing next to conf but exists in CWD picked up from CWD; same conf different result from different dirs. | ✅ **SRC** | ✅ FIXED (S23) — CWD fallback still honoured but never silent: names each CWD-resolved input on stderr and `--strict` refuses (rc=3); smoke 12j; `resolve_path_mode` returns the resolution kind |
+| **U-74** | F:NF-17 | **Batch + output + N>1 passes planner in merge shape, engine semantics undocumented** — GS-201 refuses Batch WITHOUT output; WITH single output + several inputs accepted as N→1 merge shape, but man says nothing about `-o` in batch; CLI allows undocumented outcome. | ✅ **SRC** | ✅ FIXED (S23) — `--run` refuses Batch with >1 input and one output (rc=2) — measured `gifsicle -b a.gif b.gif -o out.gif` exits 0 with out.gif == b.gif and a.gif's result nowhere; smoke 12k/12l also prove the legal shape still runs |
+| **U-75** | F:NF-18 | **`-E` exposed but `--name` not, several engine options absent** — without `--name` `-E` vs `-e` differs only if input already carries name extensions, checkbox mostly inert. | ✅ **SRC** | ✅ FIXED (S23) — documented remedy (the scoped action's OR): README table of engine options the layer does not model + `-E` checkbox explains the `--name` dependency in place; Qt tooltip left to a Qt machine |
+| **U-76** | F:NF-19 | **Explode default prefix differs per surface** — GUI: `<dir>/<stem>_frame`, CLI: `<basename>.NNN` in CWD when output cleared; session exported from GUI scatters into CWD on CLI. | ✅ **SRC** | ◐ PARTIAL (S23) — name unified (`<stem>_frame`, C++ under `--run` only, so print/parity stay exact); the DIRECTORY was NOT moved beside the input — that wrote 12 frames into `reference_code/`; policy is OD-18 |
 
 
 ## 6. Fix order (all six audits combined)
@@ -2177,7 +2177,7 @@ B and C findings are merged in where they add coverage or contradict A/D/E/F.
 | P2-14 | **Narrative-vs-register gate — DONE S17.** S5/G17 checks OPEN vs closed and closed vs nonclosed using leading current state/reference; historical Original report tails excluded. Invalid current references fail. 20 regression tests pass; three OPEN-vs-fixed mutations expose the old false PASS. | **DS-11** | **C (S17 closed)** |
 
 | P2-15 | **Check standalone UNTRIAGED counts (DONE S17).** S2 compares numeric counts in current-state docs with STATUS.md, even without DONE/PARTIAL/OPEN cells. Markdown and line wraps supported, paragraphs kept separate; file:line diagnostics. Fourteen isolated regression tests pass. S4 stays a fixed five-phrase check; unnumbered prose is not mechanically understood. | **N-07** | **C (S16 triage; S17 closed)** |
-| P2-16 | **Web static hygiene and 413 mapping — NEW F:NF-10/11/12 — fable 5.1 low — WINNER.** Reuse `assertContainedPath(ROOT, file)` in `serveStatic()`, allow-list served files, headers-only for HEAD; typed 413 from `readBody()` and map; document effective 48MB cap or raise MAX_BODY; `revokeResults()`/hide before every run or on failure to avoid stale After. **U-67 FIXED (S22)** — allow-list + HEAD contract + defence-in-depth containment, proven by `web/test/static-hygiene.test.mjs` 43/43 and `web/test/transport.test.mjs` 67/67, now wired into CI and `verify_audit.sh` W5. **U-68 PARTIAL (S22)** — `web/test/body-limit.test.mjs` 8/8 and transport 67/67 re-run, now wired into CI and `verify_audit.sh` W4; remaining question is whether to keep or change the 64MB HTTP-envelope cap (≈48MB effective decoded GIF for `/run`). **U-69 untouched.** | **U-67, U-68, U-69** | **F — WINNER** |
+| P2-16 | **Web static hygiene and 413 mapping — NEW F:NF-10/11/12 — fable 5.1 low — WINNER.** Reuse `assertContainedPath(ROOT, file)` in `serveStatic()`, allow-list served files, headers-only for HEAD; typed 413 from `readBody()` and map; document effective 48MB cap or raise MAX_BODY; `revokeResults()`/hide before every run or on failure to avoid stale After. **U-67 FIXED (S22)** — allow-list + HEAD contract + defence-in-depth containment, proven by `web/test/static-hygiene.test.mjs` 43/43 and `web/test/transport.test.mjs` 67/67, now wired into CI and `verify_audit.sh` W5. **U-68 PARTIAL (S22)** — `web/test/body-limit.test.mjs` 8/8 and transport 67/67 re-run, now wired into CI and `verify_audit.sh` W4; remaining question is whether to keep or change the 64MB HTTP-envelope cap (≈48MB effective decoded GIF for `/run`). **U-69 FIXED (S23)** — the ownership/clear rule is a pure module (`web/request-guard.mjs`) and the failure branch now calls the same `clearResults()` the success path uses; 13 assertions in `web/test/request-guard.test.mjs`. | **U-67, U-68, U-69** | **F — WINNER** |
 | P2-17 | **Windows exit code and NTSTATUS — NEW F:NF-14 — fable 5.1 low — WINNER.** `if (code==0) return 0; int low=code&0xff; return low?low:1;` log raw hex when >255; add unit test for 0xC0000005 case. | **U-71** | **F — WINNER** |
 
 ### P3 — Docs and polish

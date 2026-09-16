@@ -1,17 +1,27 @@
 // EngineLocator.h - Find the bundled gifsicle engine regardless of CWD.
 // Search order:
 //   1. Non-empty GS_ENGINE (exact path; invalid overrides STOP, never fall back)
-//   2. Beside the running executable (packaged layout)
-//   3. ../release/<GS_VERSION>/gifsicle[.exe] relative to the executable (dev)
-//   4. release/<GS_VERSION>/gifsicle[.exe] relative to CWD (dev from product dir)
-//   5. PATH (bare "gifsicle")
+//   2. Beside the running executable (packaged layout) — the executable path
+//      comes from the OS, not argv[0], so a symlink install still finds its
+//      sibling (U-65 / P1-41)
+//   3. release/current/, then release/<GS_VERSION>/ — relative to the executable,
+//      to its parent (the dev layout), to the CWD, and to working_code/ (U-66)
+//   4. PATH (bare "gifsicle")
+//
+// Why `current` (audit U-66 / fix-order P1-41): the desktop pinned the engine to
+// `release/<GS_VERSION>/` while the web server picked the newest numeric
+// directory, so bumping VERSION.md moved one surface and not the other — the
+// GUI would report "engine not found" while http://localhost:8000 kept working.
+// `release/current` is the shared answer: a packager (or a developer) points it
+// at exactly one engine build, every surface follows, and the numeric-newest
+// rule remains the fallback so nothing that works today stops working.
 //
 // Qt-independent. Uses std::filesystem (C++17).
 
 #ifndef GIFSCYTHE_CORE_ENGINE_LOCATOR_H
 #define GIFSCYTHE_CORE_ENGINE_LOCATOR_H
 
-#include "core/version.h"  // path form, not "version.h": must resolve through the
+ #include "core/version.h"  // path form, not "version.h": must resolve through the
                             // include path so CMake builds get the generated
                             // copy (audit U-15); src/core fallback for -Isrc builds
 #include "WinUnicode.h"        // U-07: wide env shim on Windows; pure logic elsewhere
@@ -25,6 +35,11 @@
 
 namespace gs {
 namespace fs = std::filesystem;
+
+// The version-independent release/ subdirectory every surface checks first (U-66).
+// Declared here so the web server's mirror (web/server.mjs) and this file quote
+// the same name rather than two literals that can drift.
+inline constexpr const char* GS_ENGINE_CURRENT = "current";
 
 // Environment reads go through this so a non-ASCII GS_ENGINE or PATH entry
 // survives on Windows (std::getenv hands back ANSI-code-page bytes there —
@@ -142,14 +157,19 @@ inline EngineResolution resolve_engine(const std::string& exe_path = {}) {
   const std::string base = engine_basename();
   // Packaged: engine next to the binary.
   candidates.push_back(exe_dir / base);
-  // Dev layout: release/<ver>/ next to build/ or build/gui/.
-  candidates.push_back(exe_dir / ".." / "release" / GS_VERSION / base);
-  candidates.push_back(exe_dir / ".." / ".." / "release" / GS_VERSION / base);
-  candidates.push_back(exe_dir / "release" / GS_VERSION / base);
-  // CWD-relative (running from working_code/gifscythe).
-  candidates.push_back(fs::path("release") / GS_VERSION / base);
-  // Repo-root relative (legacy).
-  candidates.push_back(fs::path("working_code") / "gifscythe" / "release" / GS_VERSION / base);
+  // release/<pin-or-version>/ in each of the four roots a caller might be in.
+  // `current` first, so one symlink re-points every surface at once.
+  const char* const roots[] = {"", "..", "../..", "working_code/gifscythe"};
+  const char* const pins[] = {GS_ENGINE_CURRENT, GS_VERSION};
+  for (const char* root : roots) {
+    for (const char* pin : pins) {
+      const fs::path rel = (root[0] == '\0')
+          ? fs::path("release") / pin / base
+          : fs::path(root) / "release" / pin / base;
+      candidates.push_back(exe_dir / rel);
+      candidates.push_back(rel);  // CWD-relative (running from product dir)
+    }
+  }
 
   for (const auto& c : candidates) {
     std::error_code ec;
