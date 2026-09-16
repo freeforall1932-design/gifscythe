@@ -46,9 +46,11 @@
             <option value="explode">Explode — frames → &lt;stem&gt;_frame.NNN</option>
           </select>
         </label>
-        <label class="inline" id="explodeByNameRow" hidden>
+        <label class="inline" id="explodeByNameRow" hidden
+          title="-E only differs from -e when the input GIF already carries frame-name extensions. This build cannot WRITE names (--name is not modelled), so for most files this checkbox changes nothing but the suffix.">
           <input type="checkbox" id="explodeByName" />
           Explode by frame name (-E) instead of .NNN numbers
+          <small title="Needs --name, which this build does not model: -E only reads names the input already has.">why is this sometimes a no-op?</small>
         </label>
         <label>Optimization level
           <select id="optimize">
@@ -98,6 +100,7 @@
           <select id="loop">
             <option value="keep" selected>Keep original</option>
             <option value="forever">Loop forever</option>
+            <option value="once">Play once (--no-loopcount)</option>
             <option value="n">Loop N times…</option>
           </select>
         </label>

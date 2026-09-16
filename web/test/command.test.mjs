@@ -68,6 +68,18 @@ const fixtures = [
       inputs: ["/tmp/parity/in.gif"],
     },
   },
+  // P0-2 / U-63 sentinels. These three are the whole point of the tri-state
+  // and four-state work: the parity fixture is what proves JS and C++ agree
+  // that "unset" and "auto" are DIFFERENT commands.
+  // DS-12: the padded comment goes through saveSettingsLines -> a real C++ conf
+  // parse -> the C++ command, so this fixture is what proves the JS writer and
+  // the C++ reader agree about quoting (an unquoted padded value used to lose
+  // its padding on the C++ side and the two commands would differ).
+  { name: "padded comment survives the conf round trip (DS-12)",
+    s: { mode: "auto", comments: ["  (draft)  "], inputs: ["/tmp/parity/in.gif"] } },
+  { name: "threads unset (-1) emits NO -j at all (P0-2)", s: { mode: "auto", threads: -1, inputs: ["/tmp/parity/in.gif"] } },
+  { name: "threads auto (0) emits a bare -j (P0-2)", s: { mode: "auto", threads: 0, inputs: ["/tmp/parity/in.gif"] } },
+  { name: "loopcount -2 plays once via --no-loopcount (U-63)", s: { mode: "auto", loopcount: -2, inputs: ["/tmp/parity/in.gif"] } },
   {
     name: "frame selector input stays literal (audit U-60)",
     s: {

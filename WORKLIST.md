@@ -78,7 +78,11 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
             cases S19). Real Qt/Windows deployment, architecture and clean-machine verification remain;
             the release re-cut blocker is not waived.
       - [ ] **GS-205** → **P1-27** — (Med) non-GIF inputs still admitted via the picker and drop.
-      - [ ] **GS-206** → **P1-28** — (Med) `long`→`int` narrowing; no validation for loopcount/threads/gamma/enums.
+      - [x] **GS-206** → **P1-28** — **closed S23:** `std::from_chars` into the destination
+            width replaces every `long`→`int` narrowing, and the domains landed in C++ + the
+            JS mirror (loopcount 0..65535 after measuring that the engine wraps 65536 to
+            "forever" at rc=0, color_method/resize_method against the engine's own lists,
+            gamma shape). `dither_method` is deliberately NOT enum-checked; unit 21c pins that.
       - [x] **GS-207** → **P1-29** — **closed S17:** invalid non-empty `GS_ENGINE`
             refuses fallback (CLI print/run exit 1; web 503); source logged; empty/unset
             preserves discovery and `--engine` has precedence. Smoke 30/30, web 63/63 on Linux.
@@ -87,15 +91,31 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       - [ ] **GS-209** → **P2-12** — (Med) native linux/mac build uses a fixed glibc config.
       - [ ] **GS-210** → **P2-13** — **PARTIAL S17:** strict arguments fixed (12 cases pass).
             qmake-first dispatch and hardcoded .pro VERSION remain for a Qt-equipped agent.
-      - [ ] **DS-06** → **P0-2** — (High) `threads <= 0` → bare `-j`; the `-1` sentinel now means 8 threads.
-      - [ ] **DS-07** → **P1-30** — (Med) GUI threads spinner cannot express "no flag".
-      - [ ] **DS-08** → **P3-5** — (Low) non-strict print mode exits 0 after warnings.
+      - [x] **DS-06** → **P0-2** — **closed S23:** tri-state — `<0` emits nothing, `0` bare
+            `-j`, `>0` `-jN`, in `GifsicleCommand.h` + `web/command.mjs`, with the sentinels
+            named (`GS_THREADS_UNSET/AUTO`) and unit + parity + smoke 12g proof. PR #28's
+            `threads < -1` message documents exactly these semantics; this row is what makes
+            it true.
+      - [x] **DS-07** → **P1-30** — (Med) GUI threads spinner cannot express "no flag".
+            **DONE S23** in the same edit as N-09: range `GS_THREADS_UNSET..64`, the minimum reads
+            "Unchanged (engine default)", and the offscreen harness pins that a `-1` conf survives
+            save/close/reopen as absence. Agrees with DS-06 as P1-30 required; CI-compiled only.
+      - [x] **DS-08** → **P3-5** — **closed S23:** the advisory contract is documented in
+            `--help` and a continued warned run ends with one greppable
+            `WARNING-SUMMARY: parse=N validation=M …` line (after the strict refusal, so it can
+            never describe a run that did not happen). Smoke 12m pins presence AND absence.
       - [x] **DS-09** → **P1-31** — **closed S22:** `threads < -1` now warns in
             native + web validation; unit, web parity, and CLI smoke pin `threads = -7`.
+            S23 superseded the builder half of that pin: `-7` warns and emits **no** thread
+            flag (it no longer aliases to "auto"), which is what P0-2 promised.
       - [ ] **DS-10** → **P3-11** — (Info) disposal 4..7 unreachable from the desktop picker.
       - [x] **DS-11** → **P2-14** — **closed S17:** S5/G17 checks OPEN vs closed and
             closed vs nonclosed current status; ignores historical tails. 20 regression tests pass.
-      - [ ] **DS-12** → **P1-13** — (Low) settings values lose leading/trailing whitespace on round trip.
+      - [x] **DS-12** → **P1-13** — **closed S23:** quoting only where the value would be
+            lossy (padding or a leading quote), `"`/`\` escaped, decoded in exactly one place
+            (`set_field`) so it cannot apply twice. save(load(x)) is byte-identical; the one
+            documented consequence — a hand-written `comment = "hi"` reads as `hi` — is pinned
+            by an assertion rather than hidden. `examples/animation.conf` needs no change.
       - [x] **DS-13** → **P1-32** — **closed S17:** `/optimize` checks the response buffer
             for GIF87a/GIF89a before success; invalid signatures get JSON 422. Transport 53/53;
             the pre-fix server fails all 6 invalid-signature cases. Not full GIF decoding.
@@ -166,7 +186,10 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       web regressions; skips: E9 declared-pending workflow, CI-gated,
       clean-Windows; measured in the last full-toolchain checkpoint plus the
       S22 Node-web additions — a toolchain-less sandbox skips C6/C7*/C9/B as
-      well; S11 added gate C9, the cmake source-tree-purity check for U-15)
+      well; S11 added gate C9, the cmake source-tree-purity check for U-15).
+      **S23 added W6** for its own three web suites, which is why the S23 sandbox
+      reports **30 PASS / 0 FAIL / 6 SKIP** (that is 31 at the next full-toolchain
+      run: this box loses C6/C7*/C9/B, W6 adds one)
 - [x] **Documentation gate** (NEW S9) — `scripts/check_docs.sh` emits and
       enforces `STATUS.md`; wired into `verify_audit.sh` as **F1/F2**, into CI
       (pending — see `docs/ci/PENDING_WORKFLOW_CHANGE.md`) and into
@@ -201,8 +224,11 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
 - [x] Web app: **U-24** honest rc=0 · **U-25/U-29**
       Scale default + Touch · **U-26** version sort · **U-30** validation layer ·
       **U-49/U-50** transport · **U-46/U-52** request ownership + URL revoke
-- [ ] Web app bounds: **U-06** loopback default **landed** (S8); still open — concurrency cap,
-      per-client rate limit, engine-run bound. U-06 was corrected DONE → PARTIAL in S14.
+- [x] Web app bounds: **U-06** — loopback default (S8) plus the three bounds S14 left open:
+      one engine semaphore for both endpoints (`GS_MAX_CONCURRENT`/`GS_MAX_QUEUED`, 429 past
+      it, taken AFTER validation so a refusal costs nothing), a per-client POST window
+      (`GS_RATE_LIMIT_PER_MIN`, static exempt), and `GS_ENGINE_TIMEOUT_MS` replacing the hard
+      120 s. Closed S23 by `web/test/server-bounds.test.mjs` (5 groups, real server per case).
 - [x] Process hygiene: **U-38** SKIP not FAIL · **U-39** workflow-drift guard
       **E9** · **U-44** `docs/archive/` · **U-43** · **U-48** empty comment
 - [x] Three web suites now gate the JS copies — **W1** command (14) ·
@@ -445,6 +471,55 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
       probes + the optional items above are decided (owner may take 0.2.0
       first per the minor-bump rule)
 
+### Session S23 (2026-09-16) — the Tier-1 batch: 10 findings closed, 1 opened for the owner
+
+Chosen by *sandbox capability*, not by severity: every row here is provable with
+g++ + node on Linux, because this box has no cmake, Qt6, mingw, Wine, emscripten
+or package network. The list was built by reading `STATUS.md`, then measuring the
+sandbox (engine + CLI + unit + smoke + the five web suites then present, green,
+before any edit — eight after S23 added three)
+
+- [x] **P0-2** threads tri-state; **P1-28** int-width parsing + validation domains;
+      **P1-40 (loop half)** `loopcount = -2` → `--no-loopcount` (C++, JS mirror, the
+      web Loop control). The sentinel values are named in `GifsicleSettings.h`.
+- [x] **P1-13** settings values round-trip exactly (quoting only where lossy).
+- [x] **P1-43** `resolve_path` CWD fallback announced and `--strict`-refused;
+      Batch with N inputs → 1 output refused after *measuring* that the engine writes
+      only the last input; explode prefix name unified.
+- [x] **P1-41 (two of three halves)** symlink-safe `exe_path_of` (OS query, then
+      PATH) and the `release/current` engine pin honoured by BOTH surfaces.
+- [x] **P1-5** web concurrency / per-client rate / engine-timeout bounds.
+- [x] **P1-36** superscript COM¹²³ aliases, tested from ONE table shared by the
+      C++ unit suite and `web/test/device-names.test.mjs`.
+- [x] **P3-5** advisory warning contract + greppable summary; **P3-12** the
+      "what the engine can do that this layer does not model" table.
+- [x] **P1-34 / U-54** and **U-69** — request ownership lifted out of `app.js` into
+      `web/request-guard.mjs` so it can be tested at all (13 assertions), and
+      `static-hygiene` now proves every `app.js` import is routable (a module added
+      to the UI without a route 404s the page — this was one edit away).
+- [x] **Review of my own merged tree before opening (N-09, fixed here):** `SettingsPanel.cpp`
+      had no representation for two states this batch introduced, so *opening and closing a window
+      rewrote them* — `loopcount = -2` displayed as "Keep original" and saved back as `-1`, and a
+      `threads = -1` conf fell through `if (s.threads >= 0)` to the spinner's 0. Harmless before
+      P0-2 (both meant a bare `-j`); a real silent rewrite after it, which is why it is recorded
+      rather than quietly amended. Fixed with P1-30's own prescription plus a 4th `Looping` item,
+      **appended** because the harness addresses items 1 and 2 by index. The web side needed no
+      change, so this half could not be credited to #28. Both halves are CI-compiled proof only.
+- [ ] **U-76 remainder → `OD-18`**: which directory an un-prefixed CLI explode writes
+      to. The scoped wording was tried and wrote frames into `reference_code/`.
+- [x] **PR #28 reconciliation** — **closed S23,** executed after #28 merged as
+      `794a996`: both `smoke_cli.sh` case sets are kept (12b–12f + 12g–12o) and every
+      count was re-measured on the merged tree (unit 372, smoke 54) rather than added;
+      #28's unit block 21b was **re-pinned rather than dropped** — its
+      `threads=-7 → bare -j` assertion describes the pre-P0-2 builder, so it now
+      checks all three states and keeps its warning coverage; ONE copy of the
+      `main.cpp` special-token helpers (#28's names) and of the `Validate.h`
+      `threads < -1` rule survives; and §5's narrowed `U-67` **Finding** text is
+      restored while #28's `FIXED (S22)` status cell stands.
+- [ ] Not started here, deliberately: **P1-35** (U-55) — Windows case-folding cannot
+      be verified without a Windows host, and a C++-side guess would refuse legal
+      names; every Qt row; `U-68`'s cap value (documented, left as-is on purpose).
+
 ## Next actions (ordered)
 
 - [x] **C# shell Phase 1 spike** (per `docs/planning/CSHARP_SHELL_PLAN.md` §4) — GREEN 2026-09-14 (run `34804350470`): console → repo-built gifsicle → GIF verify → honest 0/2/3/4/5 → single-file publish runs stock. é+space passes natively (product previously only Wine-proven); CJK fails honestly, re-proving the engine-ACP residual. **PARKED S19 (2026-09-14, owner direction — `OD-C7 = park`):** the exe stays C++17/Qt6, no rewrite; the spike stays CI-run and inert until 1.0.0 ships on the current stack. The S18 "Phase 2 GO" verdict is suspended, not deleted.
@@ -548,6 +623,9 @@ cd working_code/gifscythe
 
 # Web app (self-hosted product alternative; the CLI parity suites below are its gate)
 node web/server.mjs 8000           # from the repo root; binds 127.0.0.1
+node web/test/request-guard.test.mjs   # U-54/U-69 run-ownership semantics (pure module)
+node web/test/device-names.test.mjs    # U-56 vs tests/windows_reserved_names.txt (shared table)
+node web/test/server-bounds.test.mjs   # U-06 bounds (starts its own server per scenario)
 node web/test/command.test.mjs     # JS ⇄ C++ command parity (17 checks)
 node web/test/validate.test.mjs    # JS ⇄ C++ validation parity (21 checks)
 node web/test/transport.test.mjs   # live-server transport net (63 check groups on Linux, S17)

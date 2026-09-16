@@ -140,7 +140,11 @@ export function buildArgs(s) {
   // Animation options (delay_cs is in 1/100 s, NOT milliseconds).
   if (s.delay_cs >= 0) { add("-d"); add(i2s(s.delay_cs)); }
   if (s.disposal >= 0 && s.disposal <= 7) { add("--disposal"); add(i2s(s.disposal)); }
-  if (s.loopcount === 0) {
+  // Must mirror GifsicleCommand.h (the parity test enforces it). Four states:
+  // -2 play once (--no-loopcount), -1 unchanged, 0 forever, >0 a count.
+  if (s.loopcount === -2) {
+    add("--no-loopcount");          // play once = the loop extension absent
+  } else if (s.loopcount === 0) {
     add("--loopcount=0");           // forever
   } else if (s.loopcount > 0) {
     add("--loopcount=" + i2s(s.loopcount));
@@ -149,11 +153,13 @@ export function buildArgs(s) {
     add(optimizationOpt(s.optimize_level));
   }
   if (s.unoptimize) add("-U");
-  // Must mirror GifsicleCommand.h exactly (the parity test enforces it):
-  // "Auto" (unset or <= 0) emits a BARE -j, because the engine default is
-  // single-threaded and bare -j selects GIFSICLE_DEFAULT_THREAD_COUNT = 8.
+  // Must mirror GifsicleCommand.h exactly (the parity test enforces it).
+  // Tri-state (DS-06 / P0-2): -1 (or anything below) says NOTHING, which is the
+  // engine's single-threaded default; 0 is a bare -j = "auto"
+  // (GIFSICLE_DEFAULT_THREAD_COUNT = 8); >0 is -jN. Emitting bare -j for -1
+  // used to make the "unset" sentinel mean 8 threads.
   if (s.threads > 0) add("-j" + i2s(s.threads));
-  else add("-j");
+  else if (s.threads === 0) add("-j");
 
   // Inputs
   for (const input of s.inputs || []) add(input);
@@ -175,7 +181,17 @@ export function toString(s) {
 // otherwise be written as a second line, and therefore parsed as a new KEY on
 // reload (audit U-51 — a single comment "hi\nmode = merge" used to change the
 // run mode). CR/LF fold to a space so the file format stays unchanged.
-const lineValue = (v) => String(v).replace(/[\r\n]+/g, " ");
+// DS-12 / P1-13 mirror of encode_line_value(): fold newlines (U-51) and quote
+// ONLY when the value would otherwise be lossy — leading/trailing whitespace, or
+// a leading quote. web/command.mjs is the writer the parity test feeds to the
+// real C++ CLI, so the two encoders must agree byte for byte.
+const lineValue = (v) => {
+  const flat = String(v).replace(/[\r\n]+/g, " ");
+  const needs = flat.length > 0
+    && (flat.startsWith('"') || /^\s/.test(flat) || /\s$/.test(flat));
+  if (!needs) return flat;
+  return '"' + flat.replace(/["\\]/g, "\\$&") + '"';
+};
 
 export function saveSettingsLines(s) {
   const out = [];
@@ -202,11 +218,14 @@ export function saveSettingsLines(s) {
   }
   if (s.delay_cs >= 0) out.push("delay = " + s.delay_cs);
   if (s.disposal >= 0) out.push("disposal = " + s.disposal);
-  if (s.loopcount >= 0) out.push("loopcount = " + s.loopcount);
+  // -2 (play once) must survive a round trip, so the guard is != unset
+  // (SettingsIO.h does the same).
+  if (s.loopcount !== -1 && s.loopcount !== undefined && s.loopcount !== null) out.push("loopcount = " + s.loopcount);
   if (s.optimize_level >= 0) out.push("optimize = " + s.optimize_level);
   if (s.unoptimize) out.push("unoptimize = true");
   // 0 ("Auto") is serialised explicitly so it survives a round trip, matching
-  // SettingsIO.h.
+  // SettingsIO.h — and since P0-2 it is NOT the same as leaving the key out:
+  // 0 means bare -j (8 threads), absence means the engine's own default.
   if (s.threads >= 0) out.push("threads = " + s.threads);
   if (s.color_count >= 0) out.push("colors = " + s.color_count);
   if (s.dither_method) out.push("dither = " + lineValue(s.dither_method));

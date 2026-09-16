@@ -1,0 +1,43 @@
+# Shared table for the Windows reserved-device-name rule (audit U-56 / P1-36).
+#
+# One candidate per line: `<name><TAB>reserved|ok`. It is read by BOTH sides of
+# the product — the C++ unit suite over src/core/OutputName.h, and
+# web/test/device-names.test.mjs over web/run-paths.mjs — because the finding is
+# precisely that the two surfaces disagreed. Adding a case here tests both.
+#
+# Deliberate choices this table pins:
+#   * COM0/LPT0 are refused although MSDN lists COM1..COM9: refusing costs one
+#     leading underscore, missing one means the file went to a device. The C++
+#     sanitizer and the web admission check must (and do) agree on this.
+#   * the superscripts U+00B9/U+00B2/U+00B3 after COM/LPT only — not CON, not a
+#     general Unicode-digit rule, and NOT full-width digits (U+FF11): nothing was
+#     measured to support those, and a guess here refuses legal names.
+#   * `com1.txt` is reserved: the extension is irrelevant to the Win32 check, so
+#     the stem before the first dot is what counts.
+CON	reserved
+con	reserved
+CoN.gif	reserved
+PRN	reserved
+AUX.txt	reserved
+NUL	reserved
+COM	ok
+COM1	reserved
+COM9.log	reserved
+COM0	reserved
+LPT1	reserved
+LPT0	reserved
+COM10	ok
+LPT12	ok
+COM¹	reserved
+COM²	reserved
+COM³	reserved
+LPT¹	reserved
+LPT³.x	reserved
+CON¹	ok
+COM¹¹	ok
+COM¹x	ok
+COM11	ok
+console.gif	ok
+mycon.gif	ok
+com1.txt	reserved
+Çon	ok
