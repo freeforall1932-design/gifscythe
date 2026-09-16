@@ -146,7 +146,7 @@ alone would have passed straight through both skipped syncs.
   - `smoke_cli.sh` keeps **both** case sets side by side (12b–12f from #28, 12g–12o
     from S23) and `WORKLIST.md` now closes **both** DS-08 (S23) and DS-09 (#28).
     Every count was re-measured on the merged tree: unit **372**, smoke **54/54**
-    (the predicted "~53" was 54), `verify_audit.sh` **28 PASS / 0 FAIL / 6 SKIP** here.
+    (the predicted "~53" was 54), `verify_audit.sh` **29 PASS / 0 FAIL / 6 SKIP** here.
   - `web/test/validate.test.mjs` keeps #28's `crop 0x0` fixture and one `threads = -7`
     fixture, plus S23's sentinel/domain fixtures; both crop cases carry explicit
     `expect: []`, because without it two empty lists pass as parity.

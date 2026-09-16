@@ -24,7 +24,7 @@ the folder). New `src/core/OutputPlan.h` + `OutputName.h`,
 `scripts/test_package.sh` (9 negative cases), and eight Node web suites (the five
 #28 wired into CI plus the three this batch added); unit suite at **372 checks,
 0 failures** as re-measured in S23 after the PR #28 merge (308 in S22);
-`verify_audit.sh` **28 PASS / 0 FAIL / 6 SKIP** re-measured in the S23 sandbox —
+`verify_audit.sh` **29 PASS / 0 FAIL / 6 SKIP** re-measured in the S23 sandbox —
 the skips are the Qt/CMake, clean-Windows and declared-workflow items, and the
 same script reported **30 PASS / 0 FAIL / 3 SKIP, exit 0** at the last
 full-toolchain checkpoint (E9 SKIPs while the CI workflow change awaits a `workflows`-scoped token —
