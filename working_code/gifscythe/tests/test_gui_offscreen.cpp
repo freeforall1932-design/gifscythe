@@ -1200,15 +1200,23 @@ int main(int argc, char** argv) {
     // spinner's 0 ("Auto"), so merely OPENING and CLOSING the window rewrote both
     // settings — the silent-rewrite class DS-06 itself was filed under. This is
     // CI-compiled proof (no Qt6 in the S23 sandbox), like S8's T8 rewrite.
+    // Note the close(): persistence happens in MainWindow::closeEvent, so `delete w`
+    // alone never reaches it — the first version of this block did exactly that
+    // and failed the CI harness step while compiling clean, which is why the idiom
+    // (spinEvents / close / spinEvents / exists) is spelled out here.
     {
       MainWindow* w = makeWindow();
       auto* loop = byName<QComboBox>(w, "loopCombo");
       loop->setCurrentIndex(loop->findData(3));  // Play once (no loop)
       byName<QSpinBox>(w, "threadsSpin")->setValue(gs::GS_THREADS_UNSET);
-      delete w;                                   // closeEvent saves the session
+      spinEvents(30);
+      w->close();                                 // closeEvent -> saveSessionState
+      spinEvents(30);
+      delete w;
+      CHECK_MSG(QFileInfo::exists(cfgPath), "closing with play-once wrote the settings file");
 
       QFile f(cfgPath);
-      CHECK(f.open(QIODevice::ReadOnly));
+      CHECK(f.open(QIODevice::ReadOnly | QIODevice::Text));
       const QString saved = QString::fromUtf8(f.readAll());
       f.close();
       CHECK_MSG(saved.contains(QStringLiteral("loopcount = -2")),

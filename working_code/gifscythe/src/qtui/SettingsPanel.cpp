@@ -349,7 +349,7 @@ void SettingsPanel::buildUi() {
   threadsSpin_ = new QSpinBox(animBox);
   threadsSpin_->setObjectName(QStringLiteral("threadsSpin"));
   // DS-07 / P1-30, and it only became a real bug with DS-06 / P0-2: the range used
-  // to start at 0, so "no thread flag" was unrepresentable AND collect() always
+  // to start at 0, so "no thread flag" was unrepresentable AND writeInto() always
   // wrote a value — a conf saying `threads = -1` was silently rewritten to 0 by
   // opening and closing the window. With the tri-state, 0 is a *request* for the
   // engine's own count (bare -j), so it can no longer stand in for "unset".
