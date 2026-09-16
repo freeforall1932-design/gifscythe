@@ -14,7 +14,13 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ENGINE = path.resolve(HERE, "../../working_code/gifscythe/release/0.1.0/gifsicle");
+// U-80: parse VERSION.md like the shell suites do; never pin the version dir.
+const VERSION_MD = readFileSync(
+  path.resolve(HERE, "../../working_code/gifscythe/VERSION.md"), "utf8");
+const PRODUCT_VERSION =
+  (VERSION_MD.match(/Current version:[^\n]*?(\d+\.\d+\.\d+)/) || [])[1] || "0.1.0";
+const ENGINE = path.resolve(
+  HERE, `../../working_code/gifscythe/release/${PRODUCT_VERSION}/gifsicle`);
 const LOGO = path.resolve(HERE, "../../reference_code/gifsicle/logo.gif");
 
 if (!existsSync(ENGINE)) {
