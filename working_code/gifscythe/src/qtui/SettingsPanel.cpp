@@ -317,6 +317,10 @@ void SettingsPanel::buildUi() {
   loopCombo_->addItem(QStringLiteral("Keep original"), 0);
   loopCombo_->addItem(QStringLiteral("Loop forever"), 1);
   loopCombo_->addItem(QStringLiteral("Loop N times…"), 2);
+  // U-63 / P1-40: "play once" is a fourth state, not "keep original" — the engine
+  // flag is --no-loopcount. Appended at the end on purpose: the offscreen harness
+  // (and every saved-conf expectation) addresses items 0-2 by index.
+  loopCombo_->addItem(QStringLiteral("Play once (no loop)"), 3);
   form->addRow(QStringLiteral("Looping"), loopCombo_);
 
   loopSpin_ = new QSpinBox(animBox);
@@ -344,9 +348,18 @@ void SettingsPanel::buildUi() {
 
   threadsSpin_ = new QSpinBox(animBox);
   threadsSpin_->setObjectName(QStringLiteral("threadsSpin"));
-  threadsSpin_->setRange(0, 64);
-  threadsSpin_->setValue(0);
-  threadsSpin_->setSpecialValueText(QStringLiteral("Auto"));
+  // DS-07 / P1-30, and it only became a real bug with DS-06 / P0-2: the range used
+  // to start at 0, so "no thread flag" was unrepresentable AND collect() always
+  // wrote a value — a conf saying `threads = -1` was silently rewritten to 0 by
+  // opening and closing the window. With the tri-state, 0 is a *request* for the
+  // engine's own count (bare -j), so it can no longer stand in for "unset".
+  threadsSpin_->setRange(gs::GS_THREADS_UNSET, 64);
+  threadsSpin_->setValue(gs::GS_THREADS_UNSET);
+  threadsSpin_->setSpecialValueText(QStringLiteral("Unchanged (engine default)"));
+  threadsSpin_->setToolTip(QStringLiteral(
+      "Unchanged: no thread flag (the engine's own default, 1 thread)\n"
+      "0: auto — passes a bare -j, i.e. the engine's thread count\n"
+      "N>0: passes -jN"));
   form->addRow(QStringLiteral("Threads"), threadsSpin_);
   lay->addWidget(animBox);
 
@@ -587,7 +600,8 @@ void SettingsPanel::writeInto(gs::Settings& s) const {
   switch (loopCombo_->currentData().toInt()) {
     case 1:  s.loopcount = 0; break;                 // forever (VP-1)
     case 2:  s.loopcount = loopSpin_->value(); break;
-    default: s.loopcount = -1; break;                // unchanged
+    case 3:  s.loopcount = gs::GS_LOOPCOUNT_ONCE; break; // play once (--no-loopcount)
+    default: s.loopcount = gs::GS_LOOPCOUNT_UNSET; break;  // unchanged
   }
   s.disposal = disposalCombo_->currentData().toInt();
   s.unoptimize = unoptimizeCheck_->isChecked();
@@ -712,7 +726,9 @@ void SettingsPanel::readFrom(const gs::Settings& s) {
   // ---- Animation ----
   delayCheck_->setChecked(s.delay_cs >= 0);
   if (s.delay_cs >= 0) setSpin(delaySpin_, s.delay_cs);
-  if (s.loopcount == 0) {
+  if (s.loopcount == gs::GS_LOOPCOUNT_ONCE) {
+    selectByData(loopCombo_, 3);  // play once (U-63) — was shown as "Keep original"
+  } else if (s.loopcount == 0) {
     selectByData(loopCombo_, 1);  // forever (VP-1: emits --loopcount=0)
   } else if (s.loopcount > 0) {
     selectByData(loopCombo_, 2);  // loop N times
@@ -722,7 +738,9 @@ void SettingsPanel::readFrom(const gs::Settings& s) {
   }
   selectByData(disposalCombo_, s.disposal);  // -1..3; 4..7 not GUI-representable
   unoptimizeCheck_->setChecked(s.unoptimize);
-  if (s.threads >= 0 && s.threads <= 64) setSpin(threadsSpin_, s.threads);
+  // -1 is inside the range now (DS-07); setSpin clamps anything else, and the
+  // clamped value is what the live pane shows, so a clamp cannot pass unnoticed.
+  setSpin(threadsSpin_, s.threads);
 
   // ---- Colors / gamma / transparency ----
   // gamma_str is authoritative (load_settings always fills it from the file);

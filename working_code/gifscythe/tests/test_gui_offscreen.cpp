@@ -1194,6 +1194,42 @@ int main(int argc, char** argv) {
       delete w;
     }
 
+    // S23 pre-merge review case: the two multi-state sentinels must survive a
+    // desktop round trip. Before the panel gained them, `loopcount = -2` was
+    // displayed as "Keep original" and a conf's `threads = -1` fell back to the
+    // spinner's 0 ("Auto"), so merely OPENING and CLOSING the window rewrote both
+    // settings — the silent-rewrite class DS-06 itself was filed under. This is
+    // CI-compiled proof (no Qt6 in the S23 sandbox), like S8's T8 rewrite.
+    {
+      MainWindow* w = makeWindow();
+      auto* loop = byName<QComboBox>(w, "loopCombo");
+      loop->setCurrentIndex(loop->findData(3));  // Play once (no loop)
+      byName<QSpinBox>(w, "threadsSpin")->setValue(gs::GS_THREADS_UNSET);
+      delete w;                                   // closeEvent saves the session
+
+      QFile f(cfgPath);
+      CHECK(f.open(QIODevice::ReadOnly));
+      const QString saved = QString::fromUtf8(f.readAll());
+      f.close();
+      CHECK_MSG(saved.contains(QStringLiteral("loopcount = -2")),
+                "the saved conf carries -2, not the UI's old -1 (U-63 / P1-40)");
+      CHECK_MSG(!saved.contains(QStringLiteral("threads =")),
+                "threads = -1 encodes as absence - writing 0 here is the bug (DS-07 / P1-30)");
+
+      MainWindow* w2 = makeWindow();
+      auto x = findWidgets(w2);
+      spinEvents(15);   // let the rebuilt live pane settle, as the other cases do
+      CHECK_MSG(byName<QComboBox>(w2, "loopCombo")->currentData().toInt() == 3,
+                "play once reads back as its own control state, not \"Keep original\"");
+      CHECK_MSG(byName<QSpinBox>(w2, "threadsSpin")->value() == gs::GS_THREADS_UNSET,
+                "the spinner can hold the no-flag state");
+      CHECK_MSG(byName<QSpinBox>(w2, "threadsSpin")->text().contains(QStringLiteral("Unchanged")),
+                "and labels it, instead of showing a bare -1");
+      CHECK_MSG(x.pane->toPlainText().contains(QStringLiteral("--no-loopcount")),
+                "the live pane reflects it (the state is real, not cosmetic)");
+      delete w2;
+    }
+
     // Corrupt file: valid keys apply, invalid ones warn — never a crash,
     // never a silent pretend-first-launch.
     {

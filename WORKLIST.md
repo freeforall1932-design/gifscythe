@@ -96,7 +96,10 @@ Every `UNTRIAGED` row in `STATUS.md` must have a matching line here.
             named (`GS_THREADS_UNSET/AUTO`) and unit + parity + smoke 12g proof. PR #28's
             `threads < -1` message documents exactly these semantics; this row is what makes
             it true.
-      - [ ] **DS-07** → **P1-30** — (Med) GUI threads spinner cannot express "no flag".
+      - [x] **DS-07** → **P1-30** — (Med) GUI threads spinner cannot express "no flag".
+            **DONE S23** in the same edit as N-09: range `GS_THREADS_UNSET..64`, the minimum reads
+            "Unchanged (engine default)", and the offscreen harness pins that a `-1` conf survives
+            save/close/reopen as absence. Agrees with DS-06 as P1-30 required; CI-compiled only.
       - [x] **DS-08** → **P3-5** — **closed S23:** the advisory contract is documented in
             `--help` and a continued warned run ends with one greppable
             `WARNING-SUMMARY: parse=N validation=M …` line (after the strict refusal, so it can
@@ -494,6 +497,14 @@ before any edit — eight after S23 added three)
       `web/request-guard.mjs` so it can be tested at all (13 assertions), and
       `static-hygiene` now proves every `app.js` import is routable (a module added
       to the UI without a route 404s the page — this was one edit away).
+- [x] **Review of my own merged tree before opening (N-09, fixed here):** `SettingsPanel.cpp`
+      had no representation for two states this batch introduced, so *opening and closing a window
+      rewrote them* — `loopcount = -2` displayed as "Keep original" and saved back as `-1`, and a
+      `threads = -1` conf fell through `if (s.threads >= 0)` to the spinner's 0. Harmless before
+      P0-2 (both meant a bare `-j`); a real silent rewrite after it, which is why it is recorded
+      rather than quietly amended. Fixed with P1-30's own prescription plus a 4th `Looping` item,
+      **appended** because the harness addresses items 1 and 2 by index. The web side needed no
+      change, so this half could not be credited to #28. Both halves are CI-compiled proof only.
 - [ ] **U-76 remainder → `OD-18`**: which directory an un-prefixed CLI explode writes
       to. The scoped wording was tried and wrote frames into `reference_code/`.
 - [x] **PR #28 reconciliation** — **closed S23,** executed after #28 merged as

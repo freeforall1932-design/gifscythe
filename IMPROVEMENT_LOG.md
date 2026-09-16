@@ -68,6 +68,16 @@ Chronological log of decisions and changes. **Newest at the top.**
 - `check_docs.sh` G8 now allows `release/current` (a pin that is supposed not to
   exist in the tree) next to the existing `release/[0-9]*` allowance.
 
+**Reviewing my own merged tree before opening the PR turned up two real bugs, and they are recorded here
+rather than quietly amended.** `SettingsPanel.cpp` could not represent either sentinel this batch introduced:
+`loopcount = -2` displayed as "Keep original" and was written back as `-1` by an ordinary close, and a conf's
+`threads = -1` fell through `if (s.threads >= 0)` to the spinner's 0. Before P0-2 each rewrote a value into
+one that meant the same thing; after P0-2 the threads half silently *added a `-j`*. That is the silent-rewrite
+class DS-06 was filed under, in code I had just written — which is what a review step is for. The fix follows
+P1-30's own prescription (‑1 as the spinner minimum, agreeing with DS-06) and appends a 4th `Looping` item,
+because the harness addresses items 1 and 2 by index; the web side needed no change, so the reviewer's "Loop
+count UI maps it incorrectly" half was true of the Qt GUI only and could not be credited to #28. Both halves
+are CI-compiled proof, not proof-by-me.
 **Partial:** **U-76** — the prefix NAME is shared across surfaces, the DIRECTORY
 is not (the scoped wording wrote 12 frames into `reference_code/`), so the choice
 is filed as owner decision **OD-18**. **U-67** — the engine-gated
@@ -76,7 +86,7 @@ and #28's `W4/W5` CI wiring has since landed, so the register carries U-67 as
 **FIXED (S22)**: with both halves in one tree there is nothing left to mark partial. **P1-40** — crop half landed in PR #28, loop
 half here; **P1-41** — U-64 landed in PR #28, U-65/U-66 here.
 
-**Left:** every Qt-bound row (`U-58`, `U-59`/P0-7, `U-70`, `U-72`, GS-205, DS-07,
+**Left:** every Qt-bound row (`U-58`, `U-59`/P0-7, `U-70`, `U-72`, GS-205,
 DS-10, GS-203/204/210 remainders) — no Qt6 or cmake in this sandbox; **P1-35**
 (U-55), unverifiable without a Windows host; `U-68`'s numeric cap (documented and
 left as-is deliberately); CI/gate wiring (P2-7/GS-208, P2-1); `OD-03…OD-10`,
@@ -135,8 +145,10 @@ was replayed onto `main` and the overlaps resolved rather than stacked:
 total** (S23 alone reached 104/9/34 on the pre-merge base; the five rows #28 closed
 account for the rest).
 
-**Not verifiable here:** the Qt6 GUI (no cmake/Qt6: `test_gui_offscreen`, the GUI
-build and the DS-07 spinner half of P0-2's UI story), Windows/macOS behaviour (no
+**Not verifiable here:** the Qt6 GUI **could not be compiled or run by me at all**
+(no cmake/Qt6), so `test_gui_offscreen`, the GUI build and both S23 Qt edits are attributed to CI
+— the rule S8 used for its T8 rewrite — and DS-07 closes on that basis with no harness count
+claimed. Windows/macOS behaviour (no
 Wine/mingw: the `release/current` pin on a Windows path, `GetModuleFileNameW`,
 the U-55 case fold, and whether the Win32 reserved-name check really folds ¹²³ —
 the code follows the finding's claim and the shared table does not depend on it),
