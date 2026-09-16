@@ -35,11 +35,55 @@ export function validate(s) {
   if (delay < -1) {
     add("delay", delay, "must be >= 0 (1/100 s units) or unset (-1)");
   }
+  // threads (DS-06 / P0-2 + DS-09 / P1-31) — mirror of Validate.h. -1 says
+  // nothing to the engine, 0 is a bare -j (auto), >0 is -jN; below -1 is a typo.
   const threads = num(s.threads, -1);
   if (threads < -1) {
     add("threads", threads,
-      "must be >= -1 (-1 = unset/default, 0 = auto, >0 = explicit thread count)");
+        "must be >= -1 (-1 = unset/default, 0 = auto, >0 = explicit thread count)");
   }
+  // loopcount (U-63 / P1-40 + GS-206 / P1-28): -2 play once, -1 unset,
+  // 0 forever, 1..65535 a count. The bound is measured: the bundled 1.96 turns
+  // --loopcount=65536 into "loop forever" and exits 0.
+  const loopcount = num(s.loopcount, -1);
+  if (loopcount !== -1 && loopcount !== -2 && (loopcount < 0 || loopcount > 65535)) {
+    add("loopcount", loopcount,
+        "must be -2 (play once), -1 (unset), or 0..65535 (0 = forever); larger values wrap: the engine turns 65536 into forever and exits 0");
+  }
+  // Method-name enums (GS-206 / P1-28), against the lists the engine registers
+  // in gifsicle.c:1470-1508 / quantize.c:1421+.
+  if (s.color_method) {
+    const cm = String(s.color_method);
+    if (cm !== "diversity" && cm !== "blend-diversity" && cm !== "median-cut") {
+      add("color_method", cm,
+          "must be diversity, blend-diversity or median-cut (the engine refuses anything else)");
+    }
+  }
+  if (s.resize_method) {
+    const kResize = ["point", "sample", "mix", "box", "catrom", "lanczos", "lanczos2",
+                     "lanczos3", "mitchell", "fast", "good"];
+    if (!kResize.includes(String(s.resize_method))) {
+      add("resize_method", s.resize_method,
+          "not one of point, sample, mix, box, catrom, lanczos, lanczos2, lanczos3, mitchell, fast, good");
+    }
+  }
+  // dither_method is deliberately NOT enum-checked (the engine grammar carries
+  // parameters: o8, "o,4", ro64x64 — quantize.c:1421 onwards), exactly as in
+  // Validate.h. A blank value never reaches the settings model either: the
+  // loader trims it, so a rule for it would be dead on the C++ side and would
+  // break the parity this file's test enforces.
+  // gamma_str: shape only — the engine accepts srgb, oklab and any finite
+  // number, and refuses everything else WITHOUT failing (rc=0), so a bad name
+  // is silent. Non-finite is rejected here and in Validate.h for the same
+  // reason: Number("inf") is NaN while std::stod("inf") parses.
+  if (s.gamma_str && s.gamma_str !== "srgb" && s.gamma_str !== "oklab") {
+    const g = Number(String(s.gamma_str).trim());
+    if (!Number.isFinite(g)) {
+      add("gamma", s.gamma_str,
+          "must be srgb, oklab or a number (anything else: the engine prints a gamma error and exits 0)");
+    }
+  }
+
   const mode = s.mode || "auto";
   if (s.info && (mode === "batch" || mode === "merge" || mode === "explode")) {
     add("info", "true", "--info cannot be combined with mode options (-m/-b/-e)");

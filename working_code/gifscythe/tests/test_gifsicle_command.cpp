@@ -18,6 +18,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstdio>
+#include <utility>
 #include <string>
 #include <cmath>
 
@@ -346,17 +347,23 @@ int main() {
     CHECK(w.empty());  // GUI keys must not raise load warnings
   }
 
-  // 21. Threads mapping (audit U-03). "Auto" (<=0) MUST emit a bare -j.
-  //     The engine's own default is thread_count = 0 = single-threaded
-  //     (gifsicle.c:39, used at xform.c:1329); a bare -j selects
-  //     GIFSICLE_DEFAULT_THREAD_COUNT = 8 (gifsicle.c:38, :1893). Emitting
-  //     nothing therefore made the control labelled "Auto" run one thread.
+  // 21. Threads mapping (audit U-03, then DS-06 / fix-order P0-2): a
+  //     TRI-state, because the engine has three distinct states.
+  //       < 0  -> no flag at all: gifsicle's own default is thread_count = 0,
+  //               i.e. single-threaded (gifsicle.c:39, read at xform.c:1329).
+  //        0   -> bare -j: GIFSICLE_DEFAULT_THREAD_COUNT = 8 (gifsicle.c:38,
+  //               :1893). This is what the control labelled "Auto" means.
+  //       > 0  -> -jN.
+  //     U-03 (S8) fixed the "Auto runs one thread" half by making <=0 emit a
+  //     bare -j; that also made the documented "unset" sentinel (-1) mean 8
+  //     threads, so P0-2 separates them. GifsicleSettings.h names both states
+  //     (GS_THREADS_UNSET / GS_THREADS_AUTO) so no caller has to re-derive -1.
   {
     Settings def;                       // threads = -1 by default
-    CHECK(def.threads == -1);
-    CHECK(has(GifsicleCommand(def).args(), "-j"));
+    CHECK(def.threads == GS_THREADS_UNSET);
+    CHECK(!has(GifsicleCommand(def).args(), "-j"));   // unset says NOTHING
 
-    Settings auto0; auto0.threads = 0;  // the GUI spinner's "Auto"
+    Settings auto0; auto0.threads = 0;  // "Auto" — the ONLY way to ask for it
     CHECK(has(GifsicleCommand(auto0).args(), "-j"));
 
     Settings four; four.threads = 4;
@@ -366,10 +373,168 @@ int main() {
 
     Settings one; one.threads = 1;      // single-threaded stays expressible
     CHECK(has(GifsicleCommand(one).args(), "-j1"));
+
+    // A conf can carry anything below -1; validate warns, and the builder
+    // treats it like the unset sentinel rather than inventing a fourth state
+    // (DS-09 / P1-31, which the warning text belongs to).
+    Settings neg; neg.threads = -7;
+    CHECK(!has(GifsicleCommand(neg).args(), "-j"));
+    {
+      bool warned = false;
+      for (const auto& w : validate(neg)) if (w.field == "threads") warned = true;
+      CHECK(warned);
+    }
+    Settings unset_ok; unset_ok.inputs = {"a.gif"};
+    {
+      bool warned = false;
+      for (const auto& w : validate(unset_ok)) if (w.field == "threads") warned = true;
+      CHECK(!warned);                    // -1 is legal: it means "no flag"
+    }
   }
 
-  // 21b. threads < -1 is warned (audit DS-09) even though the command builder
-  //      still falls back to bare -j for "auto" semantics.
+  // 21b. Loop count is a FOUR-state control (U-63 / P1-40): unset, play once
+  //      (--no-loopcount), forever (--loopcount=0), or a count. "Play once"
+  //      used to be unrepresentable because the model only had -1/0/N.
+  {
+    Settings off; off.loopcount = GS_LOOPCOUNT_ONCE;
+    auto oa = GifsicleCommand(off).args();
+    CHECK(has(oa, "--no-loopcount"));
+    CHECK(!has(oa, "--loopcount=0"));
+
+    Settings forever; forever.loopcount = GS_LOOPCOUNT_FOREVER;
+    auto fa = GifsicleCommand(forever).args();
+    CHECK(has(fa, "--loopcount=0"));
+    CHECK(!has(fa, "--no-loopcount"));
+
+    Settings three; three.loopcount = 3;
+    CHECK(has(GifsicleCommand(three).args(), "--loopcount=3"));
+
+    Settings def;                        // unchanged: say nothing
+    CHECK(def.loopcount == GS_LOOPCOUNT_UNSET);
+    CHECK(!has(GifsicleCommand(def).args(), "--loopcount"));
+    CHECK(!has(GifsicleCommand(def).args(), "--no-loopcount"));
+
+    // Every state survives a save/load round trip, which is why the writer's
+    // guard is `!= unset` and not the old `>= 0` (that guard would have
+    // dropped -2 and silently turned "play once" back into "unchanged").
+    for (int lc : {GS_LOOPCOUNT_ONCE, GS_LOOPCOUNT_UNSET, GS_LOOPCOUNT_FOREVER, 7}) {
+      Settings src; src.loopcount = lc;
+      std::ostringstream os; save_settings(os, src);
+      std::istringstream is(os.str());
+      Settings back = load_settings(is);
+      CHECK(back.loopcount == lc);
+      CHECK((GifsicleCommand(src).toString() == GifsicleCommand(back).toString()));
+    }
+    {
+      Settings src; src.threads = GS_THREADS_AUTO;
+      std::ostringstream os; save_settings(os, src);
+      std::istringstream is2(os.str());
+      Settings back = load_settings(is2);
+      CHECK(back.threads == GS_THREADS_AUTO);   // written explicitly
+      Settings src2; src2.threads = GS_THREADS_UNSET;
+      std::ostringstream os2; save_settings(os2, src2);
+      std::istringstream is3(os2.str());
+      Settings back2 = load_settings(is3);
+      CHECK(back2.threads == GS_THREADS_UNSET); // absence means unset
+    }
+  }
+
+  // 21d. Integers parse into their own width (GS-206 / P1-28). A value that
+  //      cannot fit must warn and leave the field ALONE — the old `long` +
+  //      `static_cast<int>` path wrapped instead, so a mistyped
+  //      `loopcount = 4294967296` became 0 ("forever") with no complaint.
+  {
+    auto warn_count = [](const char* text) {
+      std::vector<LoadWarning> w;
+      std::istringstream is(text);
+      Settings s = load_settings(is, &w);
+      return std::make_pair(w.size(), s);
+    };
+    {
+      auto wc = warn_count("loopcount = 4294967296\n");
+      CHECK(wc.first == 1);
+      CHECK(wc.second.loopcount == GS_LOOPCOUNT_UNSET);   // not 0!
+    }
+    {
+      auto wc = warn_count("threads = 4294967297\n");
+      CHECK(wc.first == 1);
+      CHECK(wc.second.threads == GS_THREADS_UNSET);      // not 1!
+    }
+    {
+      auto wc = warn_count("crop_w = 4294967296\n");
+      CHECK(wc.first == 1);
+      CHECK(wc.second.crop_w == 0u);                     // untouched default
+    }
+    {   // a legal value still lands, and '+' keeps working (istringstream did)
+      auto wc = warn_count("loopcount = +5\ndelay = +10\n");
+      CHECK(wc.first == 0);
+      CHECK(wc.second.loopcount == 5);
+      CHECK(wc.second.delay_cs == 10);
+    }
+    {   // trailing garbage is still rejected, not silently truncated
+      auto wc = warn_count("loopcount = 40xyz\n");
+      CHECK(wc.first == 1);
+    }
+  }
+
+  // 21c. Validation domains the engine does NOT police for us (GS-206 /
+  //      P1-28). Measured on the bundled 1.96: every case below prints an
+  //      error or silently re-interprets the value and STILL EXITS 0, so the
+  //      run looks successful while the setting had no effect.
+  {
+    auto warns_for = [](const Settings& s, const char* field) {
+      for (const auto& w : validate(s)) if (w.field == field) return true;
+      return false;
+    };
+    Settings base; base.inputs = {"a.gif"};
+    CHECK(!warns_for(base, "loopcount"));
+
+    Settings big; big = base; big.loopcount = GS_LOOPCOUNT_MAX + 1;
+    CHECK(warns_for(big, "loopcount"));   // 65536 -> engine wrote "loop forever"
+
+    Settings mid; mid = base; mid.loopcount = 65535;
+    CHECK(!warns_for(mid, "loopcount"));
+    Settings once2; once2 = base; once2.loopcount = GS_LOOPCOUNT_ONCE;
+    CHECK(!warns_for(once2, "loopcount"));
+    Settings junk; junk = base; junk.loopcount = -3;
+    CHECK(warns_for(junk, "loopcount"));
+
+    Settings cm; cm = base; cm.color_method = "median-cut";
+    CHECK(!warns_for(cm, "color_method"));
+    Settings cm2; cm2 = base; cm2.color_method = "kdtree";
+    CHECK(warns_for(cm2, "color_method"));
+
+    Settings rm; rm = base; rm.resize_method = "lanczos2";
+    CHECK(!warns_for(rm, "resize_method"));
+    Settings rm2; rm2 = base; rm2.resize_method = "bicubic-ish";
+    CHECK(warns_for(rm2, "resize_method"));
+
+    Settings gm; gm = base; gm.gamma_str = "srgb";
+    CHECK(!warns_for(gm, "gamma"));
+    Settings gm2; gm2 = base; gm2.gamma_str = "2.2";
+    CHECK(!warns_for(gm2, "gamma"));
+    Settings gm3; gm3 = base; gm3.gamma_str = "banana";
+    CHECK(warns_for(gm3, "gamma"));
+
+    // dither_method is deliberately NOT enum-checked: the engine's grammar is
+    // parameterised (o8, o,4, ro64x64 — quantize.c:1421-1460), so a hard-coded
+    // list here would refuse legal input. Pinned as a NON-rule so the mirror
+    // cannot grow one by accident, and so `o,4` stays usable.
+    Settings dm; dm = base; dm.dither_method = "o,4";
+    CHECK(!warns_for(dm, "dither"));
+    Settings dm2; dm2 = base; dm2.dither_method = "quac";
+    CHECK(!warns_for(dm2, "dither"));
+  }
+
+  // 21b. threads < -1 is warned (audit DS-09).
+  //
+  // This block arrived in PR #28 pinning the builder's behavior at the time —
+  // ANY negative fell back to a bare `-j`. S23's P0-2 (DS-06) split "unset"
+  // from "auto", so the second half of that pin is now the opposite of the
+  // contract: an out-of-range value warns and then stays silent to the engine,
+  // because inventing a thread count for a typo is exactly the silent aliasing
+  // the tri-state removes. The warning checks are unchanged; the builder checks
+  // are extended so this row keeps covering both halves instead of one.
   {
     auto warns = [](const Settings& s, const char* field) {
       for (const auto& w : validate(s)) if (w.field == field) return true;
@@ -377,13 +542,15 @@ int main() {
     };
     Settings neg; neg.inputs = {"a.gif"}; neg.threads = -7;
     CHECK(warns(neg, "threads"));
-    CHECK(has(GifsicleCommand(neg).args(), "-j"));
+    CHECK(!has(GifsicleCommand(neg).args(), "-j"));   // no silent "-j" for a typo
 
     Settings unset; unset.inputs = {"a.gif"}; unset.threads = -1;
     CHECK(!warns(unset, "threads"));
+    CHECK(!has(GifsicleCommand(unset).args(), "-j")); // unset says nothing
 
     Settings auto0; auto0.inputs = {"a.gif"}; auto0.threads = 0;
     CHECK(!warns(auto0, "threads"));
+    CHECK(has(GifsicleCommand(auto0).args(), "-j"));  // 0 is the only "auto"
   }
 
   // 22. Output planning — the data-destruction guard (audit U-01).
@@ -730,7 +897,96 @@ int main() {
     std::ostringstream o2; save_settings(o2, plain);
     CHECK(o2.str().find("comment = a normal comment\n") != std::string::npos);
     CHECK(o2.str().find("background = #abcdef\n") != std::string::npos);
-    CHECK(o2.str().find("input = /some path/in.gif\n") != std::string::npos);
+  }
+
+  // 29b. The Windows reserved-device-name rule, driven by the shared table in
+  //      tests/windows_reserved_names.txt (audit U-56 / P1-36). The file is the
+  //      single source of truth: web/test/device-names.test.mjs asserts the SAME
+  //      rows against web/run-paths.mjs, which is the only way to catch the two
+  //      surfaces disagreeing — the actual defect, not just the missing
+  //      superscripts.
+  {
+    std::error_code ec;
+    const fs::path table = fs::path(__FILE__).parent_path() / "windows_reserved_names.txt";
+    std::ifstream in(table);
+    CHECK(in.is_open());                       // the table must ship with the test
+    int rows = 0, mismatched = 0, prefixed = 0;
+    std::string line;
+    while (std::getline(in, line)) {
+      if (line.empty() || line[0] == '#') continue;
+      const std::size_t tab = line.find('\t');
+      if (tab == std::string::npos) continue;
+      const std::string name = line.substr(0, tab);
+      const std::string want = line.substr(tab + 1);
+      const bool reserved = is_windows_reserved_device_name(name);
+      ++rows;
+      if (reserved != (want == "reserved")) ++mismatched;
+      // And the sanitizer's reaction: a reserved name is underscore-prefixed,
+      // never deleted, so the user still recognises the file they asked for.
+      const std::string safe = sanitize_output_name(name, NameRules::Windows);
+      if (reserved && safe == "_" + name) ++prefixed;
+      if (!reserved && safe == name) ++prefixed;
+    }
+    CHECK(rows >= 20);                         // a silently-shrinking table fails
+    CHECK(mismatched == 0);
+    CHECK(prefixed == rows);                   // every row's sanitizer reaction pinned
+  }
+
+  // 30b. Whitespace round trip (audit DS-12 / fix-order P1-13). The loader
+  //      trims each value and the writer used to emit it bare, so a comment
+  //      typed "  (draft)  " came back as "(draft)" and every save rewrote the
+  //      file differently — including for the GUI, whose name_template and
+  //      batch_dir travel through this same parser.
+  {
+    Settings s;
+    s.inputs = {"a.gif"};
+    s.comments = {"  (draft)  ", "tab\there", "no padding"};
+    s.background = " #ff0000 ";
+    std::ostringstream o; save_settings(o, s);
+    const std::string text = o.str();
+    std::istringstream i(text);
+    Settings r = load_settings(i);
+    CHECK(r.comments.size() == 3);
+    CHECK(r.comments[0] == "  (draft)  ");     // padding survives
+    CHECK(r.comments[1] == "tab\there");       // inner whitespace was never lost
+    CHECK(r.comments[2] == "no padding");
+    CHECK(r.background == " #ff0000 ");
+    // The format only changes where it must: a plain value is still written
+    // plain, so every conf this product wrote before stays byte-identical.
+    CHECK(text.find("comment = no padding\n") != std::string::npos);
+    CHECK(text.find("comment = \"  (draft)  \"\n") != std::string::npos);
+    // Idempotent: re-writing what was just loaded changes nothing.
+    std::ostringstream o3; save_settings(o3, r);
+    CHECK(o3.str() == text);
+
+    // A padded value containing quotes escapes them and still round-trips, and
+    // the documented consequence of a self-describing line is pinned: a
+    // HAND-WRITTEN `comment = "hi"` now reads as a quoted string (a writer on
+    // this branch escapes that case, so product-written files are exact).
+    Settings q;
+    q.inputs = {"a.gif"};
+    q.comments = {" \"hi\" "};
+    std::ostringstream oq; save_settings(oq, q);
+    std::istringstream iq(oq.str());
+    Settings rq = load_settings(iq);
+    CHECK(rq.comments.size() == 1);
+    CHECK(rq.comments[0] == " \"hi\" ");
+    std::istringstream ilegacy("comment = \"hi\"\n");
+    Settings rlegacy = load_settings(ilegacy);
+    CHECK(rlegacy.comments.size() == 1);
+    CHECK(rlegacy.comments[0] == "hi");
+
+    // GUI state keys travel the same line format, so they get the same
+    // guarantee (U-36 made this the one parser; DS-12 keeps it lossless).
+    std::map<std::string, std::string> extra;
+    std::istringstream igui("name_template = \" {name}.gif \"\n");
+    load_settings(igui, nullptr, &extra);
+    CHECK(extra["name_template"] == " {name}.gif ");
+    // ...and an unknown key that was never quoted is untouched.
+    std::map<std::string, std::string> extra2;
+    std::istringstream igui2("batch_dir = /tmp/out dir\n");
+    load_settings(igui2, nullptr, &extra2);
+    CHECK(extra2["batch_dir"] == "/tmp/out dir");
   }
 
   // 31. Unknown keys are collected for the GUI (audit U-36 / P3-7). set_field

@@ -360,6 +360,231 @@ else
   bad "DS-09 threads<-1 warning/refusal missing (rc=$rc_threads)"
 fi
 
+# 12g. Threads is a TRI-state (DS-06 / P0-2): -1 says nothing to the engine,
+#      0 is a bare -j ("auto" = the engine's own default count), N is -jN.
+#      Before P0-2 the first two collapsed, so "unset" silently ran 8 threads.
+cat > "$WORK/threads_unset.conf" <<EOF
+mode = auto
+threads = -1
+input = $SRC_GIF
+EOF
+cat > "$WORK/threads_auto.conf" <<EOF
+mode = auto
+threads = 0
+input = $SRC_GIF
+EOF
+cat > "$WORK/threads_four.conf" <<EOF
+mode = auto
+threads = 4
+input = $SRC_GIF
+EOF
+"$CLI" "$WORK/threads_unset.conf" --engine "$ENGINE" >"$WORK/tu.txt" 2>/dev/null
+"$CLI" "$WORK/threads_auto.conf"  --engine "$ENGINE" >"$WORK/ta.txt" 2>/dev/null
+"$CLI" "$WORK/threads_four.conf"  --engine "$ENGINE" >"$WORK/tf.txt" 2>/dev/null
+if ! grep -q -- '-j' "$WORK/tu.txt" && grep -qE -- '-j( |$)' "$WORK/ta.txt" \
+   && grep -q -- '-j4' "$WORK/tf.txt"; then
+  ok "P0-2 threads: -1 no flag, 0 bare -j, 4 explicit -j4"
+else
+  bad "P0-2 threads tri-state wrong (unset/auto/four: $(grep -oE '\-j[0-9]*' "$WORK/tu.txt" "$WORK/ta.txt" "$WORK/tf.txt" | tr '\n' ' '))"
+fi
+
+# 12h. "Play once" is reachable end to end (U-63 / P1-40): the CLI prints
+#      --no-loopcount AND the written GIF carries no loop extension at all
+#      (gifsicle.1: --no-loopcount turns looping off; a count cannot do that).
+cat > "$WORK/play_once.conf" <<EOF
+mode = auto
+loopcount = -2
+input = $SRC_GIF
+output = $WORK/once_out.gif
+EOF
+set +e
+"$CLI" "$WORK/play_once.conf" --run --engine "$ENGINE" >"$WORK/lo.txt" 2>"$WORK/loerr.txt"
+rc_lo=$?
+set -e
+"$ENGINE" --info "$WORK/once_out.gif" >"$WORK/loinfo.txt" 2>&1
+cat > "$WORK/play_forever.conf" <<EOF
+mode = auto
+loopcount = 0
+input = $SRC_GIF
+output = $WORK/forever_out.gif
+EOF
+"$CLI" "$WORK/play_forever.conf" --run --engine "$ENGINE" >/dev/null 2>&1
+"$ENGINE" --info "$WORK/forever_out.gif" >"$WORK/lfinfo.txt" 2>&1
+# The command line goes to STDERR under --run (stdout must stay byte-pure, U-04),
+# so the emitted flag is checked in a separate print-mode run instead.
+"$CLI" "$WORK/play_once.conf" --engine "$ENGINE" >"$WORK/loprint.txt" 2>/dev/null
+if [[ "$rc_lo" -eq 0 ]] && grep -q -- '--no-loopcount' "$WORK/loprint.txt" \
+   && ! grep -qi 'loop' "$WORK/loinfo.txt" && grep -qi 'loop forever' "$WORK/lfinfo.txt"; then
+  ok "U-63 play-once runs: no loop extension written (forever still loops)"
+else
+  bad "U-63 play-once wrong (rc=$rc_lo; printed=$(grep -o "\S*loopcount\S*" "$WORK/loprint.txt"|tr "\n" " "); once-loop=$(grep -ci loop "$WORK/loinfo.txt") forever-loop=$(grep -ci loop "$WORK/lfinfo.txt"))"
+fi
+
+# 12i. A number too wide for the model warns instead of wrapping (GS-206 /
+#      P1-28). 4294967296 is 2^32: the old long->int cast made it 0, which the
+#      engine reads as "loop forever" — a silent data-visible change.
+cat > "$WORK/huge_loop.conf" <<EOF
+mode = auto
+loopcount = 4294967296
+input = $SRC_GIF
+EOF
+set +e
+"$CLI" "$WORK/huge_loop.conf" --engine "$ENGINE" >"$WORK/hl.txt" 2>"$WORK/hlerr.txt"
+rc_hl=$?
+"$CLI" "$WORK/huge_loop.conf" --strict --engine "$ENGINE" >/dev/null 2>"$WORK/hls.txt"
+rc_hls=$?
+set -e
+if [[ "$rc_hl" -eq 0 && "$rc_hls" -eq 3 ]] \
+   && grep -q "outside the range this build can hold in an int" "$WORK/hlerr.txt" \
+   && ! grep -q -- '--loopcount' "$WORK/hl.txt"; then
+  ok "P1-28 oversized loopcount warns (and --strict refuses); no wrapped value reaches the engine"
+else
+  bad "P1-28 oversized loopcount not caught (rc=$rc_hl strict=$rc_hls)"
+fi
+
+# 12j. A relative input that only exists in the CWD is announced, not silently
+#      honoured (U-73 / P1-43): the conf's own directory is the documented
+#      anchor, and the old fallback made the same conf mean different things from
+#      two directories. Non-strict warns and proceeds; --strict refuses with 3.
+mkdir -p "$WORK/u73conf" "$WORK/u73cwd"
+cp "$SRC_GIF" "$WORK/u73cwd/logo.gif"
+cat > "$WORK/u73conf/a.conf" <<EOF
+mode = auto
+input = logo.gif
+EOF
+set +e
+(cd "$WORK/u73cwd" && "$CLI" "$WORK/u73conf/a.conf" --engine "$ENGINE") >"$WORK/u73.txt" 2>"$WORK/u73err.txt"
+rc73=$?
+(cd "$WORK/u73cwd" && "$CLI" "$WORK/u73conf/a.conf" --strict --engine "$ENGINE") >/dev/null 2>"$WORK/u73s.txt"
+rc73s=$?
+set -e
+if [[ "$rc73" -eq 0 && "$rc73s" -eq 3 ]] \
+   && grep -q "resolves against the CWD, not the settings file" "$WORK/u73err.txt" \
+   && grep -q "$WORK/u73cwd/logo.gif" "$WORK/u73.txt"; then
+  ok "U-73 CWD-resolved input warns (and --strict refuses) instead of silently diverging"
+else
+  bad "U-73 CWD fallback not announced (rc=$rc73 strict=$rc73s)"
+fi
+
+# 12k. Batch with N>1 inputs and ONE output is refused (U-74 / P1-43). Measured
+#      on the bundled engine: `gifsicle -b a.gif b.gif -o out.gif` exits 0 and
+#      out.gif is a byte copy of b.gif — a.gif's result simply does not exist.
+cp "$SRC_GIF" "$WORK/u74a.gif"; cp "$SRC_GIF1" "$WORK/u74b.gif"
+md5a_before="$(md5sum "$WORK/u74a.gif" | cut -d' ' -f1)"
+cat > "$WORK/u74.conf" <<EOF
+mode = batch
+input = $WORK/u74a.gif
+input = $WORK/u74b.gif
+output = $WORK/u74out.gif
+optimize = 2
+EOF
+set +e
+"$CLI" "$WORK/u74.conf" --run --engine "$ENGINE" >/dev/null 2>"$WORK/u74err.txt"
+rc74=$?
+set -e
+if [[ "$rc74" -eq 2 && ! -e "$WORK/u74out.gif" ]] \
+   && grep -q "only the LAST input" "$WORK/u74err.txt" \
+   && [[ "$(md5sum "$WORK/u74a.gif" | cut -d' ' -f1)" == "$md5a_before" ]]; then
+  ok "U-74 Batch + N inputs + 1 output refused (rc=2), nothing written, sources intact"
+else
+  bad "U-74 Batch merge-shape not refused (rc=$rc74, out=$([[ -e $WORK/u74out.gif ]] && echo y || echo n))"
+fi
+
+# 12l. One input + Batch + output still runs: the refusal above is about the
+#      N-to-1 shape, not about Batch with an output (which is what U-01 plans).
+cat > "$WORK/u74ok.conf" <<EOF
+mode = batch
+input = $WORK/u74b.gif
+output = $WORK/u74ok.gif
+optimize = 2
+EOF
+set +e
+"$CLI" "$WORK/u74ok.conf" --run --engine "$ENGINE" >/dev/null 2>"$WORK/u74okerr.txt"
+rc74ok=$?
+set -e
+if [[ "$rc74ok" -eq 0 && -s "$WORK/u74ok.gif" ]] \
+   && [[ "$(md5sum "$WORK/u74b.gif" | cut -d' ' -f1)" == "$(md5sum "$SRC_GIF1" | cut -d' ' -f1)" ]]; then
+  ok "U-74 does not over-refuse: Batch + 1 input + output runs and leaves the source alone"
+else
+  bad "U-74 over-refused the legal single-input batch shape (rc=$rc74ok)"
+fi
+
+# 12m. The advisory contract is greppable (DS-08 / P3-5): a warned run still
+#      exits 0 — that is deliberate and unchanged — so it also ends with ONE
+#      `WARNING-SUMMARY:` line a script can test. A clean run prints none, and
+#      --strict refuses before the summary exists.
+cat > "$WORK/warnsum.conf" <<EOF
+mode = auto
+unoptimize = maybe
+input = $SRC_GIF
+EOF
+set +e
+"$CLI" "$WORK/warnsum.conf" --engine "$ENGINE" >/dev/null 2>"$WORK/ws.txt"
+"$CLI" "$WORK/warnsum.conf" --run --engine "$ENGINE" >/dev/null 2>"$WORK/wsrun.txt"
+"$CLI" "$WORK/warnsum.conf" --strict --engine "$ENGINE" >/dev/null 2>"$WORK/wss.txt"
+cat > "$WORK/clean.conf" <<EOF
+mode = auto
+input = $SRC_GIF
+EOF
+"$CLI" "$WORK/clean.conf" --engine "$ENGINE" >/dev/null 2>"$WORK/wsclean.txt"
+set -e
+if grep -q "WARNING-SUMMARY: parse=1 validation=0 mode=advisory outcome=print-continued" "$WORK/ws.txt" \
+   && grep -q "WARNING-SUMMARY: parse=1 validation=0 mode=advisory outcome=run-continued" "$WORK/wsrun.txt" \
+   && grep -q "WARNING: settings key 'unoptimize' value 'maybe'" "$WORK/ws.txt" \
+   && ! grep -q "WARNING-SUMMARY" "$WORK/wsclean.txt" \
+   && ! grep -q "WARNING-SUMMARY" "$WORK/wss.txt"; then
+  ok "DS-08 greppable warning summary (print/run), absent when clean and under --strict"
+else
+  bad "DS-08 warning summary wrong (print:$(grep -c WARNING-SUMMARY "$WORK/ws.txt") run:$(grep -c WARNING-SUMMARY "$WORK/wsrun.txt") clean:$(grep -c WARNING-SUMMARY "$WORK/wsclean.txt") strict:$(grep -c WARNING-SUMMARY "$WORK/wss.txt"))"
+fi
+
+# 12n. Engine discovery survives a symlink install (U-65 / P1-41). The real
+#      binary lives in $WORK/inst with its engine beside it; $WORK/link holds a
+#      symlink used as the command. argv[0] alone points at $WORK/link, where
+#      there is no engine — the old code searched THAT directory and gave up.
+mkdir -p "$WORK/inst" "$WORK/link"
+cp "$CLI" "$WORK/inst/gifscythe-cli"
+cp "$ENGINE" "$WORK/inst/gifsicle"
+ln -sf "$WORK/inst/gifscythe-cli" "$WORK/link/gifscythe-cli"
+cat > "$WORK/symlink.conf" <<EOF
+mode = auto
+input = $SRC_GIF
+output = $WORK/symlink_out.gif
+EOF
+set +e
+"$WORK/link/gifscythe-cli" "$WORK/symlink.conf" --run >"$WORK/sl.txt" 2>"$WORK/slerr.txt"
+rc_sl=$?
+set -e
+if [[ "$rc_sl" -eq 0 && -s "$WORK/symlink_out.gif" ]] \
+   && grep -q "$WORK/inst/gifsicle" "$WORK/slerr.txt" \
+   && grep -q "# Engine source: bundled/release" "$WORK/slerr.txt"; then
+  ok "U-65 symlinked CLI still finds the engine beside the REAL binary (OS path, not argv[0])"
+else
+  bad "U-65 symlink install lost the engine (rc=$rc_sl; $(tail -2 "$WORK/slerr.txt" | head -1))"
+fi
+
+# 12o. release/current is honoured, and it is honoured BEFORE the versioned
+#      directory (U-66 / P1-41): one pin, every surface. Both candidate engines
+#      exist here so the assertion is about ORDER, not about availability.
+mkdir -p "$WORK/pin/release/current" "$WORK/pin/release/0.1.0"
+cp "$ENGINE" "$WORK/pin/release/current/gifsicle"
+cp "$ENGINE" "$WORK/pin/release/0.1.0/gifsicle"
+cat > "$WORK/pin.conf" <<EOF
+mode = auto
+input = $SRC_GIF
+output = $WORK/pin_out.gif
+EOF
+set +e
+(cd "$WORK/pin" && "$CLI" "$WORK/pin.conf" --run) >"$WORK/pin.txt" 2>"$WORK/pinerr.txt"
+rc_pin=$?
+set -e
+if [[ "$rc_pin" -eq 0 && -s "$WORK/pin_out.gif" ]] \
+   && grep -q "release/current/gifsicle" "$WORK/pinerr.txt"; then
+  ok "U-66 release/current wins over release/<version> for the CLI too"
+else
+  bad "U-66 current pin not preferred (rc=$rc_pin; $(grep -o 'release/[^ ]*gifsicle' "$WORK/pinerr.txt" | head -1))"
+fi
+
 # 13. Explode E2E (audit U-17): real engine writes prefix.NNN frames and the
 #    CLI reports the verified count on stderr. logo.gif has 12 frames.
 mkdir -p "$WORK/ex"
@@ -395,23 +620,32 @@ else
   bad "lying-engine explode not refused honestly (rc=$rc, stderr=$(tail -2 "$WORK/err10.txt" | head -1))"
 fi
 
-# 15. Explode with EMPTY output verifies gifsicle's own fallback prefix: the
-#     input's basename in the CWD (reference gifsicle.c "explode into current
-#     directory"), i.e. <cwd>/logo.gif.NNN — verification must follow the same rule.
-mkdir -p "$WORK/cwd"
+# 15. Explode with EMPTY output (U-76 / P1-43). It used to inherit the engine's
+#     own fallback — `<input basename>.NNN` in the CWD, extension and all, so
+#     logo.gif produced logo.gif.000 next to wherever the CLI happened to run,
+#     while the desktop and the web wrote <stem>_frame.NNN beside the input.
+#     Now the NAME is shared (`<stem>_frame`) while the DIRECTORY stays the CWD,
+#     which is both the engine's convention and safe: beside-the-input wrote 12
+#     frames into reference_code/ the first time it was tried, so it is refused
+#     here and left as owner decision OD-18. The input is copied into $WORK/src
+#     so the assertion "nothing new appears next to the input" is meaningful.
+mkdir -p "$WORK/cwd" "$WORK/src"
+cp "$SRC_GIF" "$WORK/src/logo.gif"
 cat > "$WORK/explode_noout.conf" <<EOF
 mode = explode
-input = $SRC_GIF
+input = $WORK/src/logo.gif
 EOF
 set +e
 (cd "$WORK/cwd" && "$CLI" "$WORK/explode_noout.conf" --run --engine "$ENGINE" >"$WORK/out11.txt" 2>"$WORK/err11.txt")
 rc=$?
 set -e
-if [[ "$rc" -eq 0 && -s "$WORK/cwd/logo.gif.000" && -s "$WORK/cwd/logo.gif.011" ]] \
-   && grep -q "12 frame(s)" "$WORK/err11.txt"; then
-  ok "explode with empty output verifies the CWD basename prefix (logo.gif.NNN)"
+if [[ "$rc" -eq 0 && -s "$WORK/cwd/logo_frame.000" && -s "$WORK/cwd/logo_frame.011" ]] \
+   && grep -q "12 frame(s)" "$WORK/err11.txt" \
+   && grep -q "no explode prefix given" "$WORK/err11.txt" \
+   && [[ -z "$(ls -A "$WORK/src" | grep -v '^logo.gif$' | tr -d '\n')" ]]; then
+  ok "explode with empty output writes <CWD>/logo_frame.NNN (name matches the desktop; input dir untouched)"
 else
-  bad "explode empty-output prefix rule (rc=$rc, logo.gif.000=$([[ -s $WORK/cwd/logo.gif.000 ]] && echo y || echo n))"
+  bad "explode empty-output prefix rule (rc=$rc, frames=$([[ -s $WORK/cwd/logo_frame.000 ]] && echo y || echo n), src=$(ls -A "$WORK/src" | tr '\n' ' '))"
 fi
 
 # 16. Multi-input explode is REFUSED by --run (N-05): the engine exits 0 but

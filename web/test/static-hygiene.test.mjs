@@ -97,6 +97,7 @@ try {
     ["/style.css", "style.css", "text/css"],
     ["/app.js", "app.js", "text/javascript"],
     ["/command.mjs", "command.mjs", "text/javascript"],
+    ["/request-guard.mjs", "request-guard.mjs", "text/javascript"],
   ];
   for (const [path, file, mime] of UI) {
     const r = await raw(port, "GET", path);
@@ -116,6 +117,21 @@ try {
   }
   const appJs = (await raw(port, "GET", "/app.js")).body.toString("utf8");
   check("U-67 app.js still imports ./command.mjs", appJs.includes('from "./command.mjs"'), "import missing");
+
+  // The allow-list is only correct if it covers what the UI actually imports.
+  // Without this, adding a module to app.js and forgetting the route produces a
+  // page that 404s on module load — a "hygiene fix" silently breaking the
+  // product, which is the class of thing S21's measure-first rule exists to catch.
+  const imports = [...appJs.matchAll(/from\s+"(\.\/[^"]+)"/g)].map((m) => m[1]);
+  check(`U-67 app.js imports are all routable (${imports.map((i) => i.slice(2)).join(", ")})`,
+    imports.length > 0 && imports.every((rel) => UI.some(([url, file]) => url === "/" + rel.slice(2) && file === rel.slice(2))),
+    `imports ${imports.join(", ")} vs the UI list ${UI.map(([u]) => u).join(", ")}`);
+  for (const rel of imports) {
+    const r = await raw(port, "GET", "/" + rel.slice(2));
+    check(`U-67 ${"/" + rel.slice(2)} loads in the browser (not a 404)`,
+      r.status === 200, `status ${r.status}`);
+  }
+
 
   // ---- 2. the narrowed defect: internal files must NOT be routable ----
   const MUST_NOT_SERVE = [

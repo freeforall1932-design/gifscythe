@@ -728,6 +728,11 @@ if [[ ${#CURRENT_DOCS[@]} -gt 0 ]]; then
       scripts/build_gifsicle.sh) continue ;;
       # hypothetical release dirs used to demonstrate the version-sort fix (U-26)
       release/[0-9]*) continue ;;
+      # the engine pin directory (U-66 / P1-41): created by a packager or a
+      # developer to re-point every surface at once, never committed, and looked
+      # for before release/<version> by both EngineLocator.h and web/server.mjs.
+      # Its absence is the normal state of the tree, not a documentation bug.
+      release/current) continue ;;
       # (S11: the working_code/gifscythe/build_support allowance that lived here
       # was deleted when U-15 closed - the directory now exists for real and
       # holds version.h.in, the CMake template moved out of src/.)

@@ -208,7 +208,14 @@ inline void GifsicleCommand::build() {
   if (s.disposal >= 0 && s.disposal <= 7) {
     add(args_, "--disposal"); add(args_, i2s(s.disposal));
   }
-  if (s.loopcount == 0) {
+  if (s.loopcount == GS_LOOPCOUNT_ONCE) {
+    // U-63 / P1-40: "play once" is the ABSENT loop extension, not a count of
+    // 1 (gifsicle.1:781 "--no-loopcount (the default) turns off looping" and
+    // :784 "set the loop count to one less than the number of times you want
+    // the animation to run"). The old model could only say "unchanged" or
+    // "loop N times", so a non-looping GIF was unrepresentable.
+    add(args_, "--no-loopcount");
+  } else if (s.loopcount == 0) {
     // --loopcount=0 is equivalent to forever (man page confirmed).
     add(args_, "--loopcount=0");
   } else if (s.loopcount > 0) {
@@ -219,15 +226,20 @@ inline void GifsicleCommand::build() {
     add(args_, optimization_opt(s.optimize_level));
   }
   if (s.unoptimize) add(args_, "-U");
-  // Threads (audit U-03). "Auto" (threads <= 0) MUST emit a bare -j, not
-  // nothing: the engine's own default is single-threaded
-  // (gifsicle.c:39 `int thread_count = 0;`, consumed by xform.c:1329
-  // `int nthreads = thread_count;`), while a bare -j selects
-  // GIFSICLE_DEFAULT_THREAD_COUNT = 8 (gifsicle.c:38, :1893). Emitting no flag
-  // therefore made the control labelled "Auto" run one thread, contradicting
-  // both the label and GifsicleSettings.h's "-j; <=0 = auto".
+  // Threads (audit U-03, then DS-06 / fix-order P0-2) — a TRI-state, because
+  // the engine has three distinct states and the old two-state mapping merged
+  // two of them:
+  //   threads  < 0  -> emit NOTHING. gifsicle's own default is single-threaded
+  //                   (gifsicle.c:39 `int thread_count = 0;`, read at
+  //                   xform.c:1329), so "no flag" means "do not touch it".
+  //   threads == 0  -> bare `-j`: GIFSICLE_DEFAULT_THREAD_COUNT = 8
+  //                   (gifsicle.c:38, :1893) — this is "auto".
+  //   threads  > 0  -> `-jN`.
+  // Before P0-2, `<= 0` emitted a bare `-j`, so the documented "unset"
+  // sentinel (-1) silently ran 8 threads — the same class of defect as U-03,
+  // pointed the other way. `Validate.h` warns on `threads < -1`.
   if (s.threads > 0) add(args_, "-j" + i2s(s.threads));
-  else add(args_, "-j");
+  else if (s.threads == GS_THREADS_AUTO) add(args_, "-j");
 
   // Inputs
   for (const auto& in : s.inputs) add(args_, in);

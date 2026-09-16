@@ -68,12 +68,35 @@ const fixtures = [
     s: { mode: "auto", crop: true, crop_x: 2, crop_y: 2, crop_w: 0, crop_h: 0,
          inputs: [IN] },
     expect: [] },
+  { name: "crop with zero height",
+    s: { mode: "auto", crop: true, crop_x: 0, crop_y: 0, crop_w: 30, crop_h: 0,
+         inputs: [IN] }, expect: [] },
   // threads < -1 is reachable only via a hand-written conf because both writers
   // normalize negative values away except -1 = unset.
   { name: "threads below -1 warns (audit DS-09)",
     s: { mode: "auto", threads: -7, inputs: [IN] },
     conf: `mode = auto\nthreads = -7\ninput = ${IN}\n`,
     expect: ["threads=-7: must be >= -1 (-1 = unset/default, 0 = auto, >0 = explicit thread count)"] },
+  // --- S23: the multi-state sentinels and the GS-206 domains -------------
+  { name: "threads unset (-1) is legal: no flag, no warning (P0-2)",
+    s: { mode: "auto", threads: -1, inputs: [IN] }, expect: [] },
+  { name: "loopcount -2 (play once) is legal (U-63)",
+    s: { mode: "auto", loopcount: -2, inputs: [IN] }, expect: [] },
+  { name: "loopcount above 65535 warns — the engine wraps it silently (P1-28)",
+    s: { mode: "auto", loopcount: 65536, inputs: [IN] },
+    expect: ["loopcount=65536: must be -2 (play once), -1 (unset), or 0..65535 (0 = forever); larger values wrap: the engine turns 65536 into forever and exits 0"] },
+  { name: "unknown color_method warns (engine refuses it)",
+    s: { mode: "auto", color_method: "kdtree", inputs: [IN] },
+    expect: ["color_method=kdtree: must be diversity, blend-diversity or median-cut (the engine refuses anything else)"] },
+  { name: "unknown resize_method warns (engine refuses it)",
+    s: { mode: "auto", resize_method: "bicubic", inputs: [IN] },
+    expect: ["resize_method=bicubic: not one of point, sample, mix, box, catrom, lanczos, lanczos2, lanczos3, mitchell, fast, good"] },
+  { name: "non-numeric gamma warns; srgb/oklab/numbers do not (P1-28)",
+    s: { mode: "auto", gamma_str: "banana", inputs: [IN] },
+    expect: ["gamma=banana: must be srgb, oklab or a number (anything else: the engine prints a gamma error and exits 0)"] },
+  { name: "named gamma oklab is accepted", s: { mode: "auto", gamma_str: "oklab", inputs: [IN] }, expect: [] },
+  { name: "dither grammar is NOT enum-validated on purpose (o,4 / ro64)",
+    s: { mode: "auto", dither_method: "o,4", inputs: [IN] }, expect: [] },
   { name: "resize-fit 0x0 (audit U-22)",
     s: { mode: "auto", resize_kind: "fit", resize_w: 0, resize_h: 0, inputs: [IN] } },
   { name: "resize-touch 0x0",
@@ -113,9 +136,12 @@ try {
     const cpp = [...stderr.matchAll(/^WARNING: ([^=]*)=(.*?): (.*)$/gm)]
       .map((m) => `${m[1]}=${m[2]}: ${m[3]}`);
     const js = validate(f.s).map((i) => `${i.field}=${i.value}: ${i.reason}`);
-    const expected = f.expect || null;
-
     const same = cpp.length === js.length && cpp.every((line, i) => line === js[i]);
+    // A parity check alone passes on two empty lists, so a fixture that expects
+    // a specific warning says so explicitly. Without this, "neither side warns"
+    // and "the rule is missing on both sides" are indistinguishable — which is
+    // how a dead gate stayed dead for five PRs (see the R2 review rule).
+    const expected = f.expect || null;
     const matchesExpected = !expected
       || (cpp.length === expected.length
         && js.length === expected.length
