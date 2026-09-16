@@ -40,6 +40,23 @@ inline NameRules host_name_rules() {
 // True for the names Win32 reserves for devices. Compared against the part
 // before the first dot, case-insensitively: "con", "CON.gif" and "Com1.txt"
 // are all reserved, while "console.gif" and "mycon.gif" are not.
+//
+// Audit U-56 / fix-order P1-36 — the ASCII-digit form was not enough: the
+// Win32 reserved-name check also folds the three legacy superscript digits, so
+// `COM¹.gif` addresses a device and slips past a filter that only looks at 0-9.
+// In UTF-8 those are exactly two bytes each (C2 B9 / C2 B2 / C2 B3), and the
+// `tolower` loop above leaves every byte >= 0x80 alone in every locale, so the
+// stem still carries them.
+//
+// Deliberate scope: superscripts are recognised after COM/LPT only (not after
+// CON, and not as a general "any Unicode digit" rule), and full-width digits
+// (U+FF11...) are NOT folded — nothing was measured to show the check accepts
+// them, and a guess in this function refuses legal file names. COM0/LPT0 are
+// refused even though MSDN lists COM1..COM9: the asymmetry of cost says refuse.
+//
+// tests/windows_reserved_names.txt is the shared table both this and the web
+// admission check (web/run-paths.mjs) are tested against, so the two surfaces
+// cannot drift again.
 inline bool is_windows_reserved_device_name(const std::string& name) {
   std::string stem;
   for (char c : name) {
@@ -49,10 +66,16 @@ inline bool is_windows_reserved_device_name(const std::string& name) {
   if (stem.size() == 3) {
     return stem == "con" || stem == "prn" || stem == "aux" || stem == "nul";
   }
-  if (stem.size() == 4 &&
-      (stem.compare(0, 3, "com") == 0 || stem.compare(0, 3, "lpt") == 0) &&
-      std::isdigit(static_cast<unsigned char>(stem[3]))) {
-    return true;
+  const bool com_or_lpt =
+      stem.size() >= 4 &&
+      (stem.compare(0, 3, "com") == 0 || stem.compare(0, 3, "lpt") == 0);
+  if (!com_or_lpt) return false;
+  if (stem.size() == 4) {
+    return std::isdigit(static_cast<unsigned char>(stem[3])) != 0;
+  }
+  if (stem.size() == 5 && stem[3] == static_cast<char>(0xC2)) {
+    const unsigned char sup = static_cast<unsigned char>(stem[4]);
+    return sup == 0xB9 || sup == 0xB2 || sup == 0xB3;   // COM¹ ² ³ / LPT…
   }
   return false;
 }

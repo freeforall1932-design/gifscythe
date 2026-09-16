@@ -308,8 +308,22 @@ if command -v node >/dev/null 2>&1; then
     w5_n="$(grep -c '^PASS' <<<"$w5_out")"
     ok "W5" "web static allow-list + HEAD contract regression (${w5_n:-?} cases, U-67 / NF-10)"
   else bad "W5" "web static allow-list regression failed"; fi
+  # W6 covers the three suites S23 added, in the same shape as W4/W5: a web
+  # regression that no gate runs is not a regression test (that was the whole
+  # finding PR #28 closed), so "it exists in the repo" is not enough. All three
+  # work without Qt and without a GUI; server-bounds starts its own loopback
+  # server and needs the built engine only for the discovery-order case.
+  w6_out="$( cd ../.. && for w6s in request-guard device-names server-bounds; do
+    node "web/test/$w6s.test.mjs" 2>&1
+  done )"
+  if grep -q "request-guard: all cases passed" <<<"$w6_out" \
+     && grep -q "device-names: all cases passed" <<<"$w6_out" \
+     && grep -q "server-bounds: all cases passed" <<<"$w6_out"; then
+    w6_n="$(grep -c '^PASS' <<<"$w6_out")"
+    ok "W6" "web request ownership + shared device table + server bounds (${w6_n:-?} cases, U-54/U-69/U-56/U-06)"
+  else bad "W6" "S23 web suites failed to pass their own gate"; fi
 else
-  skip "W1-W5" "node not installed — web parity/server tests skipped"
+  skip "W1-W6" "node not installed — web parity/server tests skipped"
 fi
 
 # ---------- Windows CI-only ----------

@@ -21,10 +21,14 @@ two batches, each with executed proof** — including both release blockers:
 **U-01** (batch auto-naming could overwrite another output *or the user's
 source file*, rc=0) and **U-02** (`package_portable.sh` exited 0 with no GUI in
 the folder). New `src/core/OutputPlan.h` + `OutputName.h`,
-`scripts/test_package.sh` (9 negative cases), and five Node web suites; unit suite
-at **296 checks, 0 failures** (S11); `verify_audit.sh` now **30 PASS / 0 FAIL /
-3 SKIP, exit 0** as measured in the last full-toolchain checkpoint plus the S22
-web-gate additions (E9 SKIPs while the CI workflow change awaits a `workflows`-scoped token —
+`scripts/test_package.sh` (9 negative cases), and eight Node web suites (the five
+#28 wired into CI plus the three this batch added, all eight now in CI and in
+`verify_audit.sh` **W1–W6**); unit suite at **372 checks,
+0 failures** as re-measured in S23 after the PR #28 merge (308 in S22);
+`verify_audit.sh` **30 PASS / 0 FAIL / 6 SKIP** re-measured in the S23 sandbox —
+the skips are the Qt/CMake, clean-Windows and declared-workflow items, and the
+same script reported **30 PASS / 0 FAIL / 3 SKIP, exit 0** at the last
+full-toolchain checkpoint (E9 SKIPs while the CI workflow change awaits a `workflows`-scoped token —
 `docs/ci/PENDING_WORKFLOW_CHANGE.md`). See `docs/audit/REMEDIATION_2026-09-10.md`.
 **S9 (2026-09-10) added the status-tracking system:** `STATUS.md` is now the
 single status register (four states — DONE / PARTIAL / OPEN / UNTRIAGED),

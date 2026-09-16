@@ -11,6 +11,7 @@
 #include "GifsicleSettings.h"
 #include "WinUnicode.h"
 #include <cctype>
+#include <charconv>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -78,7 +79,45 @@ inline bool to_ulong_nonneg(const std::string& s, unsigned* out) {
   return true;
 }
 
-// Make a string value safe to write on ONE `key = value` line.
+// Parse DIRECTLY into the destination width (audit GS-206 / fix-order P1-28).
+//
+// Every integer control used to go through `to_long` + `static_cast<int>`. On
+// any host where long is wider than int — which is every Windows build, and
+// every LP64 one — that narrowing was unchecked, so `loopcount = 4294967296`
+// became 0 ("forever") and `threads = 4294967297` became 1. std::from_chars
+// into the destination type instead reports std::errc::result_out_of_range, so
+// the caller can warn and LEAVE THE FIELD ALONE, which is what every other
+// parser in this file does.
+//
+// A leading '+' is stripped first: istringstream accepted it, from_chars does
+// not, and confs are hand-written.
+inline bool to_int_strict(const std::string& s, int* out) {
+  if (!out) return false;
+  std::string t = trim(s);
+  if (!t.empty() && t.front() == '+') t.erase(t.begin());
+  if (t.empty()) return false;
+  int v = 0;
+  const std::from_chars_result r =
+      std::from_chars(t.data(), t.data() + t.size(), v);
+  if (r.ec != std::errc() || r.ptr != t.data() + t.size()) return false;
+  *out = v;
+  return true;
+}
+inline bool to_uint_strict(const std::string& s, unsigned* out) {
+  if (!out) return false;
+  std::string t = trim(s);
+  if (!t.empty() && t.front() == '+') t.erase(t.begin());
+  if (t.empty()) return false;
+  unsigned v = 0;
+  const std::from_chars_result r =
+      std::from_chars(t.data(), t.data() + t.size(), v);
+  if (r.ec != std::errc() || r.ptr != t.data() + t.size()) return false;
+  *out = v;
+  return true;
+}
+
+// Make a string value safe to write on ONE `key = value` line, and make the
+// round trip exact.
 //
 // Audit U-51: the serializer wrote string values verbatim, so a value
 // containing a newline became a new line — and therefore a new KEY. Verified
@@ -87,15 +126,58 @@ inline bool to_ulong_nonneg(const std::string& s, unsigned* out) {
 // space rather than escaped, which keeps the file format (and every existing
 // conf, and the JS mirror) unchanged.
 //
-// Still a known limitation of a line-based format: leading and trailing
-// whitespace inside a value is lost, because the loader trims. Documented here
-// rather than papered over; fixing it properly means a quoted/escaped format,
-// which is a breaking change for hand-written confs.
+// Audit DS-12 / fix-order P1-13 was the OTHER half of that, and it stayed a
+// documented "known limitation" for five sessions: the loader trims, so a value
+// with leading or trailing whitespace lost it on reload. A comment typed as
+// "  (draft)  " came back as "(draft)" and every save re-wrote the file
+// differently — which is a real defect for the GUI, whose per-file state keys
+// (`name_template`) round-trip through this same parser.
+//
+// The fix is minimal quoting rather than a format bump:
+//   * quote ONLY when the value would otherwise be lossy — i.e. it has leading
+//     or trailing whitespace, or already starts with a quote — so a value that
+//     round-trips plainly is still written plainly and old confs still parse;
+//   * inside quotes, `\` and `"` are escaped, and the CR/LF folding still runs
+//     first, so U-51's guarantee is unchanged.
+// One documented consequence: a hand-written conf whose value happens to start
+// AND end with `"` is now read as a quoted string, so the quotes are dropped
+// (`comment = "hi"` -> `hi`). That is the price of a self-describing line
+// format; a writer on this branch escapes such values, so files this product
+// writes round-trip exactly.
+inline bool line_value_needs_quotes(const std::string& v) {
+  if (v.empty()) return false;
+  if (v.front() == '"') return true;
+  const char first = v.front(), last = v.back();
+  return first == ' ' || first == '\t' || last == ' ' || last == '\t';
+}
+
 inline std::string encode_line_value(const std::string& v) {
-  std::string out;
-  out.reserve(v.size());
-  for (char c : v) out += (c == '\n' || c == '\r') ? ' ' : c;
+  std::string flat;
+  flat.reserve(v.size());
+  for (char c : v) flat += (c == '\n' || c == '\r') ? ' ' : c;
+  if (!line_value_needs_quotes(flat)) return flat;
+  std::string out = "\"";
+  for (char c : flat) {
+    if (c == '"' || c == '\\') out += '\\';
+    out += c;
+  }
+  out += '"';
   return out;
+}
+
+// Undo encode_line_value's quoting in place. Returns false for an unquoted
+// value, which is the overwhelmingly common case (and every pre-S23 conf).
+inline bool decode_line_value(std::string& v) {
+  if (v.size() < 2 || v.front() != '"' || v.back() != '"') return false;
+  std::string out;
+  out.reserve(v.size() - 2);
+  for (size_t i = 1; i + 1 < v.size(); ++i) {
+    const char c = v[i];
+    if (c == '\\' && i + 2 < v.size()) out += v[++i];
+    else out += c;
+  }
+  v = out;
+  return true;
 }
 
 // Recognised boolean spellings: 1/0, true/false, yes/no, on/off (any case).
@@ -132,13 +214,26 @@ inline bool parse_bool(const std::string& v) {
 inline bool set_field(Settings& s, const std::string& key, const std::string& val,
                       std::vector<LoadWarning>* warnings = nullptr) {
   const std::string k = lower(key);
-  const std::string v = trim(val);
+  // DS-12: trim FIRST (every hand-written conf relies on it) and undo
+  // encode_line_value's quoting on the result. Exactly one place decodes, so a
+  // value can never be un-quoted twice.
+  std::string v = trim(val);
+  decode_line_value(v);
   auto warn = [&](const std::string& reason) {
     if (warnings) warnings->push_back(LoadWarning{key, val, reason});
   };
-  auto need_long = [&](long* dest) -> bool {
-    long tmp = 0;
-    if (!to_long(v, &tmp)) { warn("not an integer"); return false; }
+  // Integer controls parse into their OWN width (GS-206 / P1-28). The wording
+  // for "not an integer" stays the historical one — smoke tests and the
+  // documented warning contract quote it — and a second, distinct message
+  // covers a value that looks legal but is unrepresentable at this width.
+  auto need_int = [&](int* dest) -> bool {
+    long probe = 0;
+    if (!to_long(v, &probe)) { warn("not an integer"); return false; }
+    int tmp = 0;
+    if (!to_int_strict(v, &tmp)) {
+      warn("outside the range this build can hold in an int; left unchanged");
+      return false;
+    }
     *dest = tmp;
     return true;
   };
@@ -152,10 +247,15 @@ inline bool set_field(Settings& s, const std::string& key, const std::string& va
     return true;
   };
   auto need_ulong_nonneg = [&](unsigned* dest) -> bool {
-    long tmp = 0;
-    if (!to_long(v, &tmp)) { warn("not an integer"); return false; }
-    if (tmp < 0) { warn("negative value rejected"); return false; }
-    *dest = static_cast<unsigned>(tmp);
+    long probe = 0;
+    if (!to_long(v, &probe)) { warn("not an integer"); return false; }
+    if (probe < 0) { warn("negative value rejected"); return false; }
+    unsigned tmp = 0;
+    if (!to_uint_strict(v, &tmp)) {
+      warn("outside the range this build can hold in an unsigned; left unchanged");
+      return false;
+    }
+    *dest = tmp;
     return true;
   };
 
@@ -186,29 +286,29 @@ inline bool set_field(Settings& s, const std::string& key, const std::string& va
   else if (k == "crop_h") need_ulong_nonneg(&s.crop_h);
   else if (k == "crop_transparency") need_bool(&s.crop_transparency);
   else if (k == "delay") {
-    long tmp = 0;
-    if (need_long(&tmp)) s.delay_cs = static_cast<int>(tmp);
+    int tmp = 0;
+    if (need_int(&tmp)) s.delay_cs = tmp;
   }
   else if (k == "disposal") {
-    long tmp = 0;
-    if (need_long(&tmp)) s.disposal = static_cast<int>(tmp);
+    int tmp = 0;
+    if (need_int(&tmp)) s.disposal = tmp;
   }
   else if (k == "loopcount") {
-    long tmp = 0;
-    if (need_long(&tmp)) s.loopcount = static_cast<int>(tmp);
+    int tmp = 0;
+    if (need_int(&tmp)) s.loopcount = tmp;
   }
   else if (k == "optimize") {
-    long tmp = 0;
-    if (need_long(&tmp)) s.optimize_level = static_cast<int>(tmp);
+    int tmp = 0;
+    if (need_int(&tmp)) s.optimize_level = tmp;
   }
   else if (k == "unoptimize") need_bool(&s.unoptimize);
   else if (k == "threads") {
-    long tmp = 0;
-    if (need_long(&tmp)) s.threads = static_cast<int>(tmp);
+    int tmp = 0;
+    if (need_int(&tmp)) s.threads = tmp;
   }
   else if (k == "colors") {
-    long tmp = 0;
-    if (need_long(&tmp)) s.color_count = static_cast<int>(tmp);
+    int tmp = 0;
+    if (need_int(&tmp)) s.color_count = tmp;
   }
   else if (k == "dither") {
     // Accept bool OR method name.
@@ -225,8 +325,8 @@ inline bool set_field(Settings& s, const std::string& key, const std::string& va
   }
   else if (k == "dither_method") s.dither_method = v;
   else if (k == "lossy") {
-    long tmp = 0;
-    if (need_long(&tmp)) s.lossy = static_cast<int>(tmp);
+    int tmp = 0;
+    if (need_int(&tmp)) s.lossy = tmp;
   }
   else if (k == "gamma") {
     // Prefer string form so srgb|oklab work; also try numeric.
@@ -301,7 +401,12 @@ inline Settings load_settings(std::istream& in, std::vector<LoadWarning>* warnin
     // trimmed value, last occurrence wins (same override semantics as the
     // known keys). This is the GUI's `batch_dir` / `name_template` channel
     // (audit U-36: it used to re-parse the file with its own third parser).
-    if (!set_field(s, key, val, warnings) && extra_keys) (*extra_keys)[lk] = val;
+    if (!set_field(s, key, val, warnings)) {
+      // An unknown key is the GUI's channel (batch_dir, name_template). It
+      // bypasses set_field, so its quoting is undone here instead.
+      decode_line_value(val);
+      if (extra_keys) (*extra_keys)[lk] = val;
+    }
   }
   // -p takes BOTH halves. A conf that sets only one coordinate, or sets both
   // keys but fails to parse one of them, must not leave a half-live `-p X,0`
@@ -368,13 +473,17 @@ inline void save_settings(std::ostream& out, const Settings& s) {
   }
   if (s.delay_cs >= 0) out << "delay = " << s.delay_cs << "\n";
   if (s.disposal >= 0) out << "disposal = " << s.disposal << "\n";
-  if (s.loopcount >= 0) out << "loopcount = " << s.loopcount << "\n";
+  // loopcount has THREE non-default states (-2 play once, 0 forever, N) and
+  // only -1 means "write nothing", so the guard is != unset rather than >= 0.
+  // (U-63 / P1-40: with >= 0 the new play-once value could not survive a save.)
+  if (s.loopcount != GS_LOOPCOUNT_UNSET) out << "loopcount = " << s.loopcount << "\n";
   if (s.optimize_level >= 0) out << "optimize = " << s.optimize_level << "\n";
   if (s.unoptimize) out << "unoptimize = true\n";
   // threads is written for every value >= 0 so that 0 ("Auto") survives a
-  // save/load round trip instead of collapsing back to the -1 default. Both
-  // now emit a bare -j (see GifsicleCommand.h), so the behaviour is identical;
-  // this only keeps the serialised file an exact inverse of the control.
+  // save/load round trip instead of collapsing back to the -1 default. Since
+  // P0-2 those two states are DIFFERENT (0 = bare -j = 8 threads, -1 = no flag
+  // = the engine's single-threaded default), so the guard is not cosmetic:
+  // dropping the line would silently change how a saved run executes.
   if (s.threads >= 0) out << "threads = " << s.threads << "\n";
   if (s.color_count >= 0) out << "colors = " << s.color_count << "\n";
   if (!s.dither_method.empty()) out << "dither = " << encode_line_value(s.dither_method) << "\n";

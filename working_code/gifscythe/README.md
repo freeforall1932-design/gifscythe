@@ -141,6 +141,50 @@ environment override; the GUI itself was not re-tested in the S17 non-Qt sandbox
 Default GUI mode is **Batch** (one optimized file per input). **Merge** is an
 explicit choice (concatenates animations).
 
+## What the engine can do that this control layer does not model (U-75)
+
+The layer is a *subset* of gifsicle on purpose: every control has to be
+reachable from a conf file, the CLI and the GUI with identical argv. The list
+below is what a user has to drop to the engine for, and why.
+
+| Engine option | Modelled? | Why not |
+|---|---|---|
+| `--name TEXT` | no | It names the frame of the *next* input, so it only does something alongside per-frame positionals. `gifsicle.c:785-804` shows the interaction (`-E` vs `-e` also differs **only** when the input already carries name extensions). A single `name` field would be a footgun, so `-E` is offered and `--name` is not — the web checkbox says so in its tooltip, and the GUI checkbox is the same one control. |
+| `--use-colormap`, `--transform-colormap`, `--change-color`, `--logical-screen`, `--background <index>` semantics, `--transparent-tolerant`, `--extension`, `--app-extension`, `--delete-extension` | no | colormap/extension surgery has no conf-file vocabulary yet; needs its own settings block rather than an extra string field. |
+| `--crop L,T+WxH` with **negative** W/H (extend past the edge) | half | `0` (extend to edge) is modelled — measured accepted by 1.96 — but `Settings::crop_w/h` are `unsigned`, so `-2x-2` is unreachable. Widening the model to `int` touches every surface plus the Qt panel; tracked separately, and hand-written confs get a `negative value rejected` warning rather than a surprise. |
+| `--optimize=…` per-frame (`-x`), `--each-extension` | no | per-frame state needs a frame list in the model, i.e. the same missing vocabulary as `--name`. |
+| `--no-loopcount` | yes, as `loopcount = -2` | see `GS_LOOPCOUNT_ONCE`; play-once is the ABSENT extension, so it needed a sentinel, not a count. |
+
+Rules of thumb this table follows: the layer never re-interprets what the engine
+means (see `examples/animation.conf` for the mapping), and where a value would
+be silently dropped it is refused with a warning instead — see `Validate.h`.
+
+## Conf-file details worth knowing (S23)
+
+- **Values are trimmed, so padding is quoted for you.** A `comment` or GUI state
+  value with leading/trailing whitespace is written as a quoted string
+  (`comment = "  (draft)  "`) and read back exactly; plain values are still
+  written plain, so existing confs are untouched (audit DS-12). One documented
+  consequence: a hand-written `comment = "hi"` now reads as `hi`.
+- **Integers are parsed at their destination width.** A value too large for `int`
+  (or for the `unsigned` geometry fields) warns and is left alone instead of
+  wrapping — `loopcount = 4294967296` used to become `0` = "forever" (GS-206).
+- **Sentinels, not guesses:** `threads = -1` means *say nothing to the engine*
+  (single-threaded default) and `threads = 0` means *bare `-j`* (auto, 8);
+  `loopcount = -2` is play once (`--no-loopcount`), `-1` unchanged, `0` forever,
+  `1..65535` a count. `loopcount = 65536` warns: the engine wraps it to "forever"
+  and exits 0.
+- **Paths resolve against the conf's directory.** A relative path that only exists
+  in the CWD still resolves — but it is named on stderr, and `--strict` refuses it,
+  because the same conf must not mean two things depending on where you ran it
+  (U-73).
+- **`mode = explode` with no `output`** writes `<stem>_frame.NNN` in the CWD and
+  says so (U-76). The desktop and web write beside the input; that difference is
+  owner decision `OD-18`.
+- **Engine discovery** asks the OS where the running binary lives, so a symlinked
+  install still finds `gifsicle` next to the real executable (U-65), and prefers
+  `release/current` over `release/<version>` in lockstep with the web server (U-66).
+
 ## GUI layout (S4b retrofit + S7 polish)
 - **Input** tab — queue with drag-drop, per-file size, count/total label,
   **Move Up/Move Down reorder** (merge order = queue order).
@@ -158,8 +202,10 @@ explicit choice (concatenates animations).
   location (`%APPDATA%\Gifscythe\` on Windows); override the path with
   `GS_SETTINGS_PATH`. The queue and Save-as field are deliberately *not*
   restored. Corrupt files apply their valid keys and warn in the status bar.
-- Regression net: `tests/test_gui_offscreen.cpp` — T1–T20, 250 `CHECK(` sites in
-  source; last measured at **324 runtime checks** in the S11 sandbox (Qt 6.4.2);
+- Regression net: `tests/test_gui_offscreen.cpp` — T1–T20 plus the S23 desktop
+  round-trip block, 251 `CHECK(` sites in source (8 of them that block, which is 8
+  runtime assertions); last measured at **324 runtime
+  checks** in the S11 sandbox (Qt 6.4.2);
   306 in the S10 sandbox before that. Runs in CI and in any Qt6-equipped
   sandbox (S10/S11 both compiled and ran it locally).
 - Cross-platform engine-probe fixture: `tests/fake_engine_exit0.cpp` (CMake

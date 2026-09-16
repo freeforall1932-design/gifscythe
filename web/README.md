@@ -33,6 +33,33 @@ name-template controls stay desktop-only.
   and it is cross-tested against the real C++ `gifscythe-cli`.
 - The server is **zero-dependency** (Node built-ins only).
 
+## Bounds, defaults and what is NOT modelled (S23)
+
+| Env var | Default | Why it exists |
+|---|---|---|
+| `GS_WEB_HOST` | `127.0.0.1` | opt in to exposing the server on the network (U-06, S8) |
+| `GS_MAX_BODY` | `67108864` | the HTTP **envelope** cap. `/run` carries the GIF base64-encoded, so the effective decoded-GIF cap is ≈48 MB at the default — the 64 MB figure is the envelope, not the file (U-68 / NF-11, documented rather than silently widened) |
+| `GS_MAX_CONCURRENT` | `2` | engine runs allowed at once, `/optimize` and `/run` sharing one semaphore (U-06 / P1-5) |
+| `GS_MAX_QUEUED` | `8` | how many wait past that; the rest get `429` with an explanatory body instead of queueing unbounded |
+| `GS_RATE_LIMIT_PER_MIN` | `300` | per-client-address POST window; static is exempt because a page load is several GETs by design. `0` disables it |
+| `GS_ENGINE_TIMEOUT_MS` | `120000` | the engine-run bound (was a hard 120 s); a timed-out run answers `422` with `exitCode: 124`. `0` disables |
+| `GS_ENGINE` | unset | exact engine path; an invalid non-empty value refuses fallback with `503` (GS-207) |
+
+Engine discovery mirrors the desktop: `release/current` first (one pin moves both
+surfaces — U-66), then the newest numeric `release/<version>/`.
+
+Three settings the desktop has and this UI does not: raw conf editing, the
+per-frame `--name` writer, and `info` (this API returns GIFs/JSON only, so
+`info: true` is a clear `400`, not a misleading `422`). The **Loop** control now
+offers *Play once*, which is `--no-loopcount` — the absence of the loop
+extension, which no count value can express.
+
+Run-ownership rule (U-46 / U-54 / U-69) lives in `web/request-guard.mjs`: a
+settings change or queue change invalidates the in-flight run, aborts its fetch and
+clears what was on screen, so a result can never be displayed under settings that
+did not produce it. Its semantics are unit-tested in
+`web/test/request-guard.test.mjs` because nothing here can drive a DOM.
+
 ## Run
 
 ```bash

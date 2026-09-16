@@ -74,8 +74,11 @@ answers are fine; `OD-14` has two sub-questions and needs both.
 
 **`OD-01` executed S15 (2026-09-13); `OD-02` executed S16 (2026-09-13); `OD-09` executed S18 (2026-09-14); `OD-11` + `OD-12` executed S19 (2026-09-14); `OD-17` executed S20 (2026-09-14).** The
 triage of all 18 rows landed in S15. The `GS-201` stop-loss (**P0-5**) landed in
-S16. Remaining owner questions are **OD-03…OD-08, OD-10, OD-13…OD-16**
+S16. Remaining owner questions are **OD-03…OD-08, OD-10, OD-13…OD-16, OD-18**
 (`OD-09` answered S18; `OD-11`/`OD-12` answered S19; `OD-16` added S19; `OD-17` answered S20).
+**`OD-18` was added by S23 (2026-09-16)** from the U-76 / P1-43 work: the fix is
+landed and measured, and the one open choice is which directory an un-prefixed
+CLI explode writes to — see the row.
 
 ## Questions added after S14
 
@@ -87,6 +90,7 @@ New questions land here, in the same shape, answered in the same
 |----|----------|---------|-------------|----------|
 | **OD-16** | May the `web/wasm/` build ship with the GPLv2 engine in-process with the Ms-PL UI? (Question: `docs/legal/WASM_LICENSE_QUESTION.md`) | (a) no — wasm stays experimental/unshipped · (b) yes, on counsel-approved terms · (c) other (owner states terms) | **a** until counsel answers — the FSF lists Ms-PL as GPL-incompatible, and MVP scope does not shrink an in-process question | Calling `web/wasm/` shippable; `D-07` cannot close before this lands |
 | **OD-17** | Shipped platforms: Windows-only exe + web app, Linux as the CI/sandbox test battery | (a) yes — windows-only ship, linux tests · (b) no — keep a Linux release artifact too | **a** — answered by the owner 2026-09-14 (S20): the linux job and sandbox scripts stay as the test rig and ship nothing | Killing the Linux zip + CI upload; the Windows job gains the packaging gates |
+| **OD-18** | Where does a CLI `mode = explode` with no `output` prefix write? (S23, from U-76 / P1-43) | (a) keep the S23 behaviour — CWD, `<stem>_frame.NNN`, engine convention, named in a NOTE · (b) beside the input like the desktop/web, accepting that the tool writes into the input's folder · (c) refuse the run and require an explicit `output` | **a** — the scoped action's (b) was implemented literally and wrote 12 frames into `reference_code/` on the first smoke run; (c) is the safest but breaks a documented convenience · the name is unified either way | `U-76` closing; whether `examples/animation.conf` and the README need an explode example with an explicit prefix |
 
 ## Notes
 

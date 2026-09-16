@@ -4,6 +4,175 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S23 — the Tier-1 batch: settings model, CLI honesty, web bounds, request ownership (2026-09-16)
+
+**Changed:**
+
+- **P0-2 (DS-06)** — `threads` is a tri-state in `src/core/GifsicleCommand.h` and
+  `web/command.mjs`: `<0` emits nothing (the engine's single-threaded default),
+  `0` emits a bare `-j` (auto = `GIFSICLE_DEFAULT_THREAD_COUNT`), `>0` emits `-jN`.
+  U-03's fix had merged the first two, so the documented "unset" sentinel silently
+  meant 8 threads. Sentinels are named `GS_THREADS_UNSET`/`GS_THREADS_AUTO`.
+- **P1-28 (GS-206)** — every integer control parses with `std::from_chars` into its
+  own width (`to_int_strict`/`to_uint_strict` in `SettingsIO.h`), replacing `long` +
+  `static_cast<int>`; `Validate.h` + `web/validate.mjs` gained the missing domains:
+  `loopcount` 0..65535 (measured: `--loopcount=65536` → "loop forever", rc=0),
+  `color_method` and `resize_method` against the engine's registered lists, `gamma`
+  shape (finite number | srgb | oklab — no range, because the engine accepts 0 and
+  20 and a range here would be invented policy), `threads < -1`. `dither_method` is
+  deliberately not enum-checked — the engine grammar is parameterised (`o8`, `o,4`,
+  `ro64x64`) — and unit 21c pins that as a non-rule so the mirror cannot grow one.
+- **P1-40 (U-63, loop half)** — `loopcount = -2` → `--no-loopcount`, in C++, the JS
+  mirror and the web Loop control ("Play once"); `save_settings` writes any value
+  `!= unset` so the state survives a round trip (the old `>= 0` guard would have
+  turned "play once" back into "unchanged").
+- **P1-13 (DS-12)** — `encode_line_value` quotes a value only when it would
+  otherwise be lossy (leading/trailing space-or-tab, or a leading quote), escaping
+  `"`/`\`; `decode_line_value` runs in exactly one place (`set_field`, which every
+  caller funnels through, plus the GUI's unknown-key path) so it cannot apply twice.
+- **P1-43 (U-73, U-74, U-76)** — `resolve_path` keeps the CWD fallback but reports
+  it per input and `--strict` refuses it (new `resolve_path_mode`); `--run` refuses
+  Batch with >1 input and one output (measured: `gifsicle -b a.gif b.gif -o out.gif`
+  exits 0 and `out.gif` is a byte copy of `b.gif`, `a.gif`'s result existing
+  nowhere) while the legal single-input shape still runs; explode with no prefix
+  writes `<stem>_frame` in the CWD under `--run` only, so print mode and the
+  JS⇄C++ parity stay exact.
+- **P1-41 (U-65, U-66)** — `exe_path_of` asks the OS (`/proc/self/exe`,
+  `_NSGetExecutablePath`, `GetModuleFileNameW`) before falling back to argv0 → PATH
+  → CWD; `GS_ENGINE_CURRENT` (`release/current`) is checked before `release/<GS_VERSION>/`
+  in `EngineLocator.h` and before newest-numeric in `web/server.mjs`.
+- **P1-5 (U-06)** — `web/server.mjs` gained one engine semaphore for both endpoints
+  (`GS_MAX_CONCURRENT`, `GS_MAX_QUEUED`, 429 + explanation past the cap, acquired
+  after validation and released in `finally`), a per-client POST window
+  (`GS_RATE_LIMIT_PER_MIN`, static exempt) and `GS_ENGINE_TIMEOUT_MS`.
+- **P1-36 (U-56)** — `is_windows_reserved_device_name()` folds the superscript
+  aliases U+00B9/B2/B3 after COM/LPT (not after CON, not full-width digits —
+  nothing was measured to support those); COM0/LPT0 stay refused for asymmetric
+  cost. New `tests/windows_reserved_names.txt` (27 rows) is read by the C++ unit
+  case AND `web/test/device-names.test.mjs`, so the two surfaces cannot re-diverge.
+- **P3-5 (DS-08)** — the advisory contract is documented in `--help` and a
+  continued warned run ends with one `WARNING-SUMMARY: parse=N validation=M
+  mode=advisory outcome=print|run-continued` line, placed after the strict refusal.
+- **P1-34 (U-54) + U-69** — request ownership moved out of `web/app.js` into a
+  pure module `web/request-guard.mjs` (generation + active-run + AbortController +
+  launch-time settings snapshot); every control change invalidates and clears, and
+  the failure path clears the previous success instead of leaving it on screen.
+  `web/server.mjs` routes the new module and `web/test/static-hygiene.test.mjs`
+  now derives app.js's imports and asserts each is listed and served — the class of
+  bug where a security allow-list silently breaks the shipped page.
+- **P3-12 (U-75)** — product README gained "What the engine can do that this
+  control layer does not model" (the `-E`/`--name` positional interaction from
+  `gifsicle.c:785-804`, the unsigned `crop_w/h` that cannot express a negative
+  extend-past-edge span, colormap/extension surgery); the web `-E` control says in
+  place why it can be a no-op.
+- `check_docs.sh` G8 now allows `release/current` (a pin that is supposed not to
+  exist in the tree) next to the existing `release/[0-9]*` allowance.
+
+**Reviewing my own merged tree before opening the PR turned up two real bugs, and they are recorded here
+rather than quietly amended.** `SettingsPanel.cpp` could not represent either sentinel this batch introduced:
+`loopcount = -2` displayed as "Keep original" and was written back as `-1` by an ordinary close, and a conf's
+`threads = -1` fell through `if (s.threads >= 0)` to the spinner's 0. Before P0-2 each rewrote a value into
+one that meant the same thing; after P0-2 the threads half silently *added a `-j`*. That is the silent-rewrite
+class DS-06 was filed under, in code I had just written — which is what a review step is for. The fix follows
+P1-30's own prescription (‑1 as the spinner minimum, agreeing with DS-06) and appends a 4th `Looping` item,
+because the harness addresses items 1 and 2 by index; the web side needed no change, so the reviewer's "Loop
+count UI maps it incorrectly" half was true of the Qt GUI only and could not be credited to #28. Both halves
+And the review's own fix needed a CI iteration, which is worth recording because it is the
+harness's rule, not mine: the first version persisted by `delete w`, which never reaches
+`MainWindow::closeEvent` (persistence lives there), so the block compiled clean in CI, ran, and
+failed step 9 while writing nothing. Step 4's success is still useful evidence — it means both Qt
+files compile with the new `data() == 3` item and the ‑1 spinner end on Qt 6 on Linux and on
+Windows. The corrected block closes the window the way T14 does, and the comment in it says why.
+**Partial:** **U-76** — the prefix NAME is shared across surfaces, the DIRECTORY
+is not (the scoped wording wrote 12 frames into `reference_code/`), so the choice
+is filed as owner decision **OD-18**. **U-67** — the engine-gated
+`transport.test.mjs` no-regression re-run is done (69 cases green on the merged tree)
+and #28's `W4/W5` CI wiring has since landed, so the register carries U-67 as
+**FIXED (S22)**: with both halves in one tree there is nothing left to mark partial. **P1-40** — crop half landed in PR #28, loop
+half here; **P1-41** — U-64 landed in PR #28, U-65/U-66 here.
+
+**Left:** every Qt-bound row (`U-58`, `U-59`/P0-7, `U-70`, `U-72`, GS-205,
+DS-10, GS-203/204/210 remainders) — no Qt6 or cmake in this sandbox; **P1-35**
+(U-55), unverifiable without a Windows host; `U-68`'s numeric cap (documented and
+left as-is deliberately); CI/gate wiring (P2-7/GS-208, P2-1); `OD-03…OD-10`,
+`OD-13…OD-16`, `OD-18`; the whole deferred bucket.
+
+**Verified (re-measured after the PR #28 merge, see below):** `./build.sh` →
+**372 checks, 0 failures** (296 on arrival, 308 in PR #28; +62 from this batch's
+threads/loop/sentinel, round-trip, parsing-width and device-name-table blocks, +2
+from extending PR #28's `threads` pin to the shipped tri-state).
+`scripts/smoke_cli.sh` → **54 passed, 0 failed** (40 on arrival, 45 in PR #28;
+12g threads, 12h
+play-once end-to-end against the real engine, 12i oversized-int refusal, 12j CWD
+input, 12k/12l Batch refuse + must-not-over-refuse, 12m summary presence/absence,
+12n symlink install, 12o current pin; case 15 rewritten for the new explode
+prefix). `node web/test/request-guard.test.mjs` 13 assertions,
+`web/test/device-names.test.mjs` 27 rows, `web/test/server-bounds.test.mjs` 5
+groups, `web/test/command.test.mjs`, `web/test/validate.test.mjs` (with the new
+`expect:` mechanism so two empty lists can no longer pass as parity),
+`web/test/transport.test.mjs` (69 PASS lines), `web/test/static-hygiene.test.mjs`
+(48 — the same number `verify_audit.sh` **W5** reports), `web/test/body-limit.test.mjs`
+all green. The three new suites are then wired into the linux CI job's web step
+(and the `docs/ci/build.yml.proposed` copy, kept in step the way #28 left it) and
+into `verify_audit.sh` as **W6** (18 PASS lines), so CI runs all eight — a web
+regression no gate executes is not a regression test, which is the exact finding
+#28 had just closed for its own two suites, and the reason this batch did not
+leave its own three as repo-only files. `scripts/check_docs.sh` green;
+`scripts/verify_audit.sh` **30 passed / 0 failed / 6 skipped** in this sandbox (the skips
+are Qt/CMake, clean-Windows and the declared workflow item). Engine probes for every claim
+quoted above were run on the bundled 1.96 build.
+
+**Reconciled with PR #28 (merged into `main` as `794a996` while this batch was in
+flight).** S23 was written against the pre-merge base `6cd7c7b`, so the whole batch
+was replayed onto `main` and the overlaps resolved rather than stacked:
+
+- **Adopted #28's names, not mine.** It had landed its own `is_special_input_token()`
+  / `is_stream_output_token()` helpers for the same U-60/U-61 tokens S23's P1-43
+  touched, plus a simpler `exe_path_of()` and the `INFO_UNSUPPORTED` 400 in
+  `web/server.mjs`. The PR keeps **its** helper names (their callers are already
+  merged) and its crop-`0x0` and info rules; only the `exe_path_of` body is replaced,
+  because S23's U-65 version asks the OS (`/proc/self/exe`, `GetModuleFileNameW`)
+  where #28's only tried argv[0] and the CWD.
+- **Its `threads` pin was superseded, not duplicated.** #28's unit block 21b asserted
+  `threads=-7` → bare `-j`, the pre-P0-2 builder behavior — the opposite of the
+  shipped contract. The block keeps #28's warning checks and gains builder checks for
+  all three states (`-7` says nothing, `-1` says nothing, `0` is the only `-j`). Same
+  for the `threads < -1` message: #28 wrote it as documentation, P0-2 makes it true.
+- **Its `U-67` finding text was restored to the narrowed S21 wording** (#28 had
+  reverted it to the pre-measurement claim) while keeping #28's FIXED (S22) status
+  cell, so the register credits the merge that actually closed it.
+- **`WORKLIST.md` DS-08 and DS-09 are both closed** — DS-08 by S23's `WARNING-SUMMARY`
+  line, DS-09 by #28's validation rule, with a note that the builder half of #28's pin
+  was superseded. The two `smoke_cli.sh` case sets stay side by side (12b–12f and
+  12g–12o) and every count above was re-measured on the merged tree, not added.
+
+**Register after the merge: 110 DONE · 8 PARTIAL · 29 OPEN · 0 UNTRIAGED · 147
+total** (S23 alone reached 104/9/34 on the pre-merge base; the five rows #28 closed
+account for the rest).
+
+**Not verifiable here:** the Qt6 GUI **could not be compiled or run by me at all**
+(no cmake/Qt6), so `test_gui_offscreen`, the GUI build and both S23 Qt edits are attributed to CI
+— the rule S8 used for its T8 rewrite — and DS-07 closes on that basis with no harness count
+claimed. Windows/macOS behaviour (no
+Wine/mingw: the `release/current` pin on a Windows path, `GetModuleFileNameW`,
+the U-55 case fold, and whether the Win32 reserved-name check really folds ¹²³ —
+the code follows the finding's claim and the shared table does not depend on it),
+any `gh release`/workflow write, browser rendering of `app.js` (the *rule* is
+tested in the module, the wiring is verified only by `node --check` and by
+static-hygiene's routability assertions), and clean-machine packaging.
+`verify_audit.sh` here reports its own toolchain SKIPs (C6/C7*/C9/B/Windows) —
+its full-toolchain totals are quoted in `WORKLIST.md` from the last measured
+checkpoint and were not re-measured, because this sandbox cannot measure them.
+
+**Docs touched:** `COMPILED_AUDIT.md` (§5 status cells + the §2E/§2F narrative
+`Status:` lines for U-06/54/56/63/65/66/69/73/74/75/76), `STATUS.md` (hand rows
+DS-06/DS-08/DS-12/GS-206 → DONE, new N-08 row, W-03/W-04 counts, then
+`--emit`), `WORKLIST.md` (five pending lines ticked with their proof, S23
+section, build commands), `SESSION_HANDOFF.md` (S23 section, register tally,
+gate baseline, the PR #28 reconciliation notes), `docs/planning/OWNER_DECISIONS.md`
+(new **OD-18**), `README.md`, `web/README.md`, `working_code/gifscythe/README.md`,
+`docs/release/RELEASE_PROCEDURE.md`.
+
 ## S22 continuation — closed U-53/U-60/U-61/U-62/U-64 and DS-09 on this branch (2026-09-16)
 
 **Changed:**
@@ -67,7 +236,6 @@ Chronological log of decisions and changes. **Newest at the top.**
 **Docs touched:** `COMPILED_AUDIT.md`, `STATUS.md` (re-emitted), `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`, `.github/workflows/build.yml`, `docs/ci/build.yml.proposed`, `working_code/gifscythe/scripts/verify_audit.sh`, `web/server.mjs`, `web/test/static-hygiene.test.mjs`, `web/wasm/README.md`.
 
 ---
-
 ## S21 — COMPILED_AUDIT v3 consolidation + U-68/NF-11 oversized-body 413 (2026-09-15)
 
 **Changed:**

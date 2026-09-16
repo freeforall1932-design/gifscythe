@@ -40,6 +40,22 @@ enum class ResizeKind {
 // ---- Rotate ----
 enum class Rotation { None, R90, R180, R270 };
 
+// ---- Sentinels for the multi-state numeric controls ----
+// The loop and thread controls are NOT plain numbers: a negative value means
+// "say nothing to the engine" and a second negative value means "say the
+// opposite thing". They are named here so the C++ core, the CLI, the Qt panel
+// and the JS mirrors quote one contract instead of each file re-deriving "-2
+// means play once" from a comment. (DS-06 / P0-2, U-63 / P1-40.)
+inline constexpr int GS_THREADS_UNSET = -1;   // emit no -j   (engine default: 1 thread)
+inline constexpr int GS_THREADS_AUTO  = 0;    // emit bare -j (engine default count = 8)
+
+inline constexpr int GS_LOOPCOUNT_UNSET   = -1;  // emit no loop option
+inline constexpr int GS_LOOPCOUNT_ONCE    = -2;  // emit --no-loopcount (play once)
+inline constexpr int GS_LOOPCOUNT_FOREVER = 0;   // emit --loopcount=0
+// The Netscape extension stores the count in 16 bits. Measured on the bundled
+// 1.96: `--loopcount=65536` exits 0 and silently produces "loop forever".
+inline constexpr int GS_LOOPCOUNT_MAX     = 65535;
+
 // ---- The full set of UI-driven settings ----
 struct Settings {
   // Mode
@@ -69,10 +85,16 @@ struct Settings {
   // delay_cs is in gifsicle units: 1/100 second (NOT milliseconds).
   int delay_cs = -1;              // -d, in 1/100 sec; -1 = unchanged
   int disposal = -1;              // -D, 0..7; -1 = unchanged
-  int loopcount = -1;             // -l; -1 = unchanged, 0 = forever, >0 = count
+  // -l. FOUR states, named by GS_LOOPCOUNT_* above: -2 = play once
+  // (--no-loopcount), -1 = unchanged, 0 = forever, 1..65535 = count. The upper
+  // bound is the engine's own (a 16-bit Netscape field); larger values wrap.
+  int loopcount = GS_LOOPCOUNT_UNSET;
   int optimize_level = -1;        // -O; -1 = none/unchanged, 0..3 (0 = off)
   bool unoptimize = false;        // -U
-  int threads = -1;               // -j; <=0 = auto
+  // -j. THREE states, named by GS_THREADS_* above: -1 = say nothing (the
+  // engine default, which is single-threaded), 0 = bare -j (auto, 8 threads),
+  // >0 = -jN. Anything below -1 is a typo and Validate.h says so (DS-06/DS-09).
+  int threads = GS_THREADS_UNSET;
 
   // ---- Whole-GIF ----
   int color_count = -1;           // -k, 2..256; -1 = unchanged
@@ -106,7 +128,11 @@ struct Settings {
   // ---- Inputs / outputs ----
   std::vector<std::string> inputs;   // GIF files or frames "#0", etc.
   std::string output;                // -o FILE, or "" for stdout
-  bool explode_by_name = false;      // -E
+  // -E. Only observable when the input already carries frame-name extensions:
+  // the per-frame `--name` writer is deliberately NOT modelled (see the
+  // "what the engine can do that this layer does not" table in the product
+  // README, audit U-75 / P3-12), so `-E` and `-e` differ by suffix shape only.
+  bool explode_by_name = false;
 };
 
 // Equality for round-trip tests (inputs/output/comments compared fully).
