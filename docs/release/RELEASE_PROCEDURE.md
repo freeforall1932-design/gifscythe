@@ -84,8 +84,9 @@ Expected counts as of S23 (2026-09-16, measured after the PR #28 merge): unit su
 **372 checks, 0 failures**
 (the runtime counter, not the 328 `CHECK(` source sites), GUI harness **324
 runtime checks** *(measured in the S11 sandbox, which had Qt 6.4.2 — re-run it
-on a Qt machine before trusting the number; the file now holds 250 `CHECK(`
-source sites, which is a different quantity)*, smoke **54/54**, web-node suites
+on a Qt machine before trusting the number; the file held 250 `CHECK(` source
+sites at S22 and 251 after the S23 round-trip block (which adds 6 runtime checks), which is a
+different quantity)*, smoke **54/54**, web-node suites
 (PASS lines as run) **24 + 33 + 69 + 48 + 8 + 13 + 27 + 5** — command,
 validate, transport, static-hygiene, body-limit, request-guard, device-names,
 server-bounds, `verify_audit.sh` **30 PASS / 0 FAIL / 3 SKIP, exit 0**

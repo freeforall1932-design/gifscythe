@@ -91,7 +91,9 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #26 | S21 | `audit/compiled-v3-consolidation` | `d1d7939` | Merged 2026-09-15; reviewed from history in S22: `COMPILED_AUDIT.md` → v3 (recovered §15 VP/false-positive guardrails, §16 Audit A/B non-finding sections, §17 intake E/F prose + 19 regression cases; added §18 merge checklist, §19 next-session review ask; folded in + removed the two scattered root intake copies, clearing the live G17/S2 failure) **+ the U-68/NF-11 code fix** (oversized body → 413; `web/server.mjs` + new `web/test/body-limit.test.mjs`, 8/8 red→green, no engine needed) **+ the PR #25 doc sync** P6 required. Register unchanged at 76; U-68 OPEN→PARTIAL |
 | #27 | S21 | `audit/u67-serve-static-allowlist` | `6cd7c7b` | Merged 2026-09-15; reviewed from history in S22: measured U-67/NF-10 before fixing it, narrowed the finding to the over-exposure that actually reproduced, then landed the static allow-list + explicit HEAD/static contract in `web/server.mjs`, added `web/test/static-hygiene.test.mjs` (43/43), updated `web/wasm/README.md`, and synced docs through the PR #26 merge. |
 | #28 | S22 | `arena/01a0a5bc-gifscythe` | `794a996` | Merged 2026-09-16; reviewed in S23 before this branch replayed onto it (see that section's "How the two PRs actually met"): ports the PR #27 web files + wires W4/W5 into CI / `verify_audit.sh`, then closes U-53, U-60, U-61, U-62, U-64 and DS-09 with test-first C++/web fixes; P1-40 and P1-41 remain partial because U-63/U-65/U-66 stay open. |
-| #29 | S23 | `arena/01a0a632-gifscythe` | **open** | Opened 2026-09-16. The Tier-1 batch (P0-2, P1-5, P1-13, P1-28, P1-34, P1-36, P1-40 loop half, P1-41, P1-43, P2-16, P3-5, P3-12) was written against base `6cd7c7b` and then **replayed onto `main` after PR #28 merged as `794a996`**, so the overlaps are resolved rather than stacked: #28 keeps its token-helper names, its crop-`0x0` rule and its `INFO_UNSUPPORTED` 400; S23's `exe_path_of` body replaces #28's argv0-only version; #28's unit block 21b is re-pinned to the tri-state instead of deleted; `U-67`'s narrowed finding text is restored while its FIXED (S22) cell stays. Counts re-measured on the merged tree: unit **372**, smoke **54/54**, eight web suites, `check_docs` **23/0/2**, `verify_audit` **30/0/6** here (S23 added **W6** and wired all eight web suites into CI). Register: **110 DONE · 8 PARTIAL · 29 OPEN · 147 total**.
+| #29 | S23 | `arena/01a0a632-gifscythe` | **open** | Opened 2026-09-16. The Tier-1 batch (P0-2, P1-5, P1-13, P1-28, P1-34, P1-36, P1-40 loop half, P1-41, P1-43, P2-16, P3-5, P3-12) was written against base `6cd7c7b` and then **replayed onto `main` after PR #28 merged as `794a996`**, so the overlaps are resolved rather than stacked: #28 keeps its token-helper names, its crop-`0x0` rule and its `INFO_UNSUPPORTED` 400; S23's `exe_path_of` body replaces #28's argv0-only version; #28's unit block 21b is re-pinned to the tri-state instead of deleted; `U-67`'s narrowed finding text is restored while its FIXED (S22) cell stays. Counts re-measured on the merged tree: unit **372**, smoke **54/54**, eight web suites, `check_docs` **23/0/2**, `verify_audit` **30/0/6** here (S23 added **W6** and wired all eight web suites into CI). Register: **112 DONE · 8 PARTIAL · 28 OPEN · 148 total**. Reviewing the merged tree before
+opening it turned up two real bugs in the Qt panel, fixed and recorded as `N-09` / `DS-07` rather than
+amended quietly; both are CI-compiled proof, and the harness gained 6 runtime checks.
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and
@@ -121,9 +123,12 @@ alone would have passed straight through both skipped syncs.
   **P1-5** web concurrency/rate/timeout bounds · **P1-36** superscript device
   aliases on ONE table shared by both surfaces · **P3-12** the "what we do not
   model" table · **P1-34/U-69** request ownership as a tested module.
-- **Register after the merge: 110 DONE · 8 PARTIAL · 29 OPEN · 0 UNTRIAGED · 147
+- **Register after the merge: 112 DONE · 8 PARTIAL · 28 OPEN · 0 UNTRIAGED · 148
   total.** S23 alone reached 104/9/34 on the pre-#28 base; the five rows PR #28
-  closed (`U-53`, `U-60`, `U-61`, `U-62`, `U-64`) account for the rest.
+  closed (`U-53`, `U-60`, `U-61`, `U-62`, `U-64`) account for the rest, and the last
+  two rows are this session's own review findings: **DS-07** closed together with the
+  new **N-09**, both from `SettingsPanel.cpp` being unable to show the states the
+  batch introduced (CI-compiled proof only — there is no Qt6 here).
 - **How the two PRs actually met.** PR #28 was merged as `794a996` while this batch
   sat unpushed, and the sandbox lost the six S23 commits to a re-clone, so the whole
   batch was replayed onto the new `main` as one commit and every overlap was resolved
@@ -515,7 +520,7 @@ reviews were compiled and parked untriaged in `COMPILED_AUDIT.md` §13 and
    header that answers *"how much is done?"* in one line. It is **generated**
    by `working_code/gifscythe/scripts/check_docs.sh --emit` — never hand-edit
    the generated block. `COMPILED_AUDIT.md` §5 is the detail behind every
-   `U-nn` row; neither replaces the other. As of S23 (after the PR #28 merge): **110 DONE · 8 PARTIAL · 29 OPEN · 0 UNTRIAGED · 147 total.**
+   `U-nn` row; neither replaces the other. As of S23 (after the PR #28 merge): **112 DONE · 8 PARTIAL · 28 OPEN · 0 UNTRIAGED · 148 total.**
    *(That tally is on one line on purpose: sweep rule **S2** only compares
    single-line four-cell tallies against `STATUS.md`'s counts line, so a wrapped
    or re-dated tally is invisible to it. The S13 wording it replaces —
