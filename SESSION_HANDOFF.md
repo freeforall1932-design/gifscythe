@@ -93,7 +93,12 @@ trailing reality by one merge — the failure this ledger exists to make obvious
 | #28 | S22 | `arena/01a0a5bc-gifscythe` | `794a996` | Merged 2026-09-16; reviewed in S23 before this branch replayed onto it (see that section's "How the two PRs actually met"): ports the PR #27 web files + wires W4/W5 into CI / `verify_audit.sh`, then closes U-53, U-60, U-61, U-62, U-64 and DS-09 with test-first C++/web fixes; P1-40 and P1-41 remain partial because U-63/U-65/U-66 stay open. |
 | #29 | S23 | `arena/01a0a632-gifscythe` | **open** | Opened 2026-09-16. The Tier-1 batch (P0-2, P1-5, P1-13, P1-28, P1-34, P1-36, P1-40 loop half, P1-41, P1-43, P2-16, P3-5, P3-12) was written against base `6cd7c7b` and then **replayed onto `main` after PR #28 merged as `794a996`**, so the overlaps are resolved rather than stacked: #28 keeps its token-helper names, its crop-`0x0` rule and its `INFO_UNSUPPORTED` 400; S23's `exe_path_of` body replaces #28's argv0-only version; #28's unit block 21b is re-pinned to the tri-state instead of deleted; `U-67`'s narrowed finding text is restored while its FIXED (S22) cell stays. Counts re-measured on the merged tree: unit **372**, smoke **54/54**, eight web suites, `check_docs` **23/0/2**, `verify_audit` **30/0/6** here (S23 added **W6** and wired all eight web suites into CI). Register: **112 DONE · 8 PARTIAL · 28 OPEN · 148 total**. Reviewing the merged tree before
 opening it turned up two real bugs in the Qt panel, fixed and recorded as `N-09` / `DS-07` rather than
-amended quietly; both are CI-compiled proof, and the harness gained 6 runtime checks.
+amended quietly; both are CI-compiled proof, and the harness gained 6 runtime checks. Its first CI attempt failed
+step 9 (GUI offscreen tests) while step 4 (build incl. GUI) passed: the block persisted with
+`delete w`, and `closeEvent` — where `saveSessionState()` lives — never runs for a deleted-but-not-closed
+window. Fixed by closing the window the way T14 does. If a future session adds a persistence case,
+copy the `spinEvents / w->close() / spinEvents / exists` idiom, not `delete`. (Also: the serialiser the
+panel uses is `writeInto()`, shared by the run path and persistence — one edit covers both.)
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned and

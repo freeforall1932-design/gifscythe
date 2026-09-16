@@ -77,7 +77,12 @@ class DS-06 was filed under, in code I had just written — which is what a revi
 P1-30's own prescription (‑1 as the spinner minimum, agreeing with DS-06) and appends a 4th `Looping` item,
 because the harness addresses items 1 and 2 by index; the web side needed no change, so the reviewer's "Loop
 count UI maps it incorrectly" half was true of the Qt GUI only and could not be credited to #28. Both halves
-are CI-compiled proof, not proof-by-me.
+And the review's own fix needed a CI iteration, which is worth recording because it is the
+harness's rule, not mine: the first version persisted by `delete w`, which never reaches
+`MainWindow::closeEvent` (persistence lives there), so the block compiled clean in CI, ran, and
+failed step 9 while writing nothing. Step 4's success is still useful evidence — it means both Qt
+files compile with the new `data() == 3` item and the ‑1 spinner end on Qt 6 on Linux and on
+Windows. The corrected block closes the window the way T14 does, and the comment in it says why.
 **Partial:** **U-76** — the prefix NAME is shared across surfaces, the DIRECTORY
 is not (the scoped wording wrote 12 frames into `reference_code/`), so the choice
 is filed as owner decision **OD-18**. **U-67** — the engine-gated
