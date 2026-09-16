@@ -98,7 +98,7 @@ groups, `web/test/command.test.mjs`, `web/test/validate.test.mjs` (with the new
 `web/test/transport.test.mjs` (69 PASS lines), `web/test/static-hygiene.test.mjs`
 (48 — the same number `verify_audit.sh` **W5** reports), `web/test/body-limit.test.mjs`
 all green: eight suites, and CI runs all eight. `scripts/check_docs.sh` green;
-`scripts/verify_audit.sh` **28 passed / 0 failed / 6 skipped** in this sandbox (the skips
+`scripts/verify_audit.sh` **29 passed / 0 failed / 6 skipped** in this sandbox (the skips
 are Qt/CMake, clean-Windows and the declared workflow item). Engine probes for every claim
 quoted above were run on the bundled 1.96 build.
 

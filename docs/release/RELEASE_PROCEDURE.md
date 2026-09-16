@@ -81,7 +81,7 @@ source sites, which is a different quantity)*, smoke **54/54**, web-node suites
 (PASS lines as run) **24 + 33 + 69 + 48 + 8 + 13 + 27 + 5** — command,
 validate, transport, static-hygiene, body-limit, request-guard, device-names,
 server-bounds, `verify_audit.sh` **30 PASS / 0 FAIL / 3 SKIP, exit 0**
-(at the last full-toolchain checkpoint; **28 PASS / 0 FAIL / 6 SKIP** re-measured
+(at the last full-toolchain checkpoint; **29 PASS / 0 FAIL / 6 SKIP** re-measured
 in the S23 sandbox, which has no Qt)
 (skips are the declared-pending workflow change and the CI-gated + clean-Windows
 items; a toolchain-less sandbox additionally skips C6/C7*/C9/B). If a count changed,
