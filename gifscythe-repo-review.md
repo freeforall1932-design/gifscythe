@@ -17,7 +17,7 @@ Reviewed branch: main (STATUS.md last regenerated at session S22, 2026-09-16 per
 ## Executive summary
 
 - Findings compiled in this report: **20** (1 critical, 5 high, 9 medium, 3 low, 2 process/meta).
-- The project's own status register (STATUS.md) currently tracks **146** items: 96 DONE, 8 PARTIAL, 42 OPEN, 0 UNTRIAGED, across **22** logged work sessions.
+- The project's own status register (STATUS.md) currently tracks **148** items: 112 DONE, 8 PARTIAL, 28 OPEN, 0 UNTRIAGED, across **22** logged work sessions.
 - Exactly **1** release-blocker-severity (P0) item remains open: a cancel/failure path that can destroy a user's existing output file (F-01 / U-59). This should be fixed before any other work.
 - Measured documentation + process-gate scripts total roughly **843.5 KB**, versus roughly **289.9 KB** of actual shipped source + tests this review was able to size — a ratio of about **2.9:1** in favor of documentation, and likely higher once un-sized files are counted.
 - The core "portable Windows app" claim has never been verified by a human on a real Windows machine (F-09) — every Windows check so far is Wine emulation or headless CI, a fact the project's own README already flags.

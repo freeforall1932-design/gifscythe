@@ -7,7 +7,7 @@
 
 ## 0. Context of the reviewed product
 
-Product version 0.1.0 - pre-release. STATUS.md last regenerated S22 (register header: 96 DONE / 8 PARTIAL / 42 OPEN / 0 UNTRIAGED / 146 total). Everything below was derived from the repository state at the fetched tree SHA, not from a clone.
+Product version 0.1.0 - pre-release. STATUS.md last regenerated S22 (register header: 112 DONE / 8 PARTIAL / 28 OPEN / 0 UNTRIAGED / 148 total). Everything below was derived from the repository state at the fetched tree SHA, not from a clone.
 
 | fact | value | source |
 |---|---|---|
@@ -256,7 +256,7 @@ This is exactly the 'closing a pit while digging a new one' failure mode the aud
 
 ### Evidence
 
-- STATUS.md header: "Counts (generated - do not edit by hand): 96 DONE - 8 PARTIAL - 42 OPEN - 0 UNTRIAGED - 146 total".
+- STATUS.md header: "Counts (generated - do not edit by hand): 112 DONE - 8 PARTIAL - 28 OPEN - 0 UNTRIAGED - 148 total".
 - STATUS.md U-63 row: state OPEN, proof "not started", next action "P1-40: Crop 0 and loop once - PARTIAL S22." - the row's own next action contains a PARTIAL claim about its fix-order id.
 - Fix-order ids are many-to-many with rows: P1-40 covers U-62 (DONE) + U-63 (OPEN); P1-41 covers U-65 (OPEN) + U-66 (OPEN); P2-16 covers U-68 (PARTIAL) + U-69 (OPEN).
 - Therefore 'what is left in P0?' / 'is P1-40 finished?' cannot be answered from the register without reading several rows by hand - the exact question the register exists to answer in one line.
@@ -1331,7 +1331,7 @@ gh release view snapshot-2026-09-07 --json tagName,createdAt,assets
       "confidence": "source-read",
       "auditRelation": "NEW. COMPILED_AUDIT §6 is the fix order and each register row names its P-id, but no artefact states whether a P-id is open/partial/done, and the header counts only row states.",
       "evidence": [
-        "STATUS.md header: \"Counts (generated - do not edit by hand): 96 DONE - 8 PARTIAL - 42 OPEN - 0 UNTRIAGED - 146 total\".",
+        "STATUS.md header: \"Counts (generated - do not edit by hand): 112 DONE - 8 PARTIAL - 28 OPEN - 0 UNTRIAGED - 148 total\".",
         "STATUS.md U-63 row: state OPEN, proof \"not started\", next action \"P1-40: Crop 0 and loop once - PARTIAL S22.\" - the row's own next action contains a PARTIAL claim about its fix-order id.",
         "Fix-order ids are many-to-many with rows: P1-40 covers U-62 (DONE) + U-63 (OPEN); P1-41 covers U-65 (OPEN) + U-66 (OPEN); P2-16 covers U-68 (PARTIAL) + U-69 (OPEN).",
         "Therefore 'what is left in P0?' / 'is P1-40 finished?' cannot be answered from the register without reading several rows by hand - the exact question the register exists to answer in one line."
