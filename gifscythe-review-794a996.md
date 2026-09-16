@@ -39,7 +39,7 @@ cd ../.. && for t in command validate transport body-limit static-hygiene; do no
 | Command | Result |
 |---|---|
 | `working_code/gifscythe/build.sh` | PASS — engine + CLI + unit tests built (rc=0) |
-| `build/test_gifsicle_command` | PASS — 308 checks, 0 failures |
+| `build/test_gifsicle_command` | PASS — 372 checks, 0 failures |
 | `scripts/smoke_cli.sh` | PASS — 45 passed, 0 failed |
 | `node web/test/command.test.mjs` | PASS (JS⇄C++ argv parity vs the real CLI) |
 | `node web/test/validate.test.mjs` | PASS (validation parity) |
@@ -51,7 +51,7 @@ cd ../.. && for t in command validate transport body-limit static-hygiene; do no
 
 ## 3. Executive summary
 
-The Gifscythe repository is in an unusually disciplined state: a 146-item machine-checked status register (96 DONE / 8 PARTIAL / 42 OPEN / 0 UNTRIAGED), parity-tested C++/JS mirrors, and five docs gates. Every gate and suite passes on the reviewed commit — verified by re-running them, not by trusting the docs.
+The Gifscythe repository is in an unusually disciplined state: a 148-item machine-checked status register (112 DONE / 8 PARTIAL / 28 OPEN / 0 UNTRIAGED), parity-tested C++/JS mirrors, and five docs gates. Every gate and suite passes on the reviewed commit — verified by re-running them, not by trusting the docs.
 
 After reading the full product surface (C++ core, CLI, Qt GUI, Node web, scripts, CI, and the audit docs) and probing the running web server, this review finds FOUR NEW defects the compiled audit has not recorded (its register ends at U-76). All four are in the web/tooling lane; none touches the frozen desktop core. Three are confirmed with live reproduction below; the fourth is a static, fail-closed brittleness.
 
@@ -421,7 +421,7 @@ These were the strongest bug candidates this review generated. Each was executed
 - **[NOT A BUG]** CLI called with a flag as argv[1] (e.g. `gifscythe-cli --strict conf.conf`) — Suspected a silent swallow or a Mangrove of confuse; verified live: exits 2 with usage + "unknown argument". Strict positional parsing by design (audit U-23) — fails closed.
 - **[INERT]** gifscythe.pro HEADERS omits OutputVerify.h / ProcessRunner.h (CMake and the web/C++ suites all steady) — INCLUDEPATH+=src covers compilation; the qmake HEADERS list drives IDE display and dependency tracking only, never what compiles. GUI never includes those two headers. Hygiene-only: adding the two names costs nothing.
 - **[NOT A BUG]** Explode empty-output prefix might disagree between summary, engine and verifier — Checked against the engine source: GUI always synthesizes -o <dir>/<stem>_frame; CLI keeps basename-in-CWD, matching gifsicle.c input_done() ("Explode into current directory") and support.c explode_filename(); ExplodeVerify matches on <prefix basename>. — consistent. (Per-surface default difference is already tracked as U-76.)
-- **[GREEN]** STATUS.md generated counts vs the actual register rows — Re-counted: 96 DONE / 8 PARTIAL / 42 OPEN / 0 UNTRIAGED = 146 — matches the generated header exactly. check_docs.sh --no-gate-run: 23 pass / 0 fail / 2 skip on the reviewed commit.
+- **[GREEN]** STATUS.md generated counts vs the actual register rows — Re-counted: 112 DONE / 8 PARTIAL / 28 OPEN / 0 UNTRIAGED = 148 — matches the generated header exactly. check_docs.sh --no-gate-run: 23 pass / 0 fail / 2 skip on the reviewed commit.
 - **[GREEN]** web/app.js referencing missing DOM ids (load-time crash class) — Cross-checked: 30 distinct $("id") references in app.js; all 30 exist among index.html's 35 ids. No dangling reference.
 - **[GREEN]** Web delay label could reintroduce the E7 'ms' invariant break — index.html labels it "Frame delay (1/100 s)" — the no-"ms" rule holds on the web surface too.
 - **[NOT A BUG]** /optimize with mode:"batch"/"merge" — suspected same contract break as explode — Probed live: both answer 200 with a valid single GIF — gifsicle -b with an explicit -o writes to -o, and -m of one file behaves like auto. Only explode breaks the single-GIF contract (reported as U-79).
@@ -433,7 +433,7 @@ These were the strongest bug candidates this review generated. Each was executed
 
 ## Language verdict — stay the course (independent agreement with the repo's own decision)
 
-- Desktop: stay on C++17 / Qt6 through 1.0.0. This review confirms the reasoning is right, not just documented: the defect class found by all seven reviews (the repo's six + this one) is specification/honesty bugs at surface boundaries — wrong status codes, silent drops, unplanned outputs. None is a memory-safety, lifetime or data-race bug. A Rust/C# rewrite would not have prevented a single one of U-01…U-80, and would burn the assets that actually catch them: the 308-check header-only core suite, the JS⇄C++ parity fixtures, the offscreen Qt harness, the Wine E2E, and the Windows packaging.
+- Desktop: stay on C++17 / Qt6 through 1.0.0. This review confirms the reasoning is right, not just documented: the defect class found by all seven reviews (the repo's six + this one) is specification/honesty bugs at surface boundaries — wrong status codes, silent drops, unplanned outputs. None is a memory-safety, lifetime or data-race bug. A Rust/C# rewrite would not have prevented a single one of U-01…U-80, and would burn the assets that actually catch them: the 372-check header-only core suite, the JS⇄C++ parity fixtures, the offscreen Qt harness, the Wine E2E, and the Windows packaging.
 - Web: stay on zero-dependency Node ESM. All three new web findings are ≤ 15 lines each and add no dependency; a framework or a TS build step solely for this pass buys nothing.
 - WASM stays parked until OD-16 (license) and a real emcc byte-proof land; csharp stays parked until after 1.0.0 (owner already decided, S19) — this review endorses both.
 - Post-1.0.0 rewrite trigger: spike Rust/Tauri ONLY if a measured requirement appears (single-binary size, embedded web UI). The subprocess engine boundary is the product's architectural asset — keep it language-agnostic.
@@ -476,7 +476,7 @@ These were the strongest bug candidates this review generated. Each was executed
 # Method notes + anti-false-positive statement
 
 - Scope read: every product file outside reference_code/ (241 files; C++ core headers, CLI, full Qt GUI, Node web server + suites, packaging/CI scripts, hooks, and the audit/planning docs), plus the engine source where behavior had to be confirmed (gifsicle.c input_done, support.c explode_filename, xform.c threading).
-- False-positive control: every claim in this report was reproduced against the running build at 794a996 (build.sh rc=0; unit 308/0; smoke 45/0; five web suites green; docs gates green). Candidates that reproduced as correct behavior were moved to the Cleared section instead of being reported as defects.
+- False-positive control: every claim in this report was reproduced against the running build at 794a996 (build.sh rc=0; unit 372/0; smoke 45/0; five web suites green; docs gates green). Candidates that reproduced as correct behavior were moved to the Cleared section instead of being reported as defects.
 - Known-open items this review did NOT duplicate: U-69 (web failure leaves stale results — OPEN/P2-16), U-70..U-76, U-12, U-65/U-66, U-09. They remain tracked in the repo's own register; see STATUS.md.
 - One deliberate exclusion: reference_code/gifsicle is upstream source material marked do-not-edit; it was read only to confirm engine semantics (explode naming, -b/-o, threading defaults), never audited as product.
 

@@ -11,7 +11,7 @@ and guessing it is how stale claims get born.
 this against the newest merged PR and fails when a merge landed with no doc sync — that is the
 "we jumped a merge without updating any docs" case. Move this line as part of the sync, never
 before the writing is done.)*
-Based on `main` commit `794a996` (PR #28) · moved at the S23 sync after PR #29 merged —
+Based on `main` commit `4d49919` (PR #28) · moved at the S23 sync after PR #29 merged —
 the batch itself was written at `6cd7c7b` and replayed onto `794a996`, which is why the two
 base shas appear in the S23 rows below ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: not yet — stays 0.1.0 until the release criteria are met) ·
