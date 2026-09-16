@@ -203,7 +203,8 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   `GS_SETTINGS_PATH`. The queue and Save-as field are deliberately *not*
   restored. Corrupt files apply their valid keys and warn in the status bar.
 - Regression net: `tests/test_gui_offscreen.cpp` — T1–T20 plus the S23 desktop
-  round-trip block, 251 `CHECK(` sites in source; last measured at **324 runtime
+  round-trip block, 251 `CHECK(` sites in source (8 of them that block, which is 8
+  runtime assertions); last measured at **324 runtime
   checks** in the S11 sandbox (Qt 6.4.2);
   306 in the S10 sandbox before that. Runs in CI and in any Qt6-equipped
   sandbox (S10/S11 both compiled and ran it locally).
