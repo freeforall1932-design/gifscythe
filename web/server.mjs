@@ -350,6 +350,11 @@ async function handleOptimize(req, res, url) {
     // stray escape and answered HTTP 400 "bad settings JSON".
     const raw = url.searchParams.get("settings") || "{}";
     settings = JSON.parse(raw);
+    if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "bad settings JSON" }));
+      return;
+    }
   } catch {
     res.writeHead(400, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: false, error: "bad settings JSON" }));
@@ -361,6 +366,20 @@ async function handleOptimize(req, res, url) {
   // blamed the engine even though it exited 0 honestly. Reject it clearly here.
   if (settings.info) {
     sendJson(res, 400, { ok: false, error: INFO_UNSUPPORTED });
+    return;
+  }
+
+  // U-79: /optimize returns ONE gif. Explode writes frames as <prefix>.NNN, so
+  // it can only ever land in the single-file verifier as a misleading "no
+  // output" 422 — the U-64 class. batch/merge of one file are fine (verified
+  // 200); explode is the only contract breaker. /run carries all four modes.
+  const optMode = settings.mode === undefined || settings.mode === null || settings.mode === ""
+    ? "auto" : String(settings.mode);
+  if (optMode === "explode") {
+    sendJson(res, 400, {
+      ok: false,
+      error: "mode=explode is not supported by /optimize (single GIF output); use POST /run with mode=explode",
+    });
     return;
   }
 
@@ -550,11 +569,16 @@ async function handleRun(req, res) {
   }
   try {
     payload = JSON.parse(raw.toString("utf8"));
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      sendJson(res, 400, { ok: false, error: "bad JSON request body" });
+      return;
+    }
   } catch {
     sendJson(res, 400, { ok: false, error: "bad JSON request body" });
     return;
   }
-  const settings = (payload && typeof payload.settings === "object" && payload.settings) || {};
+  const settings = (payload && typeof payload.settings === "object" && payload.settings && !Array.isArray(payload.settings))
+    ? payload.settings : {};
   const files = Array.isArray(payload.files) ? payload.files : [];
   const mode = settings.mode === undefined || settings.mode === null || settings.mode === ""
     ? "auto" : String(settings.mode);

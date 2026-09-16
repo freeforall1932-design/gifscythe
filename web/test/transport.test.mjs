@@ -663,6 +663,7 @@ try {
   for (const [name, raw] of [
     ["malformed settings JSON -> 400", "{not json"],
     ["truncated settings JSON -> 400", '{"comments":'],
+    ["null settings JSON -> 400 (audit U-77)", "null"],
   ]) {
     const r = await fetch(
       `http://127.0.0.1:${port}/optimize?settings=${encodeURIComponent(raw)}`,
@@ -673,6 +674,35 @@ try {
     } else {
       failures++;
       console.log(`FAIL ${name} (got ${r.status})`);
+    }
+  }
+
+  // U-77: POST /run with a JSON null body must return 400, not 500.
+  {
+    const r = await fetch(`http://127.0.0.1:${port}/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    });
+    if (r.status === 400) {
+      console.log("PASS U-77 /run with JSON null body -> 400");
+    } else {
+      failures++;
+      console.log(`FAIL U-77 /run with JSON null body (got ${r.status})`);
+    }
+  }
+
+  // U-79: POST /optimize with mode:"explode" must return 400, not misleading 422.
+  {
+    const r = await fetch(
+      `http://127.0.0.1:${port}/optimize?settings=${encodeURIComponent(JSON.stringify({ mode: "explode" }))}`,
+      { method: "POST", body: GIF },
+    );
+    if (r.status === 400) {
+      console.log("PASS U-79 /optimize with mode:explode -> 400");
+    } else {
+      failures++;
+      console.log(`FAIL U-79 /optimize with mode:explode (got ${r.status})`);
     }
   }
 
