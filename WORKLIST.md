@@ -492,11 +492,15 @@ sandbox (engine + CLI + unit + smoke + all five web suites green before any edit
       to the UI without a route 404s the page — this was one edit away).
 - [ ] **U-76 remainder → `OD-18`**: which directory an un-prefixed CLI explode writes
       to. The scoped wording was tried and wrote frames into `reference_code/`.
-- [ ] **PR #28 reconciliation** (before either branch merges): keep both sets of
-      `smoke_cli.sh` cases and re-measure the counts; drop its unit block 21b
-      (`threads=-7 → bare -j`), which P0-2 supersedes; keep ONE copy of the
-      `main.cpp` special-token helpers and of the `Validate.h` `threads < -1` rule;
-      and restore §5's narrowed `U-67` **Finding** text that #28 reverted.
+- [x] **PR #28 reconciliation** — **closed S23,** executed after #28 merged as
+      `794a996`: both `smoke_cli.sh` case sets are kept (12b–12f + 12g–12o) and every
+      count was re-measured on the merged tree (unit 372, smoke 54) rather than added;
+      #28's unit block 21b was **re-pinned rather than dropped** — its
+      `threads=-7 → bare -j` assertion describes the pre-P0-2 builder, so it now
+      checks all three states and keeps its warning coverage; ONE copy of the
+      `main.cpp` special-token helpers (#28's names) and of the `Validate.h`
+      `threads < -1` rule survives; and §5's narrowed `U-67` **Finding** text is
+      restored while #28's `FIXED (S22)` status cell stands.
 - [ ] Not started here, deliberately: **P1-35** (U-55) — Windows case-folding cannot
       be verified without a Windows host, and a C++-side guess would refuse legal
       names; every Qt row; `U-68`'s cap value (documented, left as-is on purpose).
