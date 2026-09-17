@@ -1,16 +1,16 @@
 # Session Handoff
 
-**Session:** S24 · **Date:** 2026-09-17
-**Branch:** docs/s24-consolidation-intake (hand-named — this session was not started on a platform-assigned arena branch; use the platform branch when there is one, do not switch branches to satisfy the older session-number convention)
-**PR #30 merged as `3c67e14`** (2026-09-16, branch `arena/01a0aa77-gifscythe`; reviewed from history in S24 — the write-up is in the S24 section below, which is what the P6 sync requires before this line moves). PR #29 merged as `2c98284` (S23 batch). This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number.
-**Docs synced through:** PR #31 · branch `docs∕s24-consolidation-intake` · merged as `f1c5bc8`
+**Session:** S26 · **Date:** 2026-09-17
+**Branch:** arena/01a0afc4-gifscythe (platform-assigned arena branch)
+**PR #32 merged as `e885d58`** (2026-09-17, branch `arena/01a0af41-gifscythe` — the S25 P1-44 implementation; reviewed from history in S26, the write-up is the S26 section below, which is what the P6 sync requires before this line moves). PR #31 merged as `f1c5bc8` (S24 docs consolidation). This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number.
+**Docs synced through:** PR #32 · branch `arena/01a0af41-gifscythe` · merged as `e885d58`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. Move this line as part of the sync, never before the writing is done.)*
-Based on `main` commit `3c67e14` (the PR #30 merge) ·
+Based on `main` commit `e885d58` (the PR #32 merge) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (after S24)
+## Next session — fast hand-off (after S26)
 
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
@@ -31,7 +31,7 @@ Based on `main` commit `3c67e14` (the PR #30 merge) ·
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 119 DONE · 8 PARTIAL · 41 OPEN · 0 UNTRIAGED · 168 total
+- **Register:** 122 DONE · 8 PARTIAL · 38 OPEN · 0 UNTRIAGED · 168 total
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -97,7 +97,9 @@ this ledger exists to make obvious.
 | #28 | S22 | `arena/01a0a5bc-gifscythe` | `794a996` | W4/W5 wired into CI + verify_audit; U-53/U-60/U-61/U-62/U-64 + DS-09 closed test-first |
 | #29 | S23 | `arena/01a0a632-gifscythe` | `2c98284` | Tier-1 batch (P0-2, P1-5/13/28/34/36/40-loop/41/43, P2-16, P3-5/12) replayed onto #28; N-09/DS-07 found+fixed pre-merge; W6 + all eight web suites in CI |
 | #30 | (no session logged — see S24 write-up) | `arena/01a0aa77-gifscythe` | `3c67e14` | Fixed U-77/U-79 (`d7f8ef9`: JSON null-body guards; /optimize explode refusal) and U-80 (`717c082`: glue harness version from VERSION.md) from the 2026-09-16 uploaded reviews; repaired doc-gate consistency — two red mains (runs 35063943000 on `ff35227` and 35066443529 on `4d49919`, both linux "Documentation status gate": G10 base-line lag + the uploads' stale register tallies failing S2) went green (run 35112077599); deleted the four review files, then the owner's restore commit `a4ba82c` put them back "without deleting or merging, marking verified fixed items in-place" — S24's §20 intake supersedes those in-file markings with register rows |
-| #31 | S24 | docs/s24-consolidation-intake (unbackticked — G8 reads the docs/ prefix as a path) | **open** | Opened 2026-09-17. S24: the four 2026-09-16 external reviews incorporated into `COMPILED_AUDIT.md` v4 §20 (54 findings re-verified against `3c67e14` first: 20 new rows U-77..U-96 — 4 FIXED incl. U-82's stale-header repair, 16 OPEN scoped P1-44..P3-19; already-fixed/tracked/refuted dispositioned with evidence; originals deleted, git history is the backup) + the owner-ordered docs consolidation (49 → 25 md files: new AUDIT_HISTORY + PLANNING merges, legal/ci/web/csharp folds, brief rewrites of README/WORKLIST/handoff/vision, all references repointed, G8-green) + the proof-backed stale sweep (pending-workflow marker deleted with the copies re-synced to the maintainer-fixed live line; W-30/R-03/GS-208 closed; register re-emitted at 119/8/41/0 = 168). Gates: check_docs 24/0/2, sweep 5/0/0, python sweep tests 14/14, review_change R1-only (E7 path move, mutation-tested). CI on this PR is the compile+suite proof (no toolchain in the S24 sandbox) |
+| #31 | S24 | docs/s24-consolidation-intake (unbackticked — G8 reads the docs/ prefix as a path) | `f1c5bc8` (S26 filled this cell in — the merge landed 2026-09-17 and rule 2 says whoever merges edits it; nobody did) | Opened 2026-09-17. S24: the four 2026-09-16 external reviews incorporated into `COMPILED_AUDIT.md` v4 §20 (54 findings re-verified against `3c67e14` first: 20 new rows U-77..U-96 — 4 FIXED incl. U-82's stale-header repair, 16 OPEN scoped P1-44..P3-19; already-fixed/tracked/refuted dispositioned with evidence; originals deleted, git history is the backup) + the owner-ordered docs consolidation (49 → 25 md files: new AUDIT_HISTORY + PLANNING merges, legal/ci/web/csharp folds, brief rewrites of README/WORKLIST/handoff/vision, all references repointed, G8-green) + the proof-backed stale sweep (pending-workflow marker deleted with the copies re-synced to the maintainer-fixed live line; W-30/R-03/GS-208 closed; register re-emitted at 119/8/41/0 = 168). Gates: check_docs 24/0/2, sweep 5/0/0, python sweep tests 14/14, review_change R1-only (E7 path move, mutation-tested). CI on this PR is the compile+suite proof (no toolchain in the S24 sandbox) |
+| #32 | S25 | `arena/01a0af41-gifscythe` | `e885d58` | P1-44 implementation (web numeric honesty): the `validate.mjs` finite-number gate, `numOrNull()` in `command.mjs` + `app.js`, incomplete resize/scale omitted from argv, `web/test/numeric-honesty.test.mjs` added and wired into both byte-identical CI copies. Merged 2026-09-17; **its linux run 35225055959 is RED** at the doc gate (G10: this file and `COMPILED_AUDIT.md` still named the pre-#31 base) — S26 repaired that and closed U-78/U-87 with the engine-backed proof S25's sandbox could not run |
+| #33 | S26 | `arena/01a0afc4-gifscythe` | **open** — the merge sha cannot be known at write time, so the next session fills this cell (rule 2; this is how #31 came to be four sessions stale) | Opened 2026-09-17. S26: P1-44 proved and closed (**U-78/U-87 ✅ FIXED**) with the engine-backed proof S25's sandbox could not run — `build.sh` 372/0, smoke 54/54, `verify_audit.sh` 31/0/5, transport 72 → **79 cases** — plus the three missing fixture batches, each mutation-tested (R2); two register drifts synced (**DS-09** was closed in S22 but still said OPEN/S15; the ninth web suite was missing from `web/README.md`'s three-suite list with counts frozen at S17); the **G10 base line** repaired, which is why linux run 35225055959 on `e885d58` was red at the doc gate; gate **G6**'s SKIP message now names the tools actually missing (message-only, R1-probed in four states). No product behaviour changed. Register 119/8/41/0 → **122/8/38/0** |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned
@@ -112,6 +114,76 @@ this ledger exists to make obvious.
 here each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**,
 and `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing
 branch names alone would have passed straight through both skipped syncs.
+
+## S26 — P1-44 proof + closeout, two register drifts, and the red-main repair (2026-09-17)
+
+**PR #32 write-up (the P6 sync this header records).** S25 implemented P1-44 and
+merged it as `e885d58`, but logged it as *Partial* for a reason that turned out
+to be sandbox-specific, not repo-specific: *"Not verifiable here: the compiler,
+C++ CLI build, and engine-dependent parity/transport suites are unavailable in
+this sandbox."* **S26's sandbox has the toolchain** (g++ 12.2, node v22 — see the
+toolchain section below), so the missing proof was run rather than argued about:
+`./build.sh` green (engine 1.96 + CLI + **372 unit checks, 0 failures**),
+`smoke_cli.sh` **54/54**, `test_engine.sh` **5/5**, and all six web suites
+including the engine-backed ones — `command`/`validate` parity against the real
+CLI and `transport` end-to-end against a live server (**72 → 79 cases** after the
+new fixtures). That is the proof P1-44's own row asked for, so **U-78 and U-87
+are ✅ FIXED (S26)** and §6 P1-44 is DONE.
+
+**What S26 added in code (fixtures only — no product behaviour changed):**
+`validate.test.mjs` pins the wrong-TYPE class against the real CLI for seven
+integer keys; `command.test.mjs` pins explicit-zero parity; `transport.test.mjs`
+pins 422-not-200 for a wrong type and empty-vs-zero over HTTP. The wrong-type
+class needed a *new* fixture shape rather than a parity row, and the reason is
+measured, not assumed: a non-numeric conf value is caught by the C++ **parser**
+(`WARNING: settings key 'colors' value 'abc': not an integer`, `parse=1`,
+`--strict` rc=3), while the web has no parse layer at all — JSON hands
+`validate()` the raw type, so its finite-number gate *is* the mirror. The two
+wordings differ by design; the refusal must not. Likewise an emptied web field
+has **no C++ counterpart**: an absent `resize_w` is re-defaulted to 0 and the CLI
+prints `--resize-fit 0x200`, while the JS builder omits the flag — so that state
+stays a JS contract (`numeric-honesty.test.mjs`) instead of being faked into a
+parity row. **All four mutations fail the new cases** (drop the finite gate →
+7+3 FAIL; `numOrNull("")`→0 → 1 FAIL; server-side `""`→0 → 3 FAIL;
+explicit-0→unset → 1 FAIL), so none of them can pass vacuously (review rule R2).
+
+**Two register drifts found and fixed — both were *docs* lying about code:**
+
+1. **DS-09 was closed in S22 and still said OPEN/S15.** `COMPILED_AUDIT.md` §6
+   P1-31 reads "DONE S22" and §16 records the proof, `Validate.h:44` and
+   `web/validate.mjs:47` both carry the rule, and the `threads = -7` assertions
+   pass in the 372 — but the hand-maintained `STATUS.md` row was never moved.
+   Four sessions of contradiction, invisible to every gate: G0 only regenerates
+   the §5-derived U-rows, and G17/S5 compares narrative against the *U-row*
+   register, so a hand-block row that disagrees with §6 is nobody's job. Now
+   DONE with re-measured proof.
+2. **The G10 base line went stale when PR #32 merged, and that is why `main` is
+   red** (linux run 35225055959, step *Documentation status gate*; windows and
+   csharp-spike passed). G10 accepts main's tip or its merge first parent, so
+   naming the PR #30 merge was legal right up until the next merge landed —
+   exactly the U-82/H:F-06 failure mode, one merge later, in the very line S24
+   rewrote to be G10-enforceable. Both enforced lines now name `e885d58`.
+
+**The doc machine under-claimed the toolchain as well.** Gate **G6**'s SKIP line
+named all five of its required tools unconditionally — `(gcc/g++/Node/CMake/Qt6
+missing)` — so this sandbox, which has g++ 12.2 and node v22, was told it had
+none. Same mistake S25 made in prose, emitted by a gate; that is why the S26
+toolchain bullet above is written as a *measurement*. The five tests are now in
+`g6_missing_tools()` and the message names what is really absent (`missing: cmake
+Qt6` here). Message-only, and probed in four states (empty PATH → all five;
+only node absent → `node`; here → `cmake Qt6`; all present → empty, so G6 still
+runs its comparison). `review_change.sh` flags it **R1** as a check-logic file.
+
+**Left untouched, deliberately:** every Qt/GUI row (no cmake, no Qt6 here),
+every Windows-only row (no mingw, no wine), `web/wasm/` (no emcc, plus OD-16),
+and the release rows (U-09/U-95 need an owner decision and Windows artifacts).
+S26 changed no product behaviour, so none of those rows moved.
+
+**Not verifiable here:** the GUI offscreen harness, `windeployqt` packaging, the
+clean-Windows smoke, and CI itself — the log *text* of run 35225055959 could not
+be downloaded (`results-receiver`/blob storage unreachable from this sandbox), so
+"the red step is G10" is an inference from *which* step failed plus an exact local
+reproduction of that one failure. The push of this branch is what confirms it.
 
 ## S24 — external-review intake + the owner-ordered docs consolidation (2026-09-17)
 
@@ -145,8 +217,11 @@ already worked on. Executed:
    the U-22↔U-62 pairing went into §19.3; G:GN-06 and J:F-17 contradict the
    README's own text); **3 adopted as edits** (§19.4 currency, P2-17's
    CI-testable note, the W-30/R-03/GS-208 closures GN-05's falsify-line
-   predicted). Register: 76 → 96 U-rows; **119 DONE · 8 PARTIAL · 41 OPEN · 0
-   UNTRIAGED · 168 total** after the closures. The four root files were then
+   predicted). Register: 76 → 96 U-rows, re-emitted after the closures (the
+   tally S24 produced is quoted in its own `IMPROVEMENT_LOG.md` entry — sweep
+   rule **S2** deliberately does not exempt a dated tally in a current-state
+   doc, so the number lives in the append-only log and today's counts are read
+   from `STATUS.md`). The four root files were then
    deleted (full text in git history at `3c67e14`; §20.5 is the completeness
    checklist — no finding dropped, nothing already worked re-added).
 2. **Stale sweep with proof.** The pending-workflow marker (docs/ci/PENDING_WORKFLOW_CHANGE.md) deleted:
@@ -332,22 +407,29 @@ only stick if they are in files a new session reads, not in a conversation.
   per-session copies of audit/legal/ci/planning docs; extend the merged file
   (`docs/archive/AUDIT_HISTORY.md` indexes what was folded where).
 
-## Verification status this session (S24)
+## Verification status this session (S26)
 
 Everything marked ✅ was **run in this sandbox**; ⏳ could not be. Quote the
-**runtime** counter for test counts, never the `CHECK(` source site count.
+**runtime** counter for test counts, never the `CHECK(` source site count. The
+S24 table this replaces lives in `IMPROVEMENT_LOG.md`'s S24 entry (**Verified** /
+**Not verifiable here**) — its ⏳ rows are the ones S26 turned into ✅.
 
 | Check | Result |
 |---|---|
-| `scripts/check_docs.sh` (baseline on untouched main) | ✅ 23 passed / 0 failed / 3 skipped (skips: G6/G9b no toolchain, G7→PASS after the S24 marker resolution) |
-| `scripts/check_docs.sh` (final, this branch) | ✅ see the S24 log entry for the final measurement |
-| `scripts/sweep_stale.sh` | ✅ green (5 rule groups) |
-| `python3 working_code/gifscythe/tests/test_sweep_stale.py` | ✅ 14 tests |
-| Node probes (no engine needed) | ✅ U-78 NaN repro, GN-03 geometry pairing (resize/scale refused, crop allowed), GN-18 stemOf edges |
-| Engine-free web suites | ✅ request-guard, device-names, body-limit, static-hygiene green; server-bounds 3/5 — the 2 failures are engine-gated (503 engine-not-found without a built binary), not regressions; no web code touched |
-| GitHub API state | ✅ no open PRs at start; main `3c67e14` green (run 35112077599, 2026-09-16); releases: snapshot-2026-09-07 still published, no licence note (U-95 evidence) |
-| `./build.sh`, unit/smoke/harness, engine-dependent web suites | ⏳ no gcc/cmake/Qt6/wine/emcc/dotnet in this sandbox — CI on this branch is the compile+suite proof |
-| `verify_audit.sh` full run | ⏳ capability skips without a toolchain; E7's new path was verified by running the grep itself |
+| `./build.sh` (engine + CLI + unit tests) | ✅ green — gifsicle 1.96 built, **372 checks, 0 failures** |
+| `scripts/test_engine.sh` | ✅ 5/5 |
+| `scripts/smoke_cli.sh` | ✅ 54/54 |
+| `scripts/verify_audit.sh` (full) | ✅ 30 passed / 1 failed / 5 skipped at session start — the 1 failure was **F1←G10**, the stale base line repaired in S26; skips are cmake (C6/C9), Qt6 (B) and the CI/clean-Windows rows (C1–C5, D3/D4) |
+| `node web/test/command.test.mjs` (W1 parity vs the real CLI) | ✅ green, +2 explicit-zero fixtures |
+| `node web/test/validate.test.mjs` (W2 parity vs the real CLI) | ✅ green, +7 wrong-type keys pinned against the parser and `--strict` rc=3 |
+| `node web/test/transport.test.mjs` (W3, live server + real engine) | ✅ **79 cases** (was 72), +7 U-78/U-87 cases |
+| `node web/test/numeric-honesty.test.mjs` | ✅ green (S25's suite, re-run) |
+| W4/W5/W6 suites (body-limit, static-hygiene, request-guard + device-names + server-bounds) | ✅ green under `verify_audit.sh` |
+| Mutation test of the new fixtures (review rule R2) | ✅ 4/4 mutations produce FAILs — none of the new cases can pass vacuously |
+| `scripts/check_docs.sh` | ✅ see the S26 log entry for the final measurement (start of session: 23/1/1 with G10 red) |
+| GitHub API state | ✅ `main` = `e885d58`; **linux run 35225055959 RED** at the doc gate, windows + csharp-spike green; one published release (`snapshot-2026-09-07`, Pre-release, still no licence note — U-95 evidence) |
+| CI log text for the red run | ⏳ `results-receiver`/blob storage unreachable from this sandbox — the failing step name came from the job summary, the cause from an exact local reproduction |
+| GUI offscreen harness, `windeployqt` packaging, clean-Windows smoke | ⏳ no cmake/Qt6/mingw/wine here |
 
 **Counts are stated by kind on purpose.** `grep -c 'CHECK('` counts lines;
 `grep -o 'CHECK(' | wc -l` counts occurrences; neither equals the runtime
@@ -355,7 +437,19 @@ count. Gate **G9** compares like with like.
 
 ## Network/toolchain reality of this sandbox (re-check every session)
 
-* **S24 sandbox (current):** node v20.20.2, python3 3.11, git — **no compiler,
+* **S26 sandbox (current):** **g++ 12.2 + make**, node v22.22.3, python3 3.11,
+  git 2.39, **gh 2.23 authenticated**, curl. **No cmake, no Qt6, no mingw-w64,
+  no wine, no emcc, no dotnet.** Network: github.com + api.github.com reachable,
+  but Actions **log blobs are not** (`results-receiver`/`blob.core.windows.net`
+  → connection failure), so a red run can be *identified* but not *read*.
+  Consequence: the whole C++/CLI/core lane is fully provable here — engine,
+  unit, smoke, packaging negatives, and the engine-backed web parity/transport
+  suites — while every Qt, Windows-binary and wasm row is still source-read only.
+  **This is the sandbox S25's "not verifiable here" line was written against a
+  weaker version of:** before deferring a C++ item, re-measure the toolchain.
+  Clone depth: this one started shallow (depth 1, risk **R-02**); `git fetch
+  --unshallow` was run in S26 so G10/G11 see real history.
+* **S24/S25 sandboxes:** node v20.20.2, python3 3.11, git — **no compiler,
   no cmake/Qt6, no mingw/wine, no dotnet/emcc, no gh, no curl** (the GitHub API
   works via python urllib + the session token). Network: github.com reachable.
   Consequence: docs/node-probe work is fully provable; anything C++ is
@@ -399,7 +493,7 @@ count. Gate **G9** compares like with like.
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 119 DONE · 8 PARTIAL · 41 OPEN · 0
+   its generated counts line (currently: 122 DONE · 8 PARTIAL · 38 OPEN · 0
    UNTRIAGED · 168 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
@@ -407,7 +501,8 @@ count. Gate **G9** compares like with like.
    exact tagged SHA*): U-59/P0-7 (the last data-loss row) → release re-cut
    U-09/P0-4 + the U-95 release-notes edit → W-18 clean-Windows smoke →
    W-19 desktop probes → GS-203's GUI half (P1-25) → the Qt/platform rows →
-   the S24 web-intake batch (P1-44 first) → owner decisions (OD-16/OD-18 +
+   the S24 web-intake batch (**P1-44 closed S26** — next is P2-19/U-92, then
+   the P2/P3 rows) → owner decisions (OD-16/OD-18 +
    the version call). PARTIALs: U-10 (CI hash-pinning), U-14 (verify_audit
    stays out of CI by design), U-68 (cap value), U-76 (OD-18 directory
    policy), GS-203/204/210 (named handoffs in `docs/planning/PLANNING.md` §4).

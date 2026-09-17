@@ -89,10 +89,25 @@ auth, so do not expose it to the public internet.
 
 ## Test (parity with the desktop app)
 
+Nine suites live in `web/test/`; the CI linux job and `verify_audit.sh` W1–W6 run
+them all. **No PASS count is quoted here on purpose** — every number this file
+used to carry went stale the first time a fixture was added (they read 17/23/63
+from S17 while the suites were already at 79+). Quote the counter the run you
+just executed printed, never a number from a doc.
+
 ```bash
-node web/test/command.test.mjs     # command builder  — 17 PASS
-node web/test/validate.test.mjs    # validation rules — 23 PASS
-node web/test/transport.test.mjs   # live-server transport net — 63 PASS on Linux (S17)
+# need the built CLI (./build.sh) — they run the REAL gifscythe-cli:
+node web/test/command.test.mjs        # JS ⇄ C++ argv parity
+node web/test/validate.test.mjs       # JS ⇄ C++ validation parity + the U-78 wrong-type class
+# needs a discoverable engine — drives the real server over HTTP:
+node web/test/transport.test.mjs      # live-server transport net
+# engine-free:
+node web/test/numeric-honesty.test.mjs # U-78/U-87 empty-vs-zero + wrong-type (P1-44)
+node web/test/body-limit.test.mjs      # U-68 413 mapping (engine stub)
+node web/test/static-hygiene.test.mjs  # U-67 allow-list + HEAD contract
+node web/test/request-guard.test.mjs   # U-54/U-69 run ownership (pure module)
+node web/test/device-names.test.mjs    # U-56 shared reserved-name table
+node web/test/server-bounds.test.mjs   # U-06 concurrency/rate/timeout bounds
 ```
 
 Both run the **real** C++ `gifscythe-cli` in print mode and compare against the
@@ -224,4 +239,4 @@ no Qt6 packages) still describes why the wasm binary remains unbuilt in agent
 sandboxes; `wasm/README.md` carries the current state. Its parity claims
 (command builder byte-identical to the C++ CLI; validation triples identical to
 `Validate.h`; argv-array spawn, never a shell; honest 422s) are now enforced by
-the eight suites in `test/` and CI rather than being promises.
+the nine suites in `test/` and CI rather than being promises.

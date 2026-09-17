@@ -170,6 +170,29 @@ const fixtures = [
       inputs: ["/tmp/parity/in.gif"], output: "/tmp/parity/frames/p",
     },
   },
+  // --- U-87 (P1-44): an EXPLICIT zero is a value, not an unset field ---------
+  // The web form's empty state (numOrNull("") -> null -> the flag is omitted)
+  // has NO C++ counterpart, so it is pinned as a JS contract in
+  // numeric-honesty.test.mjs instead of being faked into a parity row here.
+  // Measured why: a conf cannot express "unset width" — `resize_w` absent is
+  // re-defaulted to 0 by SettingsIO and the CLI prints `--resize-fit 0x200`,
+  // while the JS builder omits the flag for null. Same object shape, different
+  // meaning, so the two states are pinned separately. What MUST agree on both
+  // surfaces is that a real 0 stays a real 0 and reaches the engine.
+  {
+    name: "explicit zero scale survives as 0x1 on both surfaces (U-87)",
+    s: {
+      mode: "auto", resize_kind: "scale", scale_x: 0, scale_y: 1,
+      inputs: ["/tmp/parity/in.gif"],
+    },
+  },
+  {
+    name: "explicit zero resize width reaches the engine as 0x200 (U-87)",
+    s: {
+      mode: "auto", resize_kind: "fit", resize_w: 0, resize_h: 200,
+      inputs: ["/tmp/parity/in.gif"],
+    },
+  },
 ];
 
 let failures = 0;
