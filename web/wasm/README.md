@@ -5,7 +5,7 @@ gifsicle engine compiled to WebAssembly with Emscripten, driven
 synchronously from the main thread, behind a one-screen page. **Status S19
 (2026-09-14): scaffold only — no `.wasm` binary has been built anywhere
 yet, and the track is not shippable until owner decision `OD-16` answers
-the in-process licence question** (`docs/legal/WASM_LICENSE_QUESTION.md`).
+the in-process licence question** (`docs/legal/README.md` §3).
 Until both land, the Node server (`web/server.mjs`) stays the shipped web
 path; nothing in `web/` outside this directory was touched for this track.
 
@@ -44,8 +44,8 @@ node web/wasm/prove_wasm.mjs      # byte proof on logo.gif (below)
 dir (the reference tree stays untouched, same pattern as the native
 `scripts/build_engine.sh`), builds the same source list as the native
 engine, and stages the `COPYING.gifsicle` engine licence text into the
-output dir — every build ships it. First-party notices:
-`THIRD_PARTY_NOTICES.md`.
+output dir — every build ships it. Notices: §Third-party notices below
+(the standalone notices file was folded into this README in S24).
 
 ## Prove (bytes, not a green build)
 
@@ -99,3 +99,19 @@ run against a real module, and the page has never loaded an engine.
 The first emcc-equipped run that prints the proof bytes above is what
 promotes this track from scaffold to proven. The licence question
 (`OD-16`) is independent of that proof and still gates shippable.
+
+## Third-party notices (folded from THIRD_PARTY_NOTICES.md, S24)
+
+**gifsicle (the engine).** The GIF engine this track compiles to WebAssembly,
+Copyright (C) Eddie Kohler. Licence: GNU General Public License, Version 2
+ONLY. Full text: staged into the build output directory as `COPYING.gifsicle`
+by `build_wasm.sh` (every build ships it); the same text lives at the repo root.
+Source: `reference_code/gifsicle/` in this repo, or upstream
+https://github.com/kohler/gifsicle.
+
+**Everything else in this track.** The page, the glue script, the build script,
+and the proof script are first-party Gifscythe code under the Ms-PL (`LICENSE`,
+`COPYING.ms-pl`). No other third-party code ships in this track. The
+in-process licence question for this track is tracked in
+`docs/legal/README.md` §3 and decided by `OD-16`
+(`docs/planning/OWNER_DECISIONS.md`).

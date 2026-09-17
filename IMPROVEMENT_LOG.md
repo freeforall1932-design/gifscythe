@@ -4,6 +4,164 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S24 — external-review intake (v4, U-77..U-96) + the owner-ordered docs consolidation + stale sweep (2026-09-17)
+
+**Changed:**
+
+- **COMPILED_AUDIT.md → v4.** Incorporated the four 2026-09-16 external review
+  files (uploaded at 4d49919, deleted in PR #30, owner-restored at a4ba82c) per
+  the owner's instruction — "delete the already done, incorporate the four md
+  files into the compiled audit, make sure the problem added is new and hasn't
+  been worked on". Every one of their 54 findings was re-verified against main
+  3c67e14 BEFORE disposition (they pinned 794a996; PR #29/#30 had already fixed
+  or mooted several): **20 new §5 rows U-77..U-96** — U-77/U-79/U-80 recorded
+  ✅ FIXED (PR #30, commit shas cited; the in-file "FIXED (S23)" markings
+  superseded by stronger attribution), U-82 ✅ FIXED (S24), 16 ⬜ OPEN scoped as
+  **P1-44..P1-46, P2-18..P2-22, P3-13..P3-19** in §6; already-fixed-at-intake
+  (H:F-02/03/04 → S23's to_int_strict + loopcount domain + threads tri-state;
+  H:F-05 + G:GN-01 → PR #30's U-79) and the 16 J re-frames got disposition rows
+  in **§20** instead of duplicate register entries; refuted-with-evidence:
+  G:GN-03 (probe executed: validate.mjs refuses resize/scale 0x0, accepts crop
+  0x0 — pairing added to §19.3), G:GN-06 + J:F-17 (README already states the
+  parked direction and the format deferral). G:GN-05's falsify-line fired: the
+  CI doc gate IS live, so the stale rows closed instead (below). The four files
+  were then deleted; §20.5 is the completeness checklist (54 findings →
+  20 rows + 9 already-fixed/tracked + 16 re-frames + 3 refuted + 3
+  adopted-as-edits + policy notes; none dropped). §1/§5-title/§10/§11/§12/§13
+  counts and pointers updated (six audits → ten reviews, 76 → 96 findings).
+- **U-82 fixed (F-06):** this audit's own header named base 2d51347 (six merges
+  stale) in a "**Branch:** … at …" shape G10's trigger list never matched — a
+  live R2-class vacuous gate. The line is now "**Base:** `main` at `3c67e14`",
+  a shape G10 DOES enforce, so it cannot silently stale again.
+- **Stale sweep (proof-backed deletions).** docs/ci/PENDING_WORKFLOW_CHANGE.md
+  deleted in the same commit that re-synced docs/ci/build.yml.proposed to the
+  live workflow line: the maintainer had fixed the live cygpath fallback in
+  414f5fc (green on every Windows run since) and the doc copy simply lagged —
+  the marker's premise ("intended change lives in proposed, needs workflows
+  scope") was false, and no workflow push was needed. E9/G7/S1 enforce
+  byte-equality again with no standing exception. **W-30, R-03, GS-208 → DONE**
+  (the doc-gate CI step is live at build.yml:35-37; scope was granted S18 and
+  exercised by PR #28); **U-14's** blocker text corrected (verify_audit stays
+  out of CI by design, not by scope); **P2-7** annotated DONE; W-14's stale
+  gate-triple replaced with a "quote the live run, not this row" note (latent
+  G6 landmine). §19.4 corrected (U-56 closed S23; U-71 CI-testable per GN-14 —
+  the windows job already runs the unit exe).
+- **Consolidation, 49 → 25 md files** (owner order: merge every md file into
+  its own newly merged file, brief and clear). New merged files:
+  docs/archive/AUDIT_HISTORY.md (absorbs the seven dated snapshots — the two
+  2026-09-06 archive reviews, POST_S7_AUDIT, CONSOLIDATED_AUDIT_2026-09-10,
+  FIX_PICK, REMEDIATION_2026-09-10, EXTERNAL_REVIEW_INTAKE_2026-09-12 — as a
+  condensed index + citation map; subsumption proof: findings live in
+  COMPILED_AUDIT §2-§5/§13/§15-§18 per its own §18 checklist, the files carry
+  their own supersession banners, and full texts stay in git history at
+  3c67e14) and docs/planning/PLANNING.md (absorbs OFFLINE_BUILD_REVIEW,
+  CSHARP_SHELL_PLAN, SKILLOPT_INTEGRATION_QUERY, SEQUENTIAL_WORK_HANDOFF,
+  NEXT_SESSION_PROMPT — decision-relevant content kept, prose condensed, prompt
+  regenerated for post-S24). Merged into existing homes: FEASIBILITY_REVIEW →
+  PROJECT_VISION.md (architecture + the flag-map table with VP-5's crop-form
+  correction applied; verify_audit.sh E7 re-pointed — the only gate-script edit
+  this session); WEB_FEASIBILITY → web/README.md §History; WHY_MSPL +
+  COPYING_RULES + WASM_LICENSE_QUESTION → docs/legal/README.md §1-§4;
+  CLEAN_WINDOWS_SMOKE + DESKTOP_PROBES → docs/ci/README.md §2-§3 (its §1
+  rewritten for the resolved drift); THIRD_PARTY_NOTICES → web/wasm/README.md;
+  csharp/spike/README → csharp/README.md (spike exit-code collision with the
+  CLI noted → U-91). Rewritten brief: root README.md (session narrative out —
+  it duplicated this log; honesty summary + new layout in), PROJECT_VISION.md
+  (U-90's amendment-proposal block included, clearly marked NOT approved),
+  WORKLIST.md (per-session history sections folded out; rules + board + S24
+  intake pending lines kept), SESSION_HANDOFF.md (condensed history, PR #30
+  ledger row + write-up, Docs-synced-through moved to PR #30 per P6, new doc
+  map). Every live reference repointed; deleted filenames are cited WITHOUT
+  backticks in current-state docs (the S21 G8 trick). Gate-excluded scripts'
+  dead exclusion entries (check_docs/sweep/review_change) left untouched on
+  purpose: patterns matching nothing are inert, and test_sweep_stale.py pins
+  the intake-path exclusion fixture.
+- **STATUS.md:** hand-block truth corrections above + repointed paths;
+  regenerated with check_docs.sh --emit → **119 DONE · 8 PARTIAL · 41 OPEN · 0
+  UNTRIAGED · 168 total** (was 112/8/28/0 = 148).
+
+**Partial:**
+
+- The consolidation is docs-complete but the branch's compile/web-suite proof is
+  CI's job (no toolchain here). verify_audit.sh got exactly one edited line
+  (E7's grep path); the line was executed standalone to confirm the string
+  "1/100 s" lives in PROJECT_VISION.md.
+
+**Left:**
+
+- The 16 new OPEN rows untouched (fixing them was explicitly out of scope —
+  this session was intake + consolidation; P1-44 has an executed repro and is
+  the natural first fix). U-95's release-notes edit is an owner action. The
+  register-mechanics rows (U-88/U-89) deliberately NOT implemented mid-
+  consolidation. OD backlog unchanged. IMPROVEMENT_LOG's older entries left
+  verbatim (append-only history; compressing them would destroy provenance the
+  gates and future sessions cite).
+
+**Verified:**
+
+- check_docs.sh: green baseline on untouched main (23/0/3), then re-run after
+  every batch and at the end (final numbers in the S24 handoff table); G0 diff
+  clean after --emit; G2/G5/G5b green with the 20 new rows (emitter parsed all
+  96 U-rows, sessions and tiers extracted correctly).
+- sweep_stale.sh green; python3 working_code/gifscythe/tests/test_sweep_stale.py
+  14 tests pass (the script's EXCLUDED regex untouched, fixtures still valid).
+- Node probes executed: U-78 repro (validate.mjs returns zero issues for
+  color_count:'abc', lossy:'lots', threads:'many', delay_cs:'soon'); GN-03
+  disposition (resize fit 0x0 → issue, scale 0x0 → issue, crop 0x0 → none);
+  GN-18 (stemOf('.gif')='.gif', stemOf('a.')='a').
+- Engine-free web suites executed: request-guard, device-names, body-limit and
+  static-hygiene all green; server-bounds 3/5 — its two failures are
+  engine-gated (rate-limit case gets 503 engine-not-found, release/current pin
+  case reports "Engine [none]"; both need the repo-built binary this sandbox
+  cannot compile), not regressions: no web code was touched this session.
+- GitHub API: no open PRs at session start; main runs — 3c67e14 green
+  (35112077599), ff35227 + 4d49919 red on the linux doc gate (the G10-lag +
+  stale-tally story recorded in the PR #30 write-up); releases — only
+  snapshot-2026-09-07, created 2026-09-07, body names no licence (U-95
+  evidence).
+- Source reads on main for every registered finding: main.cpp explode blocks
+  (U-81), SettingsIO/Validate/GifsicleCommand (F-02/03/04 already-fixed
+  confirmations), server.mjs ordering + PORT + admission + stderr (U-84/85/92/
+  93), app.js numeric fields (U-87), Program.cs (U-91), glue_harness.mjs
+  (U-80 fixed), transport.test.mjs + d7f8ef9 diff (U-77/U-79 fixed).
+
+**Not verifiable here:**
+
+- No gcc/g++/cmake/Qt6/mingw/wine/dotnet/emcc/gh in this sandbox (node v20 +
+  python3 + git only): nothing C++ was compiled or executed, so U-81/U-83/U-86
+  and the already-fixed C++ confirmations are source-read (✅ SRC) only; the
+  engine-dependent web suites (command/validate/transport) and smoke/unit/
+  harness were NOT run; verify_audit.sh was not run end-to-end (capability
+  skips); the Qt side of U-96 needs a Qt machine; U-95's zip contents were not
+  downloaded (API metadata only). CI on this branch is the compile+suite proof.
+
+**Docs touched:**
+
+- COMPILED_AUDIT.md (v4: header/base fix, §1, §5 +20 rows, §6 +15 ids +
+  P2-7/P2-17 notes, §10-§13 pointers, §15 provenance, §19.3/§19.4, §11 item
+  12, new §20, footer), STATUS.md (hand block + re-emit), SESSION_HANDOFF.md
+  (rewritten; PR #30 row + write-up; synced-through moved), WORKLIST.md
+  (rewritten), README.md (rewritten), PROJECT_VISION.md (rewritten; absorbed
+  the feasibility review), docs/archive/AUDIT_HISTORY.md (new),
+  docs/planning/PLANNING.md (new), docs/ci/README.md (merged+rewritten),
+  docs/legal/README.md (merged), docs/release/RELEASE_PROCEDURE.md (blockers
+  table + refs), docs/planning/OWNER_DECISIONS.md (OD-08 resolved + refs),
+  web/README.md (§History), web/WEB_PLAN_TEMPLATE.md (3 refs),
+  web/wasm/README.md (notices folded), csharp/README.md (spike folded),
+  working_code/gifscythe/README.md (1 ref), reference_code/REFERENCE_MANIFEST.md
+  (stale scope note), verify_audit.sh (E7 path), docs/ci/build.yml.proposed
+  (cygpath line re-synced); deleted: the four root review files,
+  FEASIBILITY_REVIEW.md, the five docs/audit snapshots, the two docs/archive
+  reviews, docs/web/WEB_FEASIBILITY.md, docs/ci/{CLEAN_WINDOWS_SMOKE,
+  DESKTOP_PROBES,PENDING_WORKFLOW_CHANGE}.md, docs/legal/{WHY_MSPL,
+  COPYING_RULES,WASM_LICENSE_QUESTION}.md, docs/planning/{CSHARP_SHELL_PLAN,
+  OFFLINE_BUILD_REVIEW,SKILLOPT_INTEGRATION_QUERY,NEXT_SESSION_PROMPT,
+  SEQUENTIAL_WORK_HANDOFF}.md, web/wasm/THIRD_PARTY_NOTICES.md,
+  csharp/spike/README.md (names listed without backticks per the G8 rule; full
+  texts in git history at 3c67e14).
+
+---
+
 ## S23 — the Tier-1 batch: settings model, CLI honesty, web bounds, request ownership (2026-09-16)
 
 **Changed:**
