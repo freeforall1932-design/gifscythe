@@ -68,11 +68,16 @@ the S24 intake was triaged in the same session (each row carries its §6 id).
       texts live in git history at `3c67e14`. Fixed at/before intake (no new
       work implied): **U-77**, **U-79**, **U-80** (PR #30) and **U-82** (S24).
       The new OPEN rows, one line each, in §6 order:
-      - [ ] **U-78 + U-87** → **P1-44** — web numeric honesty: validate.mjs
-            NaN type gate (garbage in → 200 ok:true with the setting silently
-            dropped; re-proved by executed node probe in S24) + app.js
-            empty-field-becomes-0 (`Number("")`); one numOrNull/numChecked
-            pair, fixtures pin empty-vs-zero and wrong-type.
+      - [x] **U-78 + U-87** → **P1-44** — **DONE (implemented S25 / PR #32,
+            proved + closed S26).** Web numeric honesty: the validate.mjs
+            finite-number gate (a wrong type is a named 422, never 200 ok:true
+            with the setting silently dropped) + `numOrNull()` so an emptied
+            field means OMIT, not `Number("")`→0. S26 added the three fixture
+            batches the row asked for and mutation-tested them: wrong-type
+            pinned against the REAL CLI for seven integer keys (its counterpart
+            is the conf parser's `not an integer` + `--strict` rc=3), explicit
+            zero pinned as parity, empty-vs-zero pinned over HTTP (transport
+            72 → 79 cases).
       - [ ] **U-95** → **P1-45** — the published Release predates the Ms-PL
             relicence: owner release-notes edit (mark superseded/pre-release,
             never delete), then the P0-4 re-cut + tag-triggered asset gate.
@@ -194,11 +199,12 @@ cd working_code/gifscythe
 # GUI harness (needs Qt6): cmake -S . -B build-cmake && cmake --build build-cmake
 #   && QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
 
-# Web app (self-hosted product surface). All eight suites run in the CI linux
+# Web app (self-hosted product surface). All nine suites run in the CI linux
 # job and in verify_audit.sh W1-W6; quote the RUNTIME counter of the run you
 # just executed, never a number from a doc:
 node web/test/command.test.mjs        # JS ⇄ C++ argv parity (needs the built CLI)
-node web/test/validate.test.mjs       # JS ⇄ C++ validation parity (needs the built CLI)
+node web/test/validate.test.mjs       # JS ⇄ C++ validation parity + U-78 wrong-type (needs the built CLI)
+node web/test/numeric-honesty.test.mjs # U-78/U-87 empty-vs-zero + wrong type (P1-44; engine-free)
 node web/test/transport.test.mjs      # live-server HTTP net (needs a discoverable engine)
 node web/test/body-limit.test.mjs     # U-68 413 mapping (engine-stub, no real engine)
 node web/test/static-hygiene.test.mjs # U-67 allow-list + HEAD contract

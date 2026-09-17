@@ -162,6 +162,39 @@ const cases = [
   { name: "U-30 colors 900", settings: { color_count: 900 },
     expect: { status: 422, issueField: "colors" } },
 
+  // --- U-78 / U-87 (P1-44): numeric honesty over the real transport ---------
+  // U-78: a wrong-TYPE value used to sail through validate() — Number("abc") is
+  // NaN, every range comparison against NaN is false, buildArgs then omitted the
+  // flag, and the server answered 200 ok:true with the setting silently missing.
+  // The C++ twin of this class is the conf parser ("not an integer", --strict
+  // rc=3), pinned in validate.test.mjs; here the contract is the HTTP one: a
+  // named 422, never a quiet success.
+  { name: "U-78 wrong-type colors is a named 422, not a silent 200",
+    settings: { color_count: "abc" },
+    expect: { status: 422, issueField: "colors",
+              errorIncludes: "must be a finite number" } },
+  { name: "U-78 wrong-type threads is refused", settings: { threads: "lots" },
+    expect: { status: 422, issueField: "threads" } },
+  { name: "U-78 wrong-type loopcount is refused", settings: { loopcount: "often" },
+    expect: { status: 422, issueField: "loopcount" } },
+  // U-87: an EMPTY numeric field means unset, never 0. A cleared Loop-N used to
+  // mean loop-forever, a cleared Optimize used to mean -O0, and a cleared Width
+  // used to emit `--resize-fit 0xH`.
+  { name: "U-87 empty loopcount is unset, not loop-forever",
+    settings: { loopcount: "" },
+    expect: { status: 200, commandExcludes: "--loopcount" } },
+  { name: "U-87 empty optimize level is unset, not -O0",
+    settings: { optimize_level: "" },
+    expect: { status: 200, commandExcludes: " -O" } },
+  { name: "U-87 empty resize width omits the resize, not 0x200",
+    settings: { resize_kind: "fit", resize_w: "", resize_h: 200 },
+    expect: { status: 200, commandExcludes: "--resize-fit" } },
+  // The contrast that makes the three above meaningful: an EXPLICIT zero is a
+  // value and must still reach the engine.
+  { name: "U-87 explicit loopcount 0 still means loop-forever",
+    settings: { loopcount: 0 },
+    expect: { status: 200, commandIncludes: "--loopcount=0" } },
+
   // --- U-42: independent X/Y scale factors reach the engine per axis ---
   { name: "U-42 asymmetric scale runs per axis (0.5x2 on the 1x1 GIF -> 1x2)",
     settings: { resize_kind: "scale", scale_x: 0.5, scale_y: 2 },

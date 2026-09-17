@@ -161,6 +161,73 @@ try {
   rmSync(dir, { recursive: true, force: true });
 }
 
+// ---------------------------------------------------------------------------
+// U-78 (P1-44): the wrong-TYPE class, pinned against the real CLI.
+//
+// A non-numeric value has no Validate.h counterpart, so it cannot be a parity
+// row in the loop above: the C++ side catches it in the PARSER (SettingsIO.h
+// need_int/need_long -> "not an integer", counted in the `parse=N` half of
+// WARNING-SUMMARY and refused by --strict with rc=3), while the web has no
+// parse layer at all — JSON hands validate() the raw type, so validate()'s
+// finite-number gate IS the mirror. The two wordings differ by design; what
+// must not differ is the outcome: garbage in -> a named refusal on both
+// surfaces, never a silent success. Before P1-44 the web answered 200 ok:true
+// with the setting quietly missing from argv (U-78's executed S24 probe).
+// Every expectation below was measured against the built CLI first: parse
+// warning present, `parse=1`, `--strict` rc=3, for all seven integer keys.
+// The HTTP half of this contract (422 + named issue) is pinned end-to-end in
+// transport.test.mjs; the empty-vs-zero JS contract is in numeric-honesty.
+// ---------------------------------------------------------------------------
+const typeGate = [
+  // [conf key = the field name both surfaces report, settings-object key]
+  ["colors", "color_count"],
+  ["optimize", "optimize_level"],
+  ["lossy", "lossy"],
+  ["delay", "delay_cs"],
+  ["threads", "threads"],
+  ["loopcount", "loopcount"],
+  ["disposal", "disposal"],
+];
+const typeDir = mkdtempSync(join(tmpdir(), "gstypegate-"));
+try {
+  for (const [confKey, settingKey] of typeGate) {
+    const conf = join(typeDir, confKey + ".conf");
+    writeFileSync(conf, `mode = auto\n${confKey} = abc\ninput = ${IN}\n`);
+    const printed = spawnSync(CLI, [conf],
+      { encoding: "utf8", stdio: ["ignore", "ignore", "pipe"] });
+    if (printed.error) throw printed.error;
+    const stderr = printed.stderr || "";
+    const strict = spawnSync(CLI, [conf, "--strict"],
+      { encoding: "utf8", stdio: ["ignore", "ignore", "pipe"] });
+    const issues = validate({ mode: "auto", [settingKey]: "abc", inputs: [IN] });
+
+    const problems = [];
+    if (!stderr.includes(`WARNING: settings key '${confKey}' value 'abc': not an integer`)) {
+      problems.push(`C++ parser did not name the wrong-type value (stderr: ${JSON.stringify(stderr)})`);
+    }
+    if (!/WARNING-SUMMARY: parse=1\b/.test(stderr)) {
+      problems.push("C++ WARNING-SUMMARY does not report parse=1");
+    }
+    if (strict.status !== 3) {
+      problems.push(`C++ --strict exited ${strict.status}, expected 3 (refuse on any warning)`);
+    }
+    if (!issues.some((i) => i.field === confKey && /finite number/.test(i.reason))) {
+      problems.push(`JS validate() did not refuse it (got ${JSON.stringify(issues)})`);
+    }
+    if (issues.length !== 1) {
+      problems.push(`JS validate() returned ${issues.length} issues, expected exactly 1`);
+    }
+    if (problems.length) {
+      failures++;
+      console.log(`FAIL U-78 wrong-type ${confKey}\n       ${problems.join("\n       ")}`);
+    } else {
+      console.log(`PASS U-78 wrong-type ${confKey} refused on both surfaces (C++ parse+strict rc=3, JS 422 issue)`);
+    }
+  }
+} finally {
+  rmSync(typeDir, { recursive: true, force: true });
+}
+
 if (failures === 0) {
   console.log("ALL WEB VALIDATION TESTS PASSED");
   process.exit(0);

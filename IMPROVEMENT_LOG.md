@@ -4,6 +4,111 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S26 — P1-44 proved and closed (U-78/U-87), two register drifts fixed, red `main` repaired (2026-09-17)
+
+**Changed:**
+
+- **P1-44 finished and closed: U-78 + U-87 → ✅ FIXED (S26), §6 row DONE.** S25
+  implemented it (PR #32, `e885d58`) and logged it *Partial* because its sandbox
+  had no compiler; S26's does, so the missing proof was **executed** instead of
+  deferred: `./build.sh` green (gifsicle 1.96 + CLI + 372 unit checks / 0
+  failures), `smoke_cli.sh` 54/54, `test_engine.sh` 5/5, and the engine-backed
+  web suites — `command`/`validate` parity against the real CLI and `transport`
+  against a live server.
+- **The three fixture batches P1-44's own row asked for were missing; added.**
+  `web/test/validate.test.mjs` (+7 keys), `web/test/command.test.mjs` (+2),
+  `web/test/transport.test.mjs` (+7 cases, 72 → 79). Fixtures only — **no product
+  behaviour was changed in S26.**
+- **The wrong-type class needed a new fixture shape, for a measured reason.** A
+  non-numeric conf value is caught by the C++ **parser**, not by `Validate.h`:
+  `WARNING: settings key 'colors' value 'abc': not an integer`, counted in
+  `WARNING-SUMMARY: parse=1`, refused by `--strict` with **rc=3** (measured for
+  colors/optimize/lossy/delay/threads/loopcount/disposal). The web has no parse
+  layer — JSON hands `validate()` the raw type — so its finite-number gate *is*
+  the mirror. Wordings differ by design; the refusal must not, and that is what
+  the new section pins on both surfaces in one case.
+- **The empty-field state has no C++ counterpart, so it stays a JS contract.**
+  Measured: an absent `resize_w` is re-defaulted to 0 by `SettingsIO` and the CLI
+  prints `--resize-fit 0x200`, while `buildArgs` omits the flag for `null`. Faking
+  that into a parity row would have asserted a falsehood, so the parity fixtures
+  pin what *does* have a counterpart (an explicit 0 survives as `0x200` / `0x1` on
+  both surfaces) and the empty-vs-zero contract stays in `numeric-honesty` +
+  `transport`.
+- **Register drift 1 — DS-09 said OPEN/S15 but was closed in S22.** §6 P1-31
+  reads "DONE S22", §16 records the proof, `Validate.h:44` and `web/validate.mjs:47`
+  carry the rule, and `threads = -7` is asserted at
+  `tests/test_gifsicle_command.cpp:380,543` (passing in the 372). Only the
+  hand-maintained `STATUS.md` row was never moved — four sessions of contradiction
+  that **no gate could see**: G0 regenerates the §5-derived U-rows only, and
+  G17/S5 compares narrative against the U-row register, so a hand-block row that
+  disagrees with §6 is nobody's job. Row synced to DONE with re-measured proof.
+- **Register drift 2 — the G10 base line, which is why `main` was red.** Linux run
+  **35225055959** (the PR #32 merge) failed at *Documentation status gate* while
+  windows and csharp-spike passed. Reproduced locally: G10 accepts main's tip or
+  its merge first parent, so naming the PR #30 merge was legal until PR #31's
+  merge landed, then stale — the U-82/H:F-06 failure mode recurring one merge
+  later in the very line S24 rewrote to be G10-enforceable. Both enforced lines
+  (`COMPILED_AUDIT.md` **Base:**, `SESSION_HANDOFF.md` "Based on `main` commit")
+  now name `e885d58`.
+- **A third doc-truth gap from PR #32: the suite inventories.** S25 added a ninth
+  web suite (`numeric-honesty.test.mjs`) and wired it into both CI copies, but
+  `web/README.md` still listed **three** suites with hand-typed counts frozen at
+  S17 (17/23/63 while `transport` alone is now 79), and `web/README.md` +
+  `WORKLIST.md` both still said "all eight suites". Fixed: the README lists all
+  nine, grouped by what they need (built CLI / discoverable engine / engine-free),
+  and **carries no PASS counts at all** — a doc-quoted count goes stale the first
+  time a fixture is added, which is exactly U-89's "hand-typed counts" complaint
+  and the reason WORKLIST already says to quote the runtime counter instead.
+- **Handoff sync (rule 1 / preflight P6):** PR #32 written up, **Docs synced
+  through** moved to PR #32, the ledger's #31 cell filled in (`f1c5bc8` — merged,
+  still marked **open**; rule 2 makes that the merger's edit and nobody did it),
+  a #32 row appended, the verification table replaced with S26's measurements, and
+  the toolchain section corrected: S26 has g++/node/gh, no cmake/Qt6/mingw/wine/
+  emcc/dotnet, and Actions **log blobs are unreachable** (a red run can be
+  identified but not read). `git fetch --unshallow` was run (risk R-02).
+
+**Partial:** none claimed. Every row S26 moved is backed by a command that was
+executed in this sandbox; the register is now **122 DONE · 8 PARTIAL · 38 OPEN ·
+0 UNTRIAGED · 168 total** (was 119/8/41/0).
+
+**Left:** every Qt/GUI row (U-12, U-58, U-59's harness half, U-70/U-72, GS-203's
+GUI half, GS-205, DS-10 — no cmake/Qt6), every Windows-binary row (U-55, U-71,
+GS-204's architecture checks, W-18 — no mingw/wine), `web/wasm/` (U-57 — no emcc,
+plus OD-16), the release rows (U-09/U-95 — owner decision + Windows artifacts),
+and the whole S24 web-intake remainder (U-81, U-83..U-86, U-88..U-94, U-96). None
+of those moved, because S26 changed no product behaviour.
+
+**Verified:** `./build.sh` (372 checks / 0 failures) · `scripts/test_engine.sh`
+5/5 · `scripts/smoke_cli.sh` 54/54 · `scripts/verify_audit.sh` (30/1/5 at session
+start, the 1 being F1←G10; re-run after the edits) · `node web/test/command.test.mjs`
+· `node web/test/validate.test.mjs` · `node web/test/transport.test.mjs` (79 PASS)
+· `node web/test/numeric-honesty.test.mjs` · **mutation test of every new
+assertion (review rule R2)**: dropping `validate.mjs`'s finite gate → 7 validate +
+3 transport FAIL; `numOrNull("")`→0 → numeric-honesty FAIL; server-side `""`→0 in
+`buildArgs` → the 3 U-87 transport cases FAIL; treating an explicit 0 as unset →
+the command-parity fixture FAIL; all four files restored byte-identical afterwards
+(`git diff` clean) · `scripts/check_docs.sh` and `scripts/sweep_stale.sh` re-run to
+green · `gh run view 35225055959` for the failing step name.
+
+**Not verifiable here:** the GUI offscreen harness, `windeployqt` packaging and the
+clean-Windows smoke (no cmake/Qt6/mingw); **the log text of the red run** —
+`results-receiver.actions.githubusercontent.com` and the blob host are unreachable
+from this sandbox, so "the failing check is G10" is an inference from *which* step
+failed plus an exact local reproduction of that single failure, not a read log
+line. Pushing this branch is what confirms it. Nothing here proves the Windows or
+C# jobs beyond their existing green runs.
+
+**Docs touched:** `COMPILED_AUDIT.md` (base line, verification-sessions line, §5
+U-78/U-87, §6 P1-44, §19.3 pairing note, §20.1 GN-02 + §20.3 U-78 dispositions),
+`STATUS.md` (DS-09 hand row + `--emit` regeneration), `WORKLIST.md` (P1-44 line
+ticked with its proof), `SESSION_HANDOFF.md` (header, base, ledger #31/#32, S26
+write-up, verification table, toolchain reality, register tallies),
+`IMPROVEMENT_LOG.md` (this entry), `web/README.md` (nine-suite inventory, stale
+hand-typed counts removed), `WORKLIST.md` (build-commands block: ninth suite +
+"all nine").
+
+---
+
 ## S25 — P1-44 web numeric honesty implementation (2026-09-17)
 
 **Changed:** Implemented the high-confidence portion of P1-44: finite-number
