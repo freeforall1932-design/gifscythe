@@ -1,95 +1,142 @@
-# CI workflow status
+# CI — workflow status, clean-Windows smoke, desktop probes (consolidated S24)
 
-> **⏳ There is a pending workflow change right now** — see
-> **`docs/ci/PENDING_WORKFLOW_CHANGE.md`**. The two copies differ *on purpose*:
-> the CI bot token has no `workflows` scope, so GitHub rejects pushes to
-> `.github/workflows/` (re-confirmed by a real push attempt in S9).
-> `verify_audit.sh` gate **E9** and `check_docs.sh` gate **G7** SKIP while that
-> file exists and FAIL on any undeclared drift.
->
-> **The *previous* pending change (S8: web parity + package manifest assertion)
-> is already applied** — maintainer commit `190d030`. S9 found the marker still
-> in place with every doc quoting the pre-application gate numbers; that is
-> `STATUS.md` **N-01**.
+**Consolidated 2026-09-17 (S24):** this file absorbed `CLEAN_WINDOWS_SMOKE.md`
+(§2) and `DESKTOP_PROBES.md` (§3). `PENDING_WORKFLOW_CHANGE.md` was **deleted in
+S24** — the drift it declared was resolved (see §1), so gates **E9/G7/S1** are
+back to enforcing byte-equality with no standing exception.
 
-## Current state (2026-09-10, session S9)
+## 1. Workflow status
 
-- `.github/workflows/build.yml` builds **linux + windows** jobs: engine,
+- **Two copies, byte-identical (again, S24):** `.github/workflows/build.yml`
+  (live) and `docs/ci/build.yml.proposed` (doc copy). The one-line cygpath
+  drift the pending marker tracked is resolved: the maintainer had already
+  fixed the LIVE line in `414f5fc` (`${RUNNER_TEMP//\//}`, green on every
+  Windows run since), while the proposed copy kept the pre-fix `\\/` form;
+  S24 synced the proposed copy to the live-proven line and deleted the marker
+  in the same commit, per the marker's own delete-rule. Edit both files in the
+  same commit from now on; `verify_audit.sh` **E9** / `check_docs.sh` **G7**
+  FAIL any undeclared drift.
+- **The documentation status gate is live in CI** (linux job step
+  "Documentation status gate (STATUS.md register)": `scripts/check_docs.sh
+  --no-gate-run`). Applied by the maintainer (`190d030` era; confirmed S14),
+  which is why register rows W-30/R-03/GS-208 closed in S24. `--no-gate-run`
+  skips G6 (the linux job already builds and runs the web suites; re-running
+  `verify_audit.sh` inside the gate would double the job).
+- **Workflows-scope pushes work:** the token blocker recorded in S9 was lifted
+  in S18 (scope granted, verified by the pushed `build.yml` change in
+  `161e862`; PR #28 pushed workflow edits too). A push touching
+  `.github/workflows/` still needs a token with that permission — the doc copy
+  exists so the recipe survives even when a given token lacks it.
+- **What the workflow runs:** linux + windows jobs — engine build,
   static-linked CLI/tests, GUI (CMake; Ninja+MinGW on Windows), native E2E
-  smokes, the offscreen GUI harness (`test_gui_offscreen`, **324 checks as last
-  *measured* in the S11 sandbox** — Qt 6.4.2; 306 in S10, 243 in S7),
-  `windeployqt` staging, the three web parity/transport suites and
-  the package-manifest assertion (both added by `190d030`), portable packaging
-  on both jobs (S20 added the Windows package + manifest assert, OD-17),
-  and artifact upload (`gifscythe-windows` only since S20 — the linux
-  upload is dropped; 14-day retention — binaries are banked on Releases
-  instead; see `docs/release/RELEASE_PROCEDURE.md`).
-- **Documentation status gate — APPLIED (confirmed S14).** The linux job runs
-  `scripts/check_docs.sh --no-gate-run`; the S9 change is in the live
-  `.github/workflows/build.yml`, not only in `docs/ci/build.yml.proposed`. S14 introduced gate
-  **G16** (web plan template state: token agreement **and** §1–§10 content vs token — leftover
-  placeholders stay SKELETON; filled content requires both lines flipped to WORKING PLAN; the
-  gate never auto-edits). The S14 continuation added **G17** (the stale-claim sweep,
-  `scripts/sweep_stale.sh` — five rule groups). S16 added **G18** (dirty tree FAIL — uncommitted
-  work is lost on session cut-off) and `pr_preflight.sh` **P3b** (unpushed HEAD FAIL). These
-  gates run in the same three places: the `.githooks/pre-push` hook, the linux CI job
-  (`--no-gate-run`; a CI checkout is clean so G18 PASSes there), and
-  `scripts/pr_preflight.sh` at PR create **and** merge (not after). The two workflow copies
-  still differ by one line (the Windows E2E temp-path fallback), so
-  `docs/ci/PENDING_WORKFLOW_CHANGE.md` now describes *that* drift instead — see it for the
-  remaining apply-and-delete step.
-- **Both jobs green on main** since 2026-09-07 (runs #23/#24 after PR #5
-  merge `0ad1ff5`); S5/S6 merged via PR #6 (`9643654`); maintainer follow-up
-  `c5efe07` switched the Windows engine step to `scripts/build_engine.sh`.
-  The S7 branch must re-confirm green on both OSes (its harness additions
-  are linux-verified locally; Windows Qt verification only happens in CI).
-- Historical: the old "App lacks `workflows` permission" workaround (the
-  `scripts/build_gifsicle.sh` compatibility shim) was **retired in S7** —
-  the workflow calls `build_engine.sh` directly and the shim was deleted.
+  smokes, the offscreen GUI harness, the Windows unit-test exe
+  (`build/test_gifsicle_command.exe` — relevant to `U-71`/`U-94`-class rows:
+  pure Win32 rule cases can be proven in CI without a VM), all **eight** Node
+  web suites, packaging + manifest assertion (Windows ships; linux is the test
+  battery since S20/OD-17), artifact upload (`gifscythe-windows`, 14-day
+  retention; binaries are banked on Releases), the csharp-spike job (parked
+  track, still CI-run), and the doc gate.
+- **Gate places:** the gates run in three places — `.githooks/pre-push`
+  (bootstrap once per clone: `scripts/bootstrap_hooks.sh`; `build.sh` does it),
+  the linux CI job, and `scripts/pr_preflight.sh` at PR create **and** merge.
+  **`scripts/review_change.sh`** is the separate diff reviewer (R1 edited check
+  logic, R2 matchers that match nothing — how G10 stayed dead for five PRs —
+  R3 prose counts vs live measurement, R4 lost executable bits, R5 obliged doc
+  updates). It is run by a human/session at review time, not in CI.
+- **History kept for context:** the S8 change (web parity + package manifest)
+  was applied by the maintainer in `190d030` without deleting the old marker —
+  that mismatch was finding N-01, and the reason the marker's delete-rule and
+  sweep rule S1 exist. The `scripts/build_gifsicle.sh` shim workaround was
+  retired in S7; do not reintroduce it.
 
-## Keeping the two copies in sync
+## 2. Clean-Windows smoke checklist — gates C4 / D3 / D4 (W-18)
 
-`build.yml.proposed` is kept **byte-identical** to
-`.github/workflows/build.yml` so the recipe survives even when workflow
-pushes are blocked, and as review documentation. Verify with:
+**Purpose:** prove the portable Windows bundle runs on a machine with **no Qt,
+no MinGW, no dev tools** — the last unverified promise of the portable vision.
+Status: **OPEN** (never executed). **Asset:** the `gifscythe-windows` artifact
+of a green CI run on `main` (record run id + built commit; retention 14 days).
+Do NOT use GitHub Release `snapshot-2026-09-07`: it predates S7 while its notes
+pin a newer SHA (U-09) and predates the S18 Ms-PL relicence (U-95). A re-cut
+release (P0-4) becomes the preferred asset once it exists. Contents: `build/`
+(static `gifscythe-cli.exe`, tests), `build-win/` (`gifscythe.exe` +
+windeployqt runtime + `gifsicle.exe` beside it), `release/` (engine exes).
 
-```bash
-diff .github/workflows/build.yml docs/ci/build.yml.proposed   # must be empty
-```
+**Procedure.**
+1. **Prepare:** clean Windows 10/11 VM/PC or fresh user profile — no Qt,
+   MinGW/MSYS, Visual Studio, or prior Gifscythe runs. Note the OS build
+   (`winver`) for the evidence.
+2. **Fetch + verify:** download the artifact from the chosen green run; record
+   run id, built commit, zip sha256. Unzip to `C:\gifscythe-test\` (no spaces;
+   optional second pass with a spaced path re-probes argv quoting, A4/W).
+3. **Engine identity (C5 recall):** `cd C:\gifscythe-test\build-win &&
+   gifsicle.exe --version` → first line `LCDF Gifsicle 1.96 (Windows)`.
+4. **CLI E2E (C3 recall):** copy a test `.gif` next to the exe; write
+   `test.conf` (`mode = auto`, `optimize = 3`, absolute input/output under
+   `C:\gifscythe-test\build-win\`). `gifscythe-cli.exe test.conf` prints the
+   command line; `--run` exits 0 with `out.gif` written, opening, frame count
+   matching (`gifsicle.exe --info out.gif`). Honesty probe:
+   `--run --engine C:\nope\gifsicle.exe` → **non-zero** + `ERROR: engine not
+   found`.
+5. **GUI double-click (D3/D4):** no missing-DLL dialog; status bar shows the
+   engine found **beside the exe**; add GIF → Optimize → completes, output
+   written, preview animates; tabs responsive; command pane live.
+6. **Record evidence:** OS build, run id + commit, zip sha256, screenshots or
+   console transcripts for 3–5. Then run §3's probes on the same clean build,
+   tick C4/D3/D4 in `COMPILED_AUDIT.md` §7 and add an `IMPROVEMENT_LOG.md`
+   line. Only then is the portable-Windows promise evidenced.
 
-Drift history: after `c5efe07` updated only the live workflow (line 98,
-`build_gifsicle.sh` → `build_engine.sh`), the copies diverged; S7 re-synced
-the proposed copy. When editing the workflow, **edit both files in the same
-commit** (a maintainer or a token with the `workflows` scope must push the
-`.github/` change).
+**Failure triage.** Missing-DLL dialog naming `Qt6*.dll`/`libstdc++-6.dll` →
+windeployqt gap or partial unzip (workflow deploy step, CMake MINGW static
+flags) · `ERROR: engine not found` with engine present → probe order in
+`src/core/EngineLocator.h` · GUI starts, run fails exit≠0 → command-pane text
+vs the §7.E probes · spaced-path run splits args → quoting regression
+(`ProcessRunner.h win_quote_arg`, unit test 19).
 
-**Reviewing a change is a separate step (`scripts/review_change.sh`).** The gates above check the
-repo's *state*; the reviewer checks a *diff* before it is accepted (`--commit`, `--range`,
-`--patch`, `--pr N`). It is not wired into CI — it is run by a human at review time, because its
-output is a list of things to look at, not a pass/fail for a machine. Its **R2** check is the one
-CI cannot substitute for: it re-runs each gate's matcher against the corpus and fails when one
-matches nothing, which is how gate **G10** stayed green for five PRs while inspecting no document
-at all.
+**Hard rule:** this checklist evidences; it does not waive. A failed step
+leaves C4/D3/D4 open until re-run green.
 
-**S8 made drift a gate** (`verify_audit.sh` **E9**), and **S9 mirrored it in
-`check_docs.sh` as gate G7**, so this cannot silently recur. Both have exactly
-one tolerated exception: while
-`docs/ci/PENDING_WORKFLOW_CHANGE.md` exists, the drift is *declared* and E9
-reports SKIP instead of FAIL. Delete that file in the commit that applies the
-change and E9 goes back to enforcing byte-equality.
+## 3. Real-desktop GUI probes — W-19 (B5/B6/B14-adjacent)
 
-## Apply manually (the pending S9 change, or any future drift)
+**Purpose:** the three GUI behaviors the offscreen harness cannot execute —
+they need a physical desktop with a real window manager. Status: **OPEN**
+(never executed). Run on the same build as §2, after its GUI step passes.
+**Why offscreen cannot:** the harness drives widgets in-process; it can emit
+the drop *signal* and cancel/close around a run, but cannot receive an
+OS-level Explorer drop, cannot have a *third party* kill the engine mid-run,
+and never shows a real engine-missing dialog to a user.
 
-```bash
-cp docs/ci/build.yml.proposed .github/workflows/build.yml
-git rm docs/ci/PENDING_WORKFLOW_CHANGE.md      # deleting the marker IS part of applying
-git add .github/workflows/build.yml
-git commit -m "ci: sync Gifscythe build workflow"
-git push                                       # needs the workflows scope
-```
+**Probe 1 — kill the engine mid-run (external kill, not Cancel).** Harness
+complement: T8/T9/T10 (failing engine honest, Cancel sets `Cancelled.`,
+window-close kills the engine) — none kills externally with no `cancelling_`
+flag set, which must take the failure branch of `onProcessFinished`. Steps:
+queue a large GIF, start Optimize; while the progress bar is visible kill
+`gifsicle.exe` from Task Manager (do NOT press Cancel or close the window).
+Expect, with no hang and no success claim: status `Optimization failed
+(exit …).`, a warning dialog carrying the engine's stderr (or exit-code text),
+Run re-enabled, Cancel hidden, queue intact, a second Run works. Fail: any
+completion claim, frozen window, or a run that cannot restart without relaunch.
 
-Then re-run `scripts/verify_audit.sh` and `scripts/check_docs.sh`: removing the
-marker turns E9 back into a PASS, which changes the gate totals, and **G6 fails
-until every doc quotes the new number**. Run `check_docs.sh --emit` and commit
-the regenerated `STATUS.md`. S9 found this exact half-applied state (marker
-present, change applied, docs quoting the old numbers) — see `STATUS.md` N-01.
+**Probe 2 — physical drag-and-drop from Explorer.** Harness complement: T3
+(the `filesDropped` signal appends, dedupes, rejects `.txt`) — T3 emits the
+signal directly and cannot prove the OS delivers a real drop to
+`src/qtui/DropListWidget.h`. Steps: drag two real `.gif` files → both appended
+(queue 0→2); drag the same two + one new → only the new one appended; drag a
+`.txt` → NOT appended. Known gap, not a probe failure: the `.txt` rejection is
+silent (no feedback line) — tracked as GS-205/P1-27 (web twin: U-92), and this
+probe does not waive it. Fail: a drop that appends nothing, a duplicate row, or
+a `.txt` in the queue.
+
+**Probe 3 — engine-missing GUI (launch, run, recovery).** Harness complement:
+T1/T18 (status names the engine; Run re-enables through `ensureEngine()`) — no
+harness case removes the engine binary. Steps: rename `gifsicle.exe` beside
+`gifscythe.exe` → launch → status `Engine not found — build with
+./scripts/build_engine.sh`, Run disabled; add a GIF and press Run anyway →
+critical dialog `Could not find the GIF engine (gifsicle).`, no process, no
+output; rename the engine back while open → next interaction re-probes, status
+shows the path, Run re-enables. Fail: crash or silent no-op at step 2, an
+output written with no engine, or a GUI needing relaunch to notice.
+
+**Record evidence:** OS build, app commit, per-probe observed status + dialog
+text (screenshot or transcription); then tick W-19 via the normal register flow
+with an `IMPROVEMENT_LOG.md` line. A failed probe stays open — it does not
+waive, and it cannot become a harness case (the harness cannot run it).

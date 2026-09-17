@@ -20,14 +20,14 @@ answers are fine; `OD-14` has two sub-questions and needs both.
 | **OD-05** | Web argv handling | (a) keep the web's own builder now · (b) spike routing web through `gifscythe-cli` after `GS-201` | **a** now, **b** later | Unblocking a `gifscythe-cli`-based web argv spike after the stop-loss lands |
 | **OD-06** | Web release artifact | (a) in-repo until 1.0.0 · (b) a separate release artifact now | **a** — desktop stays the 1.0.0 artifact | Deciding whether the web build gets its own release path pre-1.0.0 |
 | **OD-07** | How frozen is the desktop lane | (a) the plan's floor (build-green, tests-green, release-blockers) · (b) a deeper freeze | **a** — correctness-only, not a code freeze | The desktop lane's allowed-change envelope |
-| **OD-08** | Apply `docs/ci/build.yml.proposed` and delete `docs/ci/PENDING_WORKFLOW_CHANGE.md` | (a) apply + delete the marker · (b) leave pending | **a** — needs a `workflows`-scoped token | Returning gates **E9**/**G7** to byte-equality enforcement |
+| **OD-08** | ~~Apply the proposed workflow copy and delete the pending marker~~ **RESOLVED IN SUBSTANCE (S24, 2026-09-17):** the pending change had already been applied to the LIVE workflow by the maintainer (`190d030` era + the `414f5fc` cygpath fix); the doc copy was the side that lagged. S24 re-synced `docs/ci/build.yml.proposed` to the live line and deleted the marker in one commit — **E9**/**G7**/**S1** enforce byte-equality again, no workflows-scoped push was needed | — | resolved | Resolved |
 | **OD-09** | First-party licence | (a) GPLv3 + Qt LGPL notices staged, legal review before 1.0.0 · (b) other | **b** — Ms-PL relicense executed S18 (`OD-09 = b`); Qt LGPL notices staged S19 (`U-08` closed) | Closing the `U-08` licence-set remainder |
 | **OD-10** | Release re-cut | (a) re-cut from one reviewed SHA after the blockers · (b) re-cut now | **a** | `U-09` (the banked snapshot predates S7) |
 | **OD-11** | Bump to 1.0.0 | (a) not yet · (b) bump now | **a** — answered by the owner 2026-09-14 (S19): stays 0.1.0 until the release criteria are met | Version stays 0.1.0 until the release criteria are met |
 | **OD-12** | Two-way CLI settings in 1.0.0 | (a) out · (b) in | **a** — answered by the owner 2026-09-14 (S19): the live pane stays honest one-way through 1.0.0 | Keeping the one-way CLI pane unchanged through 1.0.0 |
 | **OD-13** | Threads contract (`<0` / `0` / `>0`) | (a) yes, restore the sentinel · (b) leave as-is | **a** — `DS-06`'s tri-state fix | The `threads` sentinel semantics (`DS-06`/`DS-07`) |
 | **OD-14** | Disposal 4..7 + settings whitespace | (a) fix disposal 4..7 · (b) document settings quoting | **a** for disposal, **b** for settings whitespace | `DS-10` (unreachable disposal values) and `DS-12` (whitespace round-trip) |
-| **OD-15** | SkillOpt: how to incorporate | (a) pinned git submodule, quarantined · (b) vendored pinned copy · (c) venv/pip wrapper · (d) skip | **a** — see `docs/planning/SKILLOPT_INTEGRATION_QUERY.md` | The first in-repo SkillOpt experiment (the doc-sweep skill) |
+| **OD-15** | SkillOpt: how to incorporate | (a) pinned git submodule, quarantined · (b) vendored pinned copy · (c) venv/pip wrapper · (d) skip | **a** — see `docs/planning/PLANNING.md` §3 | The first in-repo SkillOpt experiment (the doc-sweep skill) |
 
 ## Answers so far
 
@@ -55,7 +55,7 @@ answers are fine; `OD-14` has two sub-questions and needs both.
   **Executed S18 (2026-09-14):** `LICENSE` rewritten, full text in `COPYING.ms-pl`,
   both packagers + CI manifest require it, Caesium base dropped (it was never
   incorporated). Closes the U-08 remainder except Qt LGPL notices.
-  Rationale: `docs/legal/WHY_MSPL.md`; copying rules: `docs/legal/COPYING_RULES.md`.
+  Rationale: `docs/legal/README.md` §1; copying rules: §2 (single legal file since the S24 consolidation).
 - **`OD-11` = a** (2026-09-14) — stay 0.1.0; the 1.0.0 bump waits for the
   release criteria (clean-Windows smoke, desktop probes, no open
   Critical/High). **Executed S19 (2026-09-14):** recorded here and in
@@ -88,7 +88,7 @@ New questions land here, in the same shape, answered in the same
 
 | ID | Question | Options | Recommended | Unblocks |
 |----|----------|---------|-------------|----------|
-| **OD-16** | May the `web/wasm/` build ship with the GPLv2 engine in-process with the Ms-PL UI? (Question: `docs/legal/WASM_LICENSE_QUESTION.md`) | (a) no — wasm stays experimental/unshipped · (b) yes, on counsel-approved terms · (c) other (owner states terms) | **a** until counsel answers — the FSF lists Ms-PL as GPL-incompatible, and MVP scope does not shrink an in-process question | Calling `web/wasm/` shippable; `D-07` cannot close before this lands |
+| **OD-16** | May the `web/wasm/` build ship with the GPLv2 engine in-process with the Ms-PL UI? (Question: `docs/legal/README.md` §3) | (a) no — wasm stays experimental/unshipped · (b) yes, on counsel-approved terms · (c) other (owner states terms) | **a** until counsel answers — the FSF lists Ms-PL as GPL-incompatible, and MVP scope does not shrink an in-process question | Calling `web/wasm/` shippable; `D-07` cannot close before this lands |
 | **OD-17** | Shipped platforms: Windows-only exe + web app, Linux as the CI/sandbox test battery | (a) yes — windows-only ship, linux tests · (b) no — keep a Linux release artifact too | **a** — answered by the owner 2026-09-14 (S20): the linux job and sandbox scripts stay as the test rig and ship nothing | Killing the Linux zip + CI upload; the Windows job gains the packaging gates |
 | **OD-18** | Where does a CLI `mode = explode` with no `output` prefix write? (S23, from U-76 / P1-43) | (a) keep the S23 behaviour — CWD, `<stem>_frame.NNN`, engine convention, named in a NOTE · (b) beside the input like the desktop/web, accepting that the tool writes into the input's folder · (c) refuse the run and require an explicit `output` | **a** — the scoped action's (b) was implemented literally and wrote 12 frames into `reference_code/` on the first smoke run; (c) is the safest but breaks a documented convenience · the name is unified either way | `U-76` closing; whether `examples/animation.conf` and the README need an explode example with an explicit prefix |
 
@@ -96,7 +96,7 @@ New questions land here, in the same shape, answered in the same
 
 - **OD-01 and OD-02 first** — they gate the release-blocker remediation; the
   rest are direction choices the plan can proceed without.
-- **OD-15** feeds directly into `docs/planning/SKILLOPT_INTEGRATION_QUERY.md`,
+- **OD-15** feeds directly into `docs/planning/PLANNING.md` §3,
   which holds the three non-negotiable conditions and the four integration
   shapes. Answering `OD-15 = a` unblocks the submodule shape.
 - Nothing here is a `STATUS.md` row; the register stays the single source of

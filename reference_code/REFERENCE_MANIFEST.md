@@ -58,9 +58,11 @@ is upstream's own test from `ed5b018` ("Add a frame-change test").
   uploaded`.
 - **The remaining U-10/A-09 gap** (provenance and config relocation are now
   closed):
-  1. **CI hash-pinning is proposal-only:** the CI token has no `workflows`
-     scope, so a digest-check step cannot be pushed to
-     `.github/workflows/build.yml` (see `docs/ci/PENDING_WORKFLOW_CHANGE.md`).
+  1. **CI hash-pinning is still not implemented.** The old blocker (no
+     `workflows` scope) ended in S18 — a digest-check step CAN be pushed to
+     `.github/workflows/build.yml` now; it simply has not been written yet
+     (S24 status-truth correction; the pending-workflow marker it cited was
+     deleted in S24 after the copies were re-synced).
 - Product build configuration is now explicitly owned by
   `working_code/gifscythe/build_support/gifsicle/config.native.h`; the build
   script stages it as `config.h` in a temporary include directory and removes

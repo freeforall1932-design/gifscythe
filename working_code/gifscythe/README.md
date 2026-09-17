@@ -33,7 +33,7 @@ root `reference_code/` (read-only).
   (`docs/release/RELEASE_PROCEDURE.md`), `build_gifsicle.sh` shim removed
   (workflow now calls `build_engine.sh`).
 - Remaining before **1.0.0**: clean-Windows windeployqt smoke (C4/D3/D4 —
-  `docs/ci/CLEAN_WINDOWS_SMOKE.md`), desktop probes (B5/B6/B14), owner
+  `docs/ci/README.md` §2), desktop probes (B5/B6/B14 — §3), owner
   decisions (two-way CLI pane, version). WebP/APNG deferred.
 
 ## Build and test

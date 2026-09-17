@@ -12,28 +12,28 @@ anything done without evidence).
 ---
 
 
-## Open release-blocking items (as of 2026-09-14, session S19)
+## Open release-blocking items (as of 2026-09-17, session S24)
 
-Historical CI evidence: run `34735692932` on PR #20 merge `2542f1b` passed both jobs.
-PR #21 merged as `df1dfd5`, PR #22 as `f760ebe`, PR #23 as `8230247`; re-check the exact
-candidate SHA's CI rather than carrying forward any earlier green result. Release is still
-**blocked by the items below**. Do not cut a release until they are closed or
-explicitly waived by the owner.
+Historical CI evidence: main green at `3c67e14` (run 35112077599, 2026-09-16);
+re-check the exact candidate SHA's CI rather than carrying forward any earlier
+green result. Release is still **blocked by the items below**. Do not cut a
+release until they are closed or explicitly waived by the owner.
 
-**S15 triaged the whole intake** (`OD-01 = a`). **S16 closed `GS-201` (P0-5)** — CLI `--run` now
-refuses Batch with no `output` (exit 2) before the engine starts. **S19 closed `U-08`**
-(Qt LGPL texts + notice staged, 36 packaging checks, CI manifest asserts the set).
-Four blockers remain; one of them is still scheduled as **P0** (`DS-06`→**P0-2**).
+Closed since the S19 list: `GS-201` (S16), `U-08` (S19), `DS-06` (S23, P0-2),
+`GS-208`/W-30/R-03 (S24 — the doc gate is live in CI and the workflow copies are
+re-synced with the pending marker deleted).
 
 | Item | Why it blocks | Where the task lives |
 |---|---|---|
-| `GS-204` packaging (PARTIAL S17) | local stager/manifest fixes pass 36 checks (30 + 2 required-file cases S18 + 4 Qt LGPL cases S19); real Windows/Qt deployment, target architecture and clean-machine proof remain | **P1-26** · `STATUS.md` · `docs/planning/SEQUENTIAL_WORK_HANDOFF.md` |
-| `GS-208` red main / stale status docs | release evidence must come from a green exact SHA | **P2-7** · `docs/ci/PENDING_WORKFLOW_CHANGE.md` + this file's gate below |
-| `U-09` release re-cut | banked artifact SHA does not match the claimed source | `STATUS.md` row (OPEN) · `docs/ci/CLEAN_WINDOWS_SMOKE.md` |
-| `DS-06` threads sentinel | default conf silently runs 8-way parallel against the documented contract | **P0-2** · `STATUS.md` · §13 |
+| `U-59` cancel/failure truncates a pre-existing output | the only registered data-loss row (P0) | **P0-7** · `COMPILED_AUDIT.md` §5/§6 |
+| `GS-204` packaging (PARTIAL) | real Windows/Qt deployment, target architecture and clean-machine proof remain (Linux checks + Windows CI packaging are green) | **P1-26** · `STATUS.md` · `docs/planning/PLANNING.md` §4 |
+| `U-09` release re-cut | banked artifact SHA does not match the claimed source | **P0-4** · `STATUS.md` · `docs/ci/README.md` §2 |
+| `U-95` published Release predates the Ms-PL relicence | the one public artifact's licence story contradicts the repo's; owner release-notes edit (mark superseded/pre-release — never delete, per the rollback policy below) | **P1-45** · `COMPILED_AUDIT.md` §20.1 |
+| Web-surface honesty rows (new S24 intake) | `U-78`/`U-87` (silent settings drops) are P1; the rest are P2/P3 hardening | **P1-44** + §6 lanes · `COMPILED_AUDIT.md` §20 |
 
-The per-finding evidence, proposed fix and verification limits for every `GS-`/`DS-` row are in
-`docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`.
+The per-finding evidence, proposed fix and verification limits for every
+`GS-`/`DS-` row are in `COMPILED_AUDIT.md` §13 (full intake text:
+`docs/archive/AUDIT_HISTORY.md` entry 7, original in git history at `3c67e14`).
 
 
 ## 0. Decide what you are cutting
@@ -109,12 +109,14 @@ Also verify before packaging:
   `pr_preflight.sh` **P3** / **P3b** fail create/merge on dirty or unpushed
   HEAD. Anything labelled "after merge" is done **before** merging.
 - `git status` clean; `.github/workflows/build.yml` and
-  `docs/ci/build.yml.proposed` are **byte-identical** (`diff` them) — unless
-  `docs/ci/PENDING_WORKFLOW_CHANGE.md` exists, which declares a workflow change
-  waiting on a token with the `workflows` scope. Apply it before releasing, and
-  **delete that marker in the same commit** — S9 found it left behind after the
-  previous change had already landed, with every doc still quoting the old gate
-  numbers (`STATUS.md` N-01).
+  `docs/ci/build.yml.proposed` are **byte-identical** (`diff` them). Since S24
+  there is no standing exception: the pending-change marker was deleted in the
+  commit that re-synced the copies (E9/G7/S1 enforce byte-equality again). If a
+  future session must let the copies differ, recreate
+  the pending marker (docs/ci/PENDING_WORKFLOW_CHANGE.md) in that same commit and **delete it in
+  the commit that applies the change** — S9 found a marker left behind after the
+  change had already landed, with every doc quoting the old gate numbers
+  (`STATUS.md` N-01).
 - Engine identity: `release/<ver>/gifsicle --version` → `LCDF Gifsicle 1.96`.
 
 ## 2. Bump the version (if not a snapshot)
@@ -187,8 +189,8 @@ on Releases instead (policy since 2026-09-07):
 
 ## 6. Post-publish verification
 
-- **Clean-Windows smoke (gates C4/D3/D4)** — run
-  `docs/ci/CLEAN_WINDOWS_SMOKE.md` against the *published* zip on a machine
+- **Clean-Windows smoke (gates C4/D3/D4)** — run the checklist in
+  `docs/ci/README.md` §2 against the *published* zip on a machine
   with no Qt/MinGW/dev tools. Required before any **1.0.0** claim; strongly
   recommended for every Windows-facing snapshot.
 - Desktop probes (one-time, real GUI): B5 kill-engine-mid-run, B6 physical
