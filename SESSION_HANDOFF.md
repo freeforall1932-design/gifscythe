@@ -163,6 +163,16 @@ explicit-0→unset → 1 FAIL), so none of them can pass vacuously (review rule 
    exactly the U-82/H:F-06 failure mode, one merge later, in the very line S24
    rewrote to be G10-enforceable. Both enforced lines now name `e885d58`.
 
+**The doc machine under-claimed the toolchain as well.** Gate **G6**'s SKIP line
+named all five of its required tools unconditionally — `(gcc/g++/Node/CMake/Qt6
+missing)` — so this sandbox, which has g++ 12.2 and node v22, was told it had
+none. Same mistake S25 made in prose, emitted by a gate; that is why the S26
+toolchain bullet above is written as a *measurement*. The five tests are now in
+`g6_missing_tools()` and the message names what is really absent (`missing: cmake
+Qt6` here). Message-only, and probed in four states (empty PATH → all five;
+only node absent → `node`; here → `cmake Qt6`; all present → empty, so G6 still
+runs its comparison). `review_change.sh` flags it **R1** as a check-logic file.
+
 **Left untouched, deliberately:** every Qt/GUI row (no cmake, no Qt6 here),
 every Windows-only row (no mingw, no wine), `web/wasm/` (no emcc, plus OD-16),
 and the release rows (U-09/U-95 need an owner decision and Windows artifacts).
