@@ -108,8 +108,8 @@ export function validate(s) {
   //   --resize-fit 0x0 / --resize 0x0 / --resize-touch 0x0 -> rc=1
   //   --resize-width 0 / --resize-height 0                -> rc=1
   //   --scale 0x0 -> rc=1, but --scale 0x1 -> rc=0 and DOES NOTHING
-  const rw = num(s.resize_w, 0);
-  const rh = num(s.resize_h, 0);
+  const rw = num("resize_w", s.resize_w, 0);
+  const rh = num("resize_h", s.resize_h, 0);
   switch (s.resize_kind) {
     case "fit":
     case "touch":
@@ -125,8 +125,8 @@ export function validate(s) {
       if (rh === 0) add("resize_h", 0, "height must be > 0 (the engine refuses --resize-height 0)");
       break;
     case "scale": {
-      const sx = num(s.scale_x, 1);
-      const sy = num(s.scale_y, 1);
+      const sx = num("scale_x", s.scale_x, 1);
+      const sy = num("scale_y", s.scale_y, 1);
       if (!(sx > 0) || !(sy > 0)) {
         // toFixed(6) matches std::to_string(double) (%f) so the strings compare.
         add("scale", `${Number(sx).toFixed(6)}x${Number(sy).toFixed(6)}`,
