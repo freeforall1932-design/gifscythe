@@ -45,6 +45,7 @@ jobs:
           set -euo pipefail
           node web/test/command.test.mjs
           node web/test/validate.test.mjs
+          node web/test/numeric-honesty.test.mjs
           node web/test/transport.test.mjs
           node web/test/body-limit.test.mjs
           node web/test/static-hygiene.test.mjs

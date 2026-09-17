@@ -35,6 +35,28 @@ Based on `main` commit `3c67e14` (the PR #30 merge) ·
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
+## Context-budget protocol (S24 — enforce at every new session)
+
+The first context pass is deliberately small. Read `SESSION_HANDOFF.md` first,
+then read only these orientation files: `STATUS.md`, `WORKLIST.md`,
+`docs/planning/PLANNING.md` §5, and `docs/planning/OWNER_DECISIONS.md`.
+Record the files actually read in the session response. Do not bulk-read every
+Markdown file.
+
+The orientation files are the persistent context. Everything else is deferred
+until the task requires it. Open task-specific sections only: `COMPILED_AUDIT.md`
+for the relevant `U-*`/`P-*` item, `IMPROVEMENT_LOG.md` for a specific session
+or a new log entry, `PROJECT_VISION.md` for scope/architecture, and release,
+CI, legal, web, WASM, C#, screenshot, reference, or product README files only
+for work in those areas. Historical/archive Markdown is deferred by default.
+
+After the one-time orientation check, stop rereading orientation files and shift
+the conversation to the requested task or review. Keep a compact working set:
+current task, exact files/sections, constraints that apply, and verification
+results. Summarize or drop superseded excerpts instead of carrying full files
+forward. Never spend the remaining context window re-reading large documents;
+re-open a deferred section only when new work makes it relevant.
+
 ## PR ledger (append-only — this is how you see a skipped or closed PR)
 
 One row per PR, appended at `gh pr create` time and never rewritten. A gap in
