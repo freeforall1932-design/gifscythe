@@ -41,6 +41,16 @@ function fmtDouble(x) {
 const u2s = (x) => String(x);
 const i2s = (x) => String(x);
 
+// Form controls use an empty string for an unset number. Keep that distinct
+// from an explicit zero, and never let a non-finite value become an argv token.
+export function numOrNull(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+const finite = (value) => typeof value === "number" && Number.isFinite(value);
+
 function optimizationOpt(level) {
   // -O0 is valid ("no optimization"); -O without value = 1.
   if (level === 1) return "-O";
@@ -66,7 +76,7 @@ export function buildArgs(s) {
 
   // Whole-GIF
   if (s.careful) add("--careful");
-  if (s.color_count >= 2 && s.color_count <= 256) {
+  if (finite(s.color_count) && s.color_count >= 2 && s.color_count <= 256) {
     add("-k"); add(i2s(s.color_count));
   }
   // Dither: prefer explicit method string; fall back to bare -f when bool set.
@@ -75,7 +85,7 @@ export function buildArgs(s) {
   } else if (s.dither) {
     add("-f");
   }
-  if (s.lossy >= 0 && s.lossy <= 200) {
+  if (finite(s.lossy) && s.lossy >= 0 && s.lossy <= 200) {
     add("--lossy=" + i2s(s.lossy));
   }
   // Gamma: string form preferred (srgb|oklab|NUM); legacy double fallback.
@@ -86,17 +96,31 @@ export function buildArgs(s) {
   // Resize / scale
   switch (s.resize_kind) {
     case "fit":
-      add("--resize-fit"); add(u2s(s.resize_w) + "x" + u2s(s.resize_h)); break;
+      if (finite(s.resize_w) && finite(s.resize_h)) {
+        add("--resize-fit"); add(u2s(s.resize_w) + "x" + u2s(s.resize_h));
+      }
+      break;
     case "touch":
-      add("--resize-touch"); add(u2s(s.resize_w) + "x" + u2s(s.resize_h)); break;
+      if (finite(s.resize_w) && finite(s.resize_h)) {
+        add("--resize-touch"); add(u2s(s.resize_w) + "x" + u2s(s.resize_h));
+      }
+      break;
     case "exact":
-      add("--resize"); add(u2s(s.resize_w) + "x" + u2s(s.resize_h)); break;
+      if (finite(s.resize_w) && finite(s.resize_h)) {
+        add("--resize"); add(u2s(s.resize_w) + "x" + u2s(s.resize_h));
+      }
+      break;
     case "scale":
-      add("--scale"); add(fmtDouble(s.scale_x) + "x" + fmtDouble(s.scale_y)); break;
+      if (finite(s.scale_x) && finite(s.scale_y)) {
+        add("--scale"); add(fmtDouble(s.scale_x) + "x" + fmtDouble(s.scale_y));
+      }
+      break;
     case "width":
-      add("--resize-width"); add(u2s(s.resize_w)); break;
+      if (finite(s.resize_w)) { add("--resize-width"); add(u2s(s.resize_w)); }
+      break;
     case "height":
-      add("--resize-height"); add(u2s(s.resize_h)); break;
+      if (finite(s.resize_h)) { add("--resize-height"); add(u2s(s.resize_h)); }
+      break;
     case "none": default: break;
   }
   if (s.resize_method) { add("--resize-method"); add(s.resize_method); }
@@ -138,8 +162,8 @@ export function buildArgs(s) {
   }
 
   // Animation options (delay_cs is in 1/100 s, NOT milliseconds).
-  if (s.delay_cs >= 0) { add("-d"); add(i2s(s.delay_cs)); }
-  if (s.disposal >= 0 && s.disposal <= 7) { add("--disposal"); add(i2s(s.disposal)); }
+  if (finite(s.delay_cs) && s.delay_cs >= 0) { add("-d"); add(i2s(s.delay_cs)); }
+  if (finite(s.disposal) && s.disposal >= 0 && s.disposal <= 7) { add("--disposal"); add(i2s(s.disposal)); }
   // Must mirror GifsicleCommand.h (the parity test enforces it). Four states:
   // -2 play once (--no-loopcount), -1 unchanged, 0 forever, >0 a count.
   if (s.loopcount === -2) {
@@ -149,7 +173,7 @@ export function buildArgs(s) {
   } else if (s.loopcount > 0) {
     add("--loopcount=" + i2s(s.loopcount));
   }
-  if (s.optimize_level >= 0 && s.optimize_level <= 3) {
+  if (finite(s.optimize_level) && s.optimize_level >= 0 && s.optimize_level <= 3) {
     add(optimizationOpt(s.optimize_level));
   }
   if (s.unoptimize) add("-U");
