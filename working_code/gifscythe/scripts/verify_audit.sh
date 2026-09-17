@@ -203,7 +203,7 @@ if ! grep -rn "system(\|/bin/sh\|cmd\.exe\|sh -c" src/ 2>/dev/null \
   ok "E3" "no shell execution in src/"
 else bad "E3" "shell execution pattern found in src/"; fi
 if grep -rq "GIFSYCYTHE" src/ 2>/dev/null; then bad "E8" "GIFSYCYTHE typo present"; else ok "E8" "include guards GIFSCYTHE_*"; fi
-if grep -q "1/100 s" ../../FEASIBILITY_REVIEW.md; then ok "E7" "FEASIBILITY delay documented as 1/100 s"; else bad "E7" "delay unit doc"; fi
+if grep -q "1/100 s" ../../PROJECT_VISION.md; then ok "E7" "delay unit documented as 1/100 s (flag map folded into PROJECT_VISION.md, S24)"; else bad "E7" "delay unit doc"; fi
 # E4: first mode item is Batch and combo starts at index 0 (SettingsPanel.cpp
 # since the 2026-09-07 tab retrofit; harness T1 enforces this at runtime too).
 if ! grep -q 'currentData.*Mode::Merge' src/qtui/MainWindow.cpp src/qtui/SettingsPanel.cpp \

@@ -6,7 +6,7 @@ alternative to the `.exe`/portable build — same engine, same command semantics
 loopback by default (`GS_WEB_HOST` for LAN). Plan template, split rules and the
 phases that make it product-grade: `WEB_PLAN_TEMPLATE.md` (state line `SKELETON` until the owner's
 draft is refitted; mirrored in `SESSION_HANDOFF.md`, gate **G16**).
-This is **Option 3** of `docs/web/WEB_FEASIBILITY.md`; the optional client-side
+This was **Option 3** of the 2026-09-09 web feasibility review (folded into §History below in S24); the optional client-side
 target (`gifsicle.wasm`) is described there and is not built.
 
 ## Architecture
@@ -198,10 +198,30 @@ The `settings` object mirrors `gs::Settings` (see `command.mjs`): `mode`,
 ## Limitations (by design, for now)
 
 - Server-side processing → not a portable/offline web build (that needs the
-  wasm engine; see the feasibility doc).
+  wasm engine; see §History below and `wasm/README.md`).
 - Single-user server; no auth/quotas. Self-hosted by design: keep it on loopback (or a trusted LAN) and do not expose it publicly as-is.
 - The browser UI exposes a focused subset of controls (all four modes, but no
   Save-as / batch folder / name template / rotation / crop widgets);
   `command.mjs` already supports the full desktop settings surface.
 - Output names are derived (`<stem>_opt.gif`, `merged.gif`,
   `<stem>_frame.NNN`), mirroring the desktop defaults but not configurable.
+
+## History — the 2026-09-09 web feasibility review (folded in S24; superseded conclusion marked)
+
+The original review (docs/web/WEB_FEASIBILITY.md, deleted in the S24
+consolidation — full text in git history at `3c67e14`) weighed four ways to
+"run Gifscythe on the web":
+
+| # | Option | Verdict then | Fate |
+|---|---|---|---|
+| 1 | Qt for WebAssembly (existing Widgets UI in-browser) | ❌ rejected — `QProcess`/subprocess spawning does not exist under wasm; the engine layer would need an in-process rewrite, changing the GPLv2 boundary; loses native dialogs/DnD | Never built |
+| 2 | Tauri (web UI + Rust shell) | ⚠️ viable but "not web" — a desktop app with a web-tech UI; WebView2 runtime vs the portable promise | Stays a D-08 trigger-based option (`docs/planning/PLANNING.md` §1) |
+| 3 | Web UI + server-side engine | ✅ works today — zero new toolchains, same command layer as desktop; "needs a server, so not portable/offline" | **This directory — and since S14 (2026-09-12, owner) a SUPPORTED PRODUCT SURFACE**, self-hosted, loopback by default; the review's "demo only / not the product path" framing is superseded (`WEB_PLAN_TEMPLATE.md` §1) |
+| 4 | Client-side WASM engine (compile gifsicle → wasm) | ✅ best end-state — fully portable/offline in the browser; gifsicle is single-process C, ports cleanly; in-process use ends the subprocess separation, so distribution ships the GPLv2 text/source offer | Scaffolded in `wasm/` (S19); NOT SHIPPABLE until `OD-16` (in-process licence) + a real emcc byte proof |
+
+The review's sandbox note (2026-09-09: emscripten toolchain hosts unreachable,
+no Qt6 packages) still describes why the wasm binary remains unbuilt in agent
+sandboxes; `wasm/README.md` carries the current state. Its parity claims
+(command builder byte-identical to the C++ CLI; validation triples identical to
+`Validate.h`; argv-array spawn, never a shell; honest 422s) are now enforced by
+the eight suites in `test/` and CI rather than being promises.

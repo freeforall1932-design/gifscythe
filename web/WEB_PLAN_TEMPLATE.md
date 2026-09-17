@@ -49,7 +49,7 @@ only; rationale belongs in §3/§4.*
 
 | Date | Decider | Decision | Supersedes |
 |---|---|---|---|
-| 2026-09-12 | owner | **The `web/` build is a supported product surface — an alternative to the `.exe` / portable build for users who prefer a browser UI.** It ships the same engine and the same command semantics, self-hosted (loopback by default; `GS_WEB_HOST` opts into a LAN bind). | The S5/S6 statements "`web/` build is a demo only" / "not the product path" (`PROJECT_VISION.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/web/WEB_FEASIBILITY.md`) |
+| 2026-09-12 | owner | **The `web/` build is a supported product surface — an alternative to the `.exe` / portable build for users who prefer a browser UI.** It ships the same engine and the same command semantics, self-hosted (loopback by default; `GS_WEB_HOST` opts into a LAN bind). | The S5/S6 statements "`web/` build is a demo only" / "not the product path" (`PROJECT_VISION.md`; the S5/S6 reviews, folded into `docs/planning/PLANNING.md` §1 and `web/README.md` in S24) |
 | 2026-09-12 | owner | **This file is a template**, not a second source of truth: owner drafts are refitted into it under §0's rules. | — |
 | `<date>` | `<owner>` | `<open: hosted/cloud deployment? if yes, a privacy + data-handling decision is required, because the current promise is "no cloud, no telemetry">` | — |
 
@@ -71,7 +71,7 @@ correctness-only, **without** the two surfaces drifting apart into two products.
 tasks the web surface needs to become trustworthy as a product (§6, phases P0–P2).
 
 **Out of scope here:** new desktop features; the language-migration question (still governed by
-`docs/planning/OFFLINE_BUILD_REVIEW.md`); WebP/APNG (`PROJECT_VISION.md` keeps those behind 1.0.0);
+`docs/planning/PLANNING.md` §1); WebP/APNG (`PROJECT_VISION.md` keeps those behind 1.0.0);
 the packaging/release work in phases P3–P4, which stays in `WORKLIST.md` / `RELEASE_PROCEDURE.md`.
 
 **Success sentence (draft).** A user can pick either the desktop build or the self-hosted web
@@ -215,7 +215,7 @@ wait if the web keeps emitting argv for the same settings.
 
 1. **Hosted vs self-hosted** — confirm the working interpretation in §1. `[CONFLICT]` if a hosted
    service is wanted: it contradicts the current "no cloud, no telemetry" promise in
-   `docs/planning/OFFLINE_BUILD_REVIEW.md`.
+   `docs/planning/PLANNING.md` §1.
 2. **Which features define "web speed"?** §6 P2 is empty until this is answered.
 3. **Does the web keep its own argv builder, or route through `gifscythe-cli`?** (§5.6) — the
    largest divergence-risk decision in the split.

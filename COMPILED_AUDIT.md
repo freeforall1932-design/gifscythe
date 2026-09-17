@@ -1,4 +1,16 @@
-# Gifscythe — Compiled Audit (Master) — v3
+# Gifscythe — Compiled Audit (Master) — v4
+
+> **v4 consolidation (2026-09-17, S24).** The four external review files uploaded to the repo root on
+> 2026-09-16 (`gifscythe-audit-delta-2026-09-16-1357.md`, `gifscythe-code-review-794a996.md`,
+> `gifscythe-review-794a996.md`, `gifscythe-repo-review.md`) were incorporated into **§20** and then
+> deleted, per owner instruction and the S21 precedent: every finding got a disposition — already
+> fixed (S23/PR #30), already tracked, **new → §5 rows U-77..U-96**, or refuted with evidence — so no
+> problem was dropped and no already-worked problem was re-added. The register grows **76 → 96**;
+> new fix-order ids P1-44..P1-46, P2-18..P2-22, P3-13..P3-19 were scoped in §6. The seven dated
+> audit snapshots under docs/audit/ (now empty and removed) and docs/archive/ were folded into
+> `docs/archive/AUDIT_HISTORY.md` (§10 and §20.5 record where each landed; full texts stay in git
+> history at `3c67e14`). The stale header base line (finding U-82 / H:F-06) was fixed and rewritten
+> into the G10-enforced shape.
 
 > **v3 consolidation (2026-09-15).** This file is now the **single** compiled audit md: the two
 > scattered root-level intake copies (`GIFSCYTHE_REVIEW_INTAKE_…7b91….md` and `gifscythe-audit_…729d….md`)
@@ -13,8 +25,8 @@
 > **Remediation status (2026-09-10, session S8): 31 findings closed outright
 > (21 in batch 1 + 10 in batch 2), 3 closed in part (U-10/U-14/U-18), 15 still
 > open, 2 register rows corrected (U-19/U-20) — see
-> `docs/audit/REMEDIATION_2026-09-10.md` for the per-finding before/after
-> evidence, the mutation-test record and the exact tally. Rows below carry a
+> `docs/archive/AUDIT_HISTORY.md` (file 6) for the per-finding before/after
+> evidence pointer; the full S8 record is in git history at `3c67e14`. Rows below carry a
 > `✅ FIXED (S8)` / `◐ PARTIAL (S8)` / `☑ CORRECTED (S8)` marker in the Status
 > column. CI on **PR #11** (run `34471563229`) is **green on linux and
 > windows**, which is the first compilation of the S8 Qt edits.**
@@ -25,15 +37,17 @@
 > file (gate **G10**); **PR #16 merged as `629135a` (2026-09-12); `main` run `34709202307` is GREEN on both jobs**. A newer merge on top of this branch keeps `main` red
 > only while a run is in flight; check the tip run before claiming green. The S8 banner above is a dated snapshot of that
 > session, **not** the current state. §13 is the external-review intake — **triaged
-> into §6 in S15**; **GS-201 closed S16** (P0-5), **GS-202, DS-13 and GS-207 closed S17** (P0-6 / P1-32 / P1-29). DS-11 is also closed S17 (P2-14). GS-203, GS-204 and GS-210 are PARTIAL; ten intake rows stay OPEN.
+> into §6 in S15**; **GS-201 closed S16** (P0-5), **GS-202, DS-13 and GS-207 closed S17** (P0-6 / P1-32 / P1-29). DS-11 is also closed S17 (P2-14). GS-203, GS-204 and GS-210 are PARTIAL; as of S24 the not-DONE intake rows are those three (PARTIAL) plus GS-205, GS-209, DS-10 (OPEN) — DS-06..DS-09, GS-206 and GS-208 closed in S22/S23/S24.
 > Narrative `**Status:**` lines in §2/§3/§4 now name their §5 register row; where the original
 > audit text disagreed with the register, the original wording is kept after *"Original report:"*
 > and is superseded by the register.
 
-**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7, S8, S9, S10, S11, S12, S13 (2026-09-12), S14 (2026-09-12 — external-review intake and status-truth corrections), S15 (2026-09-13 — 18-row triage), **S16 (2026-09-13 — GS-201 / P0-5 stop-loss)**, **S17 (2026-09-13 — N-07 count check, GS-202 path containment DS-13 signature check and GS-207 strict engine override)**
-**Branch:** `main` at `2d51347817f5cdb39334415a03bb5f2b543119dd` (the PR #15 merge; re-confirm with
+**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7…S17 (2026-09-13), S18–S20 (2026-09-14), S21 (2026-09-15 — v3 consolidation + U-68 413), S22 (2026-09-16 — U-67 + web gates + U-53/U-60/U-61/U-62/U-64/DS-09), S23 (2026-09-16 — Tier-1 batch, PR #29), PR #30 (2026-09-16 — U-77/U-79/U-80), **S24 (2026-09-17 — v4: external-review intake §20, doc consolidation, U-82 fix, stale-row closures W-30/R-03/GS-208)**
+**Base:** `main` at `3c67e14` (the PR #30 merge; re-confirm with
 `gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`;
-`check_docs.sh` gate **G10** fails if this line names anything else)
+`check_docs.sh` gate **G10** matches this line shape and fails if it names anything
+else — S24 note: the previous "**Branch:** … at …" shape was NOT matched by G10's
+trigger list, which is how it stayed six merges stale; finding U-82 / H:F-06)
 **Product version:** 0.1.0 (do **not** bump to 1.0.0 yet)
 **Companion docs:** `STATUS.md` · `SESSION_HANDOFF.md` · `WORKLIST.md` · `IMPROVEMENT_LOG.md`
 
@@ -46,16 +60,21 @@
 > `check_docs.sh` gates **G5/G5b** fail if the two ever disagree, and **G0**
 > fails if `STATUS.md` has drifted from what the emitter produces.
 
-This document merges **six independent audits**:
+This document merges **ten independent reviews** (audits A–F, plus the four
+2026-09-16 uploads G–J incorporated in v4 — see §20):
 
 | ID | Source | What it is | Trust rank |
 |----|--------|------------|------------|
 | **A** | `AUDIT_A_extracted.md` — GPT 5.6 sol xhigh | 20 findings (2 Critical / 7 High / 9 Medium / 2 Low) | **1 — highest** |
 | **B** | `AUDIT_B_extracted.md` — Seed 2.1 Pro Preview | 16 findings (0 Critical / 1 High / 4 Medium / 8 Low / 3 info) | **2** |
-| **C** | `docs/audit/POST_S7_AUDIT.md` — Arena agent session | 13 findings (1 High / 4 Medium / 5 Low / 3 Nit) | **3** (executed code) |
+| **C** | `docs/archive/AUDIT_HISTORY.md` file 3 (was docs/audit/POST_S7_AUDIT.md) — Arena agent session | 13 findings (1 High / 4 Medium / 5 Low / 3 Nit) | **3** (executed code) |
 | **D** | GPT 6 Astra Medium Audit (`arena.site/01a089b0…`) | 8 new findings (1 High / 6 Medium / 1 Low) | **1 — highest** (same rank as A) |
 | **E** | Independent Source Audit (`arena.site/01a0a4f2-59e2-7b91-a71d-c630bb77209a`) — **gpt 5.6 sol xhigh** | 5 new findings (3 High / 2 Medium) — **from repo commit ca48bf8, live URL verified 5 findings** | **1 — highest** |
 | **F** | Code Review Intake (`arena.site/01a0a4f2-59e2-729d-ba6e-9030c6b52dcb`) — **fable 5.1 low — WINNER** | 19 new findings (2 High / 7 Medium / 10 Low) — **from repo commit ca48bf8, live URL verified 19 findings = WINNER** | **1 — highest** |
+| **G** | `gifscythe-audit-delta-2026-09-16-1357.md` (uploaded, pinned `794a996`) | 18 findings GN-01..GN-18 (0 P0 / 12 P1 / 4 P2 / 2 P3) + a shipping plan; source-read only, nothing executed; every finding carries a mechanical falsify line | **2** (honest about its own limits) |
+| **H** | `gifscythe-code-review-794a996.md` (uploaded, pinned `794a996`) | 9 findings F-01..F-09 + 3 minor notes M-1..M-3; byte-exact source re-fetch; 4 of 9 were already fixed by S23/PR #30 at intake time | **2** |
+| **I** | `gifscythe-review-794a996.md` (uploaded, pinned `794a996`) | 4 findings (proposed U-77..U-80) with **live executed proof** — the reviewer re-ran the whole suite (build/unit/smoke/web/gates) before judging; 3 of the 4 were fixed by PR #30 | **1** (executed) |
+| **J** | `gifscythe-repo-review.md` (uploaded, static doc-level review) | 20 findings F-01..F-20 — 16 are re-frames of already-tracked rows, 4 are new observations (meta/hygiene/pitch); no code execution | **3** |
 
 **Ranking rule:** A and D are both GPT-class audits and are treated as **highest priority** —
 higher than B (Seed) and higher than the compiled audit (C). Where A/D conflict with B/C,
@@ -102,13 +121,14 @@ writing nothing, or running single-threaded when the user asked for auto-threadi
 
 | Metric | Count |
 |--------|------:|
-| Unique findings across all 6 audits | **76** (52 + 5 + 19) |
-| Confirmed BROKEN (wrong result / silent failure at runtime) | **23** (14 + 2 + 7) |
-| Confirmed MISALIGNED (code contradicts docs/labels) | **20** (11 + 1 + 8) |
-| Confirmed MISSING-logic (documented behavior that doesn't exist) | **20** (16 + 2 + 2) |
+| Unique findings across all 10 reviews | **96** (52 + 5 + 19 + 20 new U-77..U-96 from the 2026-09-16 intake §20) |
+| Confirmed BROKEN (wrong result / silent failure at runtime) | **23** (14 + 2 + 7) + intake G/H/I additions |
+| Confirmed MISALIGNED (code contradicts docs/labels) | **20** (11 + 1 + 8) + intake additions |
+| Confirmed MISSING-logic (documented behavior that doesn't exist) | **20** (16 + 2 + 2) + intake additions |
 | **New from GPT 6 Astra Medium (D)** | **8** (GS-101…GS-108) |
 | **New from 7b91 (E) — NA-01..NA-05 — gpt 5.6 sol xhigh** | **5** (3 High / 2 Medium) |
 | **New from 729d (F) — NF-01..NF-19 — fable 5.1 low — WINNER** | **19** (2 High / 7 Medium / 10 Low) |
+| **New from the 2026-09-16 uploads (G/H/I/J) — §20** | **20 rows** (4 fixed before/at intake: U-77/U-79/U-80 by PR #30, U-82 by S24; 16 OPEN) |
 | Audits A+B items already in prior compilations | 36 |
 | Items fixed in code this session | see §4 |
 | Items still **open** before 1.0.0 | see §6 |
@@ -1975,7 +1995,7 @@ runButton_->setEnabled(!busy && !inputs_.isEmpty() && ensureEngine());
 
 ---
 
-## 5. Consolidated master register — all 76 unique findings
+## 5. Consolidated master register — all 96 unique findings
 
 Deduplicated across A/B/C/D/E/F. "Src" = which audit(s) raised it.
 
@@ -2006,7 +2026,7 @@ Deduplicated across A/B/C/D/E/F. "Src" = which audit(s) raised it.
 | **U-11** | A:GS-011 | **Malformed booleans degrade silently.** `parse_bool` maps anything outside `1/true/yes/on` to `false` with no warning. | ✅ **EXEC** | ✅ FIXED (S8) — `parse_bool_strict` warns, leaves field unchanged |
 | **U-12** | A:GS-012 | **"Fully async" GUI still blocks the UI thread in 5 places** — up to 5 s per run start. | ✅ **SRC** | ⬜ OPEN — scoped as P1-24 (S11); implementation deferred: the freeze is not reproducible offscreen, and the cancel rewrite would rewire T2/T9/T10 semantics with no executable proof of improvement |
 | **U-13** | A:GS-013 · B:BUG-02 · D:GS-104 | **Drag-and-drop accepts any existing file.** Filter is `endsWith(".gif") \|\| exists(f)` — should be `&&`. Also: **empty comments emit `--comment` with no argument**, corrupting argv. | ✅ **SRC** | ✅ FIXED (S8) — drop filter `&&`; empty comments skipped (C++ + JS) |
-| **U-14** | A:GS-014 | **Green CI does not enforce the claims used as release gates.** `verify_audit.sh` is never run in CI; package contents are never asserted. | ✅ **EXEC** | ◐ PARTIAL (S8) — negative packaging tests + manifest assertion in CI |
+| **U-14** | A:GS-014 | **Green CI does not enforce the claims used as release gates.** `verify_audit.sh` is never run in CI; package contents are never asserted. | ✅ **EXEC** | ◐ PARTIAL (S8) — packaging negatives + manifest assert + the doc gate run in CI; verify_audit itself stays out by design (job time) — S24: workflows scope is no longer the blocker |
 | **U-15** | A:GS-015 | **CMake writes into the source tree.** `configure_file` targets `${CMAKE_SOURCE_DIR}/src/core/version.h`. | ✅ **EXEC** | ✅ FIXED (S11) — build-tree-only configure_file (`build_support/version.h.in`); generated-first includes; gate C9 + read-only-src repro flipped FAIL->PASS |
 | **U-16** | A:GS-016 · C:F-06 | **Settings persistence is non-atomic** (Truncate + write). A crash mid-write leaves a truncated conf. | ✅ **SRC** | ✅ FIXED (S10) — `save_settings_file` is tmp+fsync+rename; GUI save is QSaveFile; unit test 32 + T19 no-stray check |
 | **U-17** | A:GS-017 · B:BUG-08 | **Explode mode never verifies any frame was written.** Output verification is explicitly skipped for Explode. | ✅ **EXEC** | ✅ FIXED (S11) — `src/core/ExplodeVerify.h` snapshot-diff (CLI+GUI); lying engine (rc=0, 0 frames) refused: unit 33, smoke 9-11, harness T7, wine rc=1 |
@@ -2090,8 +2110,33 @@ Deduplicated across A/B/C/D/E/F. "Src" = which audit(s) raised it.
 | **U-75** | F:NF-18 | **`-E` exposed but `--name` not, several engine options absent** — without `--name` `-E` vs `-e` differs only if input already carries name extensions, checkbox mostly inert. | ✅ **SRC** | ✅ FIXED (S23) — documented remedy (the scoped action's OR): README table of engine options the layer does not model + `-E` checkbox explains the `--name` dependency in place; Qt tooltip left to a Qt machine |
 | **U-76** | F:NF-19 | **Explode default prefix differs per surface** — GUI: `<dir>/<stem>_frame`, CLI: `<basename>.NNN` in CWD when output cleared; session exported from GUI scatters into CWD on CLI. | ✅ **SRC** | ◐ PARTIAL (S23) — name unified (`<stem>_frame`, C++ under `--run` only, so print/parity stay exact); the DIRECTORY was NOT moved beside the input — that wrote 12 frames into `reference_code/`; policy is OD-18 |
 
+### New from the 2026-09-16 external review intake (G/H/I/J — four uploaded files, incorporated S24; see §20 for the per-finding disposition)
 
-## 6. Fix order (all six audits combined)
+| ID | Src | Finding | Verif | Status |
+|----|-----|---------|-------|--------|
+| **U-77** | I:U-77prop | **JSON null body crashed /run and /optimize into text/plain 500s** — `payload.files` and `settings.info` dereferenced without an object guard; `JSON.parse("null")` is the one top-level JSON value that is falsy AND non-object, so it reached the last-resort catch and leaked internals while its scalar siblings failed closed with a documented 400. | ✅ **EXEC** (reviewer live; PR #30 CI) | ✅ FIXED (PR #30) — object-shape guards on both handlers (400 in the documented JSON shape); transport.test.mjs regression cases; commit d7f8ef9 |
+| **U-78** | I:U-78prop | **validate.mjs has no wrong-type gate: NaN slips every numeric check** — `Number("abc")`=NaN passes every comparison, buildArgs then omits the flag, so /run answers 200 ok:true with the setting silently missing; the C++ conf parser warns ("not an integer") and `--strict` refuses the same garbage, breaking the U-30 parity promise for the wrong-type class (U-11 family on the web lane). | ✅ **EXEC** (S24 node probe: four garbage fields returned zero issues) | ⬜ OPEN (S24) — scoped as P1-44; reviewer's numChecked() finite gate + 422, transport/validate cases |
+| **U-79** | I:U-79prop | **/optimize accepted mode:"explode" and answered a misleading 422** — explode writes frames as `<prefix>.NNN`, so the single-file verifier blamed the engine ("exited 0 but produced no output") for a routing mistake; the twin of U-64's info:true key, which was closed and this one missed. | ✅ **EXEC** (reviewer live; PR #30 CI) | ✅ FIXED (PR #30) — 400 refusal naming POST /run; batch/merge single-file probed benign (200, one GIF); transport case; commit d7f8ef9 |
+| **U-80** | I:U-80prop | **web/wasm/glue_harness.mjs hardcoded release/0.1.0/gifsicle** — the only product-surface code file pinning a literal version dir; fails loudly (exit 2) on the next VERSION.md bump, a guaranteed red step in the bump session and invisible to gate A5 as scoped. | ✅ **SRC** (S24: harness now parses VERSION.md) | ✅ FIXED (PR #30) — runtime VERSION.md extraction like the shell scripts; commit 717c082; A5-scope extension suggested in §20.3 |
+| **U-81** | H:F-01 | **Explode frame verification ignores the stream-output and --info exemptions** — main.cpp gates the ordinary verifier on `!stream_output && !s.info` (documented contract) but the explode snapshot/verify blocks are ungated and `explode_prefix_for()` returns `output` verbatim: with `output = -` the CLI hunts files named "-.*", finds none, and downgrades an honest stdout run to rc=1 "wrote no frames"; info+explode hits the same false failure under advisory mode. | ✅ **SRC** (S24: main.cpp + ExplodeVerify.h read) | ⬜ OPEN (S24) — scoped as P1-46; mirror the exemptions + smoke cases (explode with output=-, explode with info) |
+| **U-82** | H:F-06 | **This file's header Branch line was six merges stale and G10 never matched its shape** — the line claimed G10 enforced it, but G10's trigger list has no "**Branch:** … at …" form, so the matcher ran vacuously (R2 class — the same way G10 stayed dead for PRs #16-#20); GS-208/N-01 doc-drift class recurring in the master audit itself. | ✅ **SRC** (S24 grep + G10 trigger read) | ✅ FIXED (S24) — line rewritten into the G10-matching **Base:** shape naming current main; historical shas stay outside matcher triggers |
+| **U-83** | H:F-07 | **Batch + explicit output + single input is neither refused nor pinned** — GS-201 closed no-output, U-74 closed N>1; with N=1 the planner classifies the merge shape, argv carries both -b and -o, and no smoke case pins what the engine actually does (an external live probe saw -b -o write to -o, source untouched — the gap is the missing pin, not known misbehavior). | ✅ **SRC** (S24: main.cpp refuses only inputs.size()>1) | ⬜ OPEN (S24) — scoped as P3-15; pin with a smoke case or extend the refusal |
+| **U-84** | H:F-08 | **/optimize discovers the engine before reading the request body** — an oversized upload to an engine-less server answers 503 (engine not found) instead of 413 (too large); /run reads the body first (its own comment says so), so identical clients get a different cap contract per endpoint. | ✅ **SRC** (S24: server.mjs ordering confirmed) | ⬜ OPEN (S24) — scoped as P3-14; reorder like handleRun + transport case pinning 413-without-engine |
+| **U-85** | H:F-09 · G:GN-11 | **A non-numeric PORT crashes the server with a raw RangeError stack** — `Number("abc")`=NaN and `listen(NaN)` throws ERR_SOCKET_BAD_PORT at module top level: no usage message, no exit-2 caller-error shape; self-hosting panels that set PORT hit this first, against the repo's own named-reason honesty rule. | ✅ **SRC** (S24: server.mjs:50 unvalidated) | ⬜ OPEN (S24) — scoped as P3-13; validate once, named message, exit 2 + suite case |
+| **U-86** | H:M-1/M-2/M-3 | **Three minor comment-vs-behavior mismatches** — the /run batch-collision message claims it prevents overwriting "the uploaded file of the same name" (uploads are renamed inN.gif; it prevents a planned output colliding with a user-facing upload name); expand_home's comment says "Reject bare ~ alone" but bare ~ expands to $HOME; run() resolves on timeout and again on close (first wins today — a trap for future close-time logic). | ✅ **SRC** (S24: all three confirmed in source) | ⬜ OPEN (S24) — scoped as P3-16; comment-truth rewording, comments-only |
+| **U-87** | G:GN-02 | **An emptied web number field becomes a real 0, not "unset"** — app.js wraps resize_w/h, scale_x/y, loopN and optimize_level in bare `Number($().value)`; `Number("")`=0, so a cleared Loop-N means loop-forever(0), a cleared Width emits `--resize-fit 0xH`, a cleared Scale produces a confusing 422; the desktop's sentinel discipline (DS-06/DS-07) never got its JS text-field mirror. | ✅ **SRC** (S24: app.js:44-62 read) | ⬜ OPEN (S24) — scoped as P1-44; one numOrNull() helper, empty = OMIT the flag, fixtures |
+| **U-88** | G:GN-04 · G:GN-16 | **The register cannot answer the release question: fix-order P-ids have no state and DONE conflates harness-only with desktop-proven** — a P-id spanning DONE+OPEN members (P1-40, P2-16) has no derived state, so "is P1-40 finished?" needs hand-reading; GUI rows proven only offscreen are indistinguishable from real-machine proof while W-19 itself lists the behaviors the harness cannot reach (U-59 sat in exactly that blind spot). | ✅ **SRC** (S24: STATUS/§6 read) | ⬜ OPEN (S24) — scoped as P2-21; emitter-derived P-id block + harness:/desktop: proof markers + counters |
+| **U-89** | G:GN-17 · G:GN-05rem · J:F-11/F-12 | **The doc machine's own cost is a maintenance surface** — the 150-char proof truncation over prose cost a session (N-06) and hand-typed derived counts cost another (N-01); root status docs measured ~2.9x code+tests by an external review; enforcement is sound (CI doc gate live since the maintainer applied it, G15/G18/P3b) but the self-evidencing ask stays open: publish gate results as an artifact/digest instead of typed counts. | ✅ **SRC** (S24) + external measurement | ⬜ OPEN (S24) — scoped as P2-22; the S24 consolidation is the first tranche |
+| **U-90** | G:GN-07 | **Scope beyond the frozen vision lives only inside the parked C# plan** — stills-to-animated and video-endpoint scope (owner request 2026-09-14) plus its own precondition (amend PROJECT_VISION first, "no code until the words change") are recorded only in the parked plan's scope section; no register row owns them, so a resuming session could read them as pre-approved; both also need a non-gifsicle decoder story (FFmpeg sidecar licence unregistered). | ✅ **SRC** (S24: no D-row owns it) | ⬜ OPEN (S24) — scoped as P3-19; gated rows + a clearly-marked vision-amendment proposal |
+| **U-91** | G:GN-08 · G:GN-09 | **No shared exit-code contract: the C++ CLI and the C# spike collide on 3** — spike: 3=engine-missing, 4=engine-failed, 5=invalid-output; CLI: 1=engine/resolution, 2=caller, 3=strict-refusal, 128+n=signalled — the planned Phase-2 parity oracle cannot compare rc honestly; the spike also carries two port traps: Stream.Read may under-fill the 6-byte magic probe (ReadExactly not used) and Quote() prints POSIX quoting on a Windows product whose contract is MSVCRT quoting. | ✅ **SRC** (S24: Program.cs:4,90-110) | ⬜ OPEN (S24) — scoped as P3-17; one contract table, adopt at Phase-2 resume, fixtures |
+| **U-92** | G:GN-10 | **Both web endpoints accept arbitrary bytes: no GIF-magic admission on uploads and forgiving base64** — /run checks only a non-empty name + uploadNameError; hasGifMagic exists but guards the explode OUTPUT only; Buffer.from(str,"base64") silently decodes truncated/foreign payloads; a non-GIF body surfaces as an engine stderr relay instead of a named 400 — GS-205's web twin (that row names Qt files only). | ✅ **SRC** (S24: server.mjs admission path read) | ⬜ OPEN (S24) — scoped as P2-19; magic check before the temp write + strict base64 |
+| **U-93** | G:GN-12 | **Web transport shape is unbounded: stderr capture has no cap and is echoed in 422 bodies, /run inlines every output as base64 in one JSON response, and /favicon.ico 404s** — a chatty engine or a large batch inflates memory and wire (a response larger than the request that produced it); index.html carries no favicon and the allow-list has no entry. | ✅ **SRC** (S24: server.mjs:208,792; index.html) | ⬜ OPEN (S24) — scoped as P2-20; stderr cap + documented output envelope + data-URI favicon |
+| **U-94** | G:GN-13 | **No suite sweeps the settings space against the real engine: hand-written mirrors prove agreement, not correctness** — U-62, U-63 and N-05 were all found because BOTH mirrors encoded the same wrong rule and only gifsicle disagreed; the engine runs in test_engine/smoke, but nothing enumerates the settings space through it, so the class is still found by careful humans, one session at a time. | ✅ **SRC** (S24: suite inventory) | ⬜ OPEN (S24) — scoped as P2-18; seeded offline oracle-fuzz gate + committed matrix |
+| **U-95** | G:GN-15 | **The only published Release predates the Ms-PL relicence** — snapshot-2026-09-07 was built from GPLv3-era first-party code and its notes name no licence (S24 API check: still published, still silent), with U-09's staleness on top; the legal half is a one-edit owner action under the RELEASE_PROCEDURE rollback policy (mark superseded/pre-release, never delete); the evidence half folds into the P0-4 re-cut + a tag-triggered asset gate. | ✅ **EXEC** (S24: GitHub releases API) | ⬜ OPEN (S24) — scoped as P1-45; owner release-notes edit, then P0-4 re-cut |
+| **U-96** | G:GN-18 | **stemOf is hand-duplicated (app.js + server.mjs) and its dotfile/extensionless boundary is unpinned against Qt completeBaseName** — `stemOf(".gif")` returns ".gif" (i>0 guard; S24 node probe: ".gif" to ".gif", "gif" to "gif", "a." to "a"); the Qt reference semantics need a Qt-machine probe; a disagreement means the web silently writes other names than the desktop for odd upload names. | ✅ **EXEC** (S24 node probe; Qt side unprobed) | ⬜ OPEN (S24) — scoped as P3-18; probe Qt, one shared helper, edge-name fixture table |
+
+
+## 6. Fix order (all ten reviews combined)
 
 **A, D, E, F are highest priority** — their findings are listed first within each severity tier.
 B and C findings are merged in where they add coverage or contradict A/D/E/F.
@@ -2155,6 +2200,9 @@ B and C findings are merged in where they add coverage or contradict A/D/E/F.
 | P1-41 | **Web info:true and engine beside symlink — PARTIAL S22.** The web `info:true` half is closed: `/optimize` and `/run` now reject it clearly with HTTP 400 before any GIF verification. The engine-beside-symlink and version-policy halves (`U-65`, `U-66`) remain open. | **U-64, U-65, U-66** | **F — WINNER (S22 web-info half closed)** |
 | P1-42 | **Preview UTF-8 boundary and cancelling lifetime — NEW F:NF-13/15 — fable 5.1 low — WINNER.** Wrap `startPreview()` engine check in `u8path_compat()`; clear `cancelling_` in `onProcessFinished()` not in `cancelRun()`; fold into P1-24. | **U-70, U-72** | **F — WINNER** |
 | P1-43 | **CLI resolve_path and batch+output semantics — NEW F:NF-16/17/19 — fable 5.1 low — WINNER.** Drop CWD fallback or document with NOTE; refuse Batch with >1 input and single output (GUI never emits -b); CLI default explode prefix to `<input dir>/<stem>_frame` like GUI/web. | **U-73, U-74, U-76** | **F — WINNER** |
+| P1-44 | **Web numeric honesty batch — S24 intake (I:U-78, G:GN-02).** Add the missing TYPE gate to `web/validate.mjs` (a finite-number check per numeric field; NaN must produce a 422 issue exactly like the C++ parser's "not an integer" warning) and make empty web text fields mean OMIT (one `numOrNull()` helper in `web/command.mjs`, used by `app.js` for resize_w/h, scale_x/y, loopN, optimize_level), never `Number("")`→0. Fixtures pin empty-vs-zero and wrong-type in validate/command/transport suites. | **U-78, U-87** | **I/G (S24 intake; executed proof at intake)** |
+| P1-45 | **Published-release legality — S24 intake (G:GN-15).** Owner edit: mark Release `snapshot-2026-09-07` superseded/pre-release in its notes (per the RELEASE_PROCEDURE rollback policy: never delete), naming the S18 Ms-PL date and the U-09 SHA mismatch; the evidence half folds into the P0-4 re-cut plus a tag-triggered asset-manifest gate at the next cut. | **U-95** | **G (S24 intake)** |
+| P1-46 | **Explode verification exemptions — S24 intake (H:F-01).** Guard the explode snapshot + verify blocks in `src/cli/main.cpp` with the same `!stream_output && !s.info` exemption the ordinary verifier documents; smoke cases: explode with `output = -` streams frames and exits 0, explode with `info = true` warns-not-false-fails; check GUI reachability before closing. | **U-81** | **H (S24 intake)** |
 
 ### P2 — Turn fixes into gates (CI hardening)
 
@@ -2167,7 +2215,7 @@ B and C findings are merged in where they add coverage or contradict A/D/E/F.
 | P2-5 | **Independent X/Y scale in the web UI.** Replace the single shared Scale % input with Scale X % / Scale Y % feeding `scale_x`/`scale_y` like the desktop; pin with an asymmetric command-parity fixture and a live transport case (executed S10). | **U-42** | **B** |
 | P2-5 | **Add web server validation layer.** Port `Validate.h` checks to JS; return 422 with user-friendly issues. | **U-30** | **B** |
 | P2-6 | **Fix `verify_audit.sh` C6 guard.** Wrap in `if command -v cmake ...; else skip; fi`. | **U-38** | **C** |
-| P2-7 | **Delete or CI-enforce `build.yml.proposed`.** Apply `docs/ci/build.yml.proposed` and delete `docs/ci/PENDING_WORKFLOW_CHANGE.md` in one commit (needs a `workflows`-scoped token) — the last piece of the S14 intake's release-red finding (**OD-08 = a**). | **U-39, GS-208** | **C** |
+| P2-7 | **Delete or CI-enforce `build.yml.proposed` — DONE S24.** The doc-gate step was already live in CI (maintainer-applied; confirmed S14), and the remaining 1-line cygpath drift was the PROPOSED copy lagging the maintainer's live fix (`414f5fc`), not a change waiting for a workflows-scoped push. S24 synced the proposed copy to the live-proven line and deleted the pending marker in the same commit, so **E9/G7/S1 enforce byte-equality again with no standing exception**. | **U-39, GS-208** | **C (S24 closed)** |
 | P2-8 | **Web transport round-trip tests.** Test `%`, `%20`, `%22`, plus signs, Unicode, malformed JSON through `searchParams.get()` path. | **U-49** | **D** |
 | P2-9 | **Settings string round-trip tests.** Test newline, CR, whitespace, equals signs, Unicode in `save_settings`/`load_settings`. | **U-51** | **D** |
 | P2-10 | **HTTP header safety tests.** Test CJK comments, newlines, Unicode engine path in `X-Gifscythe-Command` path. | **U-50** | **D** |
@@ -2178,7 +2226,12 @@ B and C findings are merged in where they add coverage or contradict A/D/E/F.
 
 | P2-15 | **Check standalone UNTRIAGED counts (DONE S17).** S2 compares numeric counts in current-state docs with STATUS.md, even without DONE/PARTIAL/OPEN cells. Markdown and line wraps supported, paragraphs kept separate; file:line diagnostics. Fourteen isolated regression tests pass. S4 stays a fixed five-phrase check; unnumbered prose is not mechanically understood. | **N-07** | **C (S16 triage; S17 closed)** |
 | P2-16 | **Web static hygiene and 413 mapping — NEW F:NF-10/11/12 — fable 5.1 low — WINNER.** Reuse `assertContainedPath(ROOT, file)` in `serveStatic()`, allow-list served files, headers-only for HEAD; typed 413 from `readBody()` and map; document effective 48MB cap or raise MAX_BODY; `revokeResults()`/hide before every run or on failure to avoid stale After. **U-67 FIXED (S22)** — allow-list + HEAD contract + defence-in-depth containment, proven by `web/test/static-hygiene.test.mjs` 43/43 and `web/test/transport.test.mjs` 67/67, now wired into CI and `verify_audit.sh` W5. **U-68 PARTIAL (S22)** — `web/test/body-limit.test.mjs` 8/8 and transport 67/67 re-run, now wired into CI and `verify_audit.sh` W4; remaining question is whether to keep or change the 64MB HTTP-envelope cap (≈48MB effective decoded GIF for `/run`). **U-69 FIXED (S23)** — the ownership/clear rule is a pure module (`web/request-guard.mjs`) and the failure branch now calls the same `clearResults()` the success path uses; 13 assertions in `web/test/request-guard.test.mjs`. | **U-67, U-68, U-69** | **F — WINNER** |
-| P2-17 | **Windows exit code and NTSTATUS — NEW F:NF-14 — fable 5.1 low — WINNER.** `if (code==0) return 0; int low=code&0xff; return low?low:1;` log raw hex when >255; add unit test for 0xC0000005 case. | **U-71** | **F — WINNER** |
+| P2-17 | **Windows exit code and NTSTATUS — NEW F:NF-14 — fable 5.1 low — WINNER.** `if (code==0) return 0; int low=code&0xff; return low?low:1;` log raw hex when >255; add unit test for 0xC0000005 case. S24 (GN-14 adopted): the windows-latest CI job already builds AND runs the unit exe, so the case is test-writing only — no VM needed for the pure mask rule. | **U-71** | **F — WINNER** |
+| P2-18 | **Oracle-fuzz conformance gate — S24 intake (G:GN-13, its top-leverage item).** New scripts/oracle_fuzz.mjs (seeded, offline, zero-dep): enumerate a bounded sample of the settings space, assert argv parity JS-vs-CLI per sample, run each accepted sample against the repo-built engine on a fixture GIF, assert both directions (product-accepted ⇒ engine-accepted + verified output; engine-refused ⇒ product warns/refuses), commit the matrix artifact so drift shows as a diff; `--quick` for pre-push, `--full` as a new verify_audit W-gate + CI step. | **U-94** | **G (S24 intake)** |
+| P2-19 | **Web upload admission — S24 intake (G:GN-10).** Check `hasGifMagic` on the decoded buffer BEFORE writing the temp input in /run and /optimize (named 400: GIF87a/GIF89a signature missing) and validate base64 strictly (charset + length%4 + round-trip) so malformed payloads get a 400 instead of an engine-stderr relay; extends the GS-205/P1-27 admission predicate to the web surface; transport cases: non-GIF body, truncated base64, valid GIF still 200. | **U-92** | **G (S24 intake)** |
+| P2-20 | **Web transport bounds — S24 intake (G:GN-12).** Cap captured stderr with an explicit truncation marker (16 KB class); document and enforce a total-output envelope for /run (or per-output retrieval) with a named refusal; add a data-URI favicon to index.html so the 404 noise disappears without touching the allow-list. | **U-93** | **G (S24 intake)** |
+| P2-21 | **Register mechanics — S24 intake (G:GN-04 + G:GN-16).** Emitter adds a DERIVED fix-order block (one row per P-id: members, state = any-OPEN→OPEN / any-PARTIAL→PARTIAL / else DONE) and derived header numbers (open P0/P1 count = the release bar as a number; rows proven only offscreen), with proof cells gaining a `harness:`/`desktop:` provenance marker; mutation-tested like every gate; never hand-maintained. | **U-88** | **G (S24 intake)** |
+| P2-22 | **Doc-machine cost reduction — S24 intake (G:GN-17 + J:F-11/F-12 + G:GN-05 residual).** `verify_audit.sh --json` published as a CI artifact with the register quoting its digest instead of hand-typed counts (+ a sweep rule for typed count strings); revisit the 150-char proof truncation; freeze new gates/registers until the P0/P1 backlog is empty. The S24 consolidation (this intake + the docs merge) is the first tranche. | **U-89** | **G/J (S24 intake)** |
 
 ### P3 — Docs and polish
 
@@ -2196,6 +2249,13 @@ B and C findings are merged in where they add coverage or contradict A/D/E/F.
 | P3-10 | **`build.sh` `-lstdc++fs` autodetect.** | **U-31** | **B** |
 | P3-11 | **Disposal 4..7 in the desktop picker, or document the cap.** The engine and the web validator allow 0..7; the picker offers fewer. Add 4..7, or state the cap in the UI tooltip. | **DS-10** | **B (S15 triage)** |
 | P3-12 | **-E without --name and prefix docs — NEW F:NF-18 — fable 5.1 low — WINNER.** Add per-frame `--name` list or grey out `-E` with tooltip explaining it needs name extensions; add Not-exposed engine options list to README. | **U-75** | **F — WINNER** |
+| P3-13 | **Web port validation — S24 intake (H:F-09 + G:GN-11).** Parse `argv[2]`/`PORT` once as an integer 0..65535; on failure print a named usage error on stderr and exit 2 (the caller-error code), never a raw RangeError stack; assert in the server-bounds suite. | **U-85** | **H/G (S24 intake)** |
+| P3-14 | **/optimize body-before-engine — S24 intake (H:F-08).** Move `readBody` above `findEngine` in handleOptimize (mirroring handleRun's documented order) so the 413 cap contract is engine-independent on both endpoints; transport case pins 413-without-engine. | **U-84** | **H (S24 intake)** |
+| P3-15 | **Pin single-input batch+output — S24 intake (H:F-07).** Smoke case for `mode = batch` + `output` + N=1: engine writes the -o target and leaves the source untouched (external probe expects exactly this) — or extend the U-74 refusal until pinned; document the outcome in the mode table either way. | **U-83** | **H (S24 intake)** |
+| P3-16 | **Comment-truth fixes — S24 intake (H:M-1/M-2/M-3).** Reword the /run batch-collision message (it guards the planned output vs the user-facing upload NAME, not a same-name file overwrite), the expand_home "Reject bare ~" comment (bare ~ expands to $HOME), and note run()'s resolve-once semantics (timeout then close) so future close-time logic cannot double-resolve. Comments/messages only. | **U-86** | **H (S24 intake)** |
+| P3-17 | **One exit-code contract + spike port traps — S24 intake (G:GN-08 + G:GN-09).** A single contract table (0 ok / 1 engine-or-resolution / 2 caller / 3 strict-refusal / 4 ran-but-invalid-output / 124 timeout / 127 not-startable / 128+n signalled) adopted by the CLI docs now and by the C# spike at Phase-2 resume; fix the spike's `Stream.Read` under-fill (`ReadExactly`) and swap its POSIX `Quote()` display for the MSVCRT quoting contract; Phase-2 parity asserts same-argv → same-rc → same-meaning. | **U-91** | **G (S24 intake)** |
+| P3-18 | **stemOf edge-name parity — S24 intake (G:GN-18).** Probe `QFileInfo::completeBaseName` on a Qt machine for `.gif` / `gif` / `a.` / `a.b.gif`; collapse the duplicated JS stemOf into one shared helper; edge-name fixture table in both web suites and the desktop naming test so the copies cannot diverge. | **U-96** | **G (S24 intake)** |
+| P3-19 | **Register the parked-plan scope — S24 intake (G:GN-07).** Add gated deferred rows (or D-rows) for stills-to-animated and video endpoints that name their preconditions in the row itself (PROJECT_VISION amendment first — a clearly-marked proposal block; a non-gifsicle decoder story + FFmpeg-sidecar licence note), so the scope stops living only inside the parked C# plan. | **U-90** | **G (S24 intake)** |
 
 ---
 
@@ -2319,15 +2379,19 @@ B and C findings are merged in where they add coverage or contradict A/D/E/F.
 
 - **Audit A:** `AUDIT_A_extracted.md` — GPT 5.6 sol xhigh (20 findings) — **file deleted, content merged into §3**
 - **Audit B:** `AUDIT_B_extracted.md` — Seed 2.1 Pro Preview (16 findings) — **file deleted, content merged into §4**
-- **Audit C:** `docs/audit/POST_S7_AUDIT.md` — Arena agent session (13 findings)
+- **Audit C:** POST_S7_AUDIT (Arena agent session, 13 findings) — **folded into `docs/archive/AUDIT_HISTORY.md` file 3 (S24); full text in git history at `3c67e14`**
 - **Audit D:** GPT 6 Astra Medium — `https://01a089b0-ef16-7451-bd81-a1c6a80d3252.arena.site/` (8 findings) — **merged 2026-09-10**
 - **Audit E:** Independent Source Audit — `https://01a0a4f2-59e2-7b91-a71d-c630bb77209a.arena.site/` — **5 findings (NA-01..NA-05) — gpt 5.6 sol xhigh — from repo commit `ca48bf8` + live URL verified 5 findings — merged 2026-09-15. Findings → §2E + §5 (U-53..U-57); reviewer prose → §17.1. The scattered root copy (`gifscythe-audit-…729d….md`) was removed in v3 — full text preserved in git history at `c4f9e1c`.**
 - **Audit F:** Code Review Intake — `https://01a0a4f2-59e2-729d-ba6e-9030c6b52dcb.arena.site/` — **19 findings (NF-01..NF-19) — fable 5.1 low — WINNER — from repo commit `ca48bf8` + live URL verified 19 findings — merged 2026-09-15. Findings → §2F + §5 (U-58..U-76); reviewer prose + 19 regression cases → §17.2. The scattered root copy (`GIFSCYTHE_REVIEW_INTAKE_…7b91….md`) was removed in v3 — its stale register tally was the live G17/S2 failure; full text preserved in git history at `c4f9e1c`.**
-- **Guardrails (VP / false positives):** `docs/archive/gifscythe-final-code-review.md` §6 + the closed branch `codebase-review-and-fix-implementation-b8d7e` — recovered into §15 (v3) so §12's "VP-1/2/3/5" reference resolves inside this master file.
-- **Consolidated:** `docs/audit/CONSOLIDATED_AUDIT_2026-09-10.md` — merges A+B+C (44 findings)
-- **Product docs:** `PROJECT_VISION.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`, `FEASIBILITY_REVIEW.md`
+- **Guardrails (VP / false positives):** the 2026-09-06 final-code-review §6 (now `docs/archive/AUDIT_HISTORY.md` file 2) + the closed branch `codebase-review-and-fix-implementation-b8d7e` — recovered into §15 (v3) so §12's "VP-1/2/3/5" reference resolves inside this master file.
+- **Consolidated:** CONSOLIDATED_AUDIT_2026-09-10 (merges A+B+C, 44 findings) — **folded into `docs/archive/AUDIT_HISTORY.md` file 4 (S24)**
+- **Product docs:** `PROJECT_VISION.md` (absorbed the FEASIBILITY_REVIEW architecture + flag map in S24), `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`
 - **Engine truth:** `reference_code/gifsicle/` + https://www.lcdf.org/gifsicle/man.html
-- **This file:** `COMPILED_AUDIT.md` — **master register, all 6 audits merged (76 findings)**
+- **This file:** `COMPILED_AUDIT.md` — **master register, all 10 reviews merged (96 findings)**
+- **Intake G:** gifscythe-audit-delta-2026-09-16-1357.md (uploaded; 18 findings GN-01..GN-18 + shipping plan; pinned `794a996`) — **merged 2026-09-17 (S24) → §20.1 + §5 (U-85 shared, U-87..U-96); file deleted, full text in git history at `3c67e14`**
+- **Intake H:** gifscythe-code-review-794a996.md (uploaded; 9 findings F-01..F-09 + minor notes M-1..M-3; pinned `794a996`) — **merged 2026-09-17 (S24) → §20.2 + §5 (U-81..U-86); file deleted, full text in git history at `3c67e14`**
+- **Intake I:** gifscythe-review-794a996.md (uploaded; 4 findings proposed as U-77..U-80, live-executed proof; pinned `794a996`) — **merged 2026-09-17 (S24) → §20.3 + §5 (U-77..U-80); PR #30 had already fixed three of them under these ids; file deleted, full text in git history at `3c67e14`**
+- **Intake J:** gifscythe-repo-review.md (uploaded; 20 findings F-01..F-20, static doc-level) — **merged 2026-09-17 (S24) → §20.4; no new §5 rows (16 re-frames of tracked rows, 4 observations dispositioned there); file deleted, full text in git history at `3c67e14`**
 
 ---
 
@@ -2336,8 +2400,8 @@ B and C findings are merged in where they add coverage or contradict A/D/E/F.
 1. **Audit A extracted** (`AUDIT_A_extracted.md`) read in full, content merged into §3, file deleted.
 2. **Audit B extracted** (`AUDIT_B_extracted.md`) read in full, content merged into §4, file deleted.
 3. **GPT 6 Astra Medium Audit (D)** fetched from `arena.site/01a089b0…`, 8 findings analyzed and merged into §2 and §5 (U-45 through U-52).
-4. **Consolidated audit** (`docs/audit/CONSOLIDATED_AUDIT_2026-09-10.md`) read and cross-referenced.
-5. **Post-S7 audit** (`docs/audit/POST_S7_AUDIT.md`) read and cross-referenced.
+4. **Consolidated audit** (CONSOLIDATED_AUDIT_2026-09-10) read and cross-referenced.
+5. **Post-S7 audit** (POST_S7_AUDIT) read and cross-referenced.
 6. **Full codebase review** performed: `MainWindow.cpp` (1100 lines), `SettingsPanel.cpp` (765 lines), `GifsicleCommand.h` (234 lines), `SettingsIO.h` (308 lines), `Validate.h` (55 lines), `EngineLocator.h` (91 lines), `ProcessRunner.h` (128 lines), `server.mjs` (212 lines), `app.js` (139 lines), `command.mjs` (222 lines), `index.html` (116 lines), `test_gifsicle_command.cpp` (338 lines) — all read to verify findings against current code.
 7. **New findings identified (from D — GPT 6 Astra Medium, official export):**
    - U-45: Batch Browse button not disabled during run (D:GS-101) — distinct from U-01
@@ -2370,19 +2434,25 @@ B and C findings are merged in where they add coverage or contradict A/D/E/F.
    - `web/server.mjs`: `readBody` rejects with a typed `BodyTooLargeError` (`statusCode 413`) and stops accumulating without destroying the socket; `handleRun` separates the read error (413) from the JSON parse error (400, wording unchanged); `handleOptimize`'s catch maps 413 before its generic 500; `sendTooLarge` writes the 413 and destroys the socket only after flush; `GS_MAX_BODY` injects the limit (guarded, defaults to 64 MB); the constant now documents the 64 MB envelope ≈ 48 MB effective decoded GIF for `/run`.
    - **Executed proof:** new `web/test/body-limit.test.mjs` **8/8, red→green** — stashing the fix reproduces `/run 400≠413` and `/optimize 500≠413` while 4 control cases still pass (the test isolates the bug, it does not pass vacuously); restoring it turns all 8 green. No real engine: `/run` is pre-discovery; `/optimize` reaches `readBody` via an inert `GS_ENGINE` stub (`process.execPath`) never executed because the rejection precedes `run()`.
    - **§5 U-68 → ◐ PARTIAL (S21)** (was ⬜ OPEN); §2F F-11 narrative and §6 P2-16 annotated to match (gate S5); §17.2 NF-11 regression case marked implemented. **STATUS.md re-emitted** via `check_docs.sh --emit`, the current-register line in `SESSION_HANDOFF.md` was refreshed (gate S2), and `IMPROVEMENT_LOG.md` gained the S21 entry (gate G11 — a non-doc file changed). REMAINING for DONE at that checkpoint: the engine-gated `transport.test.mjs` no-regression re-run, and the cap value was documented but deliberately unchanged. U-67/U-69 (the rest of P2-16) were still untouched at that point.
+12. **2026-09-17 — v4 consolidation (S24): the four 2026-09-16 external review uploads incorporated, then deleted (owner instruction).**
+   - Read all four files in full; verified EVERY finding against current main (`3c67e14`) before registering anything — the tree moved twice after the reviews were pinned at `794a996` (PR #29/S23 and PR #30), which had already fixed or mooted part of what they reported. Nothing already worked on was re-added (owner rule for this intake).
+   - §5 grew 76 → 96: U-77/U-79/U-80 recorded as ✅ FIXED (PR #30) with the ids PR #30's commits already used; U-82 ✅ FIXED (S24, the stale-header fix); 16 new ⬜ OPEN rows scoped into §6 as P1-44..P1-46, P2-18..P2-22, P3-13..P3-19.
+   - Refuted/voided with evidence: G:GN-03 (probed clean — pairing added to §19.3), G:GN-05's enforcement chain (the CI doc gate is live; the stale rows W-30/R-03/GS-208 closed instead), G:GN-06 (README already states the parked direction), J:F-17 (README already discloses the deferral). Already-fixed-at-intake: H:F-02/F-03/F-04 (S23), H:F-05 + G:GN-01 (PR #30, as U-79), J:F-19 (S24).
+   - §20 is the intake record + completeness checklist; the deleted originals' full text stays in git history at `3c67e14` (uploaded at `4d49919`, restored at `a4ba82c`).
+   - Same pass (owner consolidation order): the seven dated audit snapshots folded into `docs/archive/AUDIT_HISTORY.md`; the header base line moved into the G10-enforced shape; §19.4 corrected (U-56 closed S23; U-71 CI-testable per GN-14).
 
 ---
 
 ## 12. Handoff one-liner
 
-> This compiled audit merges **six independent reviews** (GPT 5.6, Seed 2.1 Pro, Arena S7 agent,
-> GPT 6 Astra Medium, 7b91 NA-01..05 gpt 5.6 sol xhigh, 729d NF-01..19 fable 5.1 low WINNER) into one 76-finding register. **The current roll-up of every one of them —
+> This compiled audit merges **ten independent reviews** (GPT 5.6, Seed 2.1 Pro, Arena S7 agent,
+> GPT 6 Astra Medium, 7b91 NA-01..05 gpt 5.6 sol xhigh, 729d NF-01..19 fable 5.1 low WINNER, and the
+> four 2026-09-16 uploads G/H/I/J — §20) into one **96-finding register**. **The current roll-up of every one of them —
 > plus the worklist, deferred and risk items — is `STATUS.md`; read that first for state, this
 > file for evidence.** **Audits A, D, E, F are highest priority** — above
-> B and the compiled audit. **New P0 is U-59 (F:NF-02 fable 5.1 low WINNER) — cancel truncates existing file over pre-existing output — data-loss class requiring tmp+rename guard, not covered by OutputPlan existing.** The top item across all six audits remains **U-01**: batch auto-naming silently
-> overwrites other outputs **and** the source GIF. **All scattered audit copies deleted** — this `COMPILED_AUDIT.md` is now the single
-> source of truth. Run `verify_audit.sh` + `test_gui_offscreen` before trusting anything new.
-> Never "fix" verified-correct behaviors — **VP-1/2/3/5 are now defined in §15.1** (v2 cited them but never defined them); never implement the §15.2 false positives blindly; never start WebP/APNG before GIF 1.0.0.
+> B and the compiled audit. **The only open P0 is U-59 (F:NF-02) — cancel truncates an existing file over a pre-existing output — data-loss class requiring a tmp+rename guard.** U-01 (batch auto-naming overwrite) is closed since S8 and stays the class reference. **All scattered audit copies deleted** — this `COMPILED_AUDIT.md` is the single
+> source of truth; the dated snapshots are condensed in `docs/archive/AUDIT_HISTORY.md` (full texts in git history). Run `verify_audit.sh` + `test_gui_offscreen` before trusting anything new.
+> Never "fix" verified-correct behaviors — **VP-1/2/3/5 are defined in §15.1**; never implement the §15.2 false positives blindly; never start WebP/APNG before GIF 1.0.0.
 > **Next session: this compilation is documentation, not proof — execute the §19 review ask (re-run the suite, write the failing test first, hunt for new pits) before trusting any ✅ FIXED row.**
 
 ---
@@ -2390,10 +2460,10 @@ B and C findings are merged in where they add coverage or contradict A/D/E/F.
 ## 13. External review intake — 2026-09-12 (S14) — **triaged S15; GS-201 closed S16, GS-202 closed S17**
 
 > **Read this as the intake record, not a second register.** Three external reviews were compiled on
-> 2026-09-12 into `docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md`. The items below are
+> 2026-09-12 into EXTERNAL_REVIEW_INTAKE_2026-09-12 (folded into `docs/archive/AUDIT_HISTORY.md` file 7 in S24; full text in git history at `3c67e14`). The items below are
 > **not** `U-nn` rows: they keep the reviewers' own ids. **S15 triaged all 18 into §6
 > fix-order ids** (`OD-01 = a`). GS-201 closed S16; GS-202, DS-13, GS-207 and DS-11 closed S17.
-> GS-203, GS-204 and GS-210 are PARTIAL; ten intake findings remain OPEN.
+> GS-203, GS-204 and GS-210 are PARTIAL; as of S24 six intake rows are not DONE (those three plus GS-205, GS-209, DS-10).
 > **No §5 row above was changed** by compiling them.
 
 **Sources.** Max via OpenAI (highest tier; 10 findings, `GS-201…GS-210`) · DeepSeek (8 findings —
@@ -2412,7 +2482,7 @@ proposed solution and the verification limits.
 | **GS-205** | Medium | Non-GIF inputs still admitted: picker offers `All files`, `appendInputs` validates nothing, drop accepts a directory because it checks existence, not `isFile()` | `src/qtui/MainWindow.cpp` | code-confirmed |
 | **GS-206** | Medium | `long` → `int` narrowing without range checks; validation has no rules for `loopcount`, `threads`, `gamma`, or method-name enums | `src/core/SettingsIO.h`, `src/core/Validate.h` | partly confirmed |
 | **GS-207** | Medium | Original report: an unusable GS_ENGINE silently selects another engine. **Closed S17:** strict override preflight, explicit source/error result and source logs | `src/core/EngineLocator.h`, `web/server.mjs` | smoke 30/30; web 63/63 on Linux; baseline invalid-override probes fail |
-| **GS-208** | High | Main is release-red: run `34705247115` failed the Linux documentation gate while `SESSION_HANDOFF.md` claims a green open PR #15 and the pending-workflow marker describes an already-applied change | `.github/workflows/build.yml`, `SESSION_HANDOFF.md`, `docs/ci/PENDING_WORKFLOW_CHANGE.md` | live CI + local gate re-run |
+| **GS-208** | High | Main is release-red: run `34705247115` failed the Linux documentation gate while `SESSION_HANDOFF.md` claims a green open PR #15 and the pending-workflow marker describes an already-applied change | `.github/workflows/build.yml`, `SESSION_HANDOFF.md`, the pending-workflow marker (deleted S24 after the copies were re-synced) | live CI + local gate re-run. **Closed S24** — see the STATUS row |
 | **GS-209** | Medium | Native "linux/mac" engine build still uses a fixed Linux/glibc `config.native.h` (headers, `random()`, type sizes, SIMD, `gettimeofday`) | `working_code/gifscythe/build_support/gifsicle/config.native.h`, `working_code/gifscythe/scripts/build_engine.sh` | code-confirmed |
 | **GS-210** | Low | **PARTIAL S17:** strict arguments fixed in both build scripts. qmake-first dispatch and hardcoded .pro VERSION remain | `build.sh`, `scripts/build_engine.sh`, `gifscythe.pro` | 12 isolated parser cases pass; all 12 fail against original scripts; native build passes |
 | **DS-06** | High | `threads <= 0` emits a bare `-j`, so the `-1` "unset" sentinel now means 8 threads instead of the engine's single-threaded default; no way to emit no flag | `src/core/GifsicleCommand.h`, `src/core/GifsicleSettings.h` | code-confirmed |
@@ -2442,7 +2512,7 @@ claim a decision reversed (**S4**), and a narrative status block that disagrees 
 (**S5** — the rule that caught **U-06**/**U-08**). `working_code/gifscythe/scripts/pr_preflight.sh`
 is the PR/merge companion. The 15 owner questions this intake raises — triage first — are collected
 in `docs/planning/OWNER_DECISIONS.md`; the SkillOpt request is
-`docs/planning/SKILLOPT_INTEGRATION_QUERY.md`. **`OD-01 = a` was executed in S15 (2026-09-13): all
+`docs/planning/PLANNING.md` §3 (the standalone query file, folded in S24). **`OD-01 = a` was executed in S15 (2026-09-13): all
 18 rows are now mapped into §6 fix-order ids** — 14 got new ids (**P0-5, P0-6, P1-25…P1-32,
 P2-12…P2-14, P3-11**) and 4 folded into actions that already covered them (**DS-06**→P0-2,
 **DS-12**→P1-13, **GS-208**→P2-7, **DS-08**→P3-5). At triage their `STATUS.md` state became `OPEN`,
@@ -2456,7 +2526,7 @@ web-surface plan template the owner drafts are refitted into; its §1 records th
 decision that the web build is a supported product surface, and its state line - `SKELETON` until
 the refit, then `WORKING PLAN` - is mirrored in `SESSION_HANDOFF.md` and checked by gate G16).
 **They are in the §6 fix order (S15).** 14 got new ids and 4 folded into actions that already
-covered them. **GS-201 / P0-5 closed S16, GS-202 / P0-6, DS-13 / P1-32 and GS-207 / P1-29 closed S17**; DS-11 / P2-14 also closed S17. GS-203, GS-204 and GS-210 remain PARTIAL; ten intake findings remain OPEN. They were never mapped into
+covered them. **GS-201 / P0-5 closed S16, GS-202 / P0-6, DS-13 / P1-32 and GS-207 / P1-29 closed S17**; DS-11 / P2-14 also closed S17. GS-203, GS-204 and GS-210 remain PARTIAL; as of S24 the other not-DONE intake rows are GS-205, GS-209 and DS-10 (OPEN) — GS-208 closed S24. They were never mapped into
 `U-nn` rows — the reviewers' ids are the register keys.
 
 **Cross-references inside this file.** GS-201 extends U-01's coverage gap (the planner is correct
@@ -2508,7 +2578,7 @@ These are logged as OPEN with proposed harness steps in §2E/§2F; not dropped.
 
 ## 15. Guardrails — verified-correct behaviors and refuted false positives (recovered)
 
-> **Why this section exists.** §12 says *"Never 'fix' verified-correct behaviors (VP-1/2/3/5)"* but v2 never defined them — the table lived only in `docs/archive/gifscythe-final-code-review.md` §6 and on the closed branch `codebase-review-and-fix-implementation-b8d7e`. Recovered here so the master file is self-contained and §12's reference resolves locally. These are the anti-"new pit" guardrails: each was checked against the committed engine source (`reference_code/gifsicle/src/gifsicle.c`) and/or the gifsicle 1.96 man page. **Changing them would introduce real bugs.**
+> **Why this section exists.** §12 says *"Never 'fix' verified-correct behaviors (VP-1/2/3/5)"* but v2 never defined them — the table lived only in the 2026-09-06 final-code-review §6 (now `docs/archive/AUDIT_HISTORY.md` file 2) and on the closed branch `codebase-review-and-fix-implementation-b8d7e`. Recovered here so the master file is self-contained and §12's reference resolves locally. These are the anti-"new pit" guardrails: each was checked against the committed engine source (`reference_code/gifsicle/src/gifsicle.c`) and/or the gifsicle 1.96 man page. **Changing them would introduce real bugs.**
 
 ### 15.1 Verified-correct — do NOT "fix" (VP-1..VP-5)
 
@@ -2518,7 +2588,7 @@ These are logged as OPEN with proposed harness steps in §2E/§2F; not dropped.
 | **VP-2** | `-O0` is valid = optimization **off** | `gifsicle.c:1866` (`OPTIMIZE_OPT`: no error path for 0; clears the optimize mask) | Clamping the GUI spinbox minimum to 1. If anything, label 0 "Off". |
 | **VP-3** | `gamma` already uses a safe sentinel (`-1` = unchanged) | `GifsicleSettings.h:80` (`double gamma = -1.0`) + `GifsicleCommand.h:87` (`if (s.gamma >= 0)`) | "Fixing" a non-existent "always emits `--gamma 0.0`" bug. |
 | **VP-4** | Q_OBJECT/MOC is handled by the current build files | `CMakeLists.txt:32` `qt_standard_project_setup()` sets AUTOMOC (Qt ≥ 6.3); the qmake path mocs `Q_OBJECT` headers | Adding a "vtable/link fix" for a crisis that does not exist. (Caveat: Qt < 6.3 needs manual `CMAKE_AUTOMOC ON`.) |
-| **VP-5** | crop emitter `X,Y+WxH` (plus form) is correct | man page + built engine; the unit test asserts `0,0+30x60` | "Aligning the code to the table": `FEASIBILITY_REVIEW.md:107` writes the comma form `--crop X,Y,WxH` — **the table is wrong, the code is right.** Edit the table, not the emitter. |
+| **VP-5** | crop emitter `X,Y+WxH` (plus form) is correct | man page + built engine; the unit test asserts `0,0+30x60` | "Aligning the code to the table": the old FEASIBILITY_REVIEW flag table wrote the comma form `--crop X,Y,WxH` — **the table was wrong, the code is right.** S24 corrected the table when it was folded into `PROJECT_VISION.md` (flag-map section); the emitter was never touched. |
 
 ### 15.2 False positives & bad prescriptions — do NOT implement blindly
 
@@ -2532,7 +2602,7 @@ These are logged as OPEN with proposed harness steps in §2E/§2F; not dropped.
 | Change `--loopcount=0` / ban `-O0` / "fix" crop commas | older N-series | Refuted by engine source — VP-1, VP-2, VP-5. |
 | Accept APNG/WebP in the drop target before 1.0 | S3-6 | Scope violation; blocked until GIF 1.0.0 (`PROJECT_VISION.md`). |
 
-> **Provenance:** `docs/archive/gifscythe-final-code-review.md` §6 (VP-1..VP-5 full text, with the engine-source citations) and the closed branch `codebase-review-and-fix-implementation-b8d7e` `COMPILED_AUDIT.md` §3.4 + §8. `IMPROVEMENT_LOG.md` records shipped regression guards for VP-1 (`--loopcount=0`), VP-2 (`-O0`), VP-3 (no `--gamma` unless chosen) and VP-5 (crop `1,2+30x40`).
+> **Provenance:** the 2026-09-06 final-code-review §6 (VP-1..VP-5 full text with engine-source citations; condensed into `docs/archive/AUDIT_HISTORY.md` file 2, full text in git history at `3c67e14`) and the closed branch `codebase-review-and-fix-implementation-b8d7e` `COMPILED_AUDIT.md` §3.4 + §8. `IMPROVEMENT_LOG.md` records shipped regression guards for VP-1 (`--loopcount=0`), VP-2 (`-O0`), VP-3 (no `--gamma` unless chosen) and VP-5 (crop `1,2+30x40`).
 
 ---
 
@@ -2623,7 +2693,7 @@ Native Windows proof remains mandatory for NA-03 (U-55) and NA-04 (U-56).
 1. **Language/stack — keep the C++17 core, stop adding surfaces.** Do NOT migrate before 1.0.0; the core (`src/core/*.h`) is small, header-only, Qt-free, with 296 unit checks plus JS parity fixtures. The risk is in the *surfaces*, not the language: five surfaces exist or are scaffolded (Qt6 GUI, CLI, Node web server, web/wasm, csharp/spike parked) — for a 0.1.0 product that is scope creep, and this review found the same honesty-bug class independently in GUI, CLI and web. Freeze web at "internal tool" until desktop 1.0.0 ships; keep csharp/spike in a branch; mark web/wasm post-1.0. One shippable artefact = the Windows portable zip (OD-17).
 2. **Fix order for the new findings (evidence first, then code).** The two HIGHs (NF-01, NF-02) are data-integrity bugs of the U-01 class — close them before any release re-cut (U-09). *P0:* NF-01 batch settings snapshot (~30 lines + one harness case); NF-02 partial-output handling on cancel/failure (a snapshot already exists for GS-203; temp+rename is the proper fix). *P1:* NF-03/NF-04 CLI input/output syntax; NF-05 crop-zero false refusal (+ JS mirror); NF-07 web info 422; NF-08 real exe path; NF-09 unify engine discovery before the version bump. *P2:* NF-06, NF-10/11/12 web hygiene, NF-13 preview path boundary, NF-14 exit-code mask, NF-15 cancelling_ lifetime, NF-16/17/19 CLI consistency, NF-18 doc honesty. Every fix ships failing-test-first with executed proof in the row — no narrative-only closes.
 3. **Process — the documentation machine is now a cost centre** *(reviewer's opinion, recorded for the owner; NOT adopted by this compilation)*. The reviewer observes that COMPILED_AUDIT + IMPROVEMENT_LOG + SESSION_HANDOFF + WORKLIST + 18 doc gates is more text than the product source, and that main went red twice from doc drift alone (GS-208, N-01). It suggests keeping two living documents (STATUS.md + a CHANGELOG), archiving the rest as dated snapshots, dropping prose-count gates, and moving to GitHub Issues. **Owner decision pending — until then this compilation keeps the existing doc machine and simply stays internally consistent.**
-4. **Path to 0.2.0 → 1.0.0 (concrete, in order).** *0.2.0:* close NF-01/NF-02, GS-203 GUI integration (P1-25, same code path as NF-02), GS-205 input admission, re-cut artefacts (U-09), run `docs/ci/CLEAN_WINDOWS_SMOKE.md` once on a real VM. *0.3.0:* numeric-domain tri-state (DS-06/07/09 + GS-206 + NF-06) in one PR; engine-discovery unification (NF-08/09); CLI batch = per-file Auto like the GUI (retire `-b`, closes NF-17). *1.0.0:* criteria per `PROJECT_VISION.md`; decide OD-11 then; only after 1.0.0: frame model → WebP/APNG, wasm. Time-box: if 1.0.0 is not reachable in ~5 more sessions at the current pace, the cause is the surface count and doc overhead, not the language.
+4. **Path to 0.2.0 → 1.0.0 (concrete, in order).** *0.2.0:* close NF-01/NF-02, GS-203 GUI integration (P1-25, same code path as NF-02), GS-205 input admission, re-cut artefacts (U-09), run the clean-Windows smoke checklist (`docs/ci/README.md` §2) once on a real VM. *0.3.0:* numeric-domain tri-state (DS-06/07/09 + GS-206 + NF-06) in one PR; engine-discovery unification (NF-08/09); CLI batch = per-file Auto like the GUI (retire `-b`, closes NF-17). *1.0.0:* criteria per `PROJECT_VISION.md`; decide OD-11 then; only after 1.0.0: frame model → WebP/APNG, wasm. Time-box: if 1.0.0 is not reachable in ~5 more sessions at the current pace, the cause is the surface count and doc overhead, not the language.
 
 **Suggested regression cases (one per finding — the acceptance tests the next session must write before closing any U-58..U-76):**
 - **NF-01 / U-58** — queue 3 GIFs, Batch Optimize=1; mid-run change Actions to Optimize=3 / Colors=16; assert the argv of run #2 == run #1 (and all 3 outputs share one settings set).
@@ -2656,7 +2726,7 @@ Native Windows proof remains mandatory for NA-03 (U-55) and NA-04 (U-56).
 
 - [x] **Audit A** — `AUDIT_A_extracted.md` (branch `codebase-review-and-fix-implementation-b8d7e`; GPT 5.6 sol xhigh; 20 findings GS-001..GS-020). Findings → §3 (A-01..A-20) + §5. **Non-finding sections (decision summary, fix order, positives, method, footer) → §16.1 — NEW this session; v2 had dropped them.**
 - [x] **Audit B** — `AUDIT_B_extracted.md` (same branch; Seed 2.1 Pro Preview; 16 findings BUG-01..BUG-16). Findings → §4 (B-01..B-16) + §5. **Non-finding sections (positives, method note, severity tally) → §16.2 — NEW.**
-- [x] **Audit C** — `docs/audit/POST_S7_AUDIT.md` (Arena S7 agent; 13 findings). → §5 (U-19..U-23 and others). The dated snapshot stays in `docs/audit/` (gate-excluded by policy); not re-merged.
+- [x] **Audit C** — POST_S7_AUDIT (Arena S7 agent; 13 findings). → §5 (U-19..U-23 and others). The dated snapshot stayed gate-excluded in docs/audit/ until S24 folded it into `docs/archive/AUDIT_HISTORY.md` entry 3 (full text: git history at `3c67e14`).
 - [x] **Audit D** — GPT 6 Astra Medium (8 findings GS-101..GS-108). → §2 (D-01..D-08) + §5 (U-45..U-52). Unchanged this session.
 - [x] **Intake E** — the uploaded `gifscythe-audit-…729d….md` content (5 findings NA-01..NA-05; live URL 7b91; gpt 5.6 sol xhigh). Findings → §2E + §5 (U-53..U-57). **Reviewer prose (verdict, verification boundary, already-tracked debt, delivery path, language/architecture recommendation, validation order) → §17.1 — NEW.** The scattered root copy was removed after the merge (see below).
 - [x] **Intake F** — the uploaded `GIFSCYTHE_REVIEW_INTAKE_…7b91….md` content (19 findings NF-01..NF-19; live URL 729d; fable 5.1 low — WINNER). Findings → §2F + §5 (U-58..U-76). **Reviewer prose (method, the four planning recommendations, path to 0.2.0 → 1.0.0, and the 19 suggested regression cases) → §17.2 — NEW.** The scattered root copy was removed after the merge.
@@ -2683,12 +2753,152 @@ Native Windows proof remains mandatory for NA-03 (U-55) and NA-04 (U-56).
    - **U-46 ↔ U-54:** the web request-generation guard must now also invalidate on a **settings** change, not only a queue change — without breaking the existing queue guard or the AbortController path.
    - **U-03 ↔ DS-06 / VP-1 / VP-2:** the threads tri-state (`<0` none / `0` bare `-j` / `>0` `-jN`) must not flip the loopcount or optimize sentinels. Unit test 28 pins the mapping — move it deliberately, not accidentally.
    - **GS-203 ↔ U-57:** the output verifier must not let the WASM singleton read a stale `/out.gif`; the unlink-before-`callMain` fix must not break the first-run path or the signature check.
+   - **U-22 ↔ U-62 (added S24, from G:GN-03):** the crop `0x0` loosening must not loosen resize/scale geometry. **Probed clean in S24:** `web/validate.mjs` executed — resize fit `0x0` refused, scale `0x0` refused, crop `0x0` accepted — and `Validate.h` keeps the engine-measured resize/scale rules beside the crop allowance. Re-run both probes after any geometry-rule edit; a JS fixture pair (crop allow / resize refuse) is part of P1-44's fixture batch.
    - **§15.1 guardrails:** confirm no fix "aligned the code to a wrong table" (VP-5 crop), clamped `-O0` (VP-2), changed `--loopcount=0` (VP-1), or "fixed" the gamma sentinel (VP-3).
-4. **Native-Windows-only rows cannot be closed in a Linux sandbox** — U-55 (path_key Unicode case fold), U-56 (superscript COM/LPT), U-70 (UTF-8 preview boundary) and U-71 (exit-code mask) need a real Windows VM or the S11 Wine harness. Mark them PARTIAL with the exact remaining proof named, **not** DONE.
+4. **Native-Windows-only rows cannot be closed in a Linux sandbox** — U-55 (path_key Unicode case fold — needs a Windows host to verify against `CompareStringOrdinal`; a C++-side guess would refuse legal names) and U-70 (UTF-8 preview boundary — runs through the preview pipeline) still need real Windows/Wine. **Updated S24 (G:GN-14 adopted):** U-56 closed in S23 via the shared device-name table (no Windows needed — the rule is a pure predicate), and U-71's mask rule is a pure function testable in the existing windows-latest CI job (it already builds and runs the unit exe), so it does NOT need a VM. Mark genuinely platform-bound rows PARTIAL with the exact remaining proof named, **not** DONE.
 5. **Re-confirm the doc gate is green** (`check_docs.sh` 0 failed, `sweep_stale.sh` 0 failed) after every edit — the consolidation itself must not become the next GS-208 / N-01 doc-drift gate failure.
 
-**Hand-off pointer.** `docs/planning/NEXT_SESSION_PROMPT.md` carries this ask in its recovery block. The authoritative state is `STATUS.md`; this file is the evidence behind it. If a fix contradicts a §5 row, **§5 wins** — correct the narrative, re-emit `STATUS.md` with `check_docs.sh --emit`, and never hand-edit the generated block.
+**Hand-off pointer.** `docs/planning/PLANNING.md` §5 (the copy-paste next-session prompt, folded in S24) carries this ask in its recovery block. The authoritative state is `STATUS.md`; this file is the evidence behind it. If a fix contradicts a §5 row, **§5 wins** — correct the narrative, re-emit `STATUS.md` with `check_docs.sh --emit`, and never hand-edit the generated block.
+
+
+## 20. External review intake — 2026-09-16 (four uploaded files) — incorporated and deleted S24
+
+> **Read this as the intake record, not a second register.** The owner uploaded four external
+> review files to the repo root on 2026-09-16 (`4d49919`); PR #30 fixed three findings from them
+> and briefly deleted the files, and the owner's restore commit (`a4ba82c`) put all four back
+> "without deleting or merging, marking verified fixed items in-place". On 2026-09-17 the owner
+> ordered the incorporation this section records: every finding dispositioned, the done ones
+> closed, the new ones registered — and only then the files deleted (S21 precedent). Full texts:
+> `git show 3c67e14:<filename>`. **Nothing was executed by the reviewers against the CURRENT
+> tree except where noted** — all four pinned `794a996` (PR #28); PR #29 (S23) and PR #30 landed
+> after, so every finding was re-verified against main `3c67e14` in S24 before disposition
+> (owner rule: a registered problem must be NEW and not already worked on).
+
+**Source letters** (used in the §5 Src cells): **G** = gifscythe-audit-delta-2026-09-16-1357.md
+(18 findings GN-01..GN-18 + a shipping plan; source-read only, self-labelled needs-probe where
+honest) · **H** = gifscythe-code-review-794a996.md (9 findings F-01..F-09 + minor notes
+M-1..M-3; byte-exact source re-fetch) · **I** = gifscythe-review-794a996.md (4 findings proposed
+as U-77..U-80; the only reviewer that re-ran the whole suite live) · **J** =
+gifscythe-repo-review.md (20 findings F-01..F-20; static doc-level review).
+
+**Id-collision note (important for readers of the deleted originals):** H's appendix proposed
+"U-77..U-85" for ITS findings F-01..F-09, while I proposed U-77..U-80 for its own four. PR #30
+adopted I's numbering when it fixed three of them (commits name U-77/U-79/U-80), so those four
+ids belong to I. S24 gave H's surviving findings fresh ids (U-81..U-86) and G's (U-87..U-96);
+H's own "U-77/F-01" style pairings in the deleted file mean F-01 = this register's **U-81**, and
+so on per the table below.
+
+### 20.1 Intake G — audit delta (18 findings)
+
+| G id | One-line claim | S24 verification against `3c67e14` | Disposition |
+|---|---|---|---|
+| GN-01 | /optimize ignores settings.mode (merge/explode served as 200) | mode=explode refuses 400 since PR #30; batch/merge single-file probed benign by reviewer I (200, one valid GIF) | **Already worked** — closed as U-79; the "refuse ALL non-auto" remainder is a design choice the live probe retired |
+| GN-02 | emptied web number field becomes 0, not unset | app.js:44-62 still wraps bare Number() | **NEW → U-87** (P1-44) |
+| GN-03 | crop-0 loosening (U-62) may have reopened resize-0 refusal (U-22) | **probed clean (executed):** validate.mjs refuses resize fit 0x0 and scale 0x0, accepts crop 0x0; Validate.h keeps both rule sets engine-measured | **Void as a bug** — pairing added to §19.3 as the finding itself prescribed |
+| GN-04 | fix-order P-ids have no state | STATUS/§6 read: still stateless | **NEW → U-88** (with GN-16; P2-21) |
+| GN-05 | register unenforced: no CI gate, inert fresh-clone hook | **falsified on its own terms:** build.yml:35-37 runs the doc gate (maintainer-applied); G15 fails unbootstrapped clones; its falsify-line said this makes W-30 the stale row | **No new row** — stale rows closed instead: W-30, R-03, GS-208 → DONE (S24); the --json/digest residual folded into U-89 |
+| GN-06 | README presents Qt as product while the C# plan targets 1.0.0 | README states "csharp/ — PARKED S19 until 1.0.0 ships on C++/Qt6"; OD-C7 + S19 direction recorded; the plan's "shippable as 1.0.0" is pre-park aspiration, now marked PARKED at its head | **Refuted as filed** — direction is already stated where the finding demanded; no row (D-09 proposal redundant with OD-C7) |
+| GN-07 | stills/video scope lives only in the parked plan | confirmed: plan §2.1 holds it; no register row owns it | **NEW → U-90** (P3-19) |
+| GN-08 | CLI vs C# spike exit-code collision on 3 | Program.cs:4 comment confirmed (3=engine-missing vs CLI 3=strict-refusal) | **NEW → U-91** (with GN-09; P3-17) |
+| GN-09 | spike Stream.Read under-fill + POSIX Quote | confirmed: no ReadExactly; Quote() at Program.cs:106 | **NEW → U-91** |
+| GN-10 | web endpoints accept arbitrary bytes; base64 forgiving | confirmed: admission checks name only; hasGifMagic guards outputs only; Buffer.from lenient | **NEW → U-92** (P2-19) |
+| GN-11 | unvalidated PORT crashes with a stack trace | confirmed: server.mjs:50 | **NEW → U-85** (merged with H:F-09; P3-13) |
+| GN-12 | unbounded stderr echo, base64 fan-out, favicon 404 | confirmed: server.mjs:208-209 (no cap), :792 (inline base64), index.html has no favicon | **NEW → U-93** (P2-20) |
+| GN-13 | mirrors prove agreement, not correctness — no engine-oracle sweep | suite inventory confirms: parity fixtures + hand-picked smokes only; U-62/U-63/N-05 are the standing counterexamples | **NEW → U-94** (P2-18; the reviewer's top-leverage item) |
+| GN-14 | U-55/U-56/U-71 are CI-testable, not VM-blocked | U-56 closed S23 (shared table, no Windows needed); U-71 mask rule IS a pure function and the windows CI job already runs the unit exe; U-55 genuinely needs a Windows host (CompareStringOrdinal semantics — a guess would refuse legal names) | **Partly adopted, no row** — §19.4 rewritten; P2-17 annotated; U-55 blocker stands |
+| GN-15 | published Release predates the Ms-PL relicence | **confirmed by API (executed S24):** snapshot-2026-09-07 still published, notes name no licence, created 2026-09-07 (relicence was S18, 2026-09-14) | **NEW → U-95** (P1-45) |
+| GN-16 | DONE conflates harness-green with desktop-proven | W-19's own text lists harness-unreachable behaviors; no proof-provenance marker exists | **NEW → U-88** (merged with GN-04) |
+| GN-17 | doc-gate arithmetic is a maintenance surface (N-01/N-06 cost sessions) | truncation still in the emitter; hand-typed counts still in prose | **NEW → U-89** (P2-22; J:F-11/F-12 evidence folded in) |
+| GN-18 | stemOf vs QFileInfo::completeBaseName on dotfiles | two JS copies confirmed (app.js:32, server.mjs:500); node probe run (".gif"→".gif"); Qt side needs a Qt machine | **NEW → U-96** (P3-18, probe row) |
+
+G's shipping plan (Phase A/B/C, "stop doing" list, generated-contract proposal, UI-options table)
+is recorded as external advice: Phase A maps onto P0-7/P1-38/P1-44/P2-18/P1-45 + the register
+mechanics rows; the generated-settings-contract proposal (one table → C++/JS/C# consumers) is the
+strongest anti-drift idea in the intake and belongs to the U-94/U-91 workstream; "freeze the doc
+machine until P0/P1 are empty" is adopted as policy inside U-89/P2-22 (the S24 consolidation is
+its first tranche). Its option-C/D UI rejections align with existing owner decisions (D-08,
+OD-C7); nothing here re-opens them.
+
+### 20.2 Intake H — code review at `794a996` (9 findings + 3 minor notes)
+
+| H id | One-line claim | S24 verification | Disposition |
+|---|---|---|---|
+| F-01 | explode verification ignores stream/info exemptions | **still live:** main.cpp explode blocks ungated; explode_prefix_for returns output verbatim; no smoke case covers explode+`-` | **NEW → U-81** (P1-46) |
+| F-02 | long→int truncation corrupts numerics pre-validation | **fixed by S23/PR #29 (P1-28):** to_int_strict/to_uint_strict with from_chars; the SettingsIO.h comment cites F-02's exact 4294967296/4294967298 examples | **Already worked** — no row (GS-206 is the register home) |
+| F-03 | loopcount has no validate() domain | **fixed by S23/PR #29:** loopcount -2/-1/0..65535 domain in Validate.h + validate.mjs (measured bound) | **Already worked** — no row |
+| F-04 | threads tri-state documented but two-state implemented | **fixed by S23/PR #29 (P0-2):** <0 nothing / 0 bare -j / >0 -jN in both builders | **Already worked** — no row (DS-06 is the register home) |
+| F-05 | /optimize forwards a mode it cannot honor | **fixed by PR #30 as U-79** (explode refuses; batch/merge probed benign) | **Already worked** — see U-79 |
+| F-06 | this file's header Branch line stale + G10 vacuous on its shape | **still live at intake:** header named `2d51347` (six merges stale); G10's trigger list confirmed to miss the shape | **NEW → U-82 — FIXED (S24):** header rewritten into the G10-matching Base shape |
+| F-07 | batch+output N=1 neither refused nor pinned | still live: main.cpp refuses only N>1; reviewer I's live probe saw -b -o honor the target | **NEW → U-83** (P3-15, pin-not-guess) |
+| F-08 | /optimize: findEngine before readBody; 413 unreachable engineless | still live: server.mjs:404 vs :421 (/run is correct order) | **NEW → U-84** (P3-14) |
+| F-09 | non-numeric port crashes with raw RangeError | still live: server.mjs:50 | **NEW → U-85** (merged with GN-11) |
+| M-1/M-2/M-3 | collision-message overstatement; expand_home bare-~ comment; run() double-resolve | all three confirmed in source (S24) | **NEW → U-86** (one row, P3-16) |
+
+H's §4 re-confirmations (U-71/U-73/U-06/U-12/GS-206 as still present at `794a996`) were re-checked
+in S24: U-71 still open (P2-17, now CI-testable per GN-14); U-73/U-06/GS-206 were **closed by S23
+after H was written** — register rows already reflect that. H's §5 verified non-findings are
+consistent with §15 and needed no new guardrail rows; its Phase 0-3 plan maps onto the §6 lanes.
+H's acceptance-test suggestion for U-80 (extend the A5 no-hardcoded-version grep to web/ and
+scripts/) is recorded here as part of the U-80 row's follow-through, not a separate finding.
+
+### 20.3 Intake I — live-executed review at `794a996` (4 findings; the ids PR #30 adopted)
+
+| I id | Claim | State at S24 | Disposition |
+|---|---|---|---|
+| U-77 (prop) | JSON null body → 500 + TypeError leak on /run and /optimize?settings=null | fixed by PR #30 (`d7f8ef9`): object-shape guards, 400 in the documented JSON shape; transport.test.mjs cases added | **Row U-77 ✅ FIXED (PR #30)** |
+| U-78 (prop) | validate.mjs has no wrong-type gate; NaN settings silently dropped, run answers 200 | **still open** — re-proved in S24 by executed node probe (garbage in, zero issues out) | **Row U-78 ⬜ OPEN** (P1-44) |
+| U-79 (prop) | /optimize accepts mode:explode → misleading 422 blaming the engine | fixed by PR #30 (`d7f8ef9`): 400 refusal naming POST /run | **Row U-79 ✅ FIXED (PR #30)** |
+| U-80 (prop) | glue_harness.mjs hardcodes release/0.1.0/gifsicle | fixed by PR #30 (`717c082`): VERSION.md parsed at runtime | **Row U-80 ✅ FIXED (PR #30)** |
+
+Attribution note: the in-file markings `a4ba82c` added said "FIXED (S23)"; the fixes actually
+merged in PR #30 (after S23's PR #29), so the §5 rows cite **PR #30** + the commit shas — the
+verifiable fact — rather than a session number the fixing session never logged. I's "cleared
+candidates" list (CLI flag-as-argv[1] refusal, explode prefix consistency, app.js DOM ids, delay
+label, /optimize batch+merge behavior) was spot-checked in S24 and stays cleared; its planning
+section endorses the existing stack decisions and needs no row.
+
+### 20.4 Intake J — static repo review (20 findings)
+
+Sixteen of J's twenty findings are self-labelled "repo-audit" re-frames of rows this register
+already tracks — no new problem, and **J's state citations are stale**: it was generated
+2026-09-16T06:57Z, 33 minutes after PR #29 merged, and still lists U-54/U-63/U-65/U-66/U-69/
+GS-206/U-06-remainder as open/partial although S23 closed them. Mapping: J:F-01→U-59 · F-02→U-06 ·
+F-03→U-54 · F-04→U-57 · F-05→U-58 · F-06→U-69+U-72 · F-07→U-55+U-56 · F-08→GS-203 · F-09→W-18/
+W-19 · F-10→U-63/U-65/U-66 · F-15→OD-16/D-07 · F-16→U-09 · F-18→GS-205/GS-206 · F-19→R-03/W-30
+(closed S24) · F-20→U-68. The four "observed" items:
+
+| J id | Claim | S24 disposition |
+|---|---|---|
+| F-11 | docs+gate scripts outweigh code ~2.9:1 | **Evidence folded into U-89** (doc-machine cost); the S24 consolidation is the owner-directed response |
+| F-12 | the gate system broke itself twice (N-01/N-06) | Both DONE long ago; cited as U-89 evidence, no new row |
+| F-13 | three parallel UI stacks + two build systems; recommends a Tauri spike | **Direction is already owned:** GS-210 tracks the build-tool question (PARTIAL, P2-13); D-08 keeps Rust+Tauri trigger-based; OD-C7 parks the C# shell; S19 keeps C++17/Qt6 through 1.0.0. J's claim that the "UI must be web-tech" trigger already fired is an **owner question, not a session one** — recorded here so the owner can re-open D-08 explicitly if desired; no row, no work |
+| F-14 | the nested duplicate engine tree should be deleted | **Addressed by S11 provenance:** REFERENCE_MANIFEST documents gifsicle-nested-1.96 as the pristine v1.96 comparison tree with digests; the old "pick one tree" wording in the feasibility review was aligned with the manifest when that file folded into `PROJECT_VISION.md` (S24). Deletion remains an owner call (clone size vs provenance baseline); no row |
+| F-17 | pitch promises 3 formats, 2 are 0% built | **Refuted as filed:** the README title says "work-in-progress", its body and roadmap state WebP/APNG deferred to 2.0.0-3.0.0; PROJECT_VISION's format plan says the same. No row |
+
+J's roadmap phases 0-2 map onto existing P0-7/P0-4/W-18/W-19 rows; its phase 3 (replace the
+register with GitHub Issues) is the same recommendation as G's "stop doing" list and U-89's
+freeze — the owner's S24 instruction was the opposite for now (consolidate, keep the register),
+which is recorded as the governing decision.
+
+### 20.5 Merge-completeness checklist (v4 — which external problems were worked on)
+
+- [x] **G** (18 findings): 12 → new rows (U-85 shared, U-87..U-96), 1 already worked (GN-01→U-79),
+      1 probed clean (GN-03→§19.3), 1 falsified-then-repaired (GN-05→W-30/R-03/GS-208 closures),
+      1 refuted (GN-06), 1 partly adopted (GN-14→§19.4/P2-17), 1 merged with H (GN-11→U-85) —
+      every finding appears exactly once above; **none dropped**.
+- [x] **H** (9 + 3 notes): 4 already fixed at intake (F-02/03/04 by S23, F-05 by PR #30), 1 fixed
+      in S24 (F-06→U-82), 4 new rows (F-01→U-81, F-07→U-83, F-08→U-84, F-09→U-85), notes → U-86.
+- [x] **I** (4): rows U-77..U-80 — three ✅ FIXED (PR #30), one ⬜ OPEN (U-78, re-proved S24).
+- [x] **J** (20): 16 re-frames mapped to existing rows, 4 observations dispositioned (F-11/F-12 →
+      U-89 evidence; F-13 owner-direction note; F-14 addressed/owner call; F-17 refuted).
+- [x] **Count reconciliation:** 18+12+4+20 = 54 external findings → **20 new §5 rows**
+      (U-77..U-96: 4 FIXED, 16 OPEN) + 9 already-fixed/already-tracked-at-intake + 16 J re-frames
+      + 3 refuted/void + 3 folded-as-evidence/policy + 3 adopted-as-edits (§19.3, §19.4, P2-17).
+      Register: 76 → **96**. `STATUS.md` re-emitted; G5/G5b verify both directions.
+- [x] **Originals deleted after incorporation** (this commit): full text in git history at
+      `3c67e14`; the in-place FIXED markings `a4ba82c` added are superseded by the §5 rows,
+      which carry stronger attribution (PR #30 + commit shas).
 
 ---
 
-*End of compiled audit v3 — 76 findings, 6 audits merged. v3 (2026-09-15) recovered the dropped non-finding sections (§16), the VP / false-positive guardrails §12 cites (§15), the intake E/F reviewer prose and regression cases (§17), and added the merge-completeness checklist (§18) and the next-session review ask (§19). No finding was added or dropped — the register is still 76.*
+*End of compiled audit v4 — 96 findings, 10 reviews merged. v4 (2026-09-17, S24) incorporated the four 2026-09-16 external review uploads (§20: 20 new rows U-77..U-96 — 4 already fixed, 16 OPEN and scoped; every other external item dispositioned as already-tracked, already-fixed or refuted, with evidence), fixed the stale header base line (U-82) into the G10-enforced shape, added the U-22↔U-62 pairing to §19.3, and recorded the dated-snapshot consolidation into `docs/archive/AUDIT_HISTORY.md`. v3 (2026-09-15) recovered the dropped non-finding sections (§16), the VP / false-positive guardrails (§15), the intake E/F reviewer prose (§17), and added §18/§19.*
