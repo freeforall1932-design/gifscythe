@@ -3,7 +3,7 @@
 **Session:** S26 · **Date:** 2026-09-17
 **Branch:** arena/01a0afc4-gifscythe (platform-assigned arena branch)
 **PR #32 merged as `e885d58`** (2026-09-17, branch `arena/01a0af41-gifscythe` — the S25 P1-44 implementation; reviewed from history in S26, the write-up is the S26 section below, which is what the P6 sync requires before this line moves). PR #31 merged as `f1c5bc8` (S24 docs consolidation). This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number.
-**Docs synced through:** PR #32 · branch `arena∕01a0af41-gifscythe` · merged as `e885d58`
+**Docs synced through:** PR #32 · branch `arena/01a0af41-gifscythe` · merged as `e885d58`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. Move this line as part of the sync, never before the writing is done.)*
 Based on `main` commit `e885d58` (the PR #32 merge) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
