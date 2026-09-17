@@ -43,7 +43,7 @@
 > and is superseded by the register.
 
 **Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7…S17 (2026-09-13), S18–S20 (2026-09-14), S21 (2026-09-15 — v3 consolidation + U-68 413), S22 (2026-09-16 — U-67 + web gates + U-53/U-60/U-61/U-62/U-64/DS-09), S23 (2026-09-16 — Tier-1 batch, PR #29), PR #30 (2026-09-16 — U-77/U-79/U-80), **S24 (2026-09-17 — v4: external-review intake §20, doc consolidation, U-82 fix, stale-row closures W-30/R-03/GS-208)**, S25 (2026-09-17 — P1-44 implementation, PR #32), **S26 (2026-09-17 — P1-44 proof + closeout U-78/U-87, DS-09 register sync, G10 base-line repair)**
-**Base:** `main` at `e885d58` (the PR #32 merge; re-confirm with
+**Base:** `main` at `5c93680` (the PR #33 merge, post-repair sha; re-confirm with
 `gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`;
 `check_docs.sh` gate **G10** matches this line shape and fails if it names anything
 else — S24 note: the previous "**Branch:** … at …" shape was NOT matched by G10's
