@@ -59,6 +59,18 @@ Chronological log of decisions and changes. **Newest at the top.**
   and **carries no PASS counts at all** — a doc-quoted count goes stale the first
   time a fixture is added, which is exactly U-89's "hand-typed counts" complaint
   and the reason WORKLIST already says to quote the runtime counter instead.
+- **The doc machine was under-claiming the toolchain too (gate G6).** Its SKIP
+  message named all five required tools unconditionally —
+  `(gcc/g++/Node/CMake/Qt6 missing)` — so this sandbox, which HAS g++ 12.2 and
+  node v22, was told it had none of them. That is the same mistake S25 made in
+  prose, emitted by a gate. The five tests are now factored into
+  `g6_missing_tools()` and the message names what is actually absent
+  (`missing: cmake Qt6` here). **Message-only:** the helper is the old OR-chain
+  verbatim, so the skip condition cannot have changed — verified in four states
+  (empty PATH → all five named; only node absent → `node`; this sandbox →
+  `cmake Qt6`; all present → empty string, i.e. the condition is false and G6
+  runs its comparison exactly as before). `review_change.sh` flags this as **R1**
+  (a check-logic file), which is why the four-state probe is recorded here.
 - **Handoff sync (rule 1 / preflight P6):** PR #32 written up, **Docs synced
   through** moved to PR #32, the ledger's #31 cell filled in (`f1c5bc8` — merged,
   still marked **open**; rule 2 makes that the merger's edit and nobody did it),
@@ -88,7 +100,10 @@ assertion (review rule R2)**: dropping `validate.mjs`'s finite gate → 7 valida
 `buildArgs` → the 3 U-87 transport cases FAIL; treating an explicit 0 as unset →
 the command-parity fixture FAIL; all four files restored byte-identical afterwards
 (`git diff` clean) · `scripts/check_docs.sh` and `scripts/sweep_stale.sh` re-run to
-green · `gh run view 35225055959` for the failing step name.
+green (24 passed / 0 failed / 1 skip) · `scripts/verify_audit.sh` **31 passed /
+0 failed / 5 skipped** (was 30/1/5 — the 1 was F1←G10), W3 now reporting 79
+cases · the G6 four-state toolchain probe above · `gh run view 35225055959` for
+the failing step name.
 
 **Not verifiable here:** the GUI offscreen harness, `windeployqt` packaging and the
 clean-Windows smoke (no cmake/Qt6/mingw); **the log text of the red run** —
@@ -105,7 +120,9 @@ ticked with its proof), `SESSION_HANDOFF.md` (header, base, ledger #31/#32, S26
 write-up, verification table, toolchain reality, register tallies),
 `IMPROVEMENT_LOG.md` (this entry), `web/README.md` (nine-suite inventory, stale
 hand-typed counts removed), `WORKLIST.md` (build-commands block: ninth suite +
-"all nine").
+"all nine"), `working_code/gifscythe/scripts/check_docs.sh` (G6 skip message
+names the tools actually missing). `WORKLIST.md` needed no further edit for the
+G6 change: it documents the gate commands, not their skip wording.
 
 ---
 

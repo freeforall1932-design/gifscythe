@@ -590,6 +590,21 @@ if [[ -f "$STATUS_MD" && -f "$WORKLIST_MD" ]]; then
   fi
 fi
 
+# Which of the five tools G6 needs are actually absent (empty = all present).
+# This is the G6 skip condition, factored out so the SKIP message can name what
+# is really missing instead of listing all five. Same tests, same order.
+g6_missing_tools() {
+  local missing=()
+  command -v gcc   >/dev/null 2>&1 || missing+=("gcc")
+  command -v g++   >/dev/null 2>&1 || missing+=("g++")
+  command -v node  >/dev/null 2>&1 || missing+=("node")
+  command -v cmake >/dev/null 2>&1 || missing+=("cmake")
+  if ! command -v qmake6 >/dev/null 2>&1 && [[ ! -d /usr/lib/x86_64-linux-gnu/cmake/Qt6 ]]; then
+    missing+=("Qt6")
+  fi
+  printf '%s' "${missing[*]}"
+}
+
 # ---------------------------------------------------------------------------
 # 6. REAL GATE NUMBERS - run verify_audit.sh, compare with what docs quote.
 # ---------------------------------------------------------------------------
@@ -604,17 +619,18 @@ if [[ "$NESTED" == "1" ]]; then
   skip "G6" "running inside verify_audit.sh - gate numbers not re-measured (recursion guard)"
 elif [[ "$NO_GATE_RUN" == "1" ]]; then
   skip "G6" "--no-gate-run: verify_audit.sh not re-run here (CI already runs its steps)"
-elif ! command -v gcc >/dev/null 2>&1 \
-   || ! command -v g++ >/dev/null 2>&1 \
-   || ! command -v node >/dev/null 2>&1 \
-   || ! command -v cmake >/dev/null 2>&1 \
-   || { ! command -v qmake6 >/dev/null 2>&1 && [[ ! -d /usr/lib/x86_64-linux-gnu/cmake/Qt6 ]]; }; then
+elif [[ -n "$(g6_missing_tools)" ]]; then
   # The committed headline is measured in the full toolchain sandbox. Without
   # gcc/g++, Node, CMake, or Qt6, verify_audit.sh necessarily reports extra
   # capability SKIPs (C6/C9/B and/or W1-W3), so comparing that reduced total to
   # the full-toolchain number would call a valid checkout "stale". The audit
   # itself still runs its available checks; G9c records the missing GUI tools.
-  skip "G6" "full verify_audit totals not measurable here (gcc/g++/Node/CMake/Qt6 missing)"
+  # S26: the message used to name all five tools unconditionally, so a sandbox
+  # WITH g++ and node was told "gcc/g++/Node/CMake/Qt6 missing" - a doc machine
+  # under-claiming the real toolchain, which is the same mistake that made S25
+  # defer P1-44's engine-backed proof. Message-only change: g6_missing_tools is
+  # the old OR-chain verbatim, so the skip CONDITION cannot have changed.
+  skip "G6" "full verify_audit totals not measurable here (missing: $(g6_missing_tools)) - the tools that ARE present still run their own checks"
 else
   if [[ -x "$VERIFY" ]]; then
     GATE_ADD="$(grep -oE '^DOC_GATE_CHECKS=[0-9]+' "$VERIFY" | grep -oE '[0-9]+' | head -1)"
