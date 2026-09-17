@@ -4,6 +4,30 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S25 — P1-44 web numeric honesty implementation (2026-09-17)
+
+**Changed:** Implemented the high-confidence portion of P1-44: finite-number
+validation in `web/validate.mjs`, empty-versus-zero handling through
+`numOrNull()` in `web/command.mjs` and `web/app.js`, and omission of incomplete
+resize/scale arguments. Added focused numeric-honesty Node coverage and wired
+it into both byte-identical CI workflow copies.
+
+**Partial:** U-78/U-87 remain OPEN in `STATUS.md` until the CI C++ parity and
+engine-backed web suites provide the required full proof.
+
+**Left:** The medium- and low-confidence audit items remain untouched.
+
+**Verified:** `node web/test/numeric-honesty.test.mjs`, Node syntax checks for
+`app.js`, `command.mjs`, and `validate.mjs`, `sweep_stale.sh`, and the change
+review script all passed. Workflow copies remain byte-identical.
+
+**Not verifiable here:** The compiler, C++ CLI build, and engine-dependent
+parity/transport suites are unavailable in this sandbox.
+
+**Docs touched:** `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`.
+
+---
+
 ## S24 — external-review intake (v4, U-77..U-96) + the owner-ordered docs consolidation + stale sweep (2026-09-17)
 
 **Changed:**

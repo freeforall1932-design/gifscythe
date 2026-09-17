@@ -3,7 +3,7 @@
 **Session:** S24 · **Date:** 2026-09-17
 **Branch:** docs/s24-consolidation-intake (hand-named — this session was not started on a platform-assigned arena branch; use the platform branch when there is one, do not switch branches to satisfy the older session-number convention)
 **PR #30 merged as `3c67e14`** (2026-09-16, branch `arena/01a0aa77-gifscythe`; reviewed from history in S24 — the write-up is in the S24 section below, which is what the P6 sync requires before this line moves). PR #29 merged as `2c98284` (S23 batch). This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number.
-**Docs synced through:** PR #30 · branch `arena/01a0aa77-gifscythe` · merged as `3c67e14`
+**Docs synced through:** PR #31 · branch `docs/s24-consolidation-intake` · merged as `f1c5bc8`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. Move this line as part of the sync, never before the writing is done.)*
 Based on `main` commit `3c67e14` (the PR #30 merge) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
