@@ -9,7 +9,7 @@
 // derives output names itself; the desktop's Save-as / batch folder / name
 // template controls stay desktop-only (documented in web/README.md).
 
-import { buildArgs, shellQuote } from "./command.mjs";
+import { buildArgs, numOrNull, shellQuote } from "./command.mjs";
 import { createRequestGuard } from "./request-guard.mjs";
 
 const $ = (id) => document.getElementById(id);
@@ -41,25 +41,27 @@ function settings() {
   return {
     mode: $("mode").value,
     explode_by_name: $("explodeByName").checked,
-    optimize_level: Number($("optimize").value),
-    lossy: Number($("lossy").value) > 0 ? Number($("lossy").value) : -1,
-    color_count: $("colorsOn").checked ? Number($("colors").value) : -1,
+    optimize_level: numOrNull($("optimize").value) ?? -1,
+    lossy: (numOrNull($("lossy").value) || 0) > 0 ? numOrNull($("lossy").value) : -1,
+    color_count: $("colorsOn").checked ? (numOrNull($("colors").value) ?? -1) : -1,
     dither: $("dither").value !== "" && $("dither").value !== "none",
     dither_method:
       $("dither").value === "default" ? "" : $("dither").value,
     resize_kind: resize,
-    resize_w: Number($("w").value),
-    resize_h: Number($("h").value),
+    resize_w: numOrNull($("w").value),
+    resize_h: numOrNull($("h").value),
     // Audit U-42: independent X/Y scale, mirroring the desktop's scale_x /
     // scale_y controls. The single shared "Scale %" input silently forced
     // both axes to the same factor — a parity gap the desktop never had.
-    scale_x: Number($("scalePctX").value) / 100,
-    scale_y: Number($("scalePctY").value) / 100,
+    scale_x: numOrNull($("scalePctX").value) === null ? null
+      : numOrNull($("scalePctX").value) / 100,
+    scale_y: numOrNull($("scalePctY").value) === null ? null
+      : numOrNull($("scalePctY").value) / 100,
     // -2 is the "play once" sentinel (U-63 / P1-40): the engine expresses it by
     // ABSENTING the loop extension, which no count value can do.
     loopcount: loop === "keep" ? -1 : loop === "forever" ? 0
-      : loop === "once" ? -2 : Number($("loopN").value),
-    delay_cs: $("delayOn").checked ? Number($("delay").value) : -1,
+      : loop === "once" ? -2 : numOrNull($("loopN").value),
+    delay_cs: $("delayOn").checked ? numOrNull($("delay").value) : -1,
   };
 }
 

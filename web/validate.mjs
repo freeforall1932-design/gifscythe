@@ -13,31 +13,37 @@ export function validate(s) {
   const w = [];
   const add = (field, value, reason) => w.push({ field, value: String(value), reason });
 
-  const num = (v, dflt) => (v === undefined || v === null || v === "" ? dflt : Number(v));
+  const num = (field, v, dflt) => {
+    if (v === undefined || v === null || v === "") return dflt;
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+    add(field, v, "must be a finite number (or unset)");
+    return dflt;
+  };
 
-  const colors = num(s.color_count, -1);
+  const colors = num("colors", s.color_count, -1);
   if (colors !== -1 && (colors < 2 || colors > 256)) {
     add("colors", colors, "must be 2..256 (or unset)");
   }
-  const disposal = num(s.disposal, -1);
+  const disposal = num("disposal", s.disposal, -1);
   if (disposal !== -1 && (disposal < 0 || disposal > 7)) {
     add("disposal", disposal, "must be 0..7 (or unset)");
   }
-  const opt = num(s.optimize_level, -1);
+  const opt = num("optimize", s.optimize_level, -1);
   if (opt !== -1 && (opt < 0 || opt > 3)) {
     add("optimize", opt, "must be 0..3 (or unset); 0 = off");
   }
-  const lossy = num(s.lossy, -1);
+  const lossy = num("lossy", s.lossy, -1);
   if (lossy !== -1 && (lossy < 0 || lossy > 200)) {
     add("lossy", lossy, "must be 0..200 (or unset)");
   }
-  const delay = num(s.delay_cs, -1);
+  const delay = num("delay", s.delay_cs, -1);
   if (delay < -1) {
     add("delay", delay, "must be >= 0 (1/100 s units) or unset (-1)");
   }
   // threads (DS-06 / P0-2 + DS-09 / P1-31) — mirror of Validate.h. -1 says
   // nothing to the engine, 0 is a bare -j (auto), >0 is -jN; below -1 is a typo.
-  const threads = num(s.threads, -1);
+  const threads = num("threads", s.threads, -1);
   if (threads < -1) {
     add("threads", threads,
         "must be >= -1 (-1 = unset/default, 0 = auto, >0 = explicit thread count)");
@@ -45,7 +51,7 @@ export function validate(s) {
   // loopcount (U-63 / P1-40 + GS-206 / P1-28): -2 play once, -1 unset,
   // 0 forever, 1..65535 a count. The bound is measured: the bundled 1.96 turns
   // --loopcount=65536 into "loop forever" and exits 0.
-  const loopcount = num(s.loopcount, -1);
+  const loopcount = num("loopcount", s.loopcount, -1);
   if (loopcount !== -1 && loopcount !== -2 && (loopcount < 0 || loopcount > 65535)) {
     add("loopcount", loopcount,
         "must be -2 (play once), -1 (unset), or 0..65535 (0 = forever); larger values wrap: the engine turns 65536 into forever and exits 0");
@@ -102,8 +108,8 @@ export function validate(s) {
   //   --resize-fit 0x0 / --resize 0x0 / --resize-touch 0x0 -> rc=1
   //   --resize-width 0 / --resize-height 0                -> rc=1
   //   --scale 0x0 -> rc=1, but --scale 0x1 -> rc=0 and DOES NOTHING
-  const rw = num(s.resize_w, 0);
-  const rh = num(s.resize_h, 0);
+  const rw = num("resize_w", s.resize_w, 0);
+  const rh = num("resize_h", s.resize_h, 0);
   switch (s.resize_kind) {
     case "fit":
     case "touch":
@@ -119,8 +125,8 @@ export function validate(s) {
       if (rh === 0) add("resize_h", 0, "height must be > 0 (the engine refuses --resize-height 0)");
       break;
     case "scale": {
-      const sx = num(s.scale_x, 1);
-      const sy = num(s.scale_y, 1);
+      const sx = num("scale_x", s.scale_x, 1);
+      const sy = num("scale_y", s.scale_y, 1);
       if (!(sx > 0) || !(sy > 0)) {
         // toFixed(6) matches std::to_string(double) (%f) so the strings compare.
         add("scale", `${Number(sx).toFixed(6)}x${Number(sy).toFixed(6)}`,
