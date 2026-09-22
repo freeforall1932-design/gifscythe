@@ -1,0 +1,465 @@
+name: Build Gifscythe
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt6
+        run: sudo apt-get update && sudo apt-get install -y qt6-base-dev
+
+      - name: Build engine, CLI, tests, and GUI
+        working-directory: working_code/gifscythe
+        run: ./build.sh --all
+
+      - name: Engine pipeline tests
+        working-directory: working_code/gifscythe
+        run: ./scripts/test_engine.sh
+
+      - name: CLI smoke tests
+        working-directory: working_code/gifscythe
+        run: ./scripts/smoke_cli.sh
+
+      # The docs are the context the next session starts from, so a stale
+      # STATUS.md is corrupted input rather than a cosmetic problem. This gate
+      # regenerates the status register from the repo and diffs it against the
+      # committed one, so a hand-fudged roll-up cannot pass. --no-gate-run keeps
+      # it from re-running verify_audit.sh, whose build/package/web steps this
+      # job already runs (the same reason the whole of verify_audit.sh is
+      # deliberately not a CI step).
+      - name: Documentation status gate (STATUS.md register)
+        working-directory: working_code/gifscythe
+        run: ./scripts/check_docs.sh --no-gate-run
+
+      # The web/ demo ships a SECOND copy of the command builder and the
+      # validation rules. Nothing in the C++ suites touches them, so without
+      # these two the JS and C++ sides drift silently (audit U-03 proved they
+      # do). They need only the CLI built above plus the Node on the runner.
+      - name: Web JS/C++ parity + server regression tests
+        run: |
+          set -euo pipefail
+          node web/test/command.test.mjs
+          node web/test/validate.test.mjs
+          node web/test/numeric-honesty.test.mjs
+          node web/test/transport.test.mjs
+          node web/test/body-limit.test.mjs
+          node web/test/static-hygiene.test.mjs
+          node web/test/request-guard.test.mjs
+          node web/test/device-names.test.mjs
+          node web/test/server-bounds.test.mjs
+
+      - name: GUI offscreen tests (COMPILED_AUDIT 6.B harness)
+        timeout-minutes: 12
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON
+          cmake --build build-cmake -j2
+          QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
+
+      - name: Package portable
+        working-directory: working_code/gifscythe
+        run: ./scripts/package_portable.sh
+
+      # Audit U-02/U-08/U-14: the packager used to exit 0 for a folder with no
+      # application in it, and CI uploaded that folder without ever looking
+      # inside — so a green build proved nothing about the release. These two
+      # steps make the contents a gate.
+      - name: Packaging negative tests (incomplete packages must fail)
+        working-directory: working_code/gifscythe
+        run: ./scripts/test_package.sh
+
+      - name: Assert package manifest
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' VERSION.md \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          pkg="release/$version/Gifscythe"
+          for f in gifsicle gifscythe-cli gifscythe LICENSE COPYING.gifsicle COPYING.ms-pl COPYING.lgplv3 COPYING.gplv3 QT_NOTICE.txt README.txt; do
+            if [[ ! -s "$pkg/$f" ]]; then
+              echo "FAIL: $pkg/$f is missing or empty" >&2
+              ls -la "$pkg" >&2 || true
+              exit 1
+            fi
+          done
+          echo "package manifest OK"
+          ls -la "$pkg"
+
+      # OD-17: the product is Windows-only, so this job ships nothing. The
+      # linux build/package/assert above stays as the automated test battery
+      # for the shared logic (engine, CLI, GUI harness, stager).
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt6 (aqt) + MinGW toolchain
+        run: |
+          set -euo pipefail
+          pip install aqtinstall
+          aqt install-qt windows desktop 6.7.3 win64_mingw -O "$RUNNER_TEMP/qt"
+          # MinGW from aqt tools (try common packages; ignore failures)
+          aqt install-tool windows desktop tools_mingw1310 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
+          aqt install-tool windows desktop tools_mingw1120 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
+          aqt install-tool windows desktop tools_mingw90 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
+          choco install mingw -y --no-progress
+
+          # Put every bin dir aqt created on PATH
+          while IFS= read -r d; do
+            echo "$d" >> "$GITHUB_PATH"
+          done < <(find "$RUNNER_TEMP/qt" -type d -name bin 2>/dev/null)
+
+          QT_BIN=$(echo "$RUNNER_TEMP/qt"/6.*/mingw_64/bin | awk '{print $1}')
+          echo "QT_PREFIX=$(dirname "$QT_BIN")" >> "$GITHUB_ENV"
+          echo "QT_BIN=$QT_BIN" >> "$GITHUB_ENV"
+          echo "$QT_BIN" >> "$GITHUB_PATH"
+
+      - name: Build Windows engine (win32cfg.h)
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          # On windows-latest + MinGW, gcc produces PE binaries. If the
+          # x86_64-w64-mingw32-gcc name is missing, alias it to gcc.
+          if ! command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
+            if command -v gcc >/dev/null 2>&1; then
+              mkdir -p "$RUNNER_TEMP/shim"
+              printf '#!/bin/bash\nexec gcc "$@"\n' > "$RUNNER_TEMP/shim/x86_64-w64-mingw32-gcc"
+              chmod +x "$RUNNER_TEMP/shim/x86_64-w64-mingw32-gcc"
+              export PATH="$RUNNER_TEMP/shim:$PATH"
+            else
+              echo "ERROR: no MinGW gcc on PATH" >&2
+              exit 1
+            fi
+          fi
+          ./scripts/build_engine.sh --windows
+          ls -la release/*/gifsicle.exe
+
+      - name: Build CLI + unit tests
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          # build.sh syncs version.h, builds CLI+tests; skip GUI and skip re-building
+          # the engine (already built as .exe above). Use a no-op engine step by
+          # invoking the compile halves directly.
+          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' VERSION.md \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          mkdir -p build
+          printf '%s\n' \
+            '#ifndef GIFSCYTHE_CORE_VERSION_H' \
+            '#define GIFSCYTHE_CORE_VERSION_H' \
+            "#define GS_VERSION \"$version\"" \
+            "#define GS_VERSION_STR \"$version\"" \
+            '#endif' > src/core/version.h
+          # -static: artifacts must run on a clean Windows machine with no
+          # MinGW runtime DLLs (libgcc_s_seh-1/libstdc++-6). Verified under
+          # Wine 2026-09-07: dynamic exes die silently without those DLLs.
+          g++ -std=c++17 -O2 -static -I src -o build/gifscythe-cli.exe src/cli/main.cpp
+          g++ -std=c++17 -O2 -static -I src -o build/test_gifsicle_command.exe tests/test_gifsicle_command.cpp
+          ./build/test_gifsicle_command.exe
+
+      - name: Windows engine + CLI E2E smoke (native)
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' VERSION.md \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          ./release/$version/gifsicle.exe --version | head -1
+          win_temp=$(cygpath -m "$RUNNER_TEMP" 2>/dev/null || echo "${RUNNER_TEMP//\//}")
+          smoke="$win_temp/gs-smoke"
+          mkdir -p "$smoke/my vacation"
+          cp ../../reference_code/gifsicle/logo.gif "$smoke/in.gif"
+          cp ../../reference_code/gifsicle/logo1.gif "$smoke/my vacation/b.gif"
+          printf 'mode = auto\noptimize = 3\ninput = %s/in.gif\noutput = %s/out.gif\n' \
+            "$smoke" "$smoke" > "$smoke/one.conf"
+          printf 'mode = auto\noptimize = 2\ninput = %s/my vacation/b.gif\noutput = %s/my vacation/b_opt.gif\n' \
+            "$smoke" "$smoke" > "$smoke/space.conf"
+          ./build/gifscythe-cli.exe "$(cygpath -u "$smoke/one.conf" 2>/dev/null || echo "$smoke/one.conf")" --run \
+            --engine "release/$version/gifsicle.exe"
+          ./build/gifscythe-cli.exe "$(cygpath -u "$smoke/space.conf" 2>/dev/null || echo "$smoke/space.conf")" --run \
+            --engine "release/$version/gifsicle.exe"
+          ls -la "$smoke/out.gif" "$smoke/my vacation/b_opt.gif"
+          # Missing engine must exit non-zero (U-B1 regression guard on Windows)
+          if ./build/gifscythe-cli.exe "$smoke/one.conf" --run --engine "$smoke/nope.exe" >/dev/null 2>&1; then
+            echo "FAIL: missing engine exited 0"; exit 1
+          fi
+          echo "Windows E2E smoke OK"
+
+      - name: Build GUI (CMake) + windeployqt
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          # windows-latest cmake defaults to the Visual Studio generator,
+          # which cannot consume the MinGW Qt packages aqt installed.
+          # Force Ninja + the MinGW gcc/g++ that are on PATH.
+          if ! cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
+                -DCMAKE_PREFIX_PATH="${QT_PREFIX}" \
+                -DBUILD_GUI=ON; then
+            cmake -S . -B build-win -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
+                -DCMAKE_PREFIX_PATH="${QT_PREFIX}" \
+                -DBUILD_GUI=ON
+          fi
+          cmake --build build-win --config Release
+          GUI_EXE=""
+          for c in build-win/gifscythe.exe build-win/Release/gifscythe.exe build-win/Debug/gifscythe.exe; do
+            if [[ -f "$c" ]]; then GUI_EXE="$c"; break; fi
+          done
+          if [[ -z "$GUI_EXE" ]]; then
+            echo "ERROR: GUI executable not found after cmake build" >&2
+            find build-win -name 'gifscythe*' -print || true
+            exit 1
+          fi
+          if command -v windeployqt >/dev/null 2>&1; then
+            windeployqt --release --no-translations "$GUI_EXE"
+          fi
+          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' VERSION.md \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [[ -f "release/$version/gifsicle.exe" ]]; then
+            cp "release/$version/gifsicle.exe" "$(dirname "$GUI_EXE")/"
+          fi
+          # Also stage CLI next to GUI
+          [[ -f build/gifscythe-cli.exe ]] && cp build/gifscythe-cli.exe "$(dirname "$GUI_EXE")/"
+
+      - name: GUI offscreen tests (Windows)
+        timeout-minutes: 12
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          # Insurance: windeployqt ships qwindows.dll only; the harness runs
+          # with QT_QPA_PLATFORM=offscreen, so stage the offscreen plugin
+          # next to the exe as well (Qt install plugins dir also works, but
+          # app-dir first removes any relocated-Qt path doubt).
+          mkdir -p build-win/platforms
+          cp "$QT_BIN/../plugins/platforms/qoffscreen.dll" build-win/platforms/ || true
+          QT_QPA_PLATFORM=offscreen ./build-win/test_gui_offscreen.exe
+
+      - name: Package portable (Windows)
+        working-directory: working_code/gifscythe
+        run: ./scripts/package_portable.sh --windows
+
+      - name: Assert Windows package manifest
+        working-directory: working_code/gifscythe
+        run: |
+          set -euo pipefail
+          # OD-17: the Windows portable folder is the only shipped build, so
+          # its manifest is a gate (mirrors the linux stager check, .exe names).
+          version=$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' VERSION.md \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          pkg="release/$version/Gifscythe"
+          for f in gifsicle.exe gifscythe-cli.exe gifscythe.exe LICENSE COPYING.gifsicle COPYING.ms-pl COPYING.lgplv3 COPYING.gplv3 QT_NOTICE.txt README.txt; do
+            if [[ ! -s "$pkg/$f" ]]; then
+              echo "FAIL: $pkg/$f is missing or empty" >&2
+              ls -la "$pkg" >&2 || true
+              exit 1
+            fi
+          done
+          echo "Windows package manifest OK"
+          ls -la "$pkg"
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gifscythe-windows
+          retention-days: 14
+          path: |
+            working_code/gifscythe/build/
+            working_code/gifscythe/build-win/
+            working_code/gifscythe/release/
+
+  csharp-spike:
+    # Phase 1 spike (S18): proves the dotnet toolchain, honest subprocess
+    # semantics and self-contained single-file publish on real Windows.
+    # Failing here is a valid, decision-grade outcome (see the C# plan).
+    runs-on: windows-latest
+    needs: windows
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Fetch Windows engine artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: gifscythe-windows
+          path: spike-deps
+
+      - name: Build spike
+        run: dotnet build csharp/spike/spike.csproj -c Release
+
+      - name: Spike stage files
+        run: |
+          set -euo pipefail
+          # Never assume the artifact layout: find the engine wherever it rooted.
+          engine=$(find spike-deps -name 'gifsicle.exe' -print -quit)
+          [[ -n "$engine" && -s "$engine" ]] || { echo "FAIL: engine not in artifact" >&2; find spike-deps -maxdepth 6 >&2 || true; exit 1; }
+          exe="csharp/spike/bin/Release/net9.0/gifscythe-spike.exe"
+          [[ -x "$exe" ]] || { echo "FAIL: spike exe missing: $exe" >&2; exit 1; }
+          work="$RUNNER_TEMP/spike"
+          rm -rf "$work"; mkdir -p "$work/plain" "$work/vacación" "$work/日本語"
+          cp reference_code/gifsicle/logo.gif "$work/plain/in.gif"
+          cp reference_code/gifsicle/logo1.gif "$work/vacación/résumé final.gif"
+          cp reference_code/gifsicle/logo1.gif "$work/日本語/入力.gif"
+          printf 'not a gif\n' > "$work/plain/bad.gif"
+          echo "SPIKE_ENGINE=$PWD/$engine" >> "$GITHUB_ENV"
+          echo "SPIKE_EXE=$PWD/$exe" >> "$GITHUB_ENV"
+          echo "SPIKE_WORK=$work" >> "$GITHUB_ENV"
+          ls -la "$work/plain" "$work/vacación" "$work/日本語"
+          echo "staged: engine=$engine exe=$exe"
+
+      - name: Spike happy path is rc 0
+        run: |
+          set -euo pipefail
+          set +e
+          "$SPIKE_EXE" "$SPIKE_ENGINE" "$SPIKE_WORK/plain/in.gif" "$SPIKE_WORK/plain/out.gif" >"$SPIKE_WORK/happy.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/happy.log"
+          [[ "$rc" == 0 ]] || { echo "FAIL: want rc=0 got rc=$rc" >&2; exit 1; }
+          [[ -s "$SPIKE_WORK/plain/out.gif" ]] || { echo "FAIL: out.gif missing/empty" >&2; exit 1; }
+          echo OK
+
+      - name: Spike latin path with space is rc 0
+        run: |
+          set -euo pipefail
+          set +e
+          "$SPIKE_EXE" "$SPIKE_ENGINE" "$SPIKE_WORK/vacación/résumé final.gif" "$SPIKE_WORK/vacación/salida O3.gif" >"$SPIKE_WORK/latin.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/latin.log"
+          [[ "$rc" == 0 ]] || { echo "FAIL: want rc=0 got rc=$rc" >&2; exit 1; }
+          [[ -s "$SPIKE_WORK/vacación/salida O3.gif" ]] || { echo "FAIL: latin out missing/empty" >&2; exit 1; }
+          echo OK
+
+      - name: Spike CJK path fails honestly (engine ACP residual)
+        run: |
+          set -euo pipefail
+          # Known product residual (src/core/WinUnicode.h): upstream gifsicle's
+          # CRT parses argv in the system ACP, so CJK cannot reach the engine's
+          # file APIs on stock Windows. The spike must FAIL LOUDLY here (rc!=0),
+          # never silently succeed. If this ever goes rc=0, the residual has
+          # closed - celebrate, then update WinUnicode.h and the C# plan.
+          set +e
+          "$SPIKE_EXE" "$SPIKE_ENGINE" "$SPIKE_WORK/日本語/入力.gif" "$SPIKE_WORK/日本語/出力.gif" >"$SPIKE_WORK/cjk.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/cjk.log"
+          [[ "$rc" != 0 ]] || { echo "FAIL: CJK unexpectedly rc=0 - residual closed? update WinUnicode.h + plan" >&2; exit 1; }
+          echo "OK: CJK failed honestly with rc=$rc (engine ACP residual)"
+
+      - name: Spike usage errors are rc 2
+        run: |
+          set -euo pipefail
+          set +e
+          "$SPIKE_EXE" >"$SPIKE_WORK/usage.log" 2>&1; rc1=$?
+          "$SPIKE_EXE" "$SPIKE_ENGINE" "$SPIKE_WORK/plain/nope.gif" "$SPIKE_WORK/plain/x.gif" >>"$SPIKE_WORK/usage.log" 2>&1; rc2=$?
+          set -e
+          cat "$SPIKE_WORK/usage.log"
+          [[ "$rc1" == 2 ]] || { echo "FAIL: no-args want rc=2 got $rc1" >&2; exit 1; }
+          [[ "$rc2" == 2 ]] || { echo "FAIL: missing-input want rc=2 got $rc2" >&2; exit 1; }
+          [[ ! -e "$SPIKE_WORK/plain/x.gif" ]] || { echo "FAIL: usage error wrote output" >&2; exit 1; }
+          echo OK
+
+      - name: Spike missing engine is rc 3
+        run: |
+          set -euo pipefail
+          set +e
+          "$SPIKE_EXE" "$SPIKE_WORK/nope.exe" "$SPIKE_WORK/plain/in.gif" "$SPIKE_WORK/plain/y.gif" >"$SPIKE_WORK/rc3.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/rc3.log"
+          [[ "$rc" == 3 ]] || { echo "FAIL: want rc=3 got rc=$rc" >&2; exit 1; }
+          [[ ! -e "$SPIKE_WORK/plain/y.gif" ]] || { echo "FAIL: missing engine wrote output" >&2; exit 1; }
+          echo OK
+
+      - name: Spike bad input is rc 4
+        run: |
+          set -euo pipefail
+          set +e
+          "$SPIKE_EXE" "$SPIKE_ENGINE" "$SPIKE_WORK/plain/bad.gif" "$SPIKE_WORK/plain/z.gif" >"$SPIKE_WORK/rc4.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/rc4.log"
+          [[ "$rc" == 4 ]] || { echo "FAIL: want rc=4 got rc=$rc" >&2; exit 1; }
+          echo OK
+
+      - name: Spike lying engine without output is rc 5
+        run: |
+          set -euo pipefail
+          # command -v finds the shell builtin; type -P forces a PATH search.
+          tpath="$(type -P true || true)"
+          [[ -n "$tpath" ]] || tpath=/usr/bin/true.exe
+          trueexe="$(cygpath -w "$tpath")"
+          [[ -x "$trueexe" ]] || { echo "FAIL: no runnable true.exe (tried $tpath)" >&2; exit 1; }
+          set +e
+          "$SPIKE_EXE" "$trueexe" "$SPIKE_WORK/plain/in.gif" "$SPIKE_WORK/plain/ghost.gif" >"$SPIKE_WORK/rc5a.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/rc5a.log"
+          [[ "$rc" == 5 ]] || { echo "FAIL: want rc=5 got rc=$rc" >&2; exit 1; }
+          echo OK
+
+      - name: Spike lying engine over stale output is rc 5
+        run: |
+          set -euo pipefail
+          tpath="$(type -P true || true)"
+          [[ -n "$tpath" ]] || tpath=/usr/bin/true.exe
+          trueexe="$(cygpath -w "$tpath")"
+          [[ -x "$trueexe" ]] || { echo "FAIL: no runnable true.exe (tried $tpath)" >&2; exit 1; }
+          printf 'junk-bytes' > "$SPIKE_WORK/plain/stale.gif"
+          set +e
+          "$SPIKE_EXE" "$trueexe" "$SPIKE_WORK/plain/in.gif" "$SPIKE_WORK/plain/stale.gif" >"$SPIKE_WORK/rc5b.log" 2>&1
+          rc=$?
+          set -e
+          cat "$SPIKE_WORK/rc5b.log"
+          [[ "$rc" == 5 ]] || { echo "FAIL: want rc=5 got rc=$rc" >&2; exit 1; }
+          echo OK
+
+      - name: Publish self-contained single file
+        run: |
+          set -euo pipefail
+          dotnet publish csharp/spike/spike.csproj -c Release -r win-x64 \
+            --self-contained -p:PublishSingleFile=true -o csharp/spike/publish
+          ls -la csharp/spike/publish
+          exes=$(ls csharp/spike/publish/*.exe | wc -l | tr -d ' ')
+          [[ "$exes" == 1 ]] || { echo "FAIL: want 1 exe, found $exes" >&2; exit 1; }
+          size=$(stat -c%s csharp/spike/publish/gifscythe-spike.exe)
+          [[ "$size" -ge 5000000 ]] || { echo "FAIL: exe too small for self-contained ($size B)" >&2; exit 1; }
+          echo "single-file exe OK ($size bytes)"
+
+      - name: Run published exe
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/spike-published"
+          rm -rf "$work"; mkdir -p "$work"
+          cp reference_code/gifsicle/logo.gif "$work/in.gif"
+          engine=$(find spike-deps -name 'gifsicle.exe' -print -quit)
+          [[ -n "$engine" && -s "$engine" ]] || { echo "FAIL: engine not in artifact" >&2; exit 1; }
+          csharp/spike/publish/gifscythe-spike.exe \
+            "$PWD/$engine" \
+            "$work/in.gif" "$work/out.gif"
+          [[ -s "$work/out.gif" ]]
+          echo "published exe runs OK"
+
+      - name: Upload spike artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gifscythe-spike
+          retention-days: 14
+          path: csharp/spike/publish/

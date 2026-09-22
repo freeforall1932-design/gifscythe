@@ -1,0 +1,103 @@
+# Owner decisions — the open questions register
+
+**What this is.** The 15 questions the owner must answer to unblock S14
+continuation work. Each row is a *question*, not a work item: options, the
+recommended answer, and what the answer unblocks. **No work items live here**
+— once an answer lands, the corresponding `STATUS.md` / `WORKLIST.md` / plan
+entry is updated, not this file.
+
+**How to answer.** Reply in the form `OD-nn = <letter>`, using one of the letters
+in that row's own **Options** cell — most rows offer `a`/`b`, but `OD-15` runs
+`a`–`d`, so a fixed `a|b` form cannot express a real answer to it. Multiple
+answers are fine; `OD-14` has two sub-questions and needs both.
+
+| ID | Question | Options | Recommended | Unblocks |
+|----|----------|---------|-------------|----------|
+| **OD-01** | Triage the 18 untriaged findings into `COMPILED_AUDIT.md` §6 fix-order ids | (a) all 18 now · (b) the 4 untriaged release-blockers first | **a** — answered by the owner 2026-09-12. (b) is not viable: gate **G12** fails if *any* UNTRIAGED row outlives its session, so triaging only the blockers would leave the repo unable to log a new session at all | Scheduling the whole intake, and unblocking **G12** so a new session can be logged |
+| **OD-02** | Minimal `GS-201` stop-loss: CLI `--run` refuses Batch with no `output`, exit 2 | (a) ship it now (~10 lines, Critical only) · (b) wait for the full Batch redesign | **a** — answered by the owner 2026-09-12. A ~10-line refusal closes the only Critical (a documented path can rewrite user source GIFs) before any redesign | Closing `GS-201`; also lifts the standing docs-only constraint for this one code change |
+| **OD-03** | Refit the owner's web draft into `web/WEB_PLAN_TEMPLATE.md` and flip SKELETON → WORKING PLAN | (a) refit now + flip · (b) hold the template | **a** — the template exists for exactly this | The web plan becomes live (gate **G16** flips once, both lines) |
+| **OD-04** | Web deployment model | (a) self-hosted only · (b) hosted/cloud too | **a** — keeps the "no cloud, no telemetry" promise | The web surface's privacy story stays unchanged |
+| **OD-05** | Web argv handling | (a) keep the web's own builder now · (b) spike routing web through `gifscythe-cli` after `GS-201` | **a** now, **b** later | Unblocking a `gifscythe-cli`-based web argv spike after the stop-loss lands |
+| **OD-06** | Web release artifact | (a) in-repo until 1.0.0 · (b) a separate release artifact now | **a** — desktop stays the 1.0.0 artifact | Deciding whether the web build gets its own release path pre-1.0.0 |
+| **OD-07** | How frozen is the desktop lane | (a) the plan's floor (build-green, tests-green, release-blockers) · (b) a deeper freeze | **a** — correctness-only, not a code freeze | The desktop lane's allowed-change envelope |
+| **OD-08** | ~~Apply the proposed workflow copy and delete the pending marker~~ **RESOLVED IN SUBSTANCE (S24, 2026-09-17):** the pending change had already been applied to the LIVE workflow by the maintainer (`190d030` era + the `414f5fc` cygpath fix); the doc copy was the side that lagged. S24 re-synced `docs/ci/build.yml.proposed` to the live line and deleted the marker in one commit — **E9**/**G7**/**S1** enforce byte-equality again, no workflows-scoped push was needed | — | resolved | Resolved |
+| **OD-09** | First-party licence | (a) GPLv3 + Qt LGPL notices staged, legal review before 1.0.0 · (b) other | **b** — Ms-PL relicense executed S18 (`OD-09 = b`); Qt LGPL notices staged S19 (`U-08` closed) | Closing the `U-08` licence-set remainder |
+| **OD-10** | Release re-cut | (a) re-cut from one reviewed SHA after the blockers · (b) re-cut now | **a** | `U-09` (the banked snapshot predates S7) |
+| **OD-11** | Bump to 1.0.0 | (a) not yet · (b) bump now | **a** — answered by the owner 2026-09-14 (S19): stays 0.1.0 until the release criteria are met | Version stays 0.1.0 until the release criteria are met |
+| **OD-12** | Two-way CLI settings in 1.0.0 | (a) out · (b) in | **a** — answered by the owner 2026-09-14 (S19): the live pane stays honest one-way through 1.0.0 | Keeping the one-way CLI pane unchanged through 1.0.0 |
+| **OD-13** | Threads contract (`<0` / `0` / `>0`) | (a) yes, restore the sentinel · (b) leave as-is | **a** — `DS-06`'s tri-state fix | The `threads` sentinel semantics (`DS-06`/`DS-07`) |
+| **OD-14** | Disposal 4..7 + settings whitespace | (a) fix disposal 4..7 · (b) document settings quoting | **a** for disposal, **b** for settings whitespace | `DS-10` (unreachable disposal values) and `DS-12` (whitespace round-trip) |
+| **OD-15** | SkillOpt: how to incorporate | (a) pinned git submodule, quarantined · (b) vendored pinned copy · (c) venv/pip wrapper · (d) skip | **a** — see `docs/planning/PLANNING.md` §3 | The first in-repo SkillOpt experiment (the doc-sweep skill) |
+
+## Answers so far
+
+- **`OD-01` = a** (2026-09-12) — triage all 18 intake findings into §6 ids.
+  **Executed S15 (2026-09-13):** 14 new ids (**P0-5, P0-6, P1-25…P1-32, P2-12…P2-14, P3-11**) plus
+  4 folded into existing actions (**DS-06**→P0-2, **DS-12**→P1-13, **GS-208**→P2-7,
+  **DS-08**→P3-5). No row is `UNTRIAGED` any more, so **G12** is unblocked.
+  Option (b) was rejected on mechanics, not preference: gate **G12** fails if
+  *any* `UNTRIAGED` row outlives the session that found it, so triaging only the
+  release-blockers would leave 14 rows untriaged and the repo still unable to
+  log a new session. **Count corrected while answering:** the option text said
+  "the 5 release-blockers" and the old recommendation named `GS-201`…`GS-204`;
+  `docs/release/RELEASE_PROCEDURE.md` actually lists **6** open blockers
+  (`GS-201`, `GS-204`, `GS-208`, `U-08`, `U-09`, `DS-06`), of which only **4**
+  are untriaged intake (`GS-201`, `GS-204`, `GS-208`, `DS-06`) — `U-08` is
+  PARTIAL and `U-09` is OPEN, already tracked. Neither "5" nor `GS-201`…`GS-204`
+  described the real set.
+- **`OD-02` = a** (2026-09-12) — ship the ~10-line `GS-201` stop-loss now
+  (CLI `--run` refuses Batch with no `output`, exit 2). It is the only
+  **Critical** in the intake. This is the one answer that authorizes a code
+  change; the standing docs-only constraint does not cover anything else.
+  **Executed S16 (2026-09-13):** CLI `--run` refuses Batch with no `output`
+  (rc=2, named reason) before the engine starts; smoke 21/21.
+- **`OD-09` = b** (2026-09-14) — first-party code relicensed to Ms-PL (option (b) "other").
+  **Executed S18 (2026-09-14):** `LICENSE` rewritten, full text in `COPYING.ms-pl`,
+  both packagers + CI manifest require it, Caesium base dropped (it was never
+  incorporated). Closes the U-08 remainder except Qt LGPL notices.
+  Rationale: `docs/legal/README.md` §1; copying rules: §2 (single legal file since the S24 consolidation).
+- **`OD-11` = a** (2026-09-14) — stay 0.1.0; the 1.0.0 bump waits for the
+  release criteria (clean-Windows smoke, desktop probes, no open
+  Critical/High). **Executed S19 (2026-09-14):** recorded here and in
+  `STATUS.md` row `W-29` (stays OPEN — the decision defers the bump, it
+  does not perform it); no version file touched.
+- **`OD-12` = a** (2026-09-14) — two-way CLI settings are out for 1.0.0;
+  the live pane stays honest one-way. **Executed S19 (2026-09-14):**
+  `STATUS.md` row `W-26` closed (DONE); no code change — the UI already
+  states one-way explicitly.
+- **`OD-17` = a** (2026-09-14) — the shipped product is Windows-only (exe)
+  + web app; Linux stays as the CI/sandbox test battery and ships nothing.
+  **Executed S20 (2026-09-14):** linux CI upload dropped, Windows
+  portable-package + manifest-assert steps added, release narrowed to the
+  Windows zip, Wine reframed as emulation signal. First Windows-CI green
+  with the new steps was still pending at push time (see the S20 log).
+
+**`OD-01` executed S15 (2026-09-13); `OD-02` executed S16 (2026-09-13); `OD-09` executed S18 (2026-09-14); `OD-11` + `OD-12` executed S19 (2026-09-14); `OD-17` executed S20 (2026-09-14).** The
+triage of all 18 rows landed in S15. The `GS-201` stop-loss (**P0-5**) landed in
+S16. Remaining owner questions are **OD-03…OD-08, OD-10, OD-13…OD-16, OD-18**
+(`OD-09` answered S18; `OD-11`/`OD-12` answered S19; `OD-16` added S19; `OD-17` answered S20).
+**`OD-18` was added by S23 (2026-09-16)** from the U-76 / P1-43 work: the fix is
+landed and measured, and the one open choice is which directory an un-prefixed
+CLI explode writes to — see the row.
+
+## Questions added after S14
+
+The table above is the S14 set of 15 (that count is history, not a limit).
+New questions land here, in the same shape, answered in the same
+`OD-nn = <letter>` form.
+
+| ID | Question | Options | Recommended | Unblocks |
+|----|----------|---------|-------------|----------|
+| **OD-16** | May the `web/wasm/` build ship with the GPLv2 engine in-process with the Ms-PL UI? (Question: `docs/legal/README.md` §3) | (a) no — wasm stays experimental/unshipped · (b) yes, on counsel-approved terms · (c) other (owner states terms) | **a** until counsel answers — the FSF lists Ms-PL as GPL-incompatible, and MVP scope does not shrink an in-process question | Calling `web/wasm/` shippable; `D-07` cannot close before this lands |
+| **OD-17** | Shipped platforms: Windows-only exe + web app, Linux as the CI/sandbox test battery | (a) yes — windows-only ship, linux tests · (b) no — keep a Linux release artifact too | **a** — answered by the owner 2026-09-14 (S20): the linux job and sandbox scripts stay as the test rig and ship nothing | Killing the Linux zip + CI upload; the Windows job gains the packaging gates |
+| **OD-18** | Where does a CLI `mode = explode` with no `output` prefix write? (S23, from U-76 / P1-43) | (a) keep the S23 behaviour — CWD, `<stem>_frame.NNN`, engine convention, named in a NOTE · (b) beside the input like the desktop/web, accepting that the tool writes into the input's folder · (c) refuse the run and require an explicit `output` | **a** — the scoped action's (b) was implemented literally and wrote 12 frames into `reference_code/` on the first smoke run; (c) is the safest but breaks a documented convenience · the name is unified either way | `U-76` closing; whether `examples/animation.conf` and the README need an explode example with an explicit prefix |
+
+## Notes
+
+- **OD-01 and OD-02 first** — they gate the release-blocker remediation; the
+  rest are direction choices the plan can proceed without.
+- **OD-15** feeds directly into `docs/planning/PLANNING.md` §3,
+  which holds the three non-negotiable conditions and the four integration
+  shapes. Answering `OD-15 = a` unblocks the submodule shape.
+- Nothing here is a `STATUS.md` row; the register stays the single source of
+  work-item state.
