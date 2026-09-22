@@ -1,0 +1,5 @@
+# Externally-fetched reference source (cloned from GitHub). These are
+# "export from outside" and are re-fetchable; provenance + commit SHAs are
+# documented in REFERENCE_MANIFEST.md. Keep them out of git.
+gifsicle-upstream/
+# NOTE (S18): caesium-source/ retired with OD-09 = b — do NOT re-add (see docs/legal/).

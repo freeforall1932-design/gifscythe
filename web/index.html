@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gifscythe — web build (POC)</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Gifscythe <span class="tag">web POC</span></h1>
+    <p class="sub">GIF optimization through the same engine command layer as the desktop app.
+    Your GIF is processed by the bundled gifsicle engine and never leaves the session.</p>
+  </header>
+
+  <main>
+    <section class="panel" id="inputPanel">
+      <h2>1 · Input</h2>
+      <div id="drop" class="drop">
+        <input type="file" id="file" accept=".gif,image/gif" multiple hidden />
+        <button id="pick" class="btn">Choose GIFs…</button>
+        <span id="dropHint">or drop GIFs here — several files feed Batch / Merge</span>
+      </div>
+      <ul id="fileList" class="filelist" hidden></ul>
+      <div class="preview-row">
+        <figure>
+          <figcaption>Before (first queued file)</figcaption>
+          <img id="before" alt="no file selected" />
+        </figure>
+        <figure>
+          <figcaption>After (first result)</figcaption>
+          <img id="after" alt="—" />
+        </figure>
+      </div>
+      <div id="savings" class="savings"></div>
+    </section>
+
+    <section class="panel" id="actionsPanel">
+      <h2>2 · Actions</h2>
+      <div class="form">
+        <label>Mode
+          <select id="mode">
+            <option value="auto" selected>Auto — optimize the single file</option>
+            <option value="batch">Batch — each file → &lt;stem&gt;_opt.gif</option>
+            <option value="merge">Merge — all files → merged.gif</option>
+            <option value="explode">Explode — frames → &lt;stem&gt;_frame.NNN</option>
+          </select>
+        </label>
+        <label class="inline" id="explodeByNameRow" hidden
+          title="-E only differs from -e when the input GIF already carries frame-name extensions. This build cannot WRITE names (--name is not modelled), so for most files this checkbox changes nothing but the suffix.">
+          <input type="checkbox" id="explodeByName" />
+          Explode by frame name (-E) instead of .NNN numbers
+          <small title="Needs --name, which this build does not model: -E only reads names the input already has.">why is this sometimes a no-op?</small>
+        </label>
+        <label>Optimization level
+          <select id="optimize">
+            <option value="0">0 — off</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3" selected>3 — smallest</option>
+          </select>
+        </label>
+        <label>Lossy (0 = lossless)
+          <input type="number" id="lossy" min="0" max="200" value="0" />
+        </label>
+        <label class="inline"><input type="checkbox" id="colorsOn" />
+          Reduce colors <input type="number" id="colors" min="2" max="256" value="128" disabled />
+        </label>
+        <label>Dither
+          <select id="dither">
+            <option value="">Off (none)</option>
+            <option value="default">Default (Floyd–Steinberg)</option>
+            <option value="floyd-steinberg">floyd-steinberg</option>
+            <option value="atkinson">atkinson</option>
+            <option value="o3x3">o3x3</option>
+            <option value="o4x4">o4x4</option>
+            <option value="o8x8">o8x8</option>
+            <option value="ro64">ro64</option>
+            <option value="diag45">diag45</option>
+            <option value="halftone">halftone</option>
+            <option value="sqhalftone">sqhalftone</option>
+          </select>
+        </label>
+        <label>Resize
+          <select id="resize">
+            <option value="none" selected>No resize</option>
+            <option value="fit">Fit inside W×H</option>
+            <option value="touch">Touch W×H (never enlarge)</option>
+            <option value="exact">Exact W×H</option>
+            <option value="width">Width only</option>
+            <option value="height">Height only</option>
+            <option value="scale">Scale %</option>
+          </select>
+        </label>
+        <label>W <input type="number" id="w" min="1" max="65535" value="320" /></label>
+        <label>H <input type="number" id="h" min="1" max="65535" value="240" /></label>
+        <label>Scale X % <input type="number" id="scalePctX" min="1" max="1000" value="100" step="0.1" /></label>
+        <label>Scale Y % <input type="number" id="scalePctY" min="1" max="1000" value="100" step="0.1" /></label>
+        <label>Loop
+          <select id="loop">
+            <option value="keep" selected>Keep original</option>
+            <option value="forever">Loop forever</option>
+            <option value="once">Play once (--no-loopcount)</option>
+            <option value="n">Loop N times…</option>
+          </select>
+        </label>
+        <label id="loopNRow" hidden>N <input type="number" id="loopN" min="1" max="65535" value="3" /></label>
+        <label class="inline"><input type="checkbox" id="delayOn" />
+          Frame delay (1/100 s) <input type="number" id="delay" min="0" max="65535" value="10" disabled />
+        </label>
+      </div>
+    </section>
+
+    <section class="panel" id="runPanel">
+      <h2>3 · Run</h2>
+      <button id="run" class="btn primary" disabled>Run</button>
+      <span id="status" class="status"></span>
+      <div id="outputs" hidden>
+        <h3>Results</h3>
+        <ul id="outputList" class="filelist"></ul>
+      </div>
+      <details id="cmdDetails">
+        <summary>Generated engine command (one-way: controls → command)</summary>
+        <pre id="command">add a GIF to generate a command…</pre>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    Gifscythe web proof-of-concept — engine runs as a subprocess (argv, never a shell).
+    See <code>docs/web/WEB_FEASIBILITY.md</code> for the full web-run review &amp; roadmap.
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

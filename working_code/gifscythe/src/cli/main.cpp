@@ -1,0 +1,595 @@
+// main.cpp - Gifscythe CLI driver.
+//
+// Two modes:
+//   gifscythe-cli settings.conf              build + PRINT the gifsicle CLI line
+//   gifscythe-cli settings.conf --run        build + RUN it against the bundled
+//                                           gifsicle engine
+//
+// Proves the engine control layer end-to-end without the GUI toolkit. The printed
+// command line is exactly what the GUI's "show me the command" pane displays.
+//
+// Execution NEVER goes through a shell (argv exec). Exit codes are honest.
+
+#include "../core/SettingsIO.h"
+#include "../core/GifsicleCommand.h"
+#include "../core/EngineLocator.h"
+#include "../core/OutputVerify.h"
+#include "../core/ProcessRunner.h"
+#include "../core/Validate.h"
+#include "../core/OutputPlan.h"
+#include "../core/ExplodeVerify.h"
+#include "../core/WinUnicode.h"
+#include <cstring>
+#include <vector>
+#ifndef _WIN32
+#include <unistd.h>
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
+#else
+#include <windows.h>
+#endif
+#include "core/version.h"  // path form: resolves generated-first under CMake (U-15), src/ fallback under build.sh
+
+#include <cstdarg>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <string>
+#include <vector>
+#include <sstream>
+#include <fstream>
+#include <filesystem>
+#include <optional>
+
+namespace fs = std::filesystem;
+
+namespace {
+
+void print_usage(const char* argv0, std::FILE* to) {
+  std::fprintf(to, "Usage: %s <settings.conf> [--run] [--strict] [--engine <path>]\n", argv0);
+  std::fprintf(to, "  Without --run: print the engine command line (live pane) on stdout.\n");
+  std::fprintf(to, "  With --run:    execute it against the bundled gifsicle engine.\n");
+  std::fprintf(to, "                 All commentary goes to stderr, so stdout stays a\n");
+  std::fprintf(to, "                 clean byte stream when the settings have no output.\n");
+  std::fprintf(to, "  --strict       refuse to continue when ANY settings warning was\n");
+  std::fprintf(to, "                 printed (parse or validation); exit code 3.\n");
+  std::fprintf(to, "  --engine PATH  use this gifsicle instead of the located one.\n");
+  std::fprintf(to, "  --version      print the Gifscythe version and exit.\n");
+  std::fprintf(to, "  Warning policy (ADVISORY, by design): out-of-range settings print a\n");
+  std::fprintf(to, "                WARNING and the run proceeds anyway (the GUI refuses);\n");
+  std::fprintf(to, "                so a warning does NOT change the exit code. Scripts that\n");
+  std::fprintf(to, "                must distinguish clean from warned: grep the single\n");
+  std::fprintf(to, "                trailing `WARNING-SUMMARY: parse=N validation=M` line, or\n");
+  std::fprintf(to, "                pass --strict and let the exit code say it (3).\n");
+  std::fprintf(to, "                An UNSAFE output target is always refused with exit\n");
+  std::fprintf(to, "                code 2, as is Batch with no output (the engine's in-place\n");
+  std::fprintf(to, "                -b would rewrite the source GIF). Exit codes: 0 ok, 1\n");
+  std::fprintf(to, "                engine/path/output verification failure, 2 usage or\n");
+  std::fprintf(to, "                unsafe target, 3 --strict refusal.\n");
+  std::fprintf(to, "  GS_ENGINE env: exact engine path; invalid non-empty values fail (no fallback).\n");
+  std::fprintf(to, "  Gifscythe %s\n", GS_VERSION);
+}
+
+bool read_file(const fs::path& path, std::string* out) {
+  std::ifstream f(path, std::ios::binary);
+  if (!f) return false;
+  std::ostringstream ss;
+  ss << f.rdbuf();
+  *out = ss.str();
+  return true;
+}
+
+// Expand a leading ~ to $HOME / USERPROFILE. Reject bare ~ alone as a path.
+std::string expand_home(const std::string& p) {
+  if (p.empty() || p[0] != '~') return p;
+  if (p.size() > 1 && p[1] != '/' && p[1] != '\\') return p;  // ~user not expanded
+  // U-07: env values are UTF-8 by contract; std::getenv would hand back ACP
+  // bytes for a non-ASCII profile path on Windows.
+  const std::string home_s = gs::env_utf8("HOME");
+  const char* home = home_s.c_str();
+#ifdef _WIN32
+  const std::string profile = home_s.empty() ? gs::env_utf8("USERPROFILE") : std::string();
+  if (!*home) home = profile.c_str();
+#endif
+  if (!home || !*home) return p;
+  if (p.size() == 1) return home;
+  return std::string(home) + p.substr(1);
+}
+
+// What resolve_path() actually did with a relative path (audit U-73 / P1-43).
+enum class Resolved {
+  Absolute,     // the setting already named an absolute path
+  NextToConf,   // found relative to the settings file — the documented contract
+  FromCwd,      // NOT next to the conf, but found relative to the CWD
+  Missing       // found nowhere; the base-anchored form is returned anyway
+};
+
+// Resolve a path relative to the settings file's directory.
+//
+// The documented contract is "paths resolve against the conf's own directory"
+// (examples/animation.conf says exactly that). It used to be quietly violated by
+// a fallback: a relative path that did NOT exist next to the conf but DID exist
+// in the CWD resolved to the CWD file, so the same conf produced different
+// results depending on where the CLI was launched from — the failure is silent
+// and it is the one behaviour a scripted caller cannot detect.
+//
+// The fallback is deliberately still honoured (dropping it would break existing
+// confs mid-flight, pre-1.0.0), but it can no longer pass unnoticed: the CLI
+// reports it as a warning, which --strict turns into a refusal, and the
+// resolution mode is returned so the caller can say what happened.
+inline Resolved resolve_path_mode(const fs::path& base_dir, const fs::path& path) {
+  std::error_code ec;
+  if (path.is_absolute()) return Resolved::Absolute;
+  if (fs::exists(base_dir / path, ec)) return Resolved::NextToConf;
+  std::error_code ec2;
+  if (fs::exists(path, ec2)) return Resolved::FromCwd;
+  return Resolved::Missing;
+}
+
+std::string resolve_path(const std::string& p, const fs::path& base_dir,
+                         Resolved* mode = nullptr) {
+  if (p.empty()) return p;
+  std::string expanded = expand_home(p);
+  fs::path path = gs::u8path_compat(expanded);
+  const Resolved m = path.is_absolute() ? Resolved::Absolute
+                                       : resolve_path_mode(base_dir, path);
+  if (mode) *mode = m;
+  std::error_code ec;
+  if (m == Resolved::Absolute) return gs::path_u8string(path);
+  if (m == Resolved::NextToConf)
+    return gs::path_u8string(fs::weakly_canonical(base_dir / path, ec));
+  if (m == Resolved::FromCwd) return gs::path_u8string(fs::weakly_canonical(path, ec));
+  // Prefer the base-anchored form even if it doesn't exist yet (for outputs).
+  return gs::path_u8string(base_dir / path);
+}
+// gifsicle's own non-path argv tokens (audit U-60 / U-61, P1-39): a frame
+// selection starts with '#', and a bare '-' is stdin/stdout.
+bool is_special_input_token(const std::string& p) {
+  return p == "-" || (!p.empty() && p[0] == '#');
+}
+
+bool is_stream_output_token(const std::string& p) {
+  return p == "-";
+}
+
+// Where is THIS executable? (audit U-65 / fix-order P1-41.)
+//
+// argv[0] is a lie in exactly the two layouts that matter for a portable tool:
+//   * a symlink install (`ln -s /opt/gifscythe/gifscythe-cli /usr/local/bin/
+//     gifscythe-cli`) hands back the LINK, so "the engine next to the binary"
+//     searched /usr/local/bin and missed the real folder;
+//   * a bare name found through PATH hands back "gifscythe-cli", which used to
+//     be treated as CWD-relative and then given up on.
+// The OS knows the truth, so ask it: /proc/self/exe on Linux, _NSGetExecutablePath
+// on macOS, GetModuleFileNameW on Windows. Fall back to argv[0] resolved
+// through PATH, then against the CWD, then as-is — every step honest, none of
+// them guessing a directory the user never installed into.
+fs::path exe_path_of(const char* argv0) {
+#ifndef _WIN32
+  std::vector<char> buf(4096);
+  for (;;) {
+#if defined(__linux__)
+    const ssize_t n = ::readlink("/proc/self/exe", buf.data(), buf.size());
+#elif defined(__APPLE__)
+    uint32_t sz = static_cast<uint32_t>(buf.size());
+    const int r = _NSGetExecutablePath(buf.data(), &sz);
+    const ssize_t n = (r == 0) ? static_cast<ssize_t>(std::strlen(buf.data())) : -1;
+#else
+    const ssize_t n = -1;
+#endif
+    if (n > 0) return gs::u8path_compat(std::string(buf.data(), static_cast<size_t>(n)));
+    if (static_cast<size_t>(n) == buf.size() - 1) { buf.resize(buf.size() * 2); continue; }
+    break;  // not available on this platform / readlink failed
+  }
+#else
+  std::vector<wchar_t> wbuf(4096);
+  for (;;) {
+    const DWORD n = ::GetModuleFileNameW(nullptr, wbuf.data(),
+                                          static_cast<DWORD>(wbuf.size()));
+    if (n > 0 && n < wbuf.size()) {
+      return fs::path(std::wstring(wbuf.data(), n));  // native wide ctor: no ACP
+    }
+    if (n >= wbuf.size()) { wbuf.resize(wbuf.size() * 2); continue; }
+    break;
+  }
+#endif
+  std::error_code ec;
+  fs::path p = gs::u8path_compat(argv0);
+  if (p.is_absolute()) return p;
+  // A bare (or relative) name: resolve it the way the shell would, so a PATH
+  // install finds its sibling engine. `engine_dir_of` then takes the parent.
+  if (!p.has_parent_path()) {
+    const std::string found = gs::find_on_path(gs::path_u8string(p));
+    if (!found.empty()) return gs::u8path_compat(found);
+  }
+  if (fs::exists(p, ec)) return fs::absolute(p, ec);
+  return p;
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+#ifdef _WIN32
+  // Audit U-07 (P1-4): MinGW's CRT encodes main()'s argv in the ANSI code
+  // page, so any non-ASCII path was mangled before this program saw it.
+  // Re-fetch the exact UTF-16 command line and split it per MSVCRT rules into
+  // UTF-8 — the internal encoding contract of this codebase (WinUnicode.h).
+  const std::vector<std::string> win_argv = gs::win_argv_utf8();
+  std::vector<char*> win_ptrs;
+  win_ptrs.reserve(win_argv.size() + 1);
+  for (const auto& a : win_argv) win_ptrs.push_back(const_cast<char*>(a.c_str()));
+  win_ptrs.push_back(nullptr);
+  if (!win_argv.empty()) {
+    argc = static_cast<int>(win_argv.size());
+    argv = win_ptrs.data();
+  }
+#endif
+  if (argc < 2) {
+    print_usage(argv[0], stdout);
+    return 2;
+  }
+
+  std::string settings_arg = argv[1];
+  bool do_run = false;
+  bool strict = false;
+  std::string engine_override;
+
+  // Strict argument parsing (audit U-23). Previously the loop below had no
+  // else-branch, so a typo like --rnu was silently dropped and the run went
+  // ahead with the wrong semantics (verified: rc=0, stderr empty, no message),
+  // and `--engine` with no value was ignored just as quietly. A driver whose
+  // whole job is honesty about what it ran cannot swallow its own arguments.
+  if (std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0) {
+    print_usage(argv[0], stdout);
+    return 0;
+  }
+  if (std::strcmp(argv[1], "--version") == 0) {
+    std::printf("Gifscythe %s\n", GS_VERSION);
+    return 0;
+  }
+
+  for (int i = 2; i < argc; ++i) {
+    const std::string a = argv[i];
+    if (a == "--run") {
+      do_run = true;
+    } else if (a == "--strict") {
+      strict = true;
+    } else if (a == "--engine") {
+      if (i + 1 >= argc) {
+        std::fprintf(stderr, "ERROR: --engine requires a path\n");
+        print_usage(argv[0], stderr);
+        return 2;
+      }
+      engine_override = argv[++i];
+    } else if (a == "-h" || a == "--help") {
+      print_usage(argv[0], stdout);
+      return 0;
+    } else if (a == "--version") {
+      std::printf("Gifscythe %s\n", GS_VERSION);
+      return 0;
+    } else {
+      std::fprintf(stderr, "ERROR: unknown argument '%s'\n", a.c_str());
+      print_usage(argv[0], stderr);
+      return 2;
+    }
+  }
+
+  // Absolutize the settings path so everything is CWD-independent.
+  std::error_code ec;
+  fs::path settings_path = fs::absolute(gs::u8path_compat(expand_home(settings_arg)), ec);
+  if (ec) {
+    std::fprintf(stderr, "ERROR: cannot resolve settings path '%s'\n", settings_arg.c_str());
+    return 1;
+  }
+  fs::path base_dir = settings_path.parent_path();
+  if (base_dir.empty()) base_dir = fs::current_path(ec);
+
+  std::string content;
+  if (!read_file(settings_path, &content)) {
+    std::fprintf(stderr, "ERROR: cannot read settings file '%s'\n", settings_path.string().c_str());
+    return 1;
+  }
+
+  std::vector<gs::LoadWarning> load_warnings;
+  std::istringstream iss(content);
+  gs::Settings s = gs::load_settings(iss, &load_warnings);
+  for (const auto& w : load_warnings) {
+    std::fprintf(stderr, "WARNING: settings key '%s' value '%s': %s\n",
+                 w.key.c_str(), w.value.c_str(), w.reason.c_str());
+  }
+
+  // Resolve input/output relative paths against the settings file dir, but keep
+  // gifsicle's own special tokens literal: a frame selector (#0, #1-3) is not a
+  // path, and a bare `-` means stdin/stdout. The attached form `a.gif#0` is NOT
+  // gifsicle syntax — measured on the bundled 1.96 it fails as a missing file —
+  // so the selector always arrives as its own token and never needs splitting.
+  std::vector<std::string> cwd_resolved;
+  for (auto& in : s.inputs) {
+    if (is_special_input_token(in)) continue;
+    Resolved mode = Resolved::Missing;
+    in = resolve_path(in, base_dir, &mode);
+    if (mode == Resolved::FromCwd) cwd_resolved.push_back(in);
+  }
+  const bool stream_output = is_stream_output_token(s.output);
+  if (!s.output.empty() && !stream_output) s.output = resolve_path(s.output, base_dir);
+
+  // U-73 / P1-43: say it out loud. A path that only exists in the CWD is the
+  // one case where this conf does not mean the same thing from two directories.
+  for (const auto& p : cwd_resolved) {
+    std::fprintf(stderr,
+                 "WARNING: input resolves against the CWD, not the settings file: %s\n",
+                 p.c_str());
+    std::fprintf(stderr,
+                 "         the conf is %s — move the file next to it or name it\n"
+                 "         from there, or this run changes when you cd elsewhere.\n",
+                 settings_path.string().c_str());
+  }
+  if (strict && !cwd_resolved.empty()) {
+    std::fprintf(stderr, "ERROR: --strict: %zu CWD-relative input(s) above — refusing to continue\n",
+                 cwd_resolved.size());
+    return 3;
+  }
+
+  // U-76 / P1-43: an explode with no `output` prefix inherited the engine's own
+  // fallback — `<input basename>.NNN` in the CWD, extension included, so
+  // logo.gif produced logo.gif.000 while the desktop and the web produce
+  // <stem>_frame.NNN. The NAME is now shared across all three surfaces.
+  //
+  // The DIRECTORY deliberately stays the CWD, unlike the scoped action's
+  // "<input dir>/<stem>_frame": implementing that literally wrote 12 frames
+  // into reference_code/gifsicle/ the first time the CLI's own smoke suite ran
+  // on the vendored logo.gif. An "I did not say where" default must not write
+  // into the tree the input came from (policy read-only, often unwritable, and
+  // never what a scripted caller expects); beside-the-input is a GUI convention
+  // that only makes sense with a visible folder. What remains is the directory
+  // policy itself, which is an owner call — see STATUS row U-76 / OD-18.
+  // Only under --run: print mode must show the command these settings describe,
+  // and the live-pane contract (web/command.mjs, the GUI pane) has no default
+  // prefix — inventing one there would break the JS⇄C++ parity the suites pin.
+  if (do_run && s.mode == gs::Mode::Explode && s.output.empty() && !s.inputs.empty()) {
+    const std::string& first = s.inputs.front();
+    if (!is_special_input_token(first)) {
+      fs::path in = gs::u8path_compat(first);
+      std::string stem = gs::path_u8string(in.filename());
+      const std::size_t dot = stem.find_last_of('.');
+      if (dot != std::string::npos && dot > 0) stem = stem.substr(0, dot);
+      std::error_code ec;
+      fs::path cwd = fs::current_path(ec);
+      fs::path prefix = !ec ? cwd / (stem + "_frame") : fs::path(stem + "_frame");
+      s.output = gs::path_u8string(prefix);
+      std::fprintf(stderr,
+                   "NOTE: no explode prefix given — writing %s.NNN here (the CWD);\n"
+                   "      the desktop writes beside the input file.\n",
+                   s.output.c_str());
+    }
+  }
+  auto warnings = gs::validate(s);
+  for (const auto& w : warnings) {
+    std::fprintf(stderr, "WARNING: %s=%s: %s\n",
+                 w.field.c_str(), w.value.c_str(), w.reason.c_str());
+  }
+
+
+  // ---- --strict (audit U-40 / fix-order P3-5) ----
+  // Documented policy: the CLI prints warnings and proceeds, while the GUI
+  // refuses. That asymmetry is deliberate for interactive use but wrong for
+  // scripted use, where a warning nobody reads is a silent behavior change.
+  // --strict closes the gap: any parse or validation warning becomes a
+  // refusal with its own exit code (3), BEFORE anything is printed or run,
+  // so a strict invocation is all-or-nothing.
+  if (strict && (!load_warnings.empty() || !warnings.empty())) {
+    std::fprintf(stderr,
+                 "ERROR: --strict: %zu parse + %zu validation warning(s) above — refusing to continue\n",
+                 load_warnings.size(), warnings.size());
+    return 3;
+  }
+
+
+  // ---- DS-08 / P3-5: the advisory contract, made machine-readable ----
+  // Non-strict mode prints warnings and continues (deliberate: an interactive
+  // user sees the note and can still get their file), which means the exit code
+  // alone cannot tell a clean run from a warned one. Rather than change the
+  // contract — 0 would stop meaning "ran" — every CONTINUED run that warned
+  // ends with ONE greppable summary line, so a script can grep for it or for its
+  // absence. --strict refuses outright (exit 3) before this point, so `outcome=`
+  // can only ever describe a run that went ahead. `WARNING-SUMMARY:`
+  // deliberately does not start with `WARNING:` so the per-field lines keep the
+  // exact shape the web parity test parses.
+  if (!load_warnings.empty() || !warnings.empty()) {
+    std::fprintf(stderr, "WARNING-SUMMARY: parse=%d validation=%d mode=%s outcome=%s\n",
+                 static_cast<int>(load_warnings.size()), static_cast<int>(warnings.size()),
+                 "advisory", do_run ? "run-continued" : "print-continued");
+  }
+
+  // ---- N-05: multi-input explode is refused before anything runs ----
+  // Verified against the bundled 1.96: `gifsicle -e a.gif b.gif -o p` exits 0,
+  // explodes every input but the LAST as <basename>.NNN into this process's
+  // CWD, and writes only the last input's frames under the prefix. Print mode
+  // surfaces the validate() warning like any other; --run refuses the way an
+  // unsafe output target does (exit 2).
+  if (do_run && s.mode == gs::Mode::Explode && s.inputs.size() > 1) {
+    std::fprintf(stderr,
+                 "ERROR: refusing to run — explode with %zu inputs scatters frames:\n",
+                 s.inputs.size());
+    std::fprintf(stderr,
+                 "       only the LAST input honors the -o prefix; earlier inputs write\n"
+                 "       <basename>.NNN into the current directory (the engine exits 0).\n"
+                 "       Run one file at a time.\n");
+    return 2;
+  }
+
+  // ---- GS-201 / P0-5: Batch with no output is the engine's in-place -b ----
+  // CLI Batch maps to gifsicle -b (gifsicle.1:190: "Modify each GIF input in
+  // place by reading and writing to the same filename"). With no `output` key
+  // the planner below is skipped (it only runs when output is non-empty), so
+  // --run would rewrite the source GIFs. Stop-loss (OD-02 = a): named reason,
+  // exit 2, before any process starts. Print mode still prints, like N-05.
+  if (do_run && s.mode == gs::Mode::Batch && s.output.empty()) {
+    std::fprintf(stderr,
+                 "ERROR: refusing to run — Batch with no output uses the engine's in-place -b\n"
+                 "       and would rewrite the source GIF(s). Set an `output` key, or use Auto.\n");
+    return 2;
+  }
+
+  // ---- U-74 / P1-43: the OTHER Batch+output shape is just as unsound ----
+  // GS-201 closed "Batch with no output". With an output key and N>1 inputs the
+  // planner was handed the merge shape (N sources, 1 target) and accepted, while
+  // the engine did something else entirely: measured on the bundled 1.96,
+  //   gifsicle -b a.gif b.gif -o out.gif   ->  rc=0, out.gif == b.gif (821 B),
+  //                                           a.gif untouched, a.gif's content
+  //                                           never written anywhere
+  // i.e. "one output for N inputs" quietly means "the last input only" for -b.
+  // The desktop never emits this (batch = one Auto run per file, U-01), so a
+  // hand-written conf is the only way to reach it — and it gets a refusal, not a
+  // result that looks fine.
+  if (do_run && s.mode == gs::Mode::Batch && !s.output.empty() && s.inputs.size() > 1) {
+    std::fprintf(stderr,
+                 "ERROR: refusing to run — Batch (-b) with %zu inputs and ONE output writes\n"
+                 "       only the LAST input (measured on the bundled engine; exit code 0).\n"
+                 "       Batch means one output per input: repeat the conf, or use merge.\n",
+                 s.inputs.size());
+    return 2;
+  }
+
+  // Locate engine.
+  std::string engine_path;
+  const char* engine_source = "--engine";
+  if (!engine_override.empty()) {
+    engine_path = resolve_path(engine_override, fs::current_path(ec));
+  } else {
+    const auto resolution = gs::resolve_engine(gs::path_u8string(exe_path_of(argv[0])));
+    if (!resolution.error.empty()) {
+      std::fprintf(stderr, "ERROR: %s\n", resolution.error.c_str());
+      return 1;  // invalid environment override is an error in print AND run mode
+    }
+    engine_path = resolution.path;
+    engine_source = gs::engine_source_name(resolution.source);
+  }
+
+  // ---- stdout purity (audit U-04) ----
+  // With --run and no `output` key, gifsicle writes GIF BYTES to fd 1. The
+  // commentary below used to be printf'd into the same libc-buffered stdout,
+  // so `gifscythe-cli conf --run > out.gif` produced a file that started with
+  // GIF89a and ended with "# -> exit code 0" (verified: 8887 bytes, gifsicle
+  // then reports "trailing garbage after GIF ignored"). In --run mode every
+  // note goes to stderr and stdout belongs to the engine alone. Print mode
+  // keeps the command line on stdout — that IS its documented output.
+  auto note = [do_run](const char* fmt, ...) {
+    std::FILE* to = do_run ? stderr : stdout;
+    va_list ap;
+    va_start(ap, fmt);
+    std::vfprintf(to, fmt, ap);
+    va_end(ap);
+  };
+
+  gs::GifsicleCommand cmd(s);
+  std::string cli = cmd.toString();
+
+  // The live CLI pane (shell-quoted for safe copy-paste).
+  note("# Gifscythe %s command (live CLI pane)\n", GS_VERSION);
+  note("%s %s\n", gs::shell_quote(engine_path.empty() ? gs::engine_basename() : engine_path).c_str(),
+       cli.c_str());
+
+  if (!do_run) {
+    note("# (use --run to execute)\n");
+    return 0;
+  }
+
+  // ---- Plan the output before anything runs (audit U-01) ----
+  // The desktop GUI refuses runs whose target is a queued source or whose
+  // targets collide; the CLI has to hold the same line, or `--run` becomes the
+  // easy way around the guard. Explode is exempt: its `output` is a PREFIX and
+  // the engine appends .000/.001, so it cannot land on an input.
+  if (!s.output.empty() && !stream_output && s.mode != gs::Mode::Explode) {
+    // Frame selectors and `-` are not files, so they must not enter the
+    // comparison as inputs — path_key() would resolve `#0` against the CWD and
+    // a selector could then "collide" with nothing (U-60, P1-39).
+    std::vector<std::string> plan_inputs;
+    plan_inputs.reserve(s.inputs.size());
+    for (const auto& in : s.inputs) if (!is_special_input_token(in)) plan_inputs.push_back(in);
+    if (!plan_inputs.empty()) {
+      const gs::OutputPlan plan = gs::plan_outputs(plan_inputs, {s.output});
+      if (!plan.ok) {
+        std::fprintf(stderr, "ERROR: refusing to run — the planned output is not safe:\n");
+        std::fprintf(stderr, "%s\n", plan.describe().c_str());
+        return 2;
+      }
+      for (const auto& p : plan.preexisting) {
+        std::fprintf(stderr, "NOTE: output already exists and will be replaced: %s\n", p.c_str());
+      }
+    }
+  }
+
+  // Pre-flight: engine must exist.
+  if (!gs::path_is_executable(gs::u8path_compat(engine_path))) {
+    std::fprintf(stderr, "ERROR: engine not found%s%s\n",
+                 engine_path.empty() ? "" : " at ", engine_path.c_str());
+    std::fprintf(stderr, "       Searched GS_ENGINE, the folders next to this executable,\n");
+    std::fprintf(stderr, "       the release/ trees, and PATH.\n");
+    std::fprintf(stderr, "       Build it with ./scripts/build_engine.sh\n");
+    std::fprintf(stderr, "       Or set GS_ENGINE / pass --engine <path>\n");
+    return 1;
+  }
+
+  std::fprintf(stderr, "# Engine source: %s\n", engine_source);
+
+  // Build argv: engine + command args. NEVER concatenate into a shell string.
+  std::vector<std::string> full_argv;
+  full_argv.push_back(engine_path);
+  const auto& args = cmd.args();
+  full_argv.insert(full_argv.end(), args.begin(), args.end());
+
+  // ---- Explode frame verification (audit U-17 / P1-19) ----
+  // rc=0 alone used to mean success even when NOT A SINGLE frame was written.
+  // Snapshot the prefix candidates BEFORE the run so leftovers from an earlier
+  // run cannot fake it, then require at least one new/changed real GIF after.
+  // Streaming stdout and --info deliberately keep their existing contracts.
+  // `-o -` streams to stdout: there is no file to snapshot, and treating the
+  // literal name "-" as a path made an honest run report failure (U-61, P1-39).
+  const bool verify_file =
+      !s.output.empty() && !stream_output && s.mode != gs::Mode::Explode && !s.info;
+  gs::OutputSnapshot output_before;
+  if (verify_file) {
+    output_before = gs::snapshot_output(s.output);
+    if (!output_before.error.empty()) {
+      std::fprintf(stderr, "ERROR: output verification preflight: %s: %s\n",
+                   s.output.c_str(), output_before.error.c_str());
+      return 1;
+    }
+  }
+  std::vector<gs::ExplodeFileState> explode_before;
+  std::string explode_prefix;
+  if (s.mode == gs::Mode::Explode) {
+    explode_prefix = gs::explode_prefix_for(s);
+    explode_before = gs::snapshot_explode_candidates(explode_prefix);
+  }
+
+  note("# -> running (argv exec, no shell)\n");
+  int rc = gs::run_argv(full_argv);
+  if (rc == 0 && s.mode == gs::Mode::Explode) {
+    const gs::ExplodeResult vr =
+        gs::verify_explode_frames(explode_prefix, explode_before);
+    if (vr.ok) {
+      note("# -> explode wrote %zu frame(s) under %s\n", vr.frames.size(),
+           vr.prefix.c_str());
+      if (!vr.suspicious.empty()) {
+        note("# -> NOTE: %zu new/changed file(s) under the prefix are not GIFs\n",
+             vr.suspicious.size());
+      }
+    } else {
+      std::fprintf(stderr, "ERROR: engine exited 0 but wrote no frames — %s\n",
+                   vr.describe().c_str());
+      rc = 1;  // honest: the run did NOT produce what explode promises
+    }
+  }
+  if (rc == 0 && verify_file) {
+    const auto error = gs::verify_output(s.output, output_before);
+    if (!error.empty()) {
+      std::fprintf(stderr, "ERROR: output verification failed: %s: %s\n", s.output.c_str(), error.c_str());
+      rc = 1;
+    }
+  }
+  note("# -> exit code %d\n", rc);
+  return rc;  // honest 0..255
+}

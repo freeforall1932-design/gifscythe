@@ -1,0 +1,584 @@
+// SettingsIO.h - Load/save Gifscythe Settings as a simple flat "key = value"
+// text file. Serialization format the Qt GUI also uses to persist per-file
+// settings and to round-trip state. Qt-independent.
+//
+// Each line is "key = value" or "key=value"; '#' starts a comment. Unknown keys
+// are ignored (forward compatible). The keys map 1:1 onto GifsicleSettings.
+
+#ifndef GIFSCYTHE_CORE_SETTINGS_IO_H
+#define GIFSCYTHE_CORE_SETTINGS_IO_H
+
+#include "GifsicleSettings.h"
+#include "WinUnicode.h"
+#include <cctype>
+#include <charconv>
+#include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <map>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <system_error>
+#include <vector>
+
+#ifdef _WIN32
+#include <fcntl.h>  // _O_RDONLY / _O_BINARY
+#include <io.h>  // _commit / _wopen — durability step of the atomic save
+#else
+#include <fcntl.h>  // open
+#include <unistd.h>  // fsync / close
+#endif
+
+namespace gs {
+
+struct LoadWarning {
+  std::string key;
+  std::string value;
+  std::string reason;
+};
+
+inline std::string lower(std::string s) {
+  for (auto& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  return s;
+}
+inline std::string trim(const std::string& s) {
+  size_t a = s.find_first_not_of(" \t\r\n");
+  if (a == std::string::npos) return "";
+  size_t b = s.find_last_not_of(" \t\r\n");
+  return s.substr(a, b - a + 1);
+}
+
+// Safe parsers: return false on failure and leave *out unchanged.
+inline bool to_long(const std::string& s, long* out) {
+  if (!out) return false;
+  std::istringstream i(trim(s));
+  long v = 0;
+  if (!(i >> v)) return false;
+  // Reject trailing garbage ("40xyz").
+  char extra = 0;
+  if (i >> extra) return false;
+  *out = v;
+  return true;
+}
+inline bool to_double(const std::string& s, double* out) {
+  if (!out) return false;
+  std::istringstream i(trim(s));
+  double v = 0;
+  if (!(i >> v)) return false;
+  char extra = 0;
+  if (i >> extra) return false;
+  *out = v;
+  return true;
+}
+inline bool to_ulong_nonneg(const std::string& s, unsigned* out) {
+  if (!out) return false;
+  long v = 0;
+  if (!to_long(s, &v) || v < 0) return false;
+  *out = static_cast<unsigned>(v);
+  return true;
+}
+
+// Parse DIRECTLY into the destination width (audit GS-206 / fix-order P1-28).
+//
+// Every integer control used to go through `to_long` + `static_cast<int>`. On
+// any host where long is wider than int — which is every Windows build, and
+// every LP64 one — that narrowing was unchecked, so `loopcount = 4294967296`
+// became 0 ("forever") and `threads = 4294967297` became 1. std::from_chars
+// into the destination type instead reports std::errc::result_out_of_range, so
+// the caller can warn and LEAVE THE FIELD ALONE, which is what every other
+// parser in this file does.
+//
+// A leading '+' is stripped first: istringstream accepted it, from_chars does
+// not, and confs are hand-written.
+inline bool to_int_strict(const std::string& s, int* out) {
+  if (!out) return false;
+  std::string t = trim(s);
+  if (!t.empty() && t.front() == '+') t.erase(t.begin());
+  if (t.empty()) return false;
+  int v = 0;
+  const std::from_chars_result r =
+      std::from_chars(t.data(), t.data() + t.size(), v);
+  if (r.ec != std::errc() || r.ptr != t.data() + t.size()) return false;
+  *out = v;
+  return true;
+}
+inline bool to_uint_strict(const std::string& s, unsigned* out) {
+  if (!out) return false;
+  std::string t = trim(s);
+  if (!t.empty() && t.front() == '+') t.erase(t.begin());
+  if (t.empty()) return false;
+  unsigned v = 0;
+  const std::from_chars_result r =
+      std::from_chars(t.data(), t.data() + t.size(), v);
+  if (r.ec != std::errc() || r.ptr != t.data() + t.size()) return false;
+  *out = v;
+  return true;
+}
+
+// Make a string value safe to write on ONE `key = value` line, and make the
+// round trip exact.
+//
+// Audit U-51: the serializer wrote string values verbatim, so a value
+// containing a newline became a new line — and therefore a new KEY. Verified
+// before the fix: a single comment "hi\nmode = merge" round-tripped into
+// `mode = merge`, silently changing the run mode. CR and LF are folded to a
+// space rather than escaped, which keeps the file format (and every existing
+// conf, and the JS mirror) unchanged.
+//
+// Audit DS-12 / fix-order P1-13 was the OTHER half of that, and it stayed a
+// documented "known limitation" for five sessions: the loader trims, so a value
+// with leading or trailing whitespace lost it on reload. A comment typed as
+// "  (draft)  " came back as "(draft)" and every save re-wrote the file
+// differently — which is a real defect for the GUI, whose per-file state keys
+// (`name_template`) round-trip through this same parser.
+//
+// The fix is minimal quoting rather than a format bump:
+//   * quote ONLY when the value would otherwise be lossy — i.e. it has leading
+//     or trailing whitespace, or already starts with a quote — so a value that
+//     round-trips plainly is still written plainly and old confs still parse;
+//   * inside quotes, `\` and `"` are escaped, and the CR/LF folding still runs
+//     first, so U-51's guarantee is unchanged.
+// One documented consequence: a hand-written conf whose value happens to start
+// AND end with `"` is now read as a quoted string, so the quotes are dropped
+// (`comment = "hi"` -> `hi`). That is the price of a self-describing line
+// format; a writer on this branch escapes such values, so files this product
+// writes round-trip exactly.
+inline bool line_value_needs_quotes(const std::string& v) {
+  if (v.empty()) return false;
+  if (v.front() == '"') return true;
+  const char first = v.front(), last = v.back();
+  return first == ' ' || first == '\t' || last == ' ' || last == '\t';
+}
+
+inline std::string encode_line_value(const std::string& v) {
+  std::string flat;
+  flat.reserve(v.size());
+  for (char c : v) flat += (c == '\n' || c == '\r') ? ' ' : c;
+  if (!line_value_needs_quotes(flat)) return flat;
+  std::string out = "\"";
+  for (char c : flat) {
+    if (c == '"' || c == '\\') out += '\\';
+    out += c;
+  }
+  out += '"';
+  return out;
+}
+
+// Undo encode_line_value's quoting in place. Returns false for an unquoted
+// value, which is the overwhelmingly common case (and every pre-S23 conf).
+inline bool decode_line_value(std::string& v) {
+  if (v.size() < 2 || v.front() != '"' || v.back() != '"') return false;
+  std::string out;
+  out.reserve(v.size() - 2);
+  for (size_t i = 1; i + 1 < v.size(); ++i) {
+    const char c = v[i];
+    if (c == '\\' && i + 2 < v.size()) out += v[++i];
+    else out += c;
+  }
+  v = out;
+  return true;
+}
+
+// Recognised boolean spellings: 1/0, true/false, yes/no, on/off (any case).
+// Returns false when `v` is not a boolean at all, leaving *out untouched.
+//
+// Audit U-11: the old parse_bool() mapped anything outside the true-set to
+// false with no warning, so `unoptimize = maybe` and `careful = Trueish`
+// silently turned those options OFF (verified: rc=0, zero warnings, no -U /
+// --careful in the built command) while every numeric parser in this file
+// warns. Booleans now warn exactly like the numbers do.
+inline bool parse_bool_strict(const std::string& v, bool* out) {
+  if (!out) return false;
+  const std::string t = lower(trim(v));
+  if (t == "1" || t == "true" || t == "yes" || t == "on") { *out = true; return true; }
+  if (t == "0" || t == "false" || t == "no" || t == "off") { *out = false; return true; }
+  return false;
+}
+
+// Lenient form, kept for callers that only need a yes/no read.
+inline bool parse_bool(const std::string& v) {
+  const std::string t = lower(trim(v));
+  return t == "1" || t == "true" || t == "yes" || t == "on";
+}
+
+// Apply one "key = value" pair to `s`. Returns TRUE when the key is a known
+// core-Settings key, FALSE when it is not recognised.
+//
+// Audit U-36 / fix-order P3-7: the return value is what lets load_settings()
+// collect UNKNOWN keys (the GUI's own state — `batch_dir`, `name_template`,
+// and anything future versions add) into a caller-supplied map. Before this,
+// the GUI carried its own third parser for the same file format
+// (`guiStateKey` in MainWindow.cpp), which re-opened and re-parsed the file
+// once per GUI key. One parser, one pass, one format.
+inline bool set_field(Settings& s, const std::string& key, const std::string& val,
+                      std::vector<LoadWarning>* warnings = nullptr) {
+  const std::string k = lower(key);
+  // DS-12: trim FIRST (every hand-written conf relies on it) and undo
+  // encode_line_value's quoting on the result. Exactly one place decodes, so a
+  // value can never be un-quoted twice.
+  std::string v = trim(val);
+  decode_line_value(v);
+  auto warn = [&](const std::string& reason) {
+    if (warnings) warnings->push_back(LoadWarning{key, val, reason});
+  };
+  // Integer controls parse into their OWN width (GS-206 / P1-28). The wording
+  // for "not an integer" stays the historical one — smoke tests and the
+  // documented warning contract quote it — and a second, distinct message
+  // covers a value that looks legal but is unrepresentable at this width.
+  auto need_int = [&](int* dest) -> bool {
+    long probe = 0;
+    if (!to_long(v, &probe)) { warn("not an integer"); return false; }
+    int tmp = 0;
+    if (!to_int_strict(v, &tmp)) {
+      warn("outside the range this build can hold in an int; left unchanged");
+      return false;
+    }
+    *dest = tmp;
+    return true;
+  };
+  auto need_bool = [&](bool* dest) -> bool {
+    bool tmp = false;
+    if (!parse_bool_strict(v, &tmp)) {
+      warn("not a boolean (expected true/false, yes/no, on/off or 1/0); left unchanged");
+      return false;
+    }
+    *dest = tmp;
+    return true;
+  };
+  auto need_ulong_nonneg = [&](unsigned* dest) -> bool {
+    long probe = 0;
+    if (!to_long(v, &probe)) { warn("not an integer"); return false; }
+    if (probe < 0) { warn("negative value rejected"); return false; }
+    unsigned tmp = 0;
+    if (!to_uint_strict(v, &tmp)) {
+      warn("outside the range this build can hold in an unsigned; left unchanged");
+      return false;
+    }
+    *dest = tmp;
+    return true;
+  };
+
+  if (k == "mode") {
+    if (v == "merge") s.mode = Mode::Merge;
+    else if (v == "batch") s.mode = Mode::Batch;
+    else if (v == "explode") s.mode = Mode::Explode;
+    else if (v == "auto" || v.empty()) s.mode = Mode::Auto;
+    else { warn("unknown mode"); s.mode = Mode::Auto; }
+  }
+  else if (k == "info") need_bool(&s.info);
+  else if (k == "interlace") need_bool(&s.interlace);
+  else if (k == "flip_horizontal") need_bool(&s.flip_horizontal);
+  else if (k == "flip_vertical") need_bool(&s.flip_vertical);
+  else if (k == "rotation") {
+    if (v == "90") s.rotation = Rotation::R90;
+    else if (v == "180") s.rotation = Rotation::R180;
+    else if (v == "270") s.rotation = Rotation::R270;
+    else if (v == "none" || v == "0" || v.empty()) s.rotation = Rotation::None;
+    else { warn("unknown rotation"); s.rotation = Rotation::None; }
+  }
+  else if (k == "position_x") need_ulong_nonneg(&s.position_x);
+  else if (k == "position_y") need_ulong_nonneg(&s.position_y);
+  else if (k == "crop") need_bool(&s.crop);
+  else if (k == "crop_x") need_ulong_nonneg(&s.crop_x);
+  else if (k == "crop_y") need_ulong_nonneg(&s.crop_y);
+  else if (k == "crop_w") need_ulong_nonneg(&s.crop_w);
+  else if (k == "crop_h") need_ulong_nonneg(&s.crop_h);
+  else if (k == "crop_transparency") need_bool(&s.crop_transparency);
+  else if (k == "delay") {
+    int tmp = 0;
+    if (need_int(&tmp)) s.delay_cs = tmp;
+  }
+  else if (k == "disposal") {
+    int tmp = 0;
+    if (need_int(&tmp)) s.disposal = tmp;
+  }
+  else if (k == "loopcount") {
+    int tmp = 0;
+    if (need_int(&tmp)) s.loopcount = tmp;
+  }
+  else if (k == "optimize") {
+    int tmp = 0;
+    if (need_int(&tmp)) s.optimize_level = tmp;
+  }
+  else if (k == "unoptimize") need_bool(&s.unoptimize);
+  else if (k == "threads") {
+    int tmp = 0;
+    if (need_int(&tmp)) s.threads = tmp;
+  }
+  else if (k == "colors") {
+    int tmp = 0;
+    if (need_int(&tmp)) s.color_count = tmp;
+  }
+  else if (k == "dither") {
+    // Accept bool OR method name.
+    const std::string lv = lower(v);
+    if (lv == "1" || lv == "true" || lv == "yes" || lv == "on") {
+      s.dither = true;
+    } else if (lv == "0" || lv == "false" || lv == "no" || lv == "off" || lv == "none") {
+      s.dither = false;
+      s.dither_method.clear();
+    } else {
+      s.dither = true;
+      s.dither_method = v;
+    }
+  }
+  else if (k == "dither_method") s.dither_method = v;
+  else if (k == "lossy") {
+    int tmp = 0;
+    if (need_int(&tmp)) s.lossy = tmp;
+  }
+  else if (k == "gamma") {
+    // Prefer string form so srgb|oklab work; also try numeric.
+    s.gamma_str = v;
+    double d = 0;
+    if (to_double(v, &d)) s.gamma = d;
+    else s.gamma = -1.0;
+  }
+  else if (k == "color_method") s.color_method = v;
+  else if (k == "careful") need_bool(&s.careful);
+  else if (k == "resize_kind") {
+    if (v == "fit") s.resize_kind = ResizeKind::Fit;
+    else if (v == "touch") s.resize_kind = ResizeKind::Touch;
+    else if (v == "exact") s.resize_kind = ResizeKind::Exact;
+    else if (v == "scale") s.resize_kind = ResizeKind::Scale;
+    else if (v == "width") s.resize_kind = ResizeKind::Width;
+    else if (v == "height") s.resize_kind = ResizeKind::Height;
+    else if (v == "none" || v.empty()) s.resize_kind = ResizeKind::None;
+    else { warn("unknown resize_kind"); s.resize_kind = ResizeKind::None; }
+  }
+  else if (k == "resize_w") need_ulong_nonneg(&s.resize_w);
+  else if (k == "resize_h") need_ulong_nonneg(&s.resize_h);
+  else if (k == "scale_x") {
+    double d = 0;
+    if (to_double(v, &d)) s.scale_x = d; else warn("not a number");
+  }
+  else if (k == "scale_y") {
+    double d = 0;
+    if (to_double(v, &d)) s.scale_y = d; else warn("not a number");
+  }
+  else if (k == "resize_method") s.resize_method = v;
+  else if (k == "background") s.background = v;
+  else if (k == "transparent") s.transparent = v;
+  else if (k == "remove_comments") need_bool(&s.remove_comments);
+  else if (k == "remove_names") need_bool(&s.remove_names);
+  else if (k == "remove_extensions") need_bool(&s.remove_extensions);
+  else if (k == "comment") s.comments.push_back(v);
+  else if (k == "input") s.inputs.push_back(v);
+  else if (k == "output") s.output = v;
+  else if (k == "explode_by_name") need_bool(&s.explode_by_name);
+  else return false;
+  return true;
+}
+
+inline Settings load_settings(std::istream& in, std::vector<LoadWarning>* warnings = nullptr,
+                              std::map<std::string, std::string>* extra_keys = nullptr) {
+  Settings s;
+  std::string line;
+  bool saw_position_x = false;
+  bool saw_position_y = false;
+  bool valid_position_x = false;
+  bool valid_position_y = false;
+  while (std::getline(in, line)) {
+    std::string t = trim(line);
+    if (t.empty() || t[0] == '#') continue;
+    size_t eq = t.find('=');
+    if (eq == std::string::npos) continue;
+    std::string key = trim(t.substr(0, eq));
+    std::string val = trim(t.substr(eq + 1));
+    if (key.empty()) continue;
+    const std::string lk = lower(key);
+    unsigned parsed_position = 0;
+    if (lk == "position_x") {
+      saw_position_x = true;
+      valid_position_x = to_ulong_nonneg(val, &parsed_position);
+    } else if (lk == "position_y") {
+      saw_position_y = true;
+      valid_position_y = to_ulong_nonneg(val, &parsed_position);
+    }
+    // Unknown keys stay ignored for the core Settings (forward compatible),
+    // but when a caller asks, they are collected here — lowercased key,
+    // trimmed value, last occurrence wins (same override semantics as the
+    // known keys). This is the GUI's `batch_dir` / `name_template` channel
+    // (audit U-36: it used to re-parse the file with its own third parser).
+    if (!set_field(s, key, val, warnings)) {
+      // An unknown key is the GUI's channel (batch_dir, name_template). It
+      // bypasses set_field, so its quoting is undone here instead.
+      decode_line_value(val);
+      if (extra_keys) (*extra_keys)[lk] = val;
+    }
+  }
+  // -p takes BOTH halves. A conf that sets only one coordinate, or sets both
+  // keys but fails to parse one of them, must not leave a half-live `-p X,0`
+  // behind (audit U-33 / U-53). Enable the pair only when BOTH keys were seen
+  // and BOTH conversions succeeded; otherwise drop the pair and say so once.
+  if (saw_position_x || saw_position_y) {
+    if (saw_position_x && saw_position_y && valid_position_x && valid_position_y) {
+      s.has_position = true;
+    } else {
+      if (warnings) {
+        warnings->push_back(LoadWarning{
+            (saw_position_x && saw_position_y) ? "position" : (saw_position_x ? "position_x" : "position_y"),
+            (saw_position_x && saw_position_y) ? "(incomplete or invalid pair)" : "(set without its pair)",
+            "position needs both position_x and position_y; the pair was ignored"});
+      }
+      s.has_position = false;
+      s.position_x = 0;
+      s.position_y = 0;
+    }
+  }
+  return s;
+}
+
+// Returns nullopt if the file cannot be opened (does NOT silently return defaults).
+inline std::optional<Settings> load_settings_file(const std::string& path,
+                                                   std::vector<LoadWarning>* warnings = nullptr,
+                                                   std::map<std::string, std::string>* extra_keys = nullptr) {
+  std::ifstream f(u8path_compat(path));  // UTF-8-safe open on Windows (U-07)
+  if (!f) return std::nullopt;
+  return load_settings(f, warnings, extra_keys);
+}
+
+// Exact inverse of load_settings — same keys, enums → strings.
+inline void save_settings(std::ostream& out, const Settings& s) {
+  out << "# Gifscythe settings\n";
+
+  switch (s.mode) {
+    case Mode::Merge:   out << "mode = merge\n"; break;
+    case Mode::Batch:   out << "mode = batch\n"; break;
+    case Mode::Explode: out << "mode = explode\n"; break;
+    case Mode::Auto:    out << "mode = auto\n"; break;
+  }
+  if (s.info) out << "info = true\n";
+  if (s.interlace) out << "interlace = true\n";
+  if (s.flip_horizontal) out << "flip_horizontal = true\n";
+  if (s.flip_vertical) out << "flip_vertical = true\n";
+  switch (s.rotation) {
+    case Rotation::R90:  out << "rotation = 90\n"; break;
+    case Rotation::R180: out << "rotation = 180\n"; break;
+    case Rotation::R270: out << "rotation = 270\n"; break;
+    case Rotation::None: break;
+  }
+  if (s.has_position) {
+    out << "position_x = " << s.position_x << "\n";
+    out << "position_y = " << s.position_y << "\n";
+  }
+  if (s.crop) {
+    out << "crop = true\n";
+    out << "crop_x = " << s.crop_x << "\n";
+    out << "crop_y = " << s.crop_y << "\n";
+    out << "crop_w = " << s.crop_w << "\n";
+    out << "crop_h = " << s.crop_h << "\n";
+    if (s.crop_transparency) out << "crop_transparency = true\n";
+  }
+  if (s.delay_cs >= 0) out << "delay = " << s.delay_cs << "\n";
+  if (s.disposal >= 0) out << "disposal = " << s.disposal << "\n";
+  // loopcount has THREE non-default states (-2 play once, 0 forever, N) and
+  // only -1 means "write nothing", so the guard is != unset rather than >= 0.
+  // (U-63 / P1-40: with >= 0 the new play-once value could not survive a save.)
+  if (s.loopcount != GS_LOOPCOUNT_UNSET) out << "loopcount = " << s.loopcount << "\n";
+  if (s.optimize_level >= 0) out << "optimize = " << s.optimize_level << "\n";
+  if (s.unoptimize) out << "unoptimize = true\n";
+  // threads is written for every value >= 0 so that 0 ("Auto") survives a
+  // save/load round trip instead of collapsing back to the -1 default. Since
+  // P0-2 those two states are DIFFERENT (0 = bare -j = 8 threads, -1 = no flag
+  // = the engine's single-threaded default), so the guard is not cosmetic:
+  // dropping the line would silently change how a saved run executes.
+  if (s.threads >= 0) out << "threads = " << s.threads << "\n";
+  if (s.color_count >= 0) out << "colors = " << s.color_count << "\n";
+  if (!s.dither_method.empty()) out << "dither = " << encode_line_value(s.dither_method) << "\n";
+  else if (s.dither) out << "dither = true\n";
+  if (s.lossy >= 0) out << "lossy = " << s.lossy << "\n";
+  if (!s.gamma_str.empty()) out << "gamma = " << encode_line_value(s.gamma_str) << "\n";
+  else if (s.gamma >= 0) out << "gamma = " << s.gamma << "\n";
+  if (!s.color_method.empty()) out << "color_method = " << encode_line_value(s.color_method) << "\n";
+  if (s.careful) out << "careful = true\n";
+  switch (s.resize_kind) {
+    case ResizeKind::Fit:    out << "resize_kind = fit\n"; break;
+    case ResizeKind::Touch:  out << "resize_kind = touch\n"; break;
+    case ResizeKind::Exact:  out << "resize_kind = exact\n"; break;
+    case ResizeKind::Scale:  out << "resize_kind = scale\n"; break;
+    case ResizeKind::Width:  out << "resize_kind = width\n"; break;
+    case ResizeKind::Height: out << "resize_kind = height\n"; break;
+    case ResizeKind::None: break;
+  }
+  if (s.resize_w) out << "resize_w = " << s.resize_w << "\n";
+  if (s.resize_h) out << "resize_h = " << s.resize_h << "\n";
+  if (s.resize_kind == ResizeKind::Scale) {
+    out << "scale_x = " << s.scale_x << "\n";
+    out << "scale_y = " << s.scale_y << "\n";
+  }
+  if (!s.resize_method.empty()) out << "resize_method = " << encode_line_value(s.resize_method) << "\n";
+  if (!s.background.empty()) out << "background = " << encode_line_value(s.background) << "\n";
+  if (!s.transparent.empty()) out << "transparent = " << encode_line_value(s.transparent) << "\n";
+  if (s.remove_comments) out << "remove_comments = true\n";
+  if (s.remove_names) out << "remove_names = true\n";
+  if (s.remove_extensions) out << "remove_extensions = true\n";
+  for (const auto& c : s.comments) out << "comment = " << encode_line_value(c) << "\n";
+  for (const auto& in : s.inputs) out << "input = " << encode_line_value(in) << "\n";
+  if (!s.output.empty()) out << "output = " << encode_line_value(s.output) << "\n";
+  if (s.explode_by_name) out << "explode_by_name = true\n";
+}
+
+// Atomic save (audit U-16 / fix-order P1-18). The old form — `std::ofstream
+// f(path)` (Truncate) + write — destroys the previous file BEFORE the new
+// bytes exist: a crash, a full disk or a yanked USB stick mid-write left a
+// truncated or empty conf, and the next launch quietly loaded that as "the
+// settings". Now: write a sibling temp file, flush + fsync it, then rename
+// over the target. rename() is atomic on POSIX, and std::filesystem::rename
+// maps to MoveFileExW(MOVEFILE_REPLACE_EXISTING) on Windows, so a concurrent
+// or next-session reader sees either the OLD file or the COMPLETE new one —
+// never a mix, never nothing.
+//
+// The temp name is deterministic (`path + ".tmp"`) rather than random: one
+// process owns the conf (single GUI instance / single CLI invocation), and a
+// fixed name keeps any stray from a hard-killed writer findable. The fsync is
+// best-effort by design — if it fails (a filesystem that does not support it)
+// the save still succeeds, because the rename is the atomicity guarantee and
+// the fsync is only the power-loss refinement.
+inline bool save_settings_file(const std::string& path, const Settings& s) {
+  if (path.empty()) return false;
+  const std::string tmp = path + ".tmp";
+  {
+    std::ofstream f(u8path_compat(tmp), std::ios::binary | std::ios::trunc);
+    if (!f) return false;
+    save_settings(f, s);
+    f.flush();
+    if (!f) {  // write or flush failed — remove the stray, keep the original
+      f.close();
+      std::error_code rm;
+      std::filesystem::remove(u8path_compat(tmp), rm);
+      return false;
+    }
+    f.close();
+  }
+  // Durability before visibility: push the temp file's bytes to stable
+  // storage, then make them the target in one atomic step.
+#ifdef _WIN32
+  // Windows opens the temp file WIDE: narrow fopen would go through the ACP
+  // and miss a non-ASCII conf path (audit U-07). POSIX keeps fopen+fsync.
+  const int fd = ::_wopen(u8path_compat(tmp).c_str(), _O_RDONLY | _O_BINARY);
+  if (fd != -1) {
+    ::_commit(fd);
+    ::_close(fd);
+  }
+#else
+  if (std::FILE* fh = std::fopen(tmp.c_str(), "rb")) {
+    int fd = fileno(fh);
+    if (fd >= 0) ::fsync(fd);
+    std::fclose(fh);
+  }
+#endif
+  std::error_code ec;
+  std::filesystem::rename(u8path_compat(tmp), u8path_compat(path), ec);
+  if (ec) {
+    std::error_code rm;
+    std::filesystem::remove(u8path_compat(tmp), rm);
+    return false;
+  }
+  return true;
+}
+
+}  // namespace gs
+
+#endif  // GIFSCYTHE_CORE_SETTINGS_IO_H

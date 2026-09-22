@@ -1,0 +1,1664 @@
+// test_gui_offscreen.cpp - Automated GUI verification for COMPILED_AUDIT §6.B
+// + the 2026-09-07 UI retrofit (tabs / full controls / async preview).
+//
+// Runs the real MainWindow under QT_QPA_PLATFORM=offscreen:
+//   T1  defaults: Batch default (E4), engine status (B14), tabs exist
+//   T2  live command pane sync (B13)
+//   T3  queue ops: drop-append+dedupe (B6/B7), multi-select remove (B8),
+//       clear (B9), count/size label
+//   T4  Batch run: N inputs -> N outputs, frame counts preserved (B10);
+//       explicit Save-as honored (E1)
+//   T5  Merge run: 2 inputs -> 1 output, frames = sum (B11)
+//   T6  Merge with empty output -> refuses, no silent stdout loss (B12)
+//   T7  Explode with empty output -> auto prefix, frames written (E2);
+//       rc=0 + zero frames (lying engine) is REFUSED, prefix named (U-17)
+//   T8  Failed engine run -> honest "failed" status + dialog (B4)
+//   T9  async start (B1 proxy), busy indicators (B3), cancel mid-run (B2)
+//   T10 close window while running kills the engine process (B15)
+//   T11 Actions-tab controls map to the right gifsicle flags (S3-4 /
+//       U-MISS-13) incl. VP-1 loopcount=0, VP-2 -O0, VP-5 crop plus-form,
+//       E7 delay unit label (1/100 s, never ms)
+//   T12 before/after preview pipeline: debounced, async, honest captions,
+//       savings display, Explode-mode refusal (S3-7)
+//   T13 Output tab: batch folder honored; summary honest
+//   T14 settings persistence (S7): close saves, relaunch restores (Actions
+//       state + batch dir + name template); queue/Save-as NOT restored;
+//       corrupt file -> defaults + honest warning status
+//   T15 queue reorder (S3-9): move up/down keeps list+model in sync,
+//       selection follows, bounds are no-ops, merge order = queue order
+//   T17 batch output planning (audit U-01): duplicate targets and
+//       target-equals-source are planned up front and REFUSED
+//   T16 naming templates (S3-25): default renders <name>_opt.gif (E4),
+//       custom template in pane + E2E, separator escape stripped,
+//       constant-template multi-file collision REFUSED with dialog
+//   T18 busy output-group lock (audit U-45/U-35, P1-23/P1-22): both Browse
+//       buttons lock during a run, a mid-run destination edit cannot
+//       redirect the planned outputs, the group unlocks afterwards and Run
+//       re-enables only through the engine re-check
+//   T19 persistence honesty (audit U-16/U-36/U-37, P1-18/P3-7/P3-8): the
+//       atomic save leaves exactly one file (no .tmp strays), the GUI keys
+//       round-trip through the core parser's unknown-key channel, and
+//       unavailable persistence is noted in the status bar instead of silence
+//   T20 preview invalidation + temp-file hygiene (audit U-34/U-47, P1-10):
+//       clearing the queue or switching to Explode invalidates the in-flight
+//       preview, and superseded/stale preview files are swept from the
+//       temp dir instead of leaking for the session
+//
+// Modal dialogs are recorded and auto-closed by a DialogKiller timer.
+// Widget lookup is by objectName (stable against layout changes).
+
+#include "qtui/MainWindow.h"
+#include "qtui/DropListWidget.h"
+#include "qtui/PreviewPanel.h"
+#include "qtui/SettingsPanel.h"
+
+#include "core/EngineLocator.h"
+#include "core/ProcessRunner.h"
+#include "core/version.h"
+
+#include <QApplication>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDir>
+#include <QDoubleSpinBox>
+#include <QElapsedTimer>
+#include <QFile>
+#include <QFileInfo>
+#include <QIODevice>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListWidgetItem>
+#include <QMessageBox>
+#include <QMimeData>
+#include <QMovie>
+#include <QPlainTextEdit>
+#include <QProcess>
+#include <QProgressBar>
+#include <QPushButton>
+#include <QRegularExpression>
+#include <QSpinBox>
+#include <QStandardPaths>
+#include <QTabWidget>
+#include <QTemporaryDir>
+#include <QThread>
+#include <QTimer>
+#include <QUrl>
+
+#include <chrono>
+#include <cstdio>
+#include <filesystem>
+#include <thread>
+#include <string>
+#include <vector>
+
+namespace fs = std::filesystem;
+
+namespace {
+
+int g_checks = 0;
+int g_failures = 0;
+
+void check(bool cond, const char* what, int line) {
+  ++g_checks;
+  if (!cond) {
+    ++g_failures;
+    std::printf("  FAIL (line %d): %s\n", line, what);
+  }
+}
+#define CHECK(cond) check((cond), #cond, __LINE__)
+#define CHECK_MSG(cond, msg) check((cond), msg, __LINE__)
+
+// ---- DialogKiller: record + close any modal dialog so tests never block ----
+std::vector<QString> g_dialogs;
+
+class DialogKiller : public QObject {
+ public:
+  explicit DialogKiller(QObject* parent = nullptr) : QObject(parent) {
+    connect(&timer_, &QTimer::timeout, this, &DialogKiller::sweep);
+    timer_.start(25);
+  }
+  void sweep() {
+    QWidget* m = qApp->activeModalWidget();
+    if (!m) return;
+    if (auto* mb = qobject_cast<QMessageBox*>(m)) {
+      g_dialogs.push_back(mb->text() + QStringLiteral(" | ") + mb->informativeText());
+    } else {
+      g_dialogs.push_back(m->windowTitle());
+    }
+    m->close();
+  }
+  QTimer timer_;
+};
+
+bool dialogsContain(const QString& needle) {
+  for (const auto& d : g_dialogs)
+    if (d.contains(needle, Qt::CaseInsensitive)) return true;
+  return false;
+}
+
+// ---- objectName-based widget lookup ----
+template <class T>
+T* byName(QWidget* w, const char* name) {
+  return w->findChild<T*>(QString::fromLatin1(name));
+}
+
+struct Widgets {
+  DropListWidget* list = nullptr;
+  QPlainTextEdit* pane = nullptr;
+  QComboBox* mode = nullptr;
+  QSpinBox* optimize = nullptr;
+  QSpinBox* lossy = nullptr;
+  QLineEdit* output = nullptr;
+  QLineEdit* batchDir = nullptr;
+  QPushButton* run = nullptr;
+  QPushButton* cancel = nullptr;
+  QPushButton* remove = nullptr;
+  QPushButton* clear = nullptr;
+  QLabel* status = nullptr;
+  QProgressBar* progress = nullptr;
+  QProcess* process = nullptr;         // main engine run
+  QTabWidget* tabs = nullptr;
+  QLabel* countLabel = nullptr;
+  QLabel* outputSummary = nullptr;
+  QLabel* previewCaption = nullptr;
+  QLabel* previewSavings = nullptr;
+  QLabel* previewBefore = nullptr;
+  QLabel* previewAfter = nullptr;
+};
+
+Widgets findWidgets(QWidget* w) {
+  Widgets x;
+  x.list = byName<DropListWidget>(w, "queueList");
+  x.pane = byName<QPlainTextEdit>(w, "commandPane");
+  x.mode = byName<QComboBox>(w, "modeCombo");
+  x.optimize = byName<QSpinBox>(w, "optimizeSpin");
+  x.lossy = byName<QSpinBox>(w, "lossySpin");
+  x.output = byName<QLineEdit>(w, "outputEdit");
+  x.batchDir = byName<QLineEdit>(w, "batchDirEdit");
+  x.run = byName<QPushButton>(w, "runButton");
+  x.cancel = byName<QPushButton>(w, "cancelButton");
+  x.remove = byName<QPushButton>(w, "removeButton");
+  x.clear = byName<QPushButton>(w, "clearButton");
+  x.status = byName<QLabel>(w, "statusLabel");
+  x.progress = byName<QProgressBar>(w, "progressBar");
+  x.process = byName<QProcess>(w, "engineProcess");
+  x.tabs = byName<QTabWidget>(w, "mainTabs");
+  x.countLabel = byName<QLabel>(w, "queueCountLabel");
+  x.outputSummary = byName<QLabel>(w, "outputSummary");
+  x.previewCaption = byName<QLabel>(w, "previewCaption");
+  x.previewSavings = byName<QLabel>(w, "previewSavings");
+  x.previewBefore = byName<QLabel>(w, "previewBefore");
+  x.previewAfter = byName<QLabel>(w, "previewAfter");
+  return x;
+}
+
+bool waitForStatus(QWidget* w, const QString& needle, int timeoutMs = 45000) {
+  QElapsedTimer el;
+  el.start();
+  while (el.elapsed() < timeoutMs) {
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    QThread::msleep(2);
+    auto* st = byName<QLabel>(w, "statusLabel");
+    if (st && st->text().contains(needle, Qt::CaseInsensitive)) return true;
+  }
+  return false;
+}
+
+// Wait until a label's text contains needle (or timeout).
+bool waitForLabel(QLabel* label, const QString& needle, int timeoutMs = 25000) {
+  if (!label) return false;
+  QElapsedTimer el;
+  el.start();
+  while (el.elapsed() < timeoutMs) {
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    QThread::msleep(2);
+    if (label->text().contains(needle, Qt::CaseInsensitive)) return true;
+  }
+  return false;
+}
+
+void spinEvents(int ms) {
+  QElapsedTimer el;
+  el.start();
+  while (el.elapsed() < ms) {
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    QThread::msleep(2);
+  }
+}
+
+// ---- File / engine helpers ----
+QString g_engine;
+QString g_refDir;
+
+QString findRefDir() {
+  const fs::path exe = QCoreApplication::applicationFilePath().toStdString();
+  const fs::path dir = exe.parent_path();
+  std::vector<fs::path> cands;
+  if (const char* env = std::getenv("GS_TEST_REF_DIR")) cands.emplace_back(env);
+  cands.push_back(dir / ".." / ".." / "reference_code" / "gifsicle");
+  cands.push_back(dir / ".." / ".." / ".." / "reference_code" / "gifsicle");
+  cands.push_back(dir / ".." / "reference_code" / "gifsicle");
+  for (const auto& c : cands) {
+    std::error_code ec;
+    if (fs::exists(c / "logo.gif", ec)) return QString::fromStdString(fs::weakly_canonical(c, ec).string());
+  }
+  return {};
+}
+
+bool copyFile(const QString& src, const QString& dst) {
+  QFile::remove(dst);
+  return QFile::copy(src, dst);
+}
+
+int frameCount(const QString& file) {
+  QProcess p;
+  p.start(g_engine, {QStringLiteral("--info"), file});
+  if (!p.waitForStarted(15000)) return -1;
+  if (!p.waitForFinished(60000)) { p.kill(); return -1; }
+  const QString out = QString::fromUtf8(p.readAllStandardOutput())
+                    + QString::fromUtf8(p.readAllStandardError());
+  static const QRegularExpression re(QStringLiteral("(\\d+) images?"));
+  const auto m = re.match(out);
+  return m.hasMatch() ? m.captured(1).toInt() : -1;
+}
+
+bool makeBigGif(const QString& src, const QString& dest, int copies) {
+  QStringList args;
+  for (int i = 0; i < copies; ++i) args << src;
+  args << QStringLiteral("-o") << dest;
+  QProcess p;
+  p.start(g_engine, args);
+  if (!p.waitForStarted(15000)) return false;
+  if (!p.waitForFinished(180000)) { p.kill(); return false; }
+  return p.exitCode() == 0 && QFileInfo::exists(dest);
+}
+
+// Deliver files to the queue the way a drop would.
+//
+// Note: Qt only dispatches QDropEvents to widgets while a real platform
+// drag session is active, so the harness emits DropListWidget::filesDropped —
+// the exact signal the drop handler emits (see audit §6.B B6 note).
+void dropFiles(QWidget* w, const QStringList& files) {
+  auto* list = byName<DropListWidget>(w, "queueList");
+  list->filesDropped(files);  // signals are public in Qt5+
+  QCoreApplication::processEvents();
+}
+
+MainWindow* makeWindow() {
+  auto* w = new MainWindow();
+  w->show();  // offscreen: makes isVisible() meaningful for progress bar etc.
+  QCoreApplication::processEvents();
+  return w;
+}
+
+// Path stored in a queue row (display text now carries size info).
+QString rowPath(DropListWidget* list, int row) {
+  auto* item = list->item(row);
+  return item ? item->data(Qt::UserRole).toString() : QString();
+}
+
+}  // namespace
+
+// Stage tracker + watchdog: on Windows CI the harness once hung with ZERO
+// output before its first printf (run #20). The watchdog thread starts
+// before QApplication exists, so even a hang inside platform-plugin init
+// reports where we got stuck, then exits 124 instead of burning CI hours.
+static std::string g_stage = "process start";
+
+int main(int argc, char** argv) {
+  setbuf(stdout, nullptr);  // unbuffered: crash diagnostics keep our trace
+  setvbuf(stderr, nullptr, _IONBF, 0);
+  std::thread watchdog([] {
+    std::this_thread::sleep_for(std::chrono::seconds(480));
+    std::fprintf(stderr, "[harness] WATCHDOG (8 min): stuck at stage: %s\n",
+                 g_stage.c_str());
+    std::fflush(stderr);
+    _exit(124);
+  });
+  watchdog.detach();
+
+  g_stage = "constructing QApplication (platform plugin init)";
+  qputenv("QT_QPA_PLATFORM", "offscreen");  // force offscreen even if unset
+  QApplication app(argc, argv);
+  // S7: isolate session persistence from the real user config dir — every
+  // window in this run shares one scratch settings file (T14 manages its own
+  // GS_SETTINGS_PATH and restores this one). Intentional leak: lives for the
+  // whole run, process exit cleans up.
+  static QTemporaryDir* g_cfgHome = new QTemporaryDir();
+  if (g_cfgHome->isValid()) {
+    qputenv("GS_SETTINGS_PATH",
+            QFile::encodeName(g_cfgHome->path() + QStringLiteral("/gifscythe.conf")));
+  }
+  g_stage = "DialogKiller + header print";
+  DialogKiller killer;
+
+  std::printf("==> GUI offscreen tests (COMPILED_AUDIT 6.B + retrofit harness)\n");
+  g_stage = "engine/ref discovery";
+
+  g_engine = QString::fromStdString(
+      gs::locate_engine(QCoreApplication::applicationFilePath().toStdString()));
+  if (!gs::path_is_executable(g_engine.toStdString())) {
+    std::printf("FATAL: gifsicle engine not found (tried from %s). "
+                "Run ./build.sh first or set GS_ENGINE.\n",
+                qPrintable(QCoreApplication::applicationFilePath()));
+    return 1;
+  }
+  g_refDir = findRefDir();
+  if (g_refDir.isEmpty()) {
+    std::printf("FATAL: reference_code/gifsicle not found (set GS_TEST_REF_DIR).\n");
+    return 1;
+  }
+  std::printf("  engine: %s\n  refs:   %s\n", qPrintable(g_engine), qPrintable(g_refDir));
+
+  const QString logo = g_refDir + QStringLiteral("/logo.gif");    // 12 frames
+  const QString logo1 = g_refDir + QStringLiteral("/logo1.gif");  // 1 frame
+
+  // ================= T1: defaults (E4, B14, tabs) ========================
+  {
+    g_stage = "T1"; std::printf("== T1 defaults + tabs ==\n");
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    CHECK(x.list && x.pane && x.mode && x.optimize && x.lossy && x.output &&
+          x.run && x.cancel && x.remove && x.clear && x.progress && x.process &&
+          x.tabs && x.countLabel && x.outputSummary && x.previewCaption);
+    // S7 additions: reorder buttons + naming template (default = historical
+    // <name>_opt.gif behavior, audit E4).
+    CHECK(byName<QPushButton>(w, "moveUpButton") != nullptr);
+    CHECK(byName<QPushButton>(w, "moveDownButton") != nullptr);
+    auto* tmplEdit = byName<QLineEdit>(w, "nameTemplateEdit");
+    CHECK(tmplEdit && tmplEdit->text() == QStringLiteral("{name}_opt.gif"));
+    if (x.tabs) {
+      CHECK(x.tabs->count() == 3);
+      CHECK(x.tabs->tabText(0) == QStringLiteral("Input"));
+      CHECK(x.tabs->tabText(1) == QStringLiteral("Actions"));
+      CHECK(x.tabs->tabText(2) == QStringLiteral("Output"));
+    }
+    if (x.mode) {
+      CHECK(x.mode->currentIndex() == 0);
+      CHECK(x.mode->currentData().toInt() == static_cast<int>(gs::Mode::Batch));  // E4
+    }
+    if (x.status) {
+      CHECK(x.status->text().contains(QStringLiteral("engine"), Qt::CaseInsensitive));  // B14
+      CHECK(x.status->text().contains(g_engine));
+    }
+    if (x.run) CHECK(!x.run->isEnabled());  // empty queue -> Run disabled (B14)
+    CHECK(w->windowTitle().contains(QStringLiteral(GS_VERSION)));  // A5 in-GUI
+    delete w;
+  }
+
+  // ================= T2: live command pane sync (B13) ====================
+  {
+    g_stage = "T2"; std::printf("== T2 live pane ==\n");
+    QTemporaryDir tmp;
+    CHECK(tmp.isValid());
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a});
+    spinEvents(50);
+    QString pane = x.pane->toPlainText();
+    CHECK(pane.contains(QStringLiteral("-O3")));            // optimize default
+    CHECK(pane.contains(a));                                 // input present
+    CHECK(pane.contains(gs::shell_quote(g_engine.toStdString()).c_str()));
+    // Batch runs one per-file Auto command — never a single "-b …" line.
+    CHECK(!pane.contains(QStringLiteral(" -b ")));
+    CHECK(pane.contains(QStringLiteral("a_opt.gif")));       // real derived output
+
+    x.optimize->setValue(2);
+    spinEvents(20);
+    CHECK(x.pane->toPlainText().contains(QStringLiteral("-O2")));
+
+    x.lossy->setValue(40);
+    spinEvents(20);
+    CHECK(x.pane->toPlainText().contains(QStringLiteral("--lossy=40")));
+
+    x.mode->setCurrentIndex(1);  // Merge
+    spinEvents(20);
+    CHECK(x.pane->toPlainText().contains(QStringLiteral("-m")));
+
+    const QString spaced = tmp.path() + QStringLiteral("/dir with space/out.gif");
+    x.output->setText(spaced);
+    spinEvents(20);
+    pane = x.pane->toPlainText();
+    CHECK_MSG(pane.contains(QLatin1Char('\'')), "space path is shell-quoted in pane");
+    CHECK(pane.contains(QStringLiteral("dir with space")));
+
+    x.mode->setCurrentIndex(0);  // back to Batch
+    delete w;
+  }
+
+  // ================= T3: queue ops (B6/B7/B8/B9) =========================
+  {
+    g_stage = "T3"; std::printf("== T3 queue ops ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    const QString b = tmp.path() + QStringLiteral("/b.gif");
+    const QString c = tmp.path() + QStringLiteral("/c.gif");
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+    CHECK(copyFile(logo, c));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+
+    dropFiles(w, {a, b});  // B6: drop appends
+    CHECK(x.list->count() == 2);
+    dropFiles(w, {a, c});  // B7: duplicate a ignored, c appended
+    CHECK(x.list->count() == 3);
+    CHECK(rowPath(x.list, 2) == c);
+    if (auto* it = x.list->item(2)) {
+      CHECK(it->text().startsWith(QStringLiteral("c.gif")));  // "name — size" format
+    } else { CHECK_MSG(false, "item(2) exists after dedupe drop"); }
+    CHECK(x.run->isEnabled());
+    CHECK_MSG(x.countLabel->text().contains(QStringLiteral("3 file")),
+              "count label shows 3 files");
+
+    // B8: multi-select remove keeps indices consistent
+    if (x.list->count() == 3) {
+      x.list->item(0)->setSelected(true);
+      x.list->item(2)->setSelected(true);
+      x.remove->click();
+      spinEvents(20);
+      CHECK(x.list->count() == 1);
+      CHECK(rowPath(x.list, 0) == b);
+    } else {
+      CHECK_MSG(false, "queue has 3 items before multi-remove");
+    }
+
+    // B9: clear empties queue + disables Run
+    x.clear->click();
+    spinEvents(20);
+    CHECK(x.list->count() == 0);
+    CHECK(!x.run->isEnabled());
+    CHECK(x.countLabel->text().contains(QStringLiteral("0 file")));
+    delete w;
+  }
+
+  // ================= T4: Batch E2E (B10) + explicit output (E1) ==========
+  {
+    g_stage = "T4"; std::printf("== T4 batch E2E ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");   // 12 frames
+    const QString b = tmp.path() + QStringLiteral("/b.gif");   // 1 frame
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a, b});
+    CHECK(x.mode->currentData().toInt() == static_cast<int>(gs::Mode::Batch));
+
+    QElapsedTimer clickTime;
+    clickTime.start();
+    x.run->click();  // async: must NOT block for the whole run
+    const qint64 clickMs = clickTime.elapsed();
+    CHECK_MSG(clickMs < 3000, "Run click returns fast (no waitForFinished block)");
+
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "batch reports complete");
+    const QString aOut = tmp.path() + QStringLiteral("/a_opt.gif");
+    const QString bOut = tmp.path() + QStringLiteral("/b_opt.gif");
+    CHECK(QFileInfo::exists(aOut));
+    CHECK(QFileInfo::exists(bOut));
+    CHECK(QFileInfo(aOut).size() > 0);
+    CHECK(QFileInfo(bOut).size() > 0);
+    CHECK_MSG(frameCount(aOut) == 12, "batch preserves frame count (a: 12)");
+    CHECK_MSG(frameCount(bOut) == 1, "batch preserves frame count (b: 1)");
+    delete w;
+
+    // E1: single file + explicit Save-as path is honored (not only _opt.gif)
+    QTemporaryDir tmp2;
+    const QString a2 = tmp2.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a2));
+    MainWindow* w2 = makeWindow();
+    auto x2 = findWidgets(w2);
+    dropFiles(w2, {a2});
+    const QString explicitOut = tmp2.path() + QStringLiteral("/my explicit result.gif");
+    x2.output->setText(explicitOut);
+    x2.run->click();
+    CHECK_MSG(waitForStatus(w2, QStringLiteral("complete")), "explicit-output batch completes");
+    CHECK(QFileInfo::exists(explicitOut));
+    CHECK(!QFileInfo::exists(tmp2.path() + QStringLiteral("/a_opt.gif")));
+    delete w2;
+  }
+
+  // ================= T5: Merge E2E (B11) =================================
+  {
+    g_stage = "T5"; std::printf("== T5 merge E2E ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    const QString b = tmp.path() + QStringLiteral("/b.gif");
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a, b});
+    x.mode->setCurrentIndex(1);  // Merge (explicit choice)
+    const QString merged = tmp.path() + QStringLiteral("/merged.gif");
+    x.output->setText(merged);
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "merge reports complete");
+    CHECK(QFileInfo::exists(merged));
+    CHECK_MSG(frameCount(merged) == 13, "merge frame count = 12 + 1");
+    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));  // not batch
+    delete w;
+  }
+
+  // ================= T6: Merge empty output refuses (B12) ================
+  {
+    g_stage = "T6"; std::printf("== T6 merge refuse ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    const QString b = tmp.path() + QStringLiteral("/b.gif");
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a, b});
+    x.mode->setCurrentIndex(1);  // Merge
+    x.output->clear();
+    g_dialogs.clear();
+    x.run->click();
+    spinEvents(120);
+    CHECK_MSG(dialogsContain(QStringLiteral("output")),
+              "merge w/o output warns via dialog");
+    CHECK(x.process->state() == QProcess::NotRunning);  // never started
+    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));
+    CHECK(x.outputSummary->text().contains(QStringLiteral("REQUIRED")));
+    delete w;
+  }
+
+  // ================= T7: Explode auto-prefix (E2) ========================
+  {
+    g_stage = "T7"; std::printf("== T7 explode ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a});
+    x.mode->setCurrentIndex(2);  // Explode
+    x.output->clear();
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "explode reports complete");
+    // gifsicle -e -o <stem>_frame writes <stem>_frame.NNN
+    const QString prefix = tmp.path() + QStringLiteral("/a_frame");
+    CHECK(QFileInfo::exists(prefix + QStringLiteral(".000")));
+    CHECK(QFileInfo::exists(prefix + QStringLiteral(".011")));
+    // U-17: the completion status must carry the VERIFIED frame count
+    // (logo.gif = 12 frames), not just the word "complete".
+    CHECK_MSG(x.status->text().contains(QStringLiteral("12 frame")),
+              "explode completion reports the verified frame count");
+    delete w;
+
+    // ---- N-05: multi-input explode is REFUSED before the engine starts ----
+    // The engine would explode every queued input except the last into the
+    // process CWD (verified: `gifsicle -e a.gif b.gif -o p`, rc=0) and the
+    // U-17 prefix verification would then report the leftover single frame
+    // as "complete". The validate() warning makes runCommand refuse.
+    // (Own temp dir: the happy-path explode above legitimately left
+    // a_frame.* files in tmp.)
+    {
+      QTemporaryDir tmpN;
+      const QString an = tmpN.path() + QStringLiteral("/a.gif");
+      const QString bn = tmpN.path() + QStringLiteral("/b.gif");
+      CHECK(copyFile(logo, an));
+      CHECK(copyFile(logo1, bn));
+      MainWindow* wn = makeWindow();
+      auto xn = findWidgets(wn);
+      dropFiles(wn, {an, bn});
+      xn.mode->setCurrentIndex(2);  // Explode
+      xn.output->clear();
+      g_dialogs.clear();
+      xn.run->click();
+      spinEvents(150);
+      CHECK_MSG(dialogsContain(QStringLiteral("scatters frames")),
+                "multi-input explode refuses with the scattering explanation");
+      CHECK(xn.process->state() == QProcess::NotRunning);  // engine never started
+      CHECK(!QFileInfo::exists(tmpN.path() + QStringLiteral("/a_frame.000")));
+      CHECK(!QFileInfo::exists(tmpN.path() + QStringLiteral("/b_frame.000")));
+      CHECK_MSG(xn.outputSummary->text().contains(QStringLiteral("REFUSED")),
+                "the summary says REFUSED before the click");
+      delete wn;
+    }
+
+    // ---- U-17 (P1-19): rc=0 + ZERO frames written must NOT claim success. ----
+    // The lying engine (tests/fake_engine_exit0.cpp, built next to this
+    // harness) exits 0 without writing anything — the audit's exact repro.
+    // Before the fix this reported "Optimization complete." over an empty
+    // directory; now it must say "No frames produced", surface the prefix in
+    // a dialog, leave no frame files behind, and clear busy honestly.
+    QString fake = QCoreApplication::applicationDirPath()
+                 + QStringLiteral("/fake_engine_exit0");
+#ifdef _WIN32
+    fake += QStringLiteral(".exe");
+#endif
+    CHECK_MSG(QFileInfo::exists(fake),
+              "lying-engine fixture built next to the harness (CMake target fake_engine_exit0)");
+    const QByteArray origEngine = qgetenv("GS_ENGINE");
+    qputenv("GS_ENGINE", QFile::encodeName(fake));
+    {
+      QTemporaryDir tmp2;
+      const QString b = tmp2.path() + QStringLiteral("/b.gif");
+      CHECK(copyFile(logo, b));
+      MainWindow* w2 = makeWindow();  // ctor locates the lying engine via GS_ENGINE
+      auto x2 = findWidgets(w2);
+      // Basename match on purpose: locate_engine() returns NATIVE separators
+      // (backslashes on Windows) while applicationDirPath() uses forward
+      // slashes — a full-path contains() failed only on CI-windows (S11).
+      CHECK_MSG(x2.status->text().contains(QStringLiteral("fake_engine_exit0")),
+                "window picked up the lying engine");
+      dropFiles(w2, {b});
+      x2.mode->setCurrentIndex(2);  // Explode
+      x2.output->clear();
+      g_dialogs.clear();
+      x2.run->click();
+      CHECK_MSG(waitForStatus(w2, QStringLiteral("No frames")),
+                "lying engine (rc=0, 0 frames) is NOT reported complete");
+      CHECK(!QFileInfo::exists(tmp2.path() + QStringLiteral("/b_frame.000")));
+      CHECK_MSG(dialogsContain(QStringLiteral("Explode verification failed")),
+                "the false success is surfaced as a dialog naming the rule");
+      CHECK_MSG(dialogsContain(QStringLiteral("b_frame")),
+                "the dialog names the exact prefix searched");
+      CHECK(x2.process->state() == QProcess::NotRunning);
+      CHECK(x2.run->isEnabled());   // busy cleared honestly
+      CHECK(!x2.cancel->isEnabled());
+      delete w2;
+    }
+    if (origEngine.isNull()) qunsetenv("GS_ENGINE");
+    else qputenv("GS_ENGINE", origEngine);
+  }
+
+  // ================= T8: failed run is honest (B4) =======================
+  {
+    g_stage = "T8"; std::printf("== T8 failure honesty ==\n");
+    QTemporaryDir tmp;
+    // The engine must fail, so the file has to exist and be readable — the
+    // drop filter (audit U-13) is now ".gif" AND exists, so a merely
+    // nonexistent path can no longer be used to reach the failure path.
+    const QString ghost = tmp.path() + QStringLiteral("/ghost.gif");
+    {
+      QFile f(ghost);
+      CHECK(f.open(QIODevice::WriteOnly));
+      f.write("this is not a GIF file at all\n");
+      f.close();
+    }
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {ghost});  // exists + .gif suffix passes the drop filter
+    CHECK(x.list->count() == 1);
+
+    // U-13 regression: the filter used to be `endsWith(".gif") || exists(f)`,
+    // which queued ANY existing file (.exe, .jpg, .txt) and let it fail only
+    // at run time. Both halves must hold now.
+    const QString notGif = tmp.path() + QStringLiteral("/notes.txt");
+    {
+      QFile f(notGif);
+      CHECK(f.open(QIODevice::WriteOnly));
+      f.write("hello");
+      f.close();
+    }
+    dropFiles(w, {notGif});                                    // exists, not .gif
+    CHECK_MSG(x.list->count() == 1, "existing non-.gif file is rejected by the drop filter");
+    dropFiles(w, {tmp.path() + QStringLiteral("/missing.gif")});  // .gif, absent
+    CHECK_MSG(x.list->count() == 1, "nonexistent .gif is rejected by the drop filter");
+    g_dialogs.clear();
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("failed")), "failed run says failed");
+    CHECK(x.process->state() == QProcess::NotRunning);
+    CHECK(x.run->isEnabled());       // busy cleared honestly, Run re-enabled
+    CHECK(!x.cancel->isEnabled());
+    CHECK(!g_dialogs.empty());       // failure surfaced as dialog too
+    delete w;
+  }
+
+  // ================= T9: busy UI + cancel mid-run (B1/B2/B3) =============
+  {
+    g_stage = "T9"; std::printf("== T9 cancel mid-run ==\n");
+    QTemporaryDir tmp;
+    const QString big = tmp.path() + QStringLiteral("/big.gif");
+    std::printf("  (building 4800-frame GIF for a multi-second run...)\n");
+    CHECK_MSG(makeBigGif(logo, big, 400), "big.gif generated");
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {big});
+    x.optimize->setValue(3);
+    x.lossy->setValue(100);  // slow path
+
+    QElapsedTimer clickTime;
+    clickTime.start();
+    x.run->click();
+    CHECK_MSG(clickTime.elapsed() < 3000, "start does not block UI thread");
+
+    // Busy indicators (B3)
+    CHECK(x.progress->isVisible());
+    CHECK(x.cancel->isEnabled());
+    CHECK(!x.run->isEnabled());
+
+    // UI thread alive while engine runs (B1 proxy): count timer ticks
+    int ticks = 0;
+    QTimer ticker;
+    ticker.setInterval(10);
+    QObject::connect(&ticker, &QTimer::timeout, [&ticks]() { ++ticks; });
+    ticker.start();
+    spinEvents(600);
+    ticker.stop();
+    CHECK_MSG(ticks >= 20, "event loop keeps ticking during run (UI not blocked)");
+    CHECK_MSG(x.process->state() == QProcess::Running, "engine still running at ~0.6s");
+
+    // Cancel mid-run (B2)
+    g_dialogs.clear();  // isolate the cancel window: no dialog may appear here
+    x.cancel->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("Cancelled"), 10000), "status shows Cancelled");
+    CHECK(x.process->state() == QProcess::NotRunning);  // no zombie
+    CHECK(!x.cancel->isEnabled());
+    CHECK(x.run->isEnabled());           // controls re-enabled
+    CHECK(!x.progress->isVisible());     // busy indicator cleared
+    // A cancel is expected, not an error: no "optimization failed" dialog.
+    CHECK_MSG(g_dialogs.empty(), "cancel does not pop a spurious error dialog");
+    delete w;
+  }
+
+  // ================= T10: close while running (B15) ======================
+  {
+    g_stage = "T10"; std::printf("== T10 close while running ==\n");
+    QTemporaryDir tmp;
+    const QString big = tmp.path() + QStringLiteral("/big.gif");
+    CHECK_MSG(makeBigGif(logo, big, 400), "big.gif generated");
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {big});
+    x.optimize->setValue(3);
+    x.lossy->setValue(100);
+    x.run->click();
+    spinEvents(400);
+    CHECK(x.process->state() == QProcess::Running);
+    w->close();  // closeEvent -> cancelRun -> kill
+    spinEvents(200);
+    CHECK_MSG(x.process->state() == QProcess::NotRunning, "engine killed on close");
+    delete w;
+  }
+
+  // ================= T11: Actions controls -> gifsicle flags =============
+  {
+    g_stage = "T11"; std::printf("== T11 control mapping ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a});
+    const auto paneText = [&x]() { return x.pane->toPlainText(); };
+    const auto setAndWait = [&]() { spinEvents(15); };
+
+    // E7 guard: the delay label must state 1/100 s — never "ms".
+    auto* delayLabel = byName<QLabel>(w, "delayLabel");
+    CHECK(delayLabel && delayLabel->text().contains(QStringLiteral("1/100")));
+    CHECK(delayLabel && !delayLabel->text().contains(QStringLiteral("ms"), Qt::CaseInsensitive));
+
+    // Animation: delay (-d), loop (VP-1), disposal, threads, unoptimize
+    auto* delayCheck = byName<QCheckBox>(w, "delayCheck");
+    auto* delaySpin = byName<QSpinBox>(w, "delaySpin");
+    delayCheck->setChecked(true);
+    delaySpin->setValue(7);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("-d 7")));
+
+    auto* loopCombo = byName<QComboBox>(w, "loopCombo");
+    loopCombo->setCurrentIndex(1);  // Loop forever
+    setAndWait();
+    CHECK_MSG(paneText().contains(QStringLiteral("--loopcount=0")), "forever = --loopcount=0 (VP-1)");
+    loopCombo->setCurrentIndex(2);  // Loop N times
+    auto* loopSpin = byName<QSpinBox>(w, "loopSpin");
+    loopSpin->setValue(5);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--loopcount=5")));
+
+    auto* disposalCombo = byName<QComboBox>(w, "disposalCombo");
+    disposalCombo->setCurrentIndex(3);  // background (2)
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--disposal 2")));
+
+    auto* threadsSpin = byName<QSpinBox>(w, "threadsSpin");
+    threadsSpin->setValue(2);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("-j2")));
+
+    auto* unoptCheck = byName<QCheckBox>(w, "unoptimizeCheck");
+    unoptCheck->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("-U")));
+
+    // Optimize: -O0 is real (VP-2); colors; dither names; color method; careful
+    x.optimize->setValue(0);
+    setAndWait();
+    CHECK_MSG(paneText().contains(QStringLiteral("-O0")), "-O0 emitted for level 0 (VP-2)");
+    x.optimize->setValue(3);
+    setAndWait();
+
+    auto* colorsCheck = byName<QCheckBox>(w, "colorsCheck");
+    auto* colorsSpin = byName<QSpinBox>(w, "colorsSpin");
+    colorsCheck->setChecked(true);
+    colorsSpin->setValue(64);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("-k 64")));
+
+    auto* ditherCombo = byName<QComboBox>(w, "ditherCombo");
+    ditherCombo->setCurrentIndex(1);  // Default -> bare -f
+    setAndWait();
+    {
+      const QString pane = paneText();
+      CHECK_MSG(pane.contains(QStringLiteral(" -f ")) || pane.endsWith(QStringLiteral(" -f")),
+                "dither Default emits bare -f");
+    }
+    int ro64Idx = ditherCombo->findData(QStringLiteral("ro64"));
+    CHECK(ro64Idx >= 0);
+    ditherCombo->setCurrentIndex(ro64Idx);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--dither=ro64")));
+
+    auto* colorMethodCombo = byName<QComboBox>(w, "colorMethodCombo");
+    int medIdx = colorMethodCombo->findData(QStringLiteral("median-cut"));
+    CHECK(medIdx >= 0);
+    colorMethodCombo->setCurrentIndex(medIdx);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--color-method median-cut")));
+
+    auto* carefulCheck = byName<QCheckBox>(w, "carefulCheck");
+    carefulCheck->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--careful")));
+
+    // Resize: fit + method; scale percent
+    auto* resizeKind = byName<QComboBox>(w, "resizeKindCombo");
+    resizeKind->setCurrentIndex(1);  // Fit inside
+    auto* resizeW = byName<QSpinBox>(w, "resizeWSpin");
+    auto* resizeH = byName<QSpinBox>(w, "resizeHSpin");
+    resizeW->setValue(320);
+    resizeH->setValue(200);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--resize-fit 320x200")));
+
+    auto* resizeMethod = byName<QComboBox>(w, "resizeMethodCombo");
+    int lanczosIdx = resizeMethod->findData(QStringLiteral("lanczos3"));
+    CHECK(lanczosIdx >= 0);
+    resizeMethod->setCurrentIndex(lanczosIdx);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--resize-method lanczos3")));
+
+    resizeKind->setCurrentIndex(4);  // Scale by %
+    auto* scaleX = byName<QDoubleSpinBox>(w, "scaleXSpin");
+    auto* scaleY = byName<QDoubleSpinBox>(w, "scaleYSpin");
+    scaleX->setValue(50.0);
+    scaleY->setValue(50.0);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--scale 0.5x0.5")));
+    resizeKind->setCurrentIndex(0);  // No resize (clean pane for later checks)
+    setAndWait();
+
+    // Geometry: rotate/flip/position/interlace
+    auto* rotateCombo = byName<QComboBox>(w, "rotateCombo");
+    rotateCombo->setCurrentIndex(1);  // 90
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--rotate-90")));
+    auto* flipH = byName<QCheckBox>(w, "flipHCheck");
+    flipH->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--flip-horizontal")));
+    auto* posCheck = byName<QCheckBox>(w, "positionCheck");
+    auto* posX = byName<QSpinBox>(w, "posXSpin");
+    auto* posY = byName<QSpinBox>(w, "posYSpin");
+    posCheck->setChecked(true);
+    posX->setValue(5);
+    posY->setValue(6);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("-p 5,6")));
+    auto* interlace = byName<QCheckBox>(w, "interlaceCheck");
+    interlace->setChecked(true);
+    setAndWait();
+    {
+      const QString pane = paneText();
+      CHECK_MSG(pane.contains(QStringLiteral(" -i ")) || pane.endsWith(QStringLiteral(" -i")),
+                "interlace emits -i");
+    }
+
+    // Crop: plus-form X,Y+WxH (VP-5) + crop-transparency
+    auto* cropCheck = byName<QCheckBox>(w, "cropCheck");
+    auto* cropX = byName<QSpinBox>(w, "cropXSpin");
+    auto* cropY = byName<QSpinBox>(w, "cropYSpin");
+    auto* cropW = byName<QSpinBox>(w, "cropWSpin");
+    auto* cropH = byName<QSpinBox>(w, "cropHSpin");
+    cropCheck->setChecked(true);
+    cropX->setValue(1);
+    cropY->setValue(2);
+    cropW->setValue(30);
+    cropH->setValue(40);
+    setAndWait();
+    CHECK_MSG(paneText().contains(QStringLiteral("--crop 1,2+30x40")),
+              "crop uses plus-form X,Y+WxH (VP-5)");
+    auto* cropT = byName<QCheckBox>(w, "cropTransparencyCheck");
+    cropT->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--crop-transparency")));
+
+    // Colors: gamma (VP-3 — only emitted when chosen), background, transparent
+    auto* gammaCombo = byName<QComboBox>(w, "gammaCombo");
+    CHECK_MSG(!paneText().contains(QStringLiteral("--gamma")), "no --gamma unless chosen (VP-3)");
+    gammaCombo->setCurrentIndex(1);  // sRGB
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--gamma=srgb")));
+    gammaCombo->setCurrentIndex(2);  // Oklab
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--gamma=oklab")));
+
+    auto* bgEdit = byName<QLineEdit>(w, "backgroundEdit");
+    bgEdit->setText(QStringLiteral("#ffffff"));
+    setAndWait();
+    // '#' is not shell-safe, so the display pane quotes it (shell_quote).
+    CHECK(paneText().contains(QStringLiteral("--background '#ffffff'")));
+    auto* trEdit = byName<QLineEdit>(w, "transparentEdit");
+    trEdit->setText(QStringLiteral("#ff0000"));
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--transparent '#ff0000'")));
+
+    // Metadata: removals + comments (quoted in pane)
+    auto* rmComments = byName<QCheckBox>(w, "removeCommentsCheck");
+    rmComments->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--no-comments")));
+    auto* rmNames = byName<QCheckBox>(w, "removeNamesCheck");
+    rmNames->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--no-names")));
+    auto* rmExt = byName<QCheckBox>(w, "removeExtensionsCheck");
+    rmExt->setChecked(true);
+    setAndWait();
+    CHECK(paneText().contains(QStringLiteral("--no-extensions")));
+
+    auto* commentEdit = byName<QLineEdit>(w, "commentEdit");
+    auto* addComment = byName<QPushButton>(w, "addCommentButton");
+    commentEdit->setText(QStringLiteral("hello world"));
+    addComment->click();
+    setAndWait();
+    CHECK_MSG(paneText().contains(QStringLiteral("'hello world'")),
+              "comment with space is shell-quoted in pane");
+
+    // Explode by name (-E) — mode-dependent control
+    x.mode->setCurrentIndex(2);  // Explode
+    setAndWait();
+    auto* explodeByName = byName<QCheckBox>(w, "explodeByNameCheck");
+    CHECK(explodeByName->isEnabled());
+    explodeByName->setChecked(true);
+    setAndWait();
+    CHECK_MSG(paneText().contains(QStringLiteral("-E")), "explode-by-name emits -E");
+
+    delete w;
+  }
+
+  // ================= T12: preview pipeline (S3-7) ========================
+  {
+    g_stage = "T12"; std::printf("== T12 preview ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a});
+    // appendInputs auto-selects row 0 -> before movie should load
+    spinEvents(150);
+    CHECK(x.previewBefore && x.previewAfter && x.previewSavings && x.previewCaption);
+    if (!x.previewBefore) { delete w; return 1; }
+    CHECK_MSG(x.previewBefore->movie() != nullptr, "before pane plays the selected original");
+
+    // Debounced async run: after ~1.2s + engine time the savings appear.
+    CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("→"), 25000),
+              "preview produced after-image with size comparison");
+    CHECK(x.previewAfter->movie() != nullptr);
+    // Caption stays honest about single-file semantics
+    CHECK(x.previewCaption->text().contains(QStringLiteral("SELECTED")));
+
+    // Changing a control re-triggers the debounced preview (savings updates)
+    x.optimize->setValue(1);
+    CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("→"), 25000),
+              "preview regenerates after control change");
+
+    // Explode mode: preview honestly refuses (multi-file output)
+    x.mode->setCurrentIndex(2);
+    CHECK_MSG(waitForLabel(x.previewCaption, QStringLiteral("Explode"), 25000),
+              "preview honestly unavailable in Explode mode");
+    x.mode->setCurrentIndex(0);
+    delete w;
+  }
+
+  // ================= T13: Output tab (batch folder + summary) ============
+  {
+    g_stage = "T13"; std::printf("== T13 output tab ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    const QString b = tmp.path() + QStringLiteral("/b.gif");
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+    const QString outDir = tmp.path() + QStringLiteral("/outdir");
+    CHECK(QDir().mkpath(outDir));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a, b});
+    CHECK(x.outputSummary->text().contains(QStringLiteral("_opt.gif")));
+    x.batchDir->setText(outDir);
+    spinEvents(30);
+    CHECK(x.outputSummary->text().contains(outDir));
+    // The live pane must describe the real per-file runs, not a single -b.
+    {
+      const QString pane = x.pane->toPlainText();
+      CHECK(pane.contains(QStringLiteral("# batch")));
+      CHECK(pane.contains(QStringLiteral("a_opt.gif")));
+      CHECK(pane.contains(QStringLiteral("b_opt.gif")));
+      CHECK(!pane.contains(QStringLiteral(" -b ")));
+    }
+
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "batch with custom folder completes");
+    CHECK(QFileInfo::exists(outDir + QStringLiteral("/a_opt.gif")));
+    CHECK(QFileInfo::exists(outDir + QStringLiteral("/b_opt.gif")));
+    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));  // not beside inputs
+    CHECK(byName<QPushButton>(w, "openDirButton") != nullptr);
+    delete w;
+  }
+
+  // ================= T14: settings persistence (S7) ======================
+  {
+    g_stage = "T14"; std::printf("== T14 settings persistence ==\n");
+    const QByteArray prevEnv = qgetenv("GS_SETTINGS_PATH");
+    QTemporaryDir cfg;
+    CHECK(cfg.isValid());
+    const QString cfgPath = cfg.path() + QStringLiteral("/gifscythe.conf");
+    qputenv("GS_SETTINGS_PATH", QFile::encodeName(cfgPath));
+
+    // First launch: no file -> defaults, and nothing is written until close.
+    {
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      CHECK(x.mode->currentData().toInt() == static_cast<int>(gs::Mode::Batch));  // E4
+      CHECK(!QFileInfo::exists(cfgPath));
+      delete w;
+    }
+
+    // Session A: change controls across every group + batch dir + template,
+    // then close — closeEvent must save the session.
+    {
+      MainWindow* w = makeWindow();
+      byName<QComboBox>(w, "modeCombo")->setCurrentIndex(1);  // Merge
+      byName<QSpinBox>(w, "optimizeSpin")->setValue(1);
+      byName<QSpinBox>(w, "lossySpin")->setValue(42);
+      byName<QCheckBox>(w, "colorsCheck")->setChecked(true);
+      byName<QSpinBox>(w, "colorsSpin")->setValue(64);
+      auto* dither = byName<QComboBox>(w, "ditherCombo");
+      dither->setCurrentIndex(dither->findData(QStringLiteral("ro64")));
+      byName<QComboBox>(w, "resizeKindCombo")->setCurrentIndex(1);  // Fit
+      byName<QSpinBox>(w, "resizeWSpin")->setValue(222);
+      byName<QCheckBox>(w, "delayCheck")->setChecked(true);
+      byName<QSpinBox>(w, "delaySpin")->setValue(7);
+      byName<QComboBox>(w, "loopCombo")->setCurrentIndex(2);  // Loop N
+      byName<QSpinBox>(w, "loopSpin")->setValue(5);
+      byName<QComboBox>(w, "gammaCombo")->setCurrentIndex(3);  // Custom
+      byName<QLineEdit>(w, "gammaEdit")->setText(QStringLiteral("2.35"));
+      byName<QLineEdit>(w, "backgroundEdit")->setText(QStringLiteral("#abcdef"));
+      byName<QCheckBox>(w, "carefulCheck")->setChecked(true);
+      byName<QCheckBox>(w, "flipHCheck")->setChecked(true);
+      byName<QLineEdit>(w, "commentEdit")->setText(QStringLiteral("persist me"));
+      byName<QPushButton>(w, "addCommentButton")->click();
+      const QString outDir = cfg.path() + QStringLiteral("/outdir");
+      byName<QLineEdit>(w, "batchDirEdit")->setText(outDir);
+      byName<QLineEdit>(w, "nameTemplateEdit")->setText(QStringLiteral("{name}_small"));
+      spinEvents(30);
+      w->close();  // closeEvent -> saveSessionState
+      spinEvents(30);
+      CHECK_MSG(QFileInfo::exists(cfgPath), "close wrote the settings file");
+      delete w;
+    }
+
+    // File content: core SettingsIO keys + GUI-only keys coexist.
+    {
+      QFile f(cfgPath);
+      CHECK(f.open(QIODevice::ReadOnly | QIODevice::Text));
+      const QString body = QString::fromUtf8(f.readAll());
+      CHECK(body.contains(QStringLiteral("mode = merge")));
+      CHECK(body.contains(QStringLiteral("optimize = 1")));
+      CHECK(body.contains(QStringLiteral("lossy = 42")));
+      CHECK(body.contains(QStringLiteral("dither = ro64")));
+      CHECK(body.contains(QStringLiteral("gamma = 2.35")));
+      CHECK(body.contains(QStringLiteral("comment = persist me")));
+      CHECK(body.contains(QStringLiteral("batch_dir = ") + cfg.path() + QStringLiteral("/outdir")));
+      CHECK(body.contains(QStringLiteral("name_template = {name}_small")));
+      // Queue/Save-as are deliberately NOT persisted.
+      CHECK(!body.contains(QStringLiteral("input =")));
+      CHECK(!body.contains(QStringLiteral("output =")));
+    }
+
+    // Session B: a brand-new window restores everything.
+    {
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      CHECK(x.mode->currentData().toInt() == static_cast<int>(gs::Mode::Merge));
+      CHECK(byName<QSpinBox>(w, "optimizeSpin")->value() == 1);
+      CHECK(byName<QSpinBox>(w, "lossySpin")->value() == 42);
+      CHECK(byName<QCheckBox>(w, "colorsCheck")->isChecked());
+      CHECK(byName<QSpinBox>(w, "colorsSpin")->value() == 64);
+      CHECK(byName<QSpinBox>(w, "colorsSpin")->isEnabled());  // dependent state synced
+      CHECK(byName<QComboBox>(w, "ditherCombo")->currentData().toString() ==
+            QStringLiteral("ro64"));
+      CHECK(byName<QComboBox>(w, "resizeKindCombo")->currentIndex() == 1);
+      CHECK(byName<QSpinBox>(w, "resizeWSpin")->value() == 222);
+      CHECK(byName<QCheckBox>(w, "delayCheck")->isChecked());
+      CHECK(byName<QSpinBox>(w, "delaySpin")->value() == 7);
+      CHECK(byName<QSpinBox>(w, "delaySpin")->isEnabled());
+      CHECK(byName<QComboBox>(w, "loopCombo")->currentData().toInt() == 2);
+      CHECK(byName<QSpinBox>(w, "loopSpin")->value() == 5);
+      CHECK(byName<QSpinBox>(w, "loopSpin")->isEnabled());
+      CHECK(byName<QComboBox>(w, "gammaCombo")->currentData().toInt() == 3);
+      CHECK(byName<QLineEdit>(w, "gammaEdit")->text() == QStringLiteral("2.35"));
+      CHECK(byName<QLineEdit>(w, "gammaEdit")->isEnabled());
+      CHECK(byName<QLineEdit>(w, "backgroundEdit")->text() == QStringLiteral("#abcdef"));
+      CHECK(byName<QCheckBox>(w, "carefulCheck")->isChecked());
+      CHECK(byName<QCheckBox>(w, "flipHCheck")->isChecked());
+      auto* comments = byName<QListWidget>(w, "commentList");
+      CHECK(comments && comments->count() == 1);
+      CHECK(comments && comments->item(0)->text() == QStringLiteral("persist me"));
+      CHECK(byName<QLineEdit>(w, "batchDirEdit")->text() ==
+            cfg.path() + QStringLiteral("/outdir"));
+      CHECK(byName<QLineEdit>(w, "nameTemplateEdit")->text() ==
+            QStringLiteral("{name}_small"));
+      // NOT restored (documented decision): queue and Save-as.
+      CHECK(x.list->count() == 0);
+      CHECK(x.output->text().isEmpty());
+      // The live pane reflects the restored state (constructor refresh).
+      const QString pane = x.pane->toPlainText();
+      CHECK(pane.contains(QStringLiteral("--lossy=42")));
+      CHECK(pane.contains(QStringLiteral("--gamma=2.35")));
+      CHECK(pane.contains(QStringLiteral("-d 7")));
+      CHECK(pane.contains(QStringLiteral("--loopcount=5")));
+      CHECK(pane.contains(QStringLiteral("--dither=ro64")));
+      CHECK(pane.contains(QStringLiteral("--resize-fit 222x")));
+      CHECK(pane.contains(QStringLiteral("--background '#abcdef'")));
+      CHECK(pane.contains(QStringLiteral("--comment 'persist me'")));
+      delete w;
+    }
+
+    // S23 pre-merge review case: the two multi-state sentinels must survive a
+    // desktop round trip. Before the panel gained them, `loopcount = -2` was
+    // displayed as "Keep original" and a conf's `threads = -1` fell back to the
+    // spinner's 0 ("Auto"), so merely OPENING and CLOSING the window rewrote both
+    // settings — the silent-rewrite class DS-06 itself was filed under. This is
+    // CI-compiled proof (no Qt6 in the S23 sandbox), like S8's T8 rewrite.
+    // Note the close(): persistence happens in MainWindow::closeEvent, so `delete w`
+    // alone never reaches it — the first version of this block did exactly that
+    // and failed the CI harness step while compiling clean, which is why the idiom
+    // (spinEvents / close / spinEvents / exists) is spelled out here.
+    {
+      MainWindow* w = makeWindow();
+      auto* loop = byName<QComboBox>(w, "loopCombo");
+      loop->setCurrentIndex(loop->findData(3));  // Play once (no loop)
+      byName<QSpinBox>(w, "threadsSpin")->setValue(gs::GS_THREADS_UNSET);
+      spinEvents(30);
+      w->close();                                 // closeEvent -> saveSessionState
+      spinEvents(30);
+      delete w;
+      CHECK_MSG(QFileInfo::exists(cfgPath), "closing with play-once wrote the settings file");
+
+      QFile f(cfgPath);
+      CHECK(f.open(QIODevice::ReadOnly | QIODevice::Text));
+      const QString saved = QString::fromUtf8(f.readAll());
+      f.close();
+      CHECK_MSG(saved.contains(QStringLiteral("loopcount = -2")),
+                "the saved conf carries -2, not the UI's old -1 (U-63 / P1-40)");
+      CHECK_MSG(!saved.contains(QStringLiteral("threads =")),
+                "threads = -1 encodes as absence - writing 0 here is the bug (DS-07 / P1-30)");
+
+      MainWindow* w2 = makeWindow();
+      auto x = findWidgets(w2);
+      spinEvents(15);   // let the rebuilt live pane settle, as the other cases do
+      CHECK_MSG(byName<QComboBox>(w2, "loopCombo")->currentData().toInt() == 3,
+                "play once reads back as its own control state, not \"Keep original\"");
+      CHECK_MSG(byName<QSpinBox>(w2, "threadsSpin")->value() == gs::GS_THREADS_UNSET,
+                "the spinner can hold the no-flag state");
+      CHECK_MSG(byName<QSpinBox>(w2, "threadsSpin")->text().contains(QStringLiteral("Unchanged")),
+                "and labels it, instead of showing a bare -1");
+      CHECK_MSG(x.pane->toPlainText().contains(QStringLiteral("--no-loopcount")),
+                "the live pane reflects it (the state is real, not cosmetic)");
+      delete w2;
+    }
+
+    // Corrupt file: valid keys apply, invalid ones warn — never a crash,
+    // never a silent pretend-first-launch.
+    {
+      QFile f(cfgPath);
+      CHECK(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+      f.write("mode = wat\noptimize = xyz\nlossy = 42\n");
+      f.close();
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      CHECK(x.status->text().contains(QStringLiteral("warning")));  // surfaced (S5 rule)
+      CHECK(x.mode->currentData().toInt() == static_cast<int>(gs::Mode::Auto));  // parse fallback
+      CHECK(byName<QSpinBox>(w, "optimizeSpin")->value() == 3);  // rejected -> default kept
+      CHECK(byName<QSpinBox>(w, "lossySpin")->value() == 42);    // valid key still applied
+      delete w;
+    }
+
+    qputenv("GS_SETTINGS_PATH", prevEnv);  // restore the scratch path
+  }
+
+  // ================= T15: queue reorder (S3-9) ===========================
+  {
+    g_stage = "T15"; std::printf("== T15 queue reorder ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    const QString b = tmp.path() + QStringLiteral("/b.gif");
+    const QString c = tmp.path() + QStringLiteral("/c.gif");
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+    CHECK(copyFile(logo, c));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* up = byName<QPushButton>(w, "moveUpButton");
+    auto* down = byName<QPushButton>(w, "moveDownButton");
+    CHECK(up && down);
+    dropFiles(w, {a, b, c});
+    CHECK(x.list->count() == 3);
+
+    // Move the LAST row up: a,b,c -> a,c,b; selection follows the item.
+    x.list->setCurrentRow(2);
+    up->click();
+    spinEvents(20);
+    CHECK(rowPath(x.list, 0) == a);
+    CHECK(rowPath(x.list, 1) == c);
+    CHECK(rowPath(x.list, 2) == b);
+    CHECK(x.list->currentRow() == 1);
+
+    // Bounds are honest no-ops.
+    x.list->setCurrentRow(0);
+    up->click();
+    spinEvents(10);
+    CHECK(rowPath(x.list, 0) == a);
+    x.list->setCurrentRow(2);
+    down->click();
+    spinEvents(10);
+    CHECK(rowPath(x.list, 2) == b);
+    CHECK(x.list->count() == 3);
+
+    // Move the FIRST row down: a,c,b -> c,a,b.
+    x.list->setCurrentRow(0);
+    down->click();
+    spinEvents(10);
+    CHECK(rowPath(x.list, 0) == c);
+    CHECK(rowPath(x.list, 1) == a);
+    CHECK(rowPath(x.list, 2) == b);
+
+    // Merge consumes the queue in order — the live pane must show c,a,b.
+    x.mode->setCurrentIndex(1);  // Merge
+    const QString merged = tmp.path() + QStringLiteral("/m.gif");
+    x.output->setText(merged);
+    spinEvents(20);
+    {
+      const QString pane = x.pane->toPlainText();
+      const int posC = pane.indexOf(c);
+      const int posA = pane.indexOf(a);
+      const int posB = pane.indexOf(b);
+      CHECK(posC >= 0 && posA > posC && posB > posA);  // pane order = queue order
+    }
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "merge after reorder completes");
+    CHECK(QFileInfo::exists(merged));
+    delete w;
+  }
+
+  // ================= T16: naming templates (S3-25) =======================
+  {
+    g_stage = "T16"; std::printf("== T16 naming templates ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    const QString b = tmp.path() + QStringLiteral("/b.gif");
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* tmpl = byName<QLineEdit>(w, "nameTemplateEdit");
+    CHECK(tmpl != nullptr);
+    dropFiles(w, {a});
+    // Default template renders the historical <name>_opt.gif (audit E4).
+    CHECK(x.pane->toPlainText().contains(QStringLiteral("a_opt.gif")));
+
+    // Custom template (no extension) -> ".gif" appended, pane + summary follow.
+    tmpl->setText(QStringLiteral("{name}_small"));
+    spinEvents(20);
+    CHECK(x.pane->toPlainText().contains(QStringLiteral("a_small.gif")));
+    CHECK(x.outputSummary->text().contains(QStringLiteral("a_small.gif")));
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "templated single-file batch completes");
+    CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/a_small.gif")));
+
+    // A template cannot escape the output folder: separators are stripped.
+    tmpl->setText(QStringLiteral("../../evil"));
+    spinEvents(20);
+    {
+      const QString pane = x.pane->toPlainText();
+      CHECK(pane.contains(QStringLiteral("evil.gif")));
+      CHECK(!pane.contains(QStringLiteral("../../")));
+    }
+
+    // Constant template + 2 files = collision -> summary warns and the run
+    // is REFUSED with an explanatory dialog (no silent overwrite).
+    dropFiles(w, {b});
+    tmpl->setText(QStringLiteral("same_name.gif"));
+    spinEvents(20);
+    CHECK(x.outputSummary->text().contains(QStringLiteral("refused")));
+    g_dialogs.clear();
+    x.run->click();
+    spinEvents(120);
+    CHECK_MSG(dialogsContain(QStringLiteral("{name}")),
+              "collision refusal dialog explains the {name} requirement");
+    CHECK(x.process->state() == QProcess::NotRunning);  // never started
+    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/same_name.gif")));
+
+    // With {name} back, both files run to their own outputs.
+    tmpl->setText(QStringLiteral("{name}_x.gif"));
+    spinEvents(20);
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "templated 2-file batch completes");
+    CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/a_x.gif")));
+    CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/b_x.gif")));
+    delete w;
+  }
+
+  // ============ T17: batch output planning (audit U-01) ==================
+  // The old code derived each batch output inside the run loop and never
+  // compared targets, so (a) a template like "{name}.gif" with an empty batch
+  // folder wrote the output ON TOP OF THE SOURCE, and (b) two queued files
+  // sharing a base name both landed on <batchdir>/<stem>_opt.gif and the
+  // second silently deleted the first. Both are now planned and refused.
+  {
+    g_stage = "T17"; std::printf("== T17 batch output planning ==\n");
+    QTemporaryDir tmp;
+    CHECK(QDir(tmp.path()).mkpath(QStringLiteral("d1")));
+    CHECK(QDir(tmp.path()).mkpath(QStringLiteral("d2")));
+    CHECK(QDir(tmp.path()).mkpath(QStringLiteral("out")));
+    const QString h1 = tmp.path() + QStringLiteral("/d1/hero.gif");
+    const QString h2 = tmp.path() + QStringLiteral("/d2/hero.gif");
+    CHECK(copyFile(logo, h1));
+    CHECK(copyFile(logo1, h2));
+    const qint64 h1_before = QFileInfo(h1).size();
+    const qint64 h2_before = QFileInfo(h2).size();
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* tmpl = byName<QLineEdit>(w, "nameTemplateEdit");
+    CHECK(tmpl != nullptr);
+    dropFiles(w, {h1, h2});
+    CHECK(x.list->count() == 2);
+
+    // (a) Same base name + one batch folder + the DEFAULT template -> both
+    //     render out/hero_opt.gif. The label must warn and the run refuse.
+    x.batchDir->setText(tmp.path() + QStringLiteral("/out"));
+    spinEvents(20);
+    CHECK_MSG(x.outputSummary->text().contains(QStringLiteral("refused")),
+              "summary warns about the duplicate target before Run");
+    g_dialogs.clear();
+    x.run->click();
+    spinEvents(120);
+    CHECK_MSG(!g_dialogs.empty(), "duplicate-target run is refused with a dialog");
+    CHECK(x.process->state() == QProcess::NotRunning);   // never started
+    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/out/hero_opt.gif")));
+    CHECK(QFileInfo(h1).size() == h1_before);            // sources untouched
+    CHECK(QFileInfo(h2).size() == h2_before);
+
+    // (b) The self-overwrite case: template "{name}.gif" with NO batch folder
+    //     resolves each output to the input itself.
+    x.batchDir->clear();
+    tmpl->setText(QStringLiteral("{name}.gif"));
+    spinEvents(20);
+    CHECK_MSG(x.outputSummary->text().contains(QStringLiteral("refused")),
+              "summary warns that the target is a source file");
+    g_dialogs.clear();
+    x.run->click();
+    spinEvents(120);
+    CHECK_MSG(dialogsContain(QStringLiteral("source file")),
+              "self-overwrite refusal dialog names the source");
+    CHECK(x.process->state() == QProcess::NotRunning);
+    CHECK(QFileInfo(h1).size() == h1_before);            // source NOT replaced
+    CHECK(QFileInfo(h2).size() == h2_before);
+
+    // (c) Positive control. Both queued files are called hero.gif, so the only
+    //     way to get distinct targets from one template is to let each write
+    //     next to its own input (no batch folder): d1/hero_x.gif and
+    //     d2/hero_x.gif. That must run, and must not touch the sources.
+    x.batchDir->clear();
+    tmpl->setText(QStringLiteral("{name}_x.gif"));
+    spinEvents(20);
+    CHECK_MSG(!x.outputSummary->text().contains(QStringLiteral("refused")),
+              "distinct targets are not refused");
+    g_dialogs.clear();
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "planned 2-file batch completes");
+    CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/d1/hero_x.gif")));
+    CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/d2/hero_x.gif")));
+    CHECK(QFileInfo(h1).size() == h1_before);
+    CHECK(QFileInfo(h2).size() == h2_before);
+
+    // (d) And the same stems ARE refused as soon as a shared batch folder
+    //     makes the two targets coincide again.
+    x.batchDir->setText(tmp.path() + QStringLiteral("/out"));
+    spinEvents(20);
+    CHECK_MSG(x.outputSummary->text().contains(QStringLiteral("refused")),
+              "a shared batch folder turns distinct inputs into one target");
+    delete w;
+  }
+
+  // ============ T18: busy output-group lock (audit U-45/U-35) ==============
+  // While a run is in flight the WHOLE output group must be locked — both
+  // Browse buttons included — and even a programmatic setText() on the
+  // (disabled) batch-folder field must not redirect the running plan: the
+  // outputs go where they were planned, not where the field now points.
+  {
+    g_stage = "T18"; std::printf("== T18 busy output lock ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a));
+    const QString outDir = tmp.path() + QStringLiteral("/out");
+    const QString otherDir = tmp.path() + QStringLiteral("/other");
+    CHECK(QDir().mkpath(outDir));
+    CHECK(QDir().mkpath(otherDir));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* browseOut = byName<QPushButton>(w, "browseOutputButton");
+    auto* browseDir = byName<QPushButton>(w, "browseBatchDirButton");
+    CHECK(browseOut != nullptr && browseDir != nullptr);
+    dropFiles(w, {a});
+    x.batchDir->setText(outDir);
+    spinEvents(30);
+    CHECK(browseOut->isEnabled() && browseDir->isEnabled());  // idle: unlocked
+
+    x.run->click();  // returns once the engine has started; still busy here
+    CHECK_MSG(!browseOut->isEnabled(), "Save-as Browse locked during the run");
+    CHECK_MSG(!browseDir->isEnabled(), "batch-folder Browse locked during the run");
+    CHECK(!x.batchDir->isEnabled());
+    browseDir->click();                     // a click on a locked button is a no-op
+    x.batchDir->setText(otherDir);          // what the old picker path could still do
+    spinEvents(30);
+    CHECK(x.batchDir->text() == otherDir);  // the field took the edit...
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "locked batch completes");
+    CHECK(QFileInfo::exists(outDir + QStringLiteral("/a_opt.gif")));    // ...but the
+    CHECK(!QFileInfo::exists(otherDir + QStringLiteral("/a_opt.gif"))); // plan held
+    CHECK(browseOut->isEnabled() && browseDir->isEnabled());  // unlocked after
+    CHECK_MSG(x.run->isEnabled(), "Run re-enabled through the engine re-check (U-35)");
+    delete w;
+  }
+
+  // ======== T19: persistence honesty (audit U-16/U-36/U-37) ================
+  {
+    g_stage = "T19"; std::printf("== T19 persistence honesty ==\n");
+    const QByteArray prevEnv = qgetenv("GS_SETTINGS_PATH");
+    QTemporaryDir cfg;
+    CHECK(cfg.isValid());
+    const QString cfgPath = cfg.path() + QStringLiteral("/gifscythe.conf");
+    qputenv("GS_SETTINGS_PATH", QFile::encodeName(cfgPath));
+
+    // (a) U-16 GUI side: the atomic save leaves EXACTLY the conf behind — no
+    //     .tmp, no QSaveFile scratch — and U-36: the GUI keys written below it
+    //     round-trip through the core parser's unknown-key channel.
+    {
+      MainWindow* w = makeWindow();
+      byName<QLineEdit>(w, "batchDirEdit")->setText(QStringLiteral("/persisted/dir"));
+      byName<QLineEdit>(w, "nameTemplateEdit")->setText(QStringLiteral("{name}_t19.gif"));
+      spinEvents(30);
+      w->close();  // closeEvent -> saveSessionState (QSaveFile)
+      spinEvents(30);
+      const auto files = QDir(cfg.path()).entryList(QDir::Files);
+      CHECK_MSG(files.size() == 1 && files.at(0) == QStringLiteral("gifscythe.conf"),
+                "atomic save leaves exactly one file (no .tmp strays)");
+      delete w;
+    }
+    {
+      MainWindow* w2 = makeWindow();  // relaunch: restore via the extras map
+      CHECK(byName<QLineEdit>(w2, "batchDirEdit")->text() == QStringLiteral("/persisted/dir"));
+      CHECK(byName<QLineEdit>(w2, "nameTemplateEdit")->text() == QStringLiteral("{name}_t19.gif"));
+      auto* st = byName<QLabel>(w2, "statusLabel");
+      CHECK_MSG(!st->text().contains(QStringLiteral("not be remembered")),
+                "a working persistence path does not claim to be unavailable");
+      delete w2;
+    }
+
+    // (b) U-37: the unavailable-persistence status note itself cannot be
+    //     forced on Linux — Qt's home discovery falls back to getpwuid(), so
+    //     AppConfigLocation is effectively never empty here (verified live in
+    //     this harness: with HOME + XDG_CONFIG_HOME + GS_SETTINGS_PATH all
+    //     unset, the window still resolved a session path under the passwd
+    //     home). The empty-path branch is review-verified; the complementary
+    //     invariant — a working persistence path never raises a false
+    //     "unavailable" note — is pinned by the relaunch check above.
+    {
+      const QByteArray prevHome = qgetenv("HOME");
+      const QByteArray prevXdg = qgetenv("XDG_CONFIG_HOME");
+      qunsetenv("GS_SETTINGS_PATH");
+      qunsetenv("HOME");
+      qunsetenv("XDG_CONFIG_HOME");
+      MainWindow* w3 = makeWindow();
+      // Documents the platform reality the (b) note above asserts: even with
+      // every env override gone, a session path is still discoverable here.
+      CHECK_MSG(!w3->sessionFilePath().isEmpty(),
+                "Linux+Qt always discovers a config path (getpwuid fallback) — "
+                "the U-37 empty-path branch is not forceable in this harness");
+      delete w3;
+      if (prevHome.isNull()) qunsetenv("HOME"); else qputenv("HOME", prevHome);
+      if (prevXdg.isNull()) qunsetenv("XDG_CONFIG_HOME"); else qputenv("XDG_CONFIG_HOME", prevXdg);
+    }
+
+    if (prevEnv.isNull()) qunsetenv("GS_SETTINGS_PATH");
+    else qputenv("GS_SETTINGS_PATH", prevEnv);
+  }
+
+  // ====== T20: preview invalidation + temp-file hygiene (U-34/U-47) ========
+  // The old code advanced previewSeq_ only when a NEW eligible preview
+  // started, and cleaned up only "seq-1 on the non-stale success path". So a
+  // preview that was superseded while in flight (a) still passed the seq
+  // guard after a queue clear or Explode switch — repopulating the panes with
+  // a result for state that no longer exists — and (b) leaked its temp file
+  // for the rest of the session. Both are asserted against a slow in-flight
+  // preview (a 360-frame re-encode) so the completion lands AFTER the change.
+  {
+    g_stage = "T20"; std::printf("== T20 preview invalidation + hygiene ==\n");
+    QTemporaryDir tmp;
+    const QString big = tmp.path() + QStringLiteral("/big.gif");
+    CHECK(makeBigGif(logo, big, 30));  // 30 x 12 frames: slow enough to catch in flight
+
+    const QString previewDir =
+        QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+            .filePath(QStringLiteral("gifscythe-preview-%1")
+                          .arg(QCoreApplication::applicationPid()));
+    QDir(previewDir).removeRecursively();  // start from a known-empty state
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto previewFiles = [&]() {
+      return QDir(previewDir).entryList({QStringLiteral("preview_*.gif")}, QDir::Files);
+    };
+    auto waitPreviewRunning = [&](int timeoutMs) {
+      QElapsedTimer el; el.start();
+      while (el.elapsed() < timeoutMs) {
+        spinEvents(25);
+        auto* pp = byName<QProcess>(w, "previewProcess");
+        if (pp && pp->state() != QProcess::NotRunning) return true;
+      }
+      return false;
+    };
+    auto waitPreviewIdle = [&](int timeoutMs) {
+      QElapsedTimer el; el.start();
+      while (el.elapsed() < timeoutMs) {
+        spinEvents(25);
+        if (!byName<QProcess>(w, "previewProcess")) return true;
+      }
+      return false;
+    };
+
+    // (a) Clear the queue while a preview is in flight. Its completion must
+    //     NOT repopulate the panes, and its (partial) file must be gone.
+    dropFiles(w, {big});
+    CHECK_MSG(waitPreviewRunning(30000), "first preview is in flight");
+    x.clear->click();
+    CHECK_MSG(waitPreviewIdle(60000), "in-flight preview settles after clear");
+    spinEvents(400);
+    CHECK_MSG(previewFiles().size() == 0,
+              "cleared queue leaves no preview file behind (U-34/U-47)");
+
+    // (b) Switch to Explode while a preview is in flight: same contract.
+    dropFiles(w, {big});
+    CHECK_MSG(waitPreviewRunning(30000), "second preview is in flight");
+    x.mode->setCurrentIndex(2);  // Explode: preview refuses (multi-file output)
+    CHECK_MSG(waitForLabel(x.previewCaption, QStringLiteral("Explode"), 30000),
+              "Explode mode still refuses the preview");
+    CHECK_MSG(waitPreviewIdle(60000), "superseded preview settles after Explode switch");
+    spinEvents(400);
+    CHECK_MSG(previewFiles().size() == 0,
+              "the superseded preview's file is swept, not leaked (U-34)");
+
+    // (c) Back to Batch: a normal preview completes and exactly ONE file —
+    //     the displayed one — remains.
+    x.mode->setCurrentIndex(0);
+    spinEvents(1600);  // let the debounce fire and the run start
+    CHECK_MSG(waitPreviewIdle(60000), "third preview settles");
+    spinEvents(400);
+    CHECK_MSG(previewFiles().size() == 1, "exactly the displayed preview file remains");
+    CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("→"), 30000),
+              "preview shows the size comparison again");
+
+    // (d) One more settings change: the superseded file is swept on success,
+    //     so the directory does not grow within a session (the old seq-1 rule
+    //     only worked while every completion was non-stale).
+    x.lossy->setValue(x.lossy->value() + 5);
+    spinEvents(1600);
+    CHECK_MSG(waitPreviewIdle(60000), "fourth preview settles");
+    spinEvents(400);
+    CHECK_MSG(previewFiles().size() == 1, "temp dir holds exactly one preview after re-encode");
+    delete w;
+    CHECK_MSG(!QFileInfo::exists(previewDir), "window teardown removes the preview dir");
+  }
+
+  std::printf("==> %d checks, %d failures\n", g_checks, g_failures);
+  if (g_failures == 0) {
+    std::printf("ALL GUI TESTS PASSED\n");
+    return 0;
+  }
+  std::printf("GUI TESTS FAILED\n");
+  return 1;
+}
