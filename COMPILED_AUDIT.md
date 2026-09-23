@@ -1,5 +1,14 @@
 # Gifscythe — Compiled Audit (Master) — v4
 
+> **S27 addendum (2026-09-23).** The GitHub repo was re-created from a zip upload
+> on 2026-09-22: the old remote's history (S1–S26, PRs #1–#33) is gone, and the
+> new remote's whole history is `04a1cd4` → `60d3df4` (zip) → `ce5fd51` (unpack) →
+> PR #1 merge `824bf20`. The unpacked tree is the S26 state (markers verified),
+> but the re-creation lost the four root license files — registered as **U-97**
+> and restored in-session with executed proof (the packager's fail-closed repro,
+> flipped to green). Old-remote shas quoted in the historical sections below are
+> records this clone cannot resolve; the enforced Base line now names the new tip.
+
 > **v4 consolidation (2026-09-17, S24).** The four external review files uploaded to the repo root on
 > 2026-09-16 (`gifscythe-audit-delta-2026-09-16-1357.md`, `gifscythe-code-review-794a996.md`,
 > `gifscythe-review-794a996.md`, `gifscythe-repo-review.md`) were incorporated into **§20** and then
@@ -42,8 +51,10 @@
 > audit text disagreed with the register, the original wording is kept after *"Original report:"*
 > and is superseded by the register.
 
-**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7…S17 (2026-09-13), S18–S20 (2026-09-14), S21 (2026-09-15 — v3 consolidation + U-68 413), S22 (2026-09-16 — U-67 + web gates + U-53/U-60/U-61/U-62/U-64/DS-09), S23 (2026-09-16 — Tier-1 batch, PR #29), PR #30 (2026-09-16 — U-77/U-79/U-80), **S24 (2026-09-17 — v4: external-review intake §20, doc consolidation, U-82 fix, stale-row closures W-30/R-03/GS-208)**, S25 (2026-09-17 — P1-44 implementation, PR #32), **S26 (2026-09-17 — P1-44 proof + closeout U-78/U-87, DS-09 register sync, G10 base-line repair)**
-**Base:** `main` at `5c93680` (the PR #33 merge, post-repair sha; re-confirm with
+**Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7…S17 (2026-09-13), S18–S20 (2026-09-14), S21 (2026-09-15 — v3 consolidation + U-68 413), S22 (2026-09-16 — U-67 + web gates + U-53/U-60/U-61/U-62/U-64/DS-09), S23 (2026-09-16 — Tier-1 batch, PR #29), PR #30 (2026-09-16 — U-77/U-79/U-80), **S24 (2026-09-17 — v4: external-review intake §20, doc consolidation, U-82 fix, stale-row closures W-30/R-03/GS-208)**, S25 (2026-09-17 — P1-44 implementation, PR #32), **S26 (2026-09-17 — P1-44 proof + closeout U-78/U-87, DS-09 register sync, G10 base-line repair)**, **S27 (2026-09-23 — repair of the 2026-09-22 zip re-creation: root license set restored (U-97), base lines + register re-synced (G10/G11))**
+**Base:** `main` at `824bf20` (the re-created repo's PR #1 merge, 2026-09-22 — the
+GitHub repo was rebuilt from a zip upload that day, so the previous base `5c93680`
+and the rest of the old remote's history do not exist in this clone; re-confirm with
 `gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`;
 `check_docs.sh` gate **G10** matches this line shape and fails if it names anything
 else — S24 note: the previous "**Branch:** … at …" shape was NOT matched by G10's
@@ -1995,7 +2006,7 @@ runButton_->setEnabled(!busy && !inputs_.isEmpty() && ensureEngine());
 
 ---
 
-## 5. Consolidated master register — all 96 unique findings
+## 5. Consolidated master register — all 97 unique findings
 
 Deduplicated across A/B/C/D/E/F. "Src" = which audit(s) raised it.
 
@@ -2134,6 +2145,7 @@ Deduplicated across A/B/C/D/E/F. "Src" = which audit(s) raised it.
 | **U-94** | G:GN-13 | **No suite sweeps the settings space against the real engine: hand-written mirrors prove agreement, not correctness** — U-62, U-63 and N-05 were all found because BOTH mirrors encoded the same wrong rule and only gifsicle disagreed; the engine runs in test_engine/smoke, but nothing enumerates the settings space through it, so the class is still found by careful humans, one session at a time. | ✅ **SRC** (S24: suite inventory) | ⬜ OPEN (S24) — scoped as P2-18; seeded offline oracle-fuzz gate + committed matrix |
 | **U-95** | G:GN-15 | **The only published Release predates the Ms-PL relicence** — snapshot-2026-09-07 was built from GPLv3-era first-party code and its notes name no licence (S24 API check: still published, still silent), with U-09's staleness on top; the legal half is a one-edit owner action under the RELEASE_PROCEDURE rollback policy (mark superseded/pre-release, never delete); the evidence half folds into the P0-4 re-cut + a tag-triggered asset gate. | ✅ **EXEC** (S24: GitHub releases API) | ⬜ OPEN (S24) — scoped as P1-45; owner release-notes edit, then P0-4 re-cut |
 | **U-96** | G:GN-18 | **stemOf is hand-duplicated (app.js + server.mjs) and its dotfile/extensionless boundary is unpinned against Qt completeBaseName** — `stemOf(".gif")` returns ".gif" (i>0 guard; S24 node probe: ".gif" to ".gif", "gif" to "gif", "a." to "a"); the Qt reference semantics need a Qt-machine probe; a disagreement means the web silently writes other names than the desktop for odd upload names. | ✅ **EXEC** (S24 node probe; Qt side unprobed) | ⬜ OPEN (S24) — scoped as P3-18; probe Qt, one shared helper, edge-name fixture table |
+| **U-97** | S27:repro | **The 2026-09-22 zip re-creation of the GitHub repo lost the root license set, so both packagers fail closed on every platform** — the unpacked tree is the S26 state (markers verified: numOrNull, g6_missing_tools, the 27-row device table) but root COPYING.ms-pl, COPYING.lgplv3, COPYING.gplv3 and COPYING.gifsicle were dropped; `package_common.sh` hard-requires the first three (`copy_required`, fail-closed since U-02/U-08; the fourth has an in-tree fallback), so CI windows "Package portable (Windows)" died at the first missing file in all three runs of the new main (run 35684055250; every build/test step before it green) — executed local repro with fixture binaries + the real repo root: `ERROR: COPYING.ms-pl missing or empty (no usable same-target candidate)`, exit 1; the linux packaging step fails identically once the doc gate passes. | ✅ **EXEC** (S27 local repro + flip; CI log blobs unreachable — HTTP 401 at the redirect target, failing step named from the job summary) | ✅ FIXED (S27) — canonical texts restored (GNU GPLv3 35147 B + standalone LGPLv3 7639 B via the gcc mirror, Ms-PL 2663 B via SPDX, COPYING.gifsicle byte-copied from reference_code/gifsicle/COPYING; URLs + sha256 digests in the S27 log entry); repro flipped to "Package created", exit 0, 11 required files verified non-empty; the repair PR's CI packaging steps are the platform proof |
 
 
 ## 6. Fix order (all ten reviews combined)

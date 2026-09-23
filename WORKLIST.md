@@ -6,7 +6,7 @@
 > **`STATUS.md`** is the single status register: one row per tracked item in
 > exactly one of four states — **DONE / PARTIAL / OPEN / UNTRIAGED** — with a
 > generated header that says how much of everything the repo knows about is
-> done. It answers *"what is left?"* without reading the 96-row audit register.
+> done. It answers *"what is left?"* without reading the 97-row audit register.
 >
 > This file is the **human task board**: what to pick up next, in order. It is
 > not the status source of truth, and it must not contradict `STATUS.md`
@@ -59,6 +59,16 @@ reads them in a file, not in a conversation.
 
 Every new finding gets a matching line here. Nothing is `UNTRIAGED` right now:
 the S24 intake was triaged in the same session (each row carries its §6 id).
+
+- [x] **U-97** (found AND fixed in S27 — rule 2's strong form): the 2026-09-22
+      zip re-creation of the GitHub repo lost the root license set
+      (`COPYING.ms-pl` / `COPYING.lgplv3` / `COPYING.gplv3` / `COPYING.gifsicle`),
+      so both packagers fail closed — that is where CI windows "Package
+      portable" died on all three runs of the new main (executed local repro:
+      `ERROR: COPYING.ms-pl missing or empty`, exit 1). Restored from canonical
+      sources (URLs + sha256 digests in the S27 log entry); repro flipped to
+      `Package created` exit 0; the repair PR's CI packaging steps are the
+      platform proof.
 
 - [x] **External review intake 2026-09-16 (four uploaded files) — incorporated
       and closed out in S24.** All 54 external findings dispositioned in

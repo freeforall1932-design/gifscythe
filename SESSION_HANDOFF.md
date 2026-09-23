@@ -1,16 +1,16 @@
 # Session Handoff
 
-**Session:** S26 · **Date:** 2026-09-17
-**Branch:** arena/01a0afc4-gifscythe (platform-assigned arena branch)
-**PR #32 merged as `e885d58`** (2026-09-17, branch `arena/01a0af41-gifscythe` — the S25 P1-44 implementation; reviewed from history in S26, the write-up is the S26 section below, which is what the P6 sync requires before this line moves). PR #31 merged as `f1c5bc8` (S24 docs consolidation). This records the merged baseline, not a claim about current CI health. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number.
-**Docs synced through:** PR #33 · branch `arena/01a0afc4-gifscythe` · merged as `5c93680`
+**Session:** S27 · **Date:** 2026-09-23 (opened 2026-09-22; crossed the sandbox's UTC midnight mid-session)
+**Branch:** s27-recreation-repair
+**Repo re-created 2026-09-22:** the GitHub repo was rebuilt from a zip upload; the old remote's history (S1–S26, PRs #1–#33, shas like `5c93680`) does not exist in this clone — every such sha below is an old-remote record kept for the written history. The new remote: `04a1cd4` (initial) → `60d3df4` (zip upload) → `ce5fd51` (unpack to root) → PR #1 merge `824bf20`, whose tree is the S26 state minus the four root license files (loss = finding **U-97**, restored in S27 with executed proof). The ledger carries a separator: rows #1–#33 are the OLD repo's; the new repo's numbering restarts at #1. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number. This records the merged baseline, not a claim about current CI health.
+**Docs synced through:** PR #1 (re-created repo) · branch `arena/01a0c72c-gifscythe` · merged as `824bf20`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. Move this line as part of the sync, never before the writing is done.)*
-Based on `main` commit `5c93680` (the PR #33 merge; all shas below are post the S24 attribution repair) ·
+Based on `main` commit `824bf20` (the re-created repo's PR #1 merge; old-remote shas inside the historical sections are records this clone cannot resolve) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (after S26)
+## Next session — fast hand-off (after S27)
 
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
@@ -31,7 +31,7 @@ Based on `main` commit `5c93680` (the PR #33 merge; all shas below are post the 
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 122 DONE · 8 PARTIAL · 38 OPEN · 0 UNTRIAGED · 168 total
+- **Register:** 123 DONE · 8 PARTIAL · 38 OPEN · 0 UNTRIAGED · 169 total
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -101,6 +101,14 @@ this ledger exists to make obvious.
 | #32 | S25 | `arena/01a0af41-gifscythe` | `825ff2c` (post-repair sha of e885d58; content identical) | P1-44 implementation (web numeric honesty): the `validate.mjs` finite-number gate, `numOrNull()` in `command.mjs` + `app.js`, incomplete resize/scale omitted from argv, `web/test/numeric-honesty.test.mjs` added and wired into both byte-identical CI copies. Merged 2026-09-17; **its linux run 35225055959 is RED** at the doc gate (G10: this file and `COMPILED_AUDIT.md` still named the pre-#31 base) — S26 repaired that and closed U-78/U-87 with the engine-backed proof S25's sandbox could not run |
 | #33 | S26 | `arena/01a0afc4-gifscythe` | `5c93680` (filled by the attribution-repair session per rule 2: #33 merged 2026-09-17; sha is post-repair) | Opened 2026-09-17. S26: P1-44 proved and closed (**U-78/U-87 ✅ FIXED**) with the engine-backed proof S25's sandbox could not run — `build.sh` 372/0, smoke 54/54, `verify_audit.sh` 31/0/5, transport 72 → **79 cases** — plus the three missing fixture batches, each mutation-tested (R2); two register drifts synced (**DS-09** was closed in S22 but still said OPEN/S15; the ninth web suite was missing from `web/README.md`'s three-suite list with counts frozen at S17); the **G10 base line** repaired, which is why linux run 35225055959 on `e885d58` was red at the doc gate; gate **G6**'s SKIP message now names the tools actually missing (message-only, R1-probed in four states). No product behaviour changed. Register 119/8/41/0 → **122/8/38/0** |
 
+
+**— the repo was re-created from a zip on 2026-09-22: rows #1–#33 above are the OLD remote's PRs (that history is gone from GitHub; the rows stay as the written record and their shas do not resolve in this clone). The NEW remote's ledger starts here; its PR numbers are independent of the rows above. —**
+
+| PR (new repo) | Handoff said "session …" at that merge | Branch | Merged as | What it did |
+|---|---|---|---|---|
+| #1 | S26 (the uploaded tree's own header) | `arena/01a0c72c-gifscythe` | `824bf20` | The platform unpack: zip upload (`60d3df4`) unpacked to root + zip removed (`ce5fd51`); content = the old repo's S26 state minus the four root license files (the loss is registered as U-97 and restored in S27). `git diff ce5fd51..824bf20` is empty — the merge took the branch tree as-is |
+| #2 | S27 | `s27-recreation-repair` | **open** | Opened 2026-09-23. S27: the re-creation repair — root license set restored (**U-97 ✅ FIXED**; executed packager fail-closed repro flipped exit 1 `ERROR: COPYING.ms-pl missing or empty` → exit 0 `Package created`, 11/11 required files non-empty; canonical texts, digests in the S27 log entry) + doc-gate re-sync (G10 enforced lines → `824bf20`; G11 entry dated 2026-09-23) + old/new-repo ledger separator + register re-emitted 122/8/38/0 → **123/8/38/0 = 169**. Gates: check_docs 24/0/2, sweep 5/0/0, python 20/20, review_change 4/0/1 ×2 (no R1), pr_preflight P1/P2/P3/P3b PASS (P4/P6 SKIP — no gh; API-equivalents via urllib). CI on this PR is the packaging + engine-suite proof (no toolchain in the S27 sandbox) |
+
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned
    and `**open**` in the *Merged as* cell. Never guess the number beforehand.
@@ -114,6 +122,62 @@ this ledger exists to make obvious.
 here each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**,
 and `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing
 branch names alone would have passed straight through both skipped syncs.
+
+## S27 — the re-creation repair: license set restored (U-97), double-red main re-synced (2026-09-23)
+
+**PR #1 write-up (the P6 sync this header records).** The new remote's PR #1
+(branch `arena/01a0c72c-gifscythe`, merged as `824bf20`) was the platform's zip
+unpack: the old repo's S26 tree restored into a fresh repo whose prior history
+(PR #1–#33 there, base `5c93680`) is gone from GitHub. Its diff against its own
+branch tip is empty (`git diff ce5fd51..824bf20`): it changed no content, but it
+made the new main double-red, because two things did not survive the trip — the
+docs' base shas became unresolvable in this clone (G10, the linux CI failure,
+reproduced exactly here) and the four root license files both packagers
+hard-require were dropped (the windows CI failure, reproduced exactly here).
+The tree itself is the S26 one, verified by markers rather than trust:
+`numOrNull()` in `command.mjs`/`app.js`, `g6_missing_tools()` in `check_docs.sh`,
+the 27-row device table (device-names suite green) and the 79-case transport
+write-up in this file.
+
+**What S27 changed (no product behaviour was touched):**
+
+1. **The root license set restored (U-97 — found AND fixed in-session, rule 2's
+   strong form).** The windows CI failure was reproduced locally before fixing:
+   the real `package_portable.sh` with fixture binaries on gitignored paths and
+   the REAL repo root answers `ERROR: COPYING.ms-pl missing or empty (no usable
+   same-target candidate)`, exit 1 — the packager's fail-closed licence check
+   (U-02/U-08) is platform-independent, so no Windows runner was needed to prove
+   the cause. Restored: `COPYING.gplv3` (GNU GPLv3, 35147 B), `COPYING.lgplv3`
+   (standalone GNU LGPLv3, 7639 B — the 42 KB SPDX combined text was rejected),
+   `COPYING.ms-pl` (canonical Ms-PL, 2663 B), `COPYING.gifsicle` (byte-copy of
+   `reference_code/gifsicle/COPYING`, digests identical both sides); fetch URLs +
+   sha256 digests are in the S27 log entry. Repro flipped: `Package created`,
+   exit 0, all 11 required files verified non-empty by the packager's own check.
+2. **The doc-gate re-sync (G10 + G11 — the linux CI failure).** Both enforced
+   base lines (this file's and `COMPILED_AUDIT.md`'s) now name `824bf20` — the
+   new main tip, and after this PR merges also its merge first parent, so the
+   lines stay legal across the merge (the S26 mechanic). The S27
+   `IMPROVEMENT_LOG.md` entry dated 2026-09-22 clears G11 (the docs lagged the
+   code by five days — the unpack commits). U-97 was registered in §5 (the
+   register is now 97 rows, the heading says so) and `STATUS.md` re-emitted:
+   122/8/38/0 = 168 → **123/8/38/0 = 169**; every quoted tally in the
+   current-state docs moved in the same pass (S2 rule).
+3. **The re-creation recorded where the doc machine reads it.** The ledger
+   separator (rows #1–#33 = the old repo, kept as the written record; the new
+   table starts at the unpack row), the header's re-creation note, and the
+   **Docs synced through** line naming the new remote's PR #1. The old/new PR
+   numbers collide by construction — the separator is what keeps them readable,
+   and P6 reads the newest merged PR from the CURRENT remote, where #1 is the
+   unpack.
+
+**Left deliberately:** every C++/Qt/Windows/wasm row (no compiler in this
+sandbox — U-59/P0-7 remains the top product row and needs a toolchain sandbox);
+`PLANNING.md` §5's copy-paste block (it claims to hold no state and was already
+stale at S26 — refreshing it is P2-22/U-89 territory); every gate's logic (no
+R1 edits this session); `reference_code/` (read-only — the COPYING copy went
+OUT of it, nothing went in). The windows step diagnosis stays an inference from
+an exact local reproduction (CI log blobs answer 401 here, as in S26) — this
+repair's own CI run is the deciding evidence.
 
 ## S26 — P1-44 proof + closeout, two register drifts, and the red-main repair (2026-09-17)
 
@@ -407,33 +471,27 @@ only stick if they are in files a new session reads, not in a conversation.
   per-session copies of audit/legal/ci/planning docs; extend the merged file
   (`docs/archive/AUDIT_HISTORY.md` indexes what was folded where).
 
-## Verification status this session (S26)
+## Verification status this session (S27)
 
-Everything marked ✅ was **run in this sandbox**; ⏳ could not be. Quote the
-**runtime** counter for test counts, never the `CHECK(` source site count. The
-S24 table this replaces lives in `IMPROVEMENT_LOG.md`'s S24 entry (**Verified** /
-**Not verifiable here**) — its ⏳ rows are the ones S26 turned into ✅.
+Everything marked ✅ was **run in this sandbox**; ⏳ could not be. The S26 table
+this replaces lives in `IMPROVEMENT_LOG.md`'s S26 entry (**Verified** / **Not
+verifiable here**). Quote the **runtime** counter for test counts, never the
+`CHECK(` source site count (**G9** compares like with like).
 
 | Check | Result |
 |---|---|
-| `./build.sh` (engine + CLI + unit tests) | ✅ green — gifsicle 1.96 built, **372 checks, 0 failures** |
-| `scripts/test_engine.sh` | ✅ 5/5 |
-| `scripts/smoke_cli.sh` | ✅ 54/54 |
-| `scripts/verify_audit.sh` (full) | ✅ 30 passed / 1 failed / 5 skipped at session start — the 1 failure was **F1←G10**, the stale base line repaired in S26; skips are cmake (C6/C9), Qt6 (B) and the CI/clean-Windows rows (C1–C5, D3/D4) |
-| `node web/test/command.test.mjs` (W1 parity vs the real CLI) | ✅ green, +2 explicit-zero fixtures |
-| `node web/test/validate.test.mjs` (W2 parity vs the real CLI) | ✅ green, +7 wrong-type keys pinned against the parser and `--strict` rc=3 |
-| `node web/test/transport.test.mjs` (W3, live server + real engine) | ✅ **79 cases** (was 72), +7 U-78/U-87 cases |
-| `node web/test/numeric-honesty.test.mjs` | ✅ green (S25's suite, re-run) |
-| W4/W5/W6 suites (body-limit, static-hygiene, request-guard + device-names + server-bounds) | ✅ green under `verify_audit.sh` |
-| Mutation test of the new fixtures (review rule R2) | ✅ 4/4 mutations produce FAILs — none of the new cases can pass vacuously |
-| `scripts/check_docs.sh` | ✅ see the S26 log entry for the final measurement (start of session: 23/1/1 with G10 red) |
-| GitHub API state | ✅ `main` = `e885d58`; **linux run 35225055959 RED** at the doc gate, windows + csharp-spike green; one published release (`snapshot-2026-09-07`, Pre-release, still no licence note — U-95 evidence) |
-| CI log text for the red run | ⏳ `results-receiver`/blob storage unreachable from this sandbox — the failing step name came from the job summary, the cause from an exact local reproduction |
-| GUI offscreen harness, `windeployqt` packaging, clean-Windows smoke | ⏳ no cmake/Qt6/mingw/wine here |
-
-**Counts are stated by kind on purpose.** `grep -c 'CHECK('` counts lines;
-`grep -o 'CHECK(' | wc -l` counts occurrences; neither equals the runtime
-count. Gate **G9** compares like with like.
+| `scripts/check_docs.sh` | ✅ session start: 21 passed / 3 failed / 2 skipped (G10 stale base ×2 docs, G11 log five days behind the code, G15 unbootstrapped clone); after the edits + `--emit`: **23 / 1 / 2** — the 1 is G18 (dirty tree mid-edit, resolved by the commit itself; the pre-push hook re-runs the gate on the committed tree) |
+| `scripts/check_docs.sh --emit` | ✅ STATUS.md regenerated — **123 DONE · 8 PARTIAL · 38 OPEN · 0 UNTRIAGED · 169 total**; U-97 row emitted DONE/S27 |
+| `scripts/sweep_stale.sh` | ✅ 5/0/0 |
+| `python3 tests/test_sweep_stale.py` | ✅ 20/20 |
+| Packager fail-closed repro (fixture binaries + the real repo root) | ✅ before restore: exit 1 `ERROR: COPYING.ms-pl missing or empty`; after restore: exit 0 `Package created`, the packager's own check listing all 11 required files non-empty |
+| Licence-text fidelity | ✅ GPLv3 35147 B / LGPLv3 7639 B / Ms-PL 2663 B — canonical sizes + head/tail + section structure verified, sha256 digests recorded in the S27 log entry; the 42 KB SPDX combined LGPL text was rejected; `COPYING.gifsicle` digest identical to its `reference_code` source |
+| Engine-free web suites (numeric-honesty, request-guard, device-names, body-limit, static-hygiene) | ✅ green |
+| `server-bounds` | ⏳ 3/5 here — its 2 failures need a discoverable engine (`Engine [none]`); environmental, not code |
+| Engine-backed suites (command/validate parity, transport, smoke, unit, engine, verify_audit) | ⏳ no compiler here — this branch's CI linux/windows build+test steps are the proof (all of them were green on `824bf20` except the two named failures) |
+| `review_change.sh --commit` | ✅ run on both S27 commits — output recorded in the PR body (no check-logic edits; R1 not expected) |
+| GitHub API state | ✅ token owner verified before the first push (`GET /user` → `freeforall1932-design`, id 300004558 — the commit-identity rule); main `824bf20` double-red: linux "Documentation status gate" + windows "Package portable (Windows)", csharp-spike skipped (`needs: windows`); the new remote has **zero releases, zero tags** — `snapshot-2026-09-07` went away with the old repo (noted for U-95/P0-4; no register change made) |
+| CI log text for the red steps | ⏳ blob storage answers HTTP 401 from this sandbox (as in S26) — step names came from the job summaries, the causes from exact local reproductions |
 
 ## Network/toolchain reality of this sandbox (re-check every session)
 
@@ -447,7 +505,18 @@ count. Gate **G9** compares like with like.
   At every token hand-off: verify the token owner with `GET /user` before the
   first push; keep this clone's `user.name`/`user.email` set to the owner.
 
-* **S26 sandbox (current):** **g++ 12.2 + make**, node v22.22.3, python3 3.11,
+* **S27 sandbox (current):** node v20.20.2, python3 3.11, git 2.39, bash 5.2,
+  **mawk** (no gawk), **no compiler, no cmake/Qt6, no mingw/wine, no dotnet/emcc,
+  no gh, no curl** — the S24/S25 shape. GitHub API works via python urllib + the
+  session token; Actions log blobs are NOT reachable (HTTP 401 at the redirect
+  target), so a red step can be *identified* but not *read*; gnu.org is
+  unreachable but raw.githubusercontent.com is (the restored licence texts were
+  fetched there). The sandbox restarted mid-session and came back WITHOUT `.git`
+  (working tree intact, re-clone verified byte-identical) — the commit-early rule
+  earned its keep. Consequence: the docs/gates lane, the engine-free web suites
+  and fixture-based packager repros are fully provable here; everything
+  compiler-bound is CI-proved or source-read only.
+* **S26 sandbox:** **g++ 12.2 + make**, node v22.22.3, python3 3.11,
   git 2.39, **gh 2.23 authenticated**, curl. **No cmake, no Qt6, no mingw-w64,
   no wine, no emcc, no dotnet.** Network: github.com + api.github.com reachable,
   but Actions **log blobs are not** (`results-receiver`/`blob.core.windows.net`
@@ -503,8 +572,8 @@ count. Gate **G9** compares like with like.
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 122 DONE · 8 PARTIAL · 38 OPEN · 0
-   UNTRIAGED · 168 total — but `STATUS.md` itself always wins; sweep rule S2
+   its generated counts line (currently: 123 DONE · 8 PARTIAL · 38 OPEN · 0
+   UNTRIAGED · 169 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the
