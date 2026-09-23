@@ -107,6 +107,7 @@ this ledger exists to make obvious.
 | PR (new repo) | Handoff said "session …" at that merge | Branch | Merged as | What it did |
 |---|---|---|---|---|
 | #1 | S26 (the uploaded tree's own header) | `arena/01a0c72c-gifscythe` | `824bf20` | The platform unpack: zip upload (`60d3df4`) unpacked to root + zip removed (`ce5fd51`); content = the old repo's S26 state minus the four root license files (the loss is registered as U-97 and restored in S27). `git diff ce5fd51..824bf20` is empty — the merge took the branch tree as-is |
+| #2 | S27 | `s27-recreation-repair` | **open** | Opened 2026-09-23. S27: the re-creation repair — root license set restored (**U-97 ✅ FIXED**; executed packager fail-closed repro flipped exit 1 `ERROR: COPYING.ms-pl missing or empty` → exit 0 `Package created`, 11/11 required files non-empty; canonical texts, digests in the S27 log entry) + doc-gate re-sync (G10 enforced lines → `824bf20`; G11 entry dated 2026-09-23) + old/new-repo ledger separator + register re-emitted 122/8/38/0 → **123/8/38/0 = 169**. Gates: check_docs 24/0/2, sweep 5/0/0, python 20/20, review_change 4/0/1 ×2 (no R1), pr_preflight P1/P2/P3/P3b PASS (P4/P6 SKIP — no gh; API-equivalents via urllib). CI on this PR is the packaging + engine-suite proof (no toolchain in the S27 sandbox) |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned
