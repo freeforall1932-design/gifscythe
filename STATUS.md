@@ -29,8 +29,8 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 122 DONE · 8 PARTIAL · 38 OPEN · 0 UNTRIAGED · 168 total
-**Last regenerated:** S26 · 2026-09-17 · by scripts/check_docs.sh --emit
+**Counts (generated - do not edit by hand):** 123 DONE · 8 PARTIAL · 38 OPEN · 0 UNTRIAGED · 169 total
+**Last regenerated:** S27 · 2026-09-23 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
 
@@ -133,6 +133,7 @@ hand-fudged roll-up fails the gate.
 | U-94 | No suite sweeps the settings space against the real engine: hand-written mirrors prove agreement, not correctness — U-62, U-63... | OPEN | S24 | not started; scoped as P2-18 in COMPILED_AUDIT.md §6 | P2-18: Oracle-fuzz conformance gate — S24 intake (G:GN-13, its top-leverage item). |
 | U-95 | The only published Release predates the Ms-PL relicence — snapshot-2026-09-07 was built from GPLv3-era first-party code and its... | OPEN | S24 | not started; scoped as P1-45 in COMPILED_AUDIT.md §6 | P1-45: Published-release legality — S24 intake (G:GN-15). |
 | U-96 | stemOf is hand-duplicated (app.js + server.mjs) and its dotfile/extensionless boundary is unpinned against Qt completeBaseName... | OPEN | S24 | not started; scoped as P3-18 in COMPILED_AUDIT.md §6 | P3-18: stemOf edge-name parity — S24 intake (G:GN-18). |
+| U-97 | The 2026-09-22 zip re-creation of the GitHub repo lost the root license set, so both packagers fail closed on every platform —... | DONE | S27 | canonical texts restored (GNU GPLv3 35147 B + standalone LGPLv3 7639 B via the gcc mirror, Ms-PL 2663 B via SPDX, COPYING.gifsicle byte-copied from... | - |
 <!-- END GENERATED -->
 
 ## Register, part 2 - hand-maintained (W worklist · D deferred · R risk · new findings)

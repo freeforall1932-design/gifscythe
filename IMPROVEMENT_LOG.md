@@ -4,6 +4,130 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S27 — the repo was re-created from a zip: root license set restored (U-97), doc gate re-synced (G10/G11), double-red main diagnosed (2026-09-23)
+
+**Changed:**
+
+- **The GitHub repo was re-created from a zip on 2026-09-22 — measured, not
+  assumed.** The remote's `created_at` is 2026-09-22T03:27:39Z and its whole
+  history is four commits: `04a1cd4` (initial) → `60d3df4` (zip upload) →
+  `ce5fd51` (unpack to root) → PR #1 merge `824bf20`. The old remote's history
+  (S1–S26, its PRs #1–#33, the old base `5c93680`) is gone from GitHub, so the
+  docs' enforced base lines named shas this clone cannot resolve — gate G10's
+  exact complaint, and the linux CI failure ("Documentation status gate") in all
+  three runs of the new main. The unpacked tree IS the S26 state, verified by
+  markers rather than trust: `numOrNull()` in `web/command.mjs` + `web/app.js`,
+  `g6_missing_tools()` in `check_docs.sh`, the 27-row device table (device-names
+  suite green), transport's 79-case write-up in the handoff. The unpack merge
+  itself changed nothing: `git diff ce5fd51..824bf20` is empty.
+- **The re-creation lost the four root license files — new finding U-97, found
+  AND fixed in-session (rule 2's strong form).** `COPYING.ms-pl`,
+  `COPYING.lgplv3`, `COPYING.gplv3`, `COPYING.gifsicle` were absent while
+  `package_common.sh` hard-requires the first three (`copy_required`, fail-closed
+  since U-02/U-08; the fourth has an in-tree fallback). That is where CI windows
+  "Package portable (Windows)" died (run 35684055250; every build/test step
+  before it green, manifest assert + artifact upload skipped after). **Executed
+  local repro** — the licence check is platform-independent, so no Windows
+  runner was needed: real `package_portable.sh --engine-cli-only`, fixture
+  binaries on gitignored paths, REAL repo root → `ERROR: COPYING.ms-pl missing
+  or empty (no usable same-target candidate)`, exit 1. The linux packaging step
+  would have failed identically once the doc gate passed.
+- **Restored from canonical sources, provenance recorded here per the legal
+  README's rule (6):**
+  - `COPYING.gplv3` — GNU GPLv3 text, 35147 B, sha256
+    `8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903`, fetched
+    from `raw.githubusercontent.com/gcc-mirror/gcc/master/COPYING3` (gnu.org is
+    unreachable from this sandbox; the gcc mirror carries the GNU text verbatim —
+    size and head/tail match gnu.org's `gpl-3.0.txt`).
+  - `COPYING.lgplv3` — standalone GNU LGPLv3, 7639 B, sha256
+    `a853c2ffec17057872340eee242ae4d96cbf2b520ae27d903e1b2fef1a5f9d1c`, same
+    mirror, `COPYING3.LIB`. The SPDX `LGPL-3.0-only.txt` was fetched first and
+    **rejected**: 42098 B because it concatenates the GPLv3 text at offset 7428 —
+    the canonical `COPYING.lgplv3` is the standalone text (the GPLv3 companion
+    ships separately as `COPYING.gplv3`, which is the repo's documented layout).
+  - `COPYING.ms-pl` — canonical Ms-PL, 2663 B, sha256
+    `7a162b1da10f1c22db4c68f07bec4a8355259f8d4aab5b00a2b2bbd423d833dd`, from
+    `raw.githubusercontent.com/spdx/license-list-data/main/text/MS-PL.txt`;
+    structure verified (sections 1 Definitions / 2 Grant of Rights / 3
+    Conditions and Limitations, ending with the as-is clause (E)).
+  - `COPYING.gifsicle` — byte-copy of `reference_code/gifsicle/COPYING` (GPL v2,
+    18092 B), sha256 `8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643`
+    identical on both sides of the copy. Nothing was written INTO the read-only
+    tree.
+  - All four verified LF-only, non-empty, exact names. **Repro flipped:**
+    `Package created`, exit 0, the packager's own check listing all 11 required
+    files present and non-empty (fixture binaries; the real-binary proof is this
+    PR's CI packaging steps).
+- **Doc-gate re-sync (G10 + G11).** Both enforced base lines (the handoff's
+  "Based on" header line and `COMPILED_AUDIT.md`'s Base line) now name
+  `824bf20` — the new main tip, and after this PR merges also its merge first
+  parent, so the lines stay legal across the merge (the S26 mechanic). This
+  entry (dated 2026-09-23 — the session opened on the 22nd and crossed the
+  sandbox's UTC midnight) clears G11: the newest log entry no longer trails the
+  newest non-doc commit (the unpack of 2026-09-22 and this session's licence
+  restore of 2026-09-23).
+- **The re-creation is recorded where the doc machine reads it.** Handoff
+  header: session/branch lines, a re-creation note explaining the old-repo shas,
+  the **Docs synced through** line moved to the new remote's PR #1 (branch
+  `arena/01a0c72c-gifscythe`, merged as `824bf20`). Ledger: a separator marking
+  rows #1–#33 as the OLD repo's (kept as the written record) and a new-repo
+  table starting with the unpack row. `COMPILED_AUDIT.md`: an S27 addendum
+  banner, the verification-sessions line, §5 heading now "all 97 unique
+  findings", U-97 row appended. Register re-emitted via `check_docs.sh --emit`:
+  **122/8/38/0 = 168 → 123/8/38/0 = 169**; quoted tallies in the handoff
+  (fast-handoff Register line + orientation item 0) moved in the same pass
+  (sweep rule S2).
+- **WORKLIST:** U-97 line added to "Found this session" (ticked — fixed the same
+  session); the "96-row audit register" reference updated to 97.
+
+**Partial:** none claimed. U-97's DONE rests on the executed repro flip + the
+recorded digests; the platform-level confirmation is this PR's CI packaging
+steps (windows stages the real `.exe`s; linux reaches its packaging step for the
+first time since the re-creation once the doc gate passes).
+
+**Left:** the windows packaging diagnosis remains an inference from an exact
+local reproduction — the CI log text could not be read (blob storage answers
+HTTP 401 from this sandbox, as in S26), so if that step still fails after this
+repair, the next session must diagnose from the runner side. Every C++/Qt/
+Windows/wasm row is untouched (no compiler here): **U-59/P0-7 remains the top
+product row** and needs a toolchain sandbox. `PLANNING.md` §5's copy-paste
+block was deliberately NOT refreshed (it claims to hold no state and was
+already stale at S26 — refreshing it is P2-22/U-89 territory). No gate logic
+was touched (no R1 edits). The old repo's published `snapshot-2026-09-07`
+release and its U-95/P1-45 note did not survive into the new remote's releases
+list (zero releases now) — whether to re-publish anything is the owner's P0-4
+call, unchanged.
+
+**Verified:** `scripts/check_docs.sh` — session start 21 passed / 3 failed
+(G10 ×2 docs, G11, G15) / 2 skipped; after the edits + `--emit`: see the S27
+handoff verification table for the final measurement · `scripts/sweep_stale.sh`
+5/0/0 · `python3 tests/test_sweep_stale.py` 20/20 · packager repro before
+(exit 1, `COPYING.ms-pl`) and after (exit 0, `Package created`) · engine-free
+web suites green: numeric-honesty, request-guard, device-names (27 rows),
+body-limit, static-hygiene; server-bounds 3/5 here (its 2 failures need a
+discoverable engine — environmental, printed as `Engine [none]`) ·
+`review_change.sh --commit` on both commits (flags recorded in the S27 handoff
+table) · GitHub API via python urllib: token owner `freeforall1932-design`
+(id 300004558 — the commit-identity rule), main's three runs all `failure`,
+failing steps named from the job summaries, `git diff ce5fd51..824bf20` empty.
+
+**Not verifiable here:** the CI packaging steps themselves (no mingw/wine/
+Windows — the fixture repro proves the licence-staging logic, not the real
+binaries); CI log text (401); the engine-backed suites (`command`/`validate`
+parity, `transport`, smoke, unit, engine — no compiler in this sandbox); the
+Qt/GUI harness (no cmake/Qt6); `gh` is absent, so preflight P4/P6 skip and the
+PR was opened via the API with python urllib (the S24 pattern).
+
+**Docs touched:** `COMPILED_AUDIT.md` (S27 banner, verification-sessions line,
+Base line, §5 heading + U-97 row), `SESSION_HANDOFF.md` (header block, ledger
+separator + new-repo rows, S27 section, toolchain bullet, verification table,
+orientation counts), `WORKLIST.md` (U-97 line, 97-row), `STATUS.md`
+(regenerated via `--emit` — never hand-edited), `IMPROVEMENT_LOG.md` (this
+entry). Root license files restored: `COPYING.ms-pl`, `COPYING.lgplv3`,
+`COPYING.gplv3`, `COPYING.gifsicle`.
+
+---
+
 ## S26 — P1-44 proved and closed (U-78/U-87), two register drifts fixed, red `main` repaired (2026-09-17)
 
 **Changed:**
