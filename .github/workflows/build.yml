@@ -53,6 +53,9 @@ jobs:
           node web/test/device-names.test.mjs
           node web/test/server-bounds.test.mjs
 
+      - name: Seeded engine-oracle conformance (U-94 / P2-18)
+        run: node working_code/gifscythe/scripts/oracle_fuzz.mjs --full
+
       - name: GUI offscreen tests (COMPILED_AUDIT 6.B harness)
         timeout-minutes: 12
         working-directory: working_code/gifscythe

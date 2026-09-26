@@ -322,8 +322,19 @@ if command -v node >/dev/null 2>&1; then
     w6_n="$(grep -c '^PASS' <<<"$w6_out")"
     ok "W6" "web request ownership + shared device table + server bounds (${w6_n:-?} cases, U-54/U-69/U-56/U-06)"
   else bad "W6" "S23 web suites failed to pass their own gate"; fi
+  # W7 is the seeded, offline settings oracle: every sample must agree between
+  # JS argv and the real CLI, and the bundled engine's accept/refuse result is
+  # checked against both the validator and strict CLI. The committed matrix is
+  # compared byte-for-byte so a changed engine/model result is review-visible.
+  w7_out="$(node scripts/oracle_fuzz.mjs --full 2>&1)"
+  if grep -q '^oracle-fuzz: 64 deterministic cases passed ' <<<"$w7_out"; then
+    ok "W7" "seeded JS/CLI/engine oracle (64 cases; U-94 / P2-18)"
+  else
+    echo "$w7_out" | tail -20 >&2
+    bad "W7" "seeded JS/CLI/engine oracle or committed matrix failed"
+  fi
 else
-  skip "W1-W6" "node not installed — web parity/server tests skipped"
+  skip "W1-W7" "node not installed — web parity/server/oracle tests skipped"
 fi
 
 # ---------- Windows CI-only ----------
