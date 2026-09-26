@@ -57,6 +57,7 @@ class SettingsPanel;
 #include "core/GifsicleCommand.h"
 #include "core/OutputPlan.h"
 #include "core/ExplodeVerify.h"
+#include "core/OutputVerify.h"
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -167,7 +168,9 @@ class MainWindow : public QMainWindow {
   QProcess* process_ = nullptr;        // objectName "engineProcess"
   bool busy_ = false;
   bool cancelling_ = false;            // set while cancelRun() kills the engine
-  QString pendingOutput_;
+  QString pendingOutput_;              // user-visible final path/prefix
+  QString pendingPartial_;             // U-59: guarded same-directory write path; empty for Explode
+  gs::OutputSnapshot partialSnapshot_; // pre-run baseline for U-59 verification
   QStringList batchTargets_;           // planned per-file outputs (audit U-01)
   int batchIndex_ = -1;
   QStringList batchQueue_;

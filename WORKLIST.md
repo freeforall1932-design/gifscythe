@@ -95,9 +95,7 @@ the S24 intake was triaged in the same session (each row carries its §6 id).
             stream-output/--info exemptions the ordinary verifier documents;
             `output = -` explode downgrades an honest run to rc=1.
             **DONE (S28)** — measured first: the intake's repro was wrong on both halves (`-e -o -` scatters `<input>.NNN` into the CWD, it does not stream; `--info` + explode is refused by the ENGINE itself). `verify_explode` now carries the `verify_file` exemptions and explode + `output = -` is refused rc=2 with nothing scattered (smoke 61/61).
-      - [ ] **U-94** → **P2-18** — oracle-fuzz gate: sweep the settings space
-            against the REAL engine (both mirrors can be wrong together —
-            U-62/U-63/N-05 proved it); seeded, offline, committed matrix.
+      - [x] **U-94** → **P2-18** — **DONE (S29):** seeded offline oracle-fuzz gate against the REAL engine. 64 full cases / 24 quick-prefix cases compare JS argv to the C++ CLI, validator decisions to strict mode, and accepted/refused behavior to gifsicle; verified outputs + committed matrix in `working_code/gifscythe/tests/oracle_fuzz_matrix.json`. Wired as verify_audit W7 + Linux CI full run + pre-push quick run.
       - [x] **U-92** → **P2-19** — web upload admission: GIF magic on the
             decoded buffer + strict base64 (GS-205's web twin).
             **DONE (S28)** — strict base64 + GIF-magic admission on both endpoints before any engine discovery (transport 79 → 86 cases, plus 2 in body-limit).
@@ -162,10 +160,15 @@ the S24 intake was triaged in the same session (each row carries its §6 id).
    is renamed onto only after verification, so a cancel, a signal or a refusal
    leaves the previous bytes intact (smoke 54 → 58/58, three cases run RED
    first; `test_output_verify.sh` 25 assertions). **Remaining: the Qt half** —
-   `runCommand()` still passes the real target to the engine, so the GUI Cancel
-   keeps the old behaviour until the same guard is wired there and
-   `tests/test_gui_offscreen.cpp` gets a cancel-with-preexisting case (needs
-   Qt6). The row is PARTIAL, not DONE.
+   **S30: GUI guard implemented, pending Qt-enabled PR CI.** Batch/Merge/Auto
+   now write beside the destination to `<target>.gs-partial`, verify before
+   promotion, and discard partials on failure/cancel; offscreen T4/T8/T9 cover
+   success, partial-writing failure, and cancellation while preserving an
+   existing output. **DONE S30:** Qt-enabled PR CI run `36227237540` passed
+   Linux and Windows builds and both GUI offscreen suites. **Separate follow-up
+   task for the next agent:** independently review the change and rerun the
+   offscreen suite if that agent has CMake + Qt6; report findings without
+   merging absent owner approval.
 2. **U-09 / P0-4 + U-95 / P1-45** — re-cut release artifacts from one exact
    tagged SHA; the owner marks the pre-relicence `snapshot-2026-09-07` release
    superseded in its notes (never delete — rollback policy).
@@ -179,10 +182,9 @@ the S24 intake was triaged in the same session (each row carries its §6 id).
    U-71 (now CI-testable per P2-17's S24 note).
 6. **The S24 web-intake batch** — P1-44 first (U-78/U-87, closed S26), then the
    P2/P3 rows above; all are provable with node alone except where noted.
-   **S28 closed the rest of the node/CLI-provable set**: U-92/P2-19, U-93/P2-20,
-   U-85/P3-13, U-84/P3-14, U-86/P3-16, U-81/P1-46 and U-83/P3-15. What is left in
-   this lane is U-94/P2-18 (the oracle-fuzz gate — the real engine is available,
-   it is a big enough build to want its own session) and the two doc-machine rows
+   **S28 closed the node/CLI batch**: U-92/P2-19, U-93/P2-20, U-85/P3-13,
+   U-84/P3-14, U-86/P3-16, U-81/P1-46 and U-83/P3-15. S29 closed U-94/P2-18
+   with the seeded engine-oracle matrix. The remaining doc-machine rows are
    U-88/P2-21 + U-89/P2-22 (they edit gate logic, so they are R1 work and need
    mutation testing).
 7. **Owner decisions** — `docs/planning/OWNER_DECISIONS.md`: remaining

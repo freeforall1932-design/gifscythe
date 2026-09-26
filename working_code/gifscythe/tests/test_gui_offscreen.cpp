@@ -12,8 +12,10 @@
 //   T6  Merge with empty output -> refuses, no silent stdout loss (B12)
 //   T7  Explode with empty output -> auto prefix, frames written (E2);
 //       rc=0 + zero frames (lying engine) is REFUSED, prefix named (U-17)
-//   T8  Failed engine run -> honest "failed" status + dialog (B4)
-//   T9  async start (B1 proxy), busy indicators (B3), cancel mid-run (B2)
+//   T8  Failed engine run -> honest "failed" status + dialog (B4); U-59
+//       partial-writing failure preserves existing output and removes partial
+//   T9  async start (B1 proxy), busy indicators (B3), cancel mid-run (B2),
+//       existing output survives cancellation; success promotion is covered T4
 //   T10 close window while running kills the engine process (B15)
 //   T11 Actions-tab controls map to the right gifsicle flags (S3-4 /
 //       U-MISS-13) incl. VP-1 loopcount=0, VP-2 -O0, VP-5 crop plus-form,
@@ -501,6 +503,8 @@ int main(int argc, char** argv) {
     const QString bOut = tmp.path() + QStringLiteral("/b_opt.gif");
     CHECK(QFileInfo::exists(aOut));
     CHECK(QFileInfo::exists(bOut));
+    CHECK(!QFileInfo::exists(aOut + QStringLiteral(".gs-partial")));
+    CHECK(!QFileInfo::exists(bOut + QStringLiteral(".gs-partial")));
     CHECK(QFileInfo(aOut).size() > 0);
     CHECK(QFileInfo(bOut).size() > 0);
     CHECK_MSG(frameCount(aOut) == 12, "batch preserves frame count (a: 12)");
@@ -515,10 +519,22 @@ int main(int argc, char** argv) {
     auto x2 = findWidgets(w2);
     dropFiles(w2, {a2});
     const QString explicitOut = tmp2.path() + QStringLiteral("/my explicit result.gif");
+    const QByteArray oldOutput("previous known-good output bytes");
+    {
+      QFile f(explicitOut);
+      CHECK(f.open(QIODevice::WriteOnly));
+      CHECK(f.write(oldOutput) == oldOutput.size());
+    }
     x2.output->setText(explicitOut);
     x2.run->click();
     CHECK_MSG(waitForStatus(w2, QStringLiteral("complete")), "explicit-output batch completes");
     CHECK(QFileInfo::exists(explicitOut));
+    {
+      QFile f(explicitOut);
+      CHECK(f.open(QIODevice::ReadOnly));
+      CHECK(f.read(6).startsWith("GIF8"));  // verified partial promoted to target
+    }
+    CHECK(!QFileInfo::exists(explicitOut + QStringLiteral(".gs-partial")));
     CHECK(!QFileInfo::exists(tmp2.path() + QStringLiteral("/a_opt.gif")));
     delete w2;
   }
@@ -715,6 +731,51 @@ int main(int argc, char** argv) {
     CHECK(!x.cancel->isEnabled());
     CHECK(!g_dialogs.empty());       // failure surfaced as dialog too
     delete w;
+
+    // U-59: a failing engine that writes corrupt bytes to its output must not
+    // replace an existing destination, and its isolated partial is discarded.
+    QString fakeFailure = QCoreApplication::applicationDirPath()
+                        + QStringLiteral("/fake_engine_partial_failure");
+#ifdef _WIN32
+    fakeFailure += QStringLiteral(".exe");
+#endif
+    CHECK_MSG(QFileInfo::exists(fakeFailure),
+              "partial-writing failure fixture built next to the GUI harness");
+    const QByteArray origEngine = qgetenv("GS_ENGINE");
+    qputenv("GS_ENGINE", QFile::encodeName(fakeFailure));
+    {
+      QTemporaryDir tmp2;
+      const QString input = tmp2.path() + QStringLiteral("/source.gif");
+      const QString target = tmp2.path() + QStringLiteral("/kept.gif");
+      const QString partial = target + QStringLiteral(".gs-partial");
+      const QByteArray knownGood("do not destroy this output");
+      CHECK(copyFile(logo, input));
+      {
+        QFile f(target);
+        CHECK(f.open(QIODevice::WriteOnly));
+        CHECK(f.write(knownGood) == knownGood.size());
+      }
+      MainWindow* wf = makeWindow();
+      auto xf = findWidgets(wf);
+      dropFiles(wf, {input});
+      xf.output->setText(target);
+      g_dialogs.clear();
+      xf.run->click();
+      CHECK_MSG(waitForStatus(wf, QStringLiteral("failed")),
+                "partial-writing fake engine reports failure");
+      CHECK(xf.process->state() == QProcess::NotRunning);
+      {
+        QFile f(target);
+        CHECK(f.open(QIODevice::ReadOnly));
+        CHECK(f.readAll() == knownGood);
+      }
+      CHECK(!QFileInfo::exists(partial));
+      CHECK_MSG(dialogsContain(QStringLiteral("corrupt partial")),
+                "failure stderr remains visible to the user");
+      delete wf;
+    }
+    if (origEngine.isNull()) qunsetenv("GS_ENGINE");
+    else qputenv("GS_ENGINE", origEngine);
   }
 
   // ================= T9: busy UI + cancel mid-run (B1/B2/B3) =============
@@ -722,6 +783,13 @@ int main(int argc, char** argv) {
     g_stage = "T9"; std::printf("== T9 cancel mid-run ==\n");
     QTemporaryDir tmp;
     const QString big = tmp.path() + QStringLiteral("/big.gif");
+    const QString existingOutput = tmp.path() + QStringLiteral("/big_opt.gif");
+    const QByteArray knownGood("previous output survives cancellation");
+    {
+      QFile f(existingOutput);
+      CHECK(f.open(QIODevice::WriteOnly));
+      CHECK(f.write(knownGood) == knownGood.size());
+    }
     std::printf("  (building 4800-frame GIF for a multi-second run...)\n");
     CHECK_MSG(makeBigGif(logo, big, 400), "big.gif generated");
 
@@ -762,6 +830,12 @@ int main(int argc, char** argv) {
     CHECK(!x.progress->isVisible());     // busy indicator cleared
     // A cancel is expected, not an error: no "optimization failed" dialog.
     CHECK_MSG(g_dialogs.empty(), "cancel does not pop a spurious error dialog");
+    {
+      QFile f(existingOutput);
+      CHECK(f.open(QIODevice::ReadOnly));
+      CHECK(f.readAll() == knownGood);
+    }
+    CHECK(!QFileInfo::exists(existingOutput + QStringLiteral(".gs-partial")));
     delete w;
   }
 

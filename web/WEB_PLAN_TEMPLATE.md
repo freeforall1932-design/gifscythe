@@ -99,13 +99,13 @@ producing nothing (`GS-203` class) or write anywhere the user did not choose (`G
   `web/app.js` 288, `web/command.mjs` 238, `web/validate.mjs` 89, plus three suites
   (196 + 353 + 129 lines of tests).
 - **GS-202 / P0-6 closed S17:** portable upload-name rejection, contained output/prefix
-  plan, case/NFC collision checks; transport 42/42. The template remains SKELETON.
+  plan, case/NFC collision checks; transport 42/42. At this S14 snapshot, the plan was still SKELETON.
 - **Open intake items hit the web directly** (each with its `COMPILED_AUDIT.md` §6 id;
   evidence in §13): `GS-203` → **P1-25** (broader output verification), plus the `U-06` remainder
   (concurrency cap / rate limit / engine-run bound).
 - **DS-13 / P1-32 closed S17:** `/optimize` verifies GIF87a/GIF89a magic on its
   response buffer. Transport 53/53. This is signature-only, not full GIF decoding;
-  GS-203 remains open and the template remains SKELETON.
+  GS-203 remains open; at this S14 snapshot, the plan was still SKELETON.
 - **GS-207 / P1-29 closed S17:** non-empty engine overrides now fail explicitly
   instead of falling back; empty/unset retains discovery. CLI smoke 30/30 and web
   transport 63/63 on Linux; source labels logged. Workflow-copy sync remains open.

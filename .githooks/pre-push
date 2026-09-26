@@ -23,12 +23,8 @@ if [[ ! -x "$checker" ]]; then
 fi
 
 echo "==> pre-push: running the documentation gate (check_docs.sh)"
-if "$checker"; then
-  echo "==> pre-push: documentation gate green."
-  exit 0
-fi
-
-cat >&2 <<'MSG'
+if ! "$checker"; then
+  cat >&2 <<'MSG'
 
 ==> pre-push: BLOCKED - the documentation gate failed.
 
@@ -42,4 +38,15 @@ failure is wrong, fix the checker in the same commit - do not bypass it
 with --no-verify, which leaves the next session reading stale docs.
 
 MSG
-exit 1
+  exit 1
+fi
+
+echo "==> pre-push: documentation gate green; running seeded engine oracle (quick)"
+oracle="$root/working_code/gifscythe/scripts/oracle_fuzz.mjs"
+if ! command -v node >/dev/null 2>&1 || [[ ! -f "$oracle" ]] || ! node "$oracle" --quick; then
+  echo "pre-push: BLOCKED - seeded engine oracle failed (see above)." >&2
+  exit 1
+fi
+
+echo "==> pre-push: documentation gate and seeded engine oracle green."
+exit 0

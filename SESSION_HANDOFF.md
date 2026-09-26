@@ -1,17 +1,26 @@
 # Session Handoff
 
-**Session:** S28 · **Date:** 2026-09-26
-**Branch:** arena/01a0dbc8-gifscythe
+**Session:** S30 · **Date:** 2026-09-26
+**Branch:** arena/01a0dc78-gifscythe
 **Repo re-created 2026-09-22:** the GitHub repo was rebuilt from a zip upload; the old remote's history (S1–S26, PRs #1–#33, shas like `5c93680`) does not exist in this clone — every such sha below is an old-remote record kept for the written history. The new remote: `04a1cd4` (initial) → `60d3df4` (zip upload) → `ce5fd51` (unpack to root) → PR #1 merge `824bf20`, whose tree is the S26 state minus the four root license files (loss = finding **U-97**, restored in S27 with executed proof). The ledger carries a separator: rows #1–#33 are the OLD repo's; the new repo's numbering restarts at #1. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number. This records the merged baseline, not a claim about current CI health.
-**Docs synced through:** PR #3 (re-created repo) · branch `arena/01a0dbc8-gifscythe` · merged as `42306bb`
+**Docs synced through:** PR #4 (re-created repo) · branch `arena/01a0dbc8-gifscythe` · merged as `7c035fd`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. Move this line as part of the sync, never before the writing is done.)*
-Based on `main` commit `42306bb` (the re-created repo's PR #3 merge, the S28 batch; old-remote shas inside the historical sections are records this clone cannot resolve) ·
+Based on `main` commit `7c035fd` (the re-created repo's PR #4 merge, the S28 doc sync; old-remote shas inside the historical sections are records this clone cannot resolve) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (after S28)
+## Next session — fast hand-off (after S30)
 
+- **U-59 / P0-7 GUI implementation is on the open PR #5 branch.** Ordinary
+  Batch/Merge/Auto runs use `<target>.gs-partial`, verify then promote, and
+  clean up on failure/cancel. Offscreen cases cover success promotion,
+  partial-writing failure preserving old bytes, and cancellation preserving
+  old bytes. Qt-enabled PR run `36227237540` passed Linux and Windows builds
+  and both GUI offscreen suites. This sandbox has no CMake/Qt6. **Separate
+  follow-up:** if you have CMake + Qt6, perform an independent code review and
+  rerun `test_gui_offscreen`; document findings. Do not merge without explicit
+  owner approval.
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
   diff blindly: it flags check-logic edits (**R1**), matchers that match nothing
@@ -19,6 +28,11 @@ Based on `main` commit `42306bb` (the re-created repo's PR #3 merge, the S28 bat
   still live: G10 never matched this audit's own header shape), prose counts
   that disagree with a measurement taken now (**R3**), lost executable bits
   (**R4**), and lists the docs the change obliges you to update (**R5**).
+- **S29 completed U-94/P2-18:** the seeded 64-case engine-oracle suite is at
+  `working_code/gifscythe/scripts/oracle_fuzz.mjs`; its checked-in evidence is
+  `working_code/gifscythe/tests/oracle_fuzz_matrix.json`. `--quick` (24 cases)
+  is in pre-push; `--full` (64) is verify_audit W7 + Linux CI. See the S29 log
+  entry for the exact assertions and measurements.
 - **Copy-paste prompt:** `docs/planning/PLANNING.md` §5 — recovery steps, the
   SkillOpt ask, the decision backlog and the standing constraints in one block.
 - **Owner decisions:** `docs/planning/OWNER_DECISIONS.md` — answered so far:
@@ -31,7 +45,7 @@ Based on `main` commit `42306bb` (the re-created repo's PR #3 merge, the S28 bat
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 130 DONE · 9 PARTIAL · 30 OPEN · 0 UNTRIAGED · 169 total
+- **Register:** 132 DONE · 8 PARTIAL · 29 OPEN · 0 UNTRIAGED · 169 total
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -111,8 +125,8 @@ this ledger exists to make obvious.
 
 | #3 | S28 | `arena/01a0dbc8-gifscythe` | `42306bb` | Opened 2026-09-26. S28: **U-59/P0-7 CLI/core half** (the only registered data-loss row) fixed test-first — the engine now writes `<target>.gs-partial` and the target is renamed onto only after verification, so a cancel, a signal or a refusal leaves the previous bytes intact (3 smoke cases run RED first, `cmp=DIFFERS`; smoke 54 → **58/58**, `test_output_verify.sh` 12 → **25 assertions**, unit 372/0, transport 79 cases, `verify_audit.sh` 30/1/5) + the Qt half deliberately left (no Qt6 here) so **U-59 is PARTIAL** + the `set -e`/`wait` harness trap fixed + the **P6 doc sync to PR #2** (the header had lagged one merge) + the S28 log entry that **clears G11**, the red main on `e06b5db` (run 35904935321) + the whole OPEN board triaged against this sandbox's measured toolchain. Gates: check_docs 24/0/1, sweep 5/0/0, python 20/20, review_change 4/0/1 (no R1), pr_preflight P1/P2/P3/P3b/P4/P6 PASS. CI on this PR is the Windows/MinGW compile proof. *(Batch 2 landed in the same PR before the merge — U-92/U-84/U-85/U-93/U-86/U-81/U-83 also closed — so the MERGED totals are smoke 61/61, transport 86 cases, body-limit 13, server-bounds 10 groups, register **130/9/30/0**; the numbers above are batch 1's, kept as written rather than rewritten. Merged 2026-09-26 as `42306bb`, linux + windows + csharp-spike green on run 36218477342.)* |
 
-| #4 | S28 | `arena/01a0dbc8-gifscythe` | **open** | Opened 2026-09-26, immediately after merging #3. The post-merge sync the ledger's rules require: row #3's *Merged as* cell filled with `42306bb` (rule 2 — whoever merges edits it) with batch 2's real totals appended as a note rather than a rewrite, the **P6** line moved to PR #3, and the **G10 base-line lag the merge itself caused** repaired — merging moved main's tip, so `COMPILED_AUDIT.md`'s enforced **Base:** line naming `824bf20` stopped matching (it was only legal as `e06b5db`'s first parent) and main went red at the doc gate; both enforced lines now name `42306bb`, which stays legal across the next merge because a merge sha is also its first parent (the S26 mechanic). No product code. Gates: check_docs 24/0/1, sweep 5/0/0, pre-push green |
-
+| #4 | S28 | `arena/01a0dbc8-gifscythe` | `7c035fd` | Opened 2026-09-26, immediately after merging #3. The post-merge sync the ledger's rules require: row #3's *Merged as* cell filled with `42306bb` (rule 2 — whoever merges edits it) with batch 2's real totals appended as a note rather than a rewrite, the **P6** line moved to PR #3, and the **G10 base-line lag the merge itself caused** repaired — merging moved main's tip, so `COMPILED_AUDIT.md`'s enforced **Base:** line naming `824bf20` stopped matching (it was only legal as `e06b5db`'s first parent) and main went red at the doc gate; both enforced lines now name `42306bb`, which stays legal across the next merge because a merge sha is also its first parent (the S26 mechanic). No product code. Gates: check_docs 24/0/1, sweep 5/0/0, pre-push green. Merged 2026-09-26 as `7c035fd` (merge commit). |
+| #5 | S29/S30 | `arena/01a0dc78-gifscythe` | **open** | Opened 2026-09-26. U-94/P2-18: seeded offline 64-case engine-oracle harness (`--quick` 24-case prefix), committed matrix, verify_audit W7, Linux CI full run, and pre-push quick run. S30 adds U-59/P0-7 GUI partial-output guard plus offscreen success/failure/cancel preservation cases and a fake partial-writing failure engine. Qt-enabled run **36227237540** passed linux/windows/csharp-spike, including both GUI offscreen suites; run 36226011075 was the previous green baseline. Not merged; no merge without owner approval. |
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned
    and `**open**` in the *Merged as* cell. Never guess the number beforehand.
@@ -126,6 +140,92 @@ this ledger exists to make obvious.
 here each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**,
 and `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing
 branch names alone would have passed straight through both skipped syncs.
+
+## S30 — U-59/P0-7 GUI partial-output guard + offscreen regressions (2026-09-26)
+
+**Changed:** On the active `arena/01a0dc78-gifscythe` branch / open PR #5,
+ordinary GUI Batch, Merge, and Auto runs now direct gifsicle to a same-directory
+`.gs-partial`. Before a run, any stale sidecar is discarded and the partial is
+snapshotted; after an exit-zero run, the shared `OutputVerify.h` verifier checks
+the partial and only a valid changed GIF is promoted over the destination.
+Non-zero exit, failed start, failed verification/promotion, and Cancel discard
+the partial; Explode remains unchanged because it writes numbered frames under
+a prefix. Batch continuation performs the same guarded lifecycle for each
+planned destination. Added a cross-platform fake engine that writes corrupt
+partial bytes and exits 7. Offscreen T4/T8/T9 cover successful promotion,
+failed partial writes preserving an existing target, and cancellation
+preserving an existing target; each path asserts no sidecar remains.
+
+**Follow-up task:** WORKLIST.md separately asks the next agent to independently
+review the change and rerun the GUI/offscreen suite if that agent has CMake +
+Qt6 capabilities. This is not a request to merge.
+
+**Verified:** `git diff --check`; local fake-fixture compile; unit 372/0,
+CLI smoke 61/61, output verifier 25/0; Qt-enabled PR run **36227237540** passed
+Linux and Windows builds and both GUI offscreen suites. The prior PR #5 green
+run predates these changes; run 36227237540 is the evidence for this patch.
+
+**Not verifiable here:** a local Qt6/CMake build/run and the independent review
+queued for the next agent; CI supplied the current cross-platform GUI evidence.
+
+**Docs touched:** `COMPILED_AUDIT.md` (U-59/P0-7 evidence), `STATUS.md` (emit
+from audit), `WORKLIST.md` (current U-59 state and separate next-agent review
+task), `SESSION_HANDOFF.md` (S30 handoff and PR #5 scope),
+`working_code/gifscythe/README.md` (fixture and test count),
+`web/WEB_PLAN_TEMPLATE.md` (historical S14 state wording; G16 token retained),
+`working_code/gifscythe/scripts/check_docs.sh` (G16 pipeline reliability), and
+`IMPROVEMENT_LOG.md` (this entry).
+
+## S29 — PR #4 post-merge doc sync; U-94/P2-18 seeded real-engine oracle gate (2026-09-26)
+
+**PR #4 merged first, with explicit owner approval.** The documentation-only
+sync merged as true merge commit `7c035fd`; main's repair run `36225207865` is
+SUCCESS. It fixes the exact G10 main failure from PR #3 run `36218999564` by
+moving both enforced base lines to PR #3's merge `42306bb`, fills PR #3's ledger
+merge cell, appends its batch-2 measured totals without rewriting the original
+row, and moves P6 to PR #3. The current header then syncs through PR #4.
+
+**U-94 / P2-18 — seeded offline settings oracle, executed against the real
+engine.** `working_code/gifscythe/scripts/oracle_fuzz.mjs` uses a fixed xorshift
+seed (`0x47534631`), 24 curated boundary cases plus 40 seeded combinations.
+For every case it compares the JS builder's command to the real C++ CLI's
+conf-parsed command, checks JS validation against the CLI's `--strict` result,
+runs argv directly against the bundled gifsicle 1.96, and checks GIF signature
+and non-empty output. Product-accepted cases must produce a verified GIF;
+engine refusals must have a product warning; cases the engine silently accepts
+but the product warns about are explicitly included (e.g. `--scale 0x1` and
+invalid gamma). It also runs the same accepted samples through CLI `--run` and
+checks its output. The full measured matrix is committed at
+`working_code/gifscythe/tests/oracle_fuzz_matrix.json`; `--quick` checks the
+24-case prefix in pre-push, and `--full` checks all 64 rows in verify_audit W7
+and Linux CI. There are no downloads, third-party dependencies, or random-seed
+nondeterminism. PR #5 carries the change from this fixed session branch; its
+initial push CI run `36225748067` passed on linux, windows, and csharp-spike.
+
+**Gates wired.** `.githooks/pre-push` now requires the quick oracle after the
+existing docs gate; `verify_audit.sh` W7 runs the full sample; Linux CI runs the
+same full command. `docs/ci/build.yml.proposed` was re-copied byte-identically
+after editing the live workflow. The review flagged these as R1/check-logic
+changes; mutation probes confirmed a matrix mismatch and a deliberately broken
+invariant make the oracle fail, and the W7 result marker is present on real
+output (not vacuous).
+
+**Verified here:** `./build.sh` — 372/0; `test_engine.sh` 5/5;
+`smoke_cli.sh` 61/61; all nine web suites green; oracle `--quick` 24/24 and
+`--full` 64/64; `check_docs.sh --no-gate-run` and `sweep_stale.sh` green after
+this write-up; `verify_audit.sh` includes W7. The working tree is on the fixed
+session branch, fast-forwarded to the PR #4 merge; no Qt6/CMake or Windows
+MinGW/Wine in this sandbox.
+
+**Not verifiable here:** the GUI/offscreen harness and Qt half of U-59 (no
+Qt6/CMake); Windows-only execution/package behavior (no MinGW/Wine). The oracle
+uses the Linux native engine and fixture.
+
+**Docs touched:** `COMPILED_AUDIT.md` (U-94/P2-18 proof, S29 verification and
+G10 base), `STATUS.md` (re-emitted after U-94 closure), `WORKLIST.md` (U-94
+closed), `SESSION_HANDOFF.md` (PR #4 row/SHA, P6 header, S29 handoff),
+`IMPROVEMENT_LOG.md` (this entry), `.github/workflows/build.yml` and its byte
+copy `docs/ci/build.yml.proposed`; added the oracle runner and committed matrix.
 
 ## S28 — U-59/P0-7 CLI/core half fixed test-first, red main diagnosed as G11, whole OPEN board triaged against this sandbox (2026-09-26)
 
@@ -666,7 +766,7 @@ like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 130 DONE · 9 PARTIAL · 30 OPEN · 0
+   its generated counts line (currently: 132 DONE · 8 PARTIAL · 29 OPEN · 0
    UNTRIAGED · 169 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High

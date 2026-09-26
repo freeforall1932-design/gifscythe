@@ -1,0 +1,1472 @@
+{
+  "schema": 1,
+  "seed": "0x47534631",
+  "engine": "LCDF Gifsicle 1.96",
+  "cases": [
+    {
+      "name": "defaults",
+      "settings": {},
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "colors-low-warned",
+      "settings": {
+        "color_count": 1
+      },
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "colors",
+          "value": "1",
+          "reason": "must be 2..256 (or unset)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "colors-min",
+      "settings": {
+        "color_count": 2
+      },
+      "argv": [
+        "-k",
+        "2",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "colors-max",
+      "settings": {
+        "color_count": 256
+      },
+      "argv": [
+        "-k",
+        "256",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "colors-high-warned",
+      "settings": {
+        "color_count": 257
+      },
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "colors",
+          "value": "257",
+          "reason": "must be 2..256 (or unset)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "disposal-max",
+      "settings": {
+        "disposal": 7
+      },
+      "argv": [
+        "--disposal",
+        "7",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "disposal-high-warned",
+      "settings": {
+        "disposal": 8
+      },
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "disposal",
+          "value": "8",
+          "reason": "must be 0..7 (or unset)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "optimize-off",
+      "settings": {
+        "optimize_level": 0
+      },
+      "argv": [
+        "-O0",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "optimize-high-warned",
+      "settings": {
+        "optimize_level": 4
+      },
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "optimize",
+          "value": "4",
+          "reason": "must be 0..3 (or unset); 0 = off"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "lossy-max",
+      "settings": {
+        "lossy": 200
+      },
+      "argv": [
+        "--lossy=200",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "lossy-high-warned",
+      "settings": {
+        "lossy": 201
+      },
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "lossy",
+          "value": "201",
+          "reason": "must be 0..200 (or unset)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "delay-negative-warned",
+      "settings": {
+        "delay_cs": -2
+      },
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "delay",
+          "value": "-2",
+          "reason": "must be >= 0 (1/100 s units) or unset (-1)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "loop-once",
+      "settings": {
+        "loopcount": -2
+      },
+      "argv": [
+        "--no-loopcount",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "loop-forever",
+      "settings": {
+        "loopcount": 0
+      },
+      "argv": [
+        "--loopcount=0",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "loop-wrap-warned",
+      "settings": {
+        "loopcount": 65536
+      },
+      "argv": [
+        "--loopcount=65536",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "loopcount",
+          "value": "65536",
+          "reason": "must be -2 (play once), -1 (unset), or 0..65535 (0 = forever); larger values wrap: the engine turns 65536 into forever and exits 0"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "resize-fit-zero-refused",
+      "settings": {
+        "resize_kind": "fit",
+        "resize_w": 0,
+        "resize_h": 0
+      },
+      "argv": [
+        "--resize-fit",
+        "0x0",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "resize",
+          "value": "0x0",
+          "reason": "one of width and height must be > 0 (the engine refuses 0x0)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 1,
+      "directEngineGif": false,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "scale-zero-noop-guard",
+      "settings": {
+        "resize_kind": "scale",
+        "scale_x": 0,
+        "scale_y": 1
+      },
+      "argv": [
+        "--scale",
+        "0x1",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "scale",
+          "value": "0.000000x1.000000",
+          "reason": "both scale factors must be > 0; 0 makes the engine skip the resize silently"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "scale-asymmetric",
+      "settings": {
+        "resize_kind": "scale",
+        "scale_x": 0.5,
+        "scale_y": 2
+      },
+      "argv": [
+        "--scale",
+        "0.5x2",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "color-method-invalid",
+      "settings": {
+        "color_method": "kdtree"
+      },
+      "argv": [
+        "--color-method",
+        "kdtree",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "color_method",
+          "value": "kdtree",
+          "reason": "must be diversity, blend-diversity or median-cut (the engine refuses anything else)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 1,
+      "directEngineGif": false,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "resize-method-invalid",
+      "settings": {
+        "resize_method": "bicubic"
+      },
+      "argv": [
+        "--resize-method",
+        "bicubic",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "resize_method",
+          "value": "bicubic",
+          "reason": "not one of point, sample, mix, box, catrom, lanczos, lanczos2, lanczos3, mitchell, fast, good"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 1,
+      "directEngineGif": false,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "gamma-invalid-silent-engine",
+      "settings": {
+        "gamma_str": "not-a-gamma"
+      },
+      "argv": [
+        "--gamma=not-a-gamma",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "gamma",
+          "value": "not-a-gamma",
+          "reason": "must be srgb, oklab or a number (anything else: the engine prints a gamma error and exits 0)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "dither-parameter",
+      "settings": {
+        "dither_method": "o,4"
+      },
+      "argv": [
+        "--dither=o,4",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "threads-auto",
+      "settings": {
+        "threads": 0
+      },
+      "argv": [
+        "-j",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "crop-zero-extends",
+      "settings": {
+        "crop": true,
+        "crop_x": 0,
+        "crop_y": 0,
+        "crop_w": 0,
+        "crop_h": 0
+      },
+      "argv": [
+        "--crop",
+        "0,0+0x0",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-00",
+      "settings": {
+        "lossy": -1,
+        "threads": 1,
+        "delay_cs": -2
+      },
+      "argv": [
+        "-j1",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "delay",
+          "value": "-2",
+          "reason": "must be >= 0 (1/100 s units) or unset (-1)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-01",
+      "settings": {
+        "disposal": 8,
+        "lossy": 80,
+        "gamma_str": "2.2"
+      },
+      "argv": [
+        "--lossy=80",
+        "--gamma=2.2",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "disposal",
+          "value": "8",
+          "reason": "must be 0..7 (or unset)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-02",
+      "settings": {
+        "loopcount": -1,
+        "resize_kind": "width",
+        "resize_w": 0
+      },
+      "argv": [
+        "--resize-width",
+        "0",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "resize_w",
+          "value": "0",
+          "reason": "width must be > 0 (the engine refuses --resize-width 0)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 1,
+      "directEngineGif": false,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-03",
+      "settings": {
+        "dither_method": "ro64",
+        "color_count": 1,
+        "delay_cs": -1,
+        "disposal": -1
+      },
+      "argv": [
+        "--dither=ro64",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "colors",
+          "value": "1",
+          "reason": "must be 2..256 (or unset)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-04",
+      "settings": {
+        "color_method": "kdtree",
+        "color_count": 257,
+        "optimize_level": 3
+      },
+      "argv": [
+        "--color-method",
+        "kdtree",
+        "-O3",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "colors",
+          "value": "257",
+          "reason": "must be 2..256 (or unset)"
+        },
+        {
+          "field": "color_method",
+          "value": "kdtree",
+          "reason": "must be diversity, blend-diversity or median-cut (the engine refuses anything else)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 1,
+      "directEngineGif": false,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-05",
+      "settings": {
+        "threads": 1,
+        "dither_method": "ro64",
+        "lossy": 0,
+        "color_count": 2
+      },
+      "argv": [
+        "-k",
+        "2",
+        "--dither=ro64",
+        "--lossy=0",
+        "-j1",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-06",
+      "settings": {
+        "disposal": 7,
+        "resize_kind": "width",
+        "resize_w": 0,
+        "dither_method": "none"
+      },
+      "argv": [
+        "--resize-width",
+        "0",
+        "--disposal",
+        "7",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "resize_w",
+          "value": "0",
+          "reason": "width must be > 0 (the engine refuses --resize-width 0)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 1,
+      "directEngineGif": false,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-07",
+      "settings": {
+        "color_method": "median-cut",
+        "threads": -1,
+        "dither_method": "none"
+      },
+      "argv": [
+        "--color-method",
+        "median-cut",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-08",
+      "settings": {
+        "threads": 8,
+        "loopcount": 65536
+      },
+      "argv": [
+        "--loopcount=65536",
+        "-j8",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "loopcount",
+          "value": "65536",
+          "reason": "must be -2 (play once), -1 (unset), or 0..65535 (0 = forever); larger values wrap: the engine turns 65536 into forever and exits 0"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-09",
+      "settings": {
+        "dither_method": "none",
+        "resize_method": "good"
+      },
+      "argv": [
+        "--resize-method",
+        "good",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-10",
+      "settings": {
+        "disposal": -1
+      },
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-11",
+      "settings": {
+        "color_count": -1,
+        "loopcount": -1,
+        "disposal": 7
+      },
+      "argv": [
+        "--disposal",
+        "7",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-12",
+      "settings": {
+        "color_method": "diversity"
+      },
+      "argv": [
+        "--color-method",
+        "diversity",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-13",
+      "settings": {
+        "gamma_str": "not-a-gamma",
+        "lossy": 201
+      },
+      "argv": [
+        "--gamma=not-a-gamma",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "lossy",
+          "value": "201",
+          "reason": "must be 0..200 (or unset)"
+        },
+        {
+          "field": "gamma",
+          "value": "not-a-gamma",
+          "reason": "must be srgb, oklab or a number (anything else: the engine prints a gamma error and exits 0)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-14",
+      "settings": {
+        "threads": -1
+      },
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-15",
+      "settings": {
+        "color_count": 256,
+        "gamma_str": "not-a-gamma",
+        "delay_cs": -1
+      },
+      "argv": [
+        "-k",
+        "256",
+        "--gamma=not-a-gamma",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "gamma",
+          "value": "not-a-gamma",
+          "reason": "must be srgb, oklab or a number (anything else: the engine prints a gamma error and exits 0)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-16",
+      "settings": {
+        "threads": 8,
+        "lossy": -1
+      },
+      "argv": [
+        "-j8",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-17",
+      "settings": {
+        "resize_kind": "width",
+        "resize_w": 0,
+        "disposal": 4,
+        "threads": 1
+      },
+      "argv": [
+        "--resize-width",
+        "0",
+        "--disposal",
+        "4",
+        "-j1",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "resize_w",
+          "value": "0",
+          "reason": "width must be > 0 (the engine refuses --resize-width 0)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 1,
+      "directEngineGif": false,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-18",
+      "settings": {
+        "dither_method": "none"
+      },
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-19",
+      "settings": {},
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-20",
+      "settings": {
+        "disposal": 4
+      },
+      "argv": [
+        "--disposal",
+        "4",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-21",
+      "settings": {
+        "resize_method": "bicubic",
+        "optimize_level": 0,
+        "delay_cs": 5,
+        "threads": -1
+      },
+      "argv": [
+        "--resize-method",
+        "bicubic",
+        "-d",
+        "5",
+        "-O0",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "resize_method",
+          "value": "bicubic",
+          "reason": "not one of point, sample, mix, box, catrom, lanczos, lanczos2, lanczos3, mitchell, fast, good"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 1,
+      "directEngineGif": false,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-22",
+      "settings": {
+        "gamma_str": "srgb",
+        "threads": -2
+      },
+      "argv": [
+        "--gamma=srgb",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "threads",
+          "value": "-2",
+          "reason": "must be >= -1 (-1 = unset/default, 0 = auto, >0 = explicit thread count)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-23",
+      "settings": {
+        "dither_method": "none",
+        "loopcount": 65535,
+        "delay_cs": -1,
+        "lossy": 0
+      },
+      "argv": [
+        "--lossy=0",
+        "--loopcount=65535",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-24",
+      "settings": {
+        "threads": 8,
+        "color_method": "median-cut"
+      },
+      "argv": [
+        "--color-method",
+        "median-cut",
+        "-j8",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-25",
+      "settings": {
+        "color_count": 256,
+        "threads": 1,
+        "loopcount": -2
+      },
+      "argv": [
+        "-k",
+        "256",
+        "--no-loopcount",
+        "-j1",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-26",
+      "settings": {
+        "gamma_str": "oklab",
+        "optimize_level": 1
+      },
+      "argv": [
+        "--gamma=oklab",
+        "-O",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-27",
+      "settings": {
+        "optimize_level": 1,
+        "dither_method": "none"
+      },
+      "argv": [
+        "-O",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-28",
+      "settings": {
+        "optimize_level": 3,
+        "disposal": 0
+      },
+      "argv": [
+        "--disposal",
+        "0",
+        "-O3",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-29",
+      "settings": {
+        "lossy": -1
+      },
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-30",
+      "settings": {},
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-31",
+      "settings": {
+        "loopcount": 65536
+      },
+      "argv": [
+        "--loopcount=65536",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "loopcount",
+          "value": "65536",
+          "reason": "must be -2 (play once), -1 (unset), or 0..65535 (0 = forever); larger values wrap: the engine turns 65536 into forever and exits 0"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-32",
+      "settings": {
+        "gamma_str": "not-a-gamma",
+        "optimize_level": 1,
+        "lossy": 80,
+        "delay_cs": 0
+      },
+      "argv": [
+        "--lossy=80",
+        "--gamma=not-a-gamma",
+        "-d",
+        "0",
+        "-O",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "gamma",
+          "value": "not-a-gamma",
+          "reason": "must be srgb, oklab or a number (anything else: the engine prints a gamma error and exits 0)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-33",
+      "settings": {
+        "color_method": "kdtree",
+        "color_count": 16,
+        "loopcount": 1,
+        "delay_cs": 5
+      },
+      "argv": [
+        "-k",
+        "16",
+        "--color-method",
+        "kdtree",
+        "-d",
+        "5",
+        "--loopcount=1",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "color_method",
+          "value": "kdtree",
+          "reason": "must be diversity, blend-diversity or median-cut (the engine refuses anything else)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 1,
+      "directEngineGif": false,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-34",
+      "settings": {
+        "gamma_str": "2.2"
+      },
+      "argv": [
+        "--gamma=2.2",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    },
+    {
+      "name": "seed-35",
+      "settings": {
+        "resize_method": "bicubic",
+        "resize_kind": "fit",
+        "resize_w": 32,
+        "resize_h": 24
+      },
+      "argv": [
+        "--resize-fit",
+        "32x24",
+        "--resize-method",
+        "bicubic",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "resize_method",
+          "value": "bicubic",
+          "reason": "not one of point, sample, mix, box, catrom, lanczos, lanczos2, lanczos3, mitchell, fast, good"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 1,
+      "directEngineGif": false,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-36",
+      "settings": {
+        "loopcount": -1,
+        "color_count": 1,
+        "delay_cs": 0,
+        "dither_method": "ro64"
+      },
+      "argv": [
+        "--dither=ro64",
+        "-d",
+        "0",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "colors",
+          "value": "1",
+          "reason": "must be 2..256 (or unset)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-37",
+      "settings": {
+        "threads": -2
+      },
+      "argv": [
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "threads",
+          "value": "-2",
+          "reason": "must be >= -1 (-1 = unset/default, 0 = auto, >0 = explicit thread count)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-38",
+      "settings": {
+        "loopcount": -2,
+        "gamma_str": "not-a-gamma",
+        "resize_method": "bicubic",
+        "optimize_level": -1
+      },
+      "argv": [
+        "--gamma=not-a-gamma",
+        "--resize-method",
+        "bicubic",
+        "--no-loopcount",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [
+        {
+          "field": "resize_method",
+          "value": "bicubic",
+          "reason": "not one of point, sample, mix, box, catrom, lanczos, lanczos2, lanczos3, mitchell, fast, good"
+        },
+        {
+          "field": "gamma",
+          "value": "not-a-gamma",
+          "reason": "must be srgb, oklab or a number (anything else: the engine prints a gamma error and exits 0)"
+        }
+      ],
+      "jsCppArgvParity": true,
+      "directEngineExit": 1,
+      "directEngineGif": false,
+      "strictCliExit": 3,
+      "strictCliGif": false
+    },
+    {
+      "name": "seed-39",
+      "settings": {
+        "loopcount": 0,
+        "disposal": -1
+      },
+      "argv": [
+        "--loopcount=0",
+        "<fixture>",
+        "-o",
+        "<output>"
+      ],
+      "validatorWarnings": [],
+      "jsCppArgvParity": true,
+      "directEngineExit": 0,
+      "directEngineGif": true,
+      "strictCliExit": 0,
+      "strictCliGif": true
+    }
+  ]
+}

@@ -1043,7 +1043,7 @@ else
     # flip back. This gate never edits.
     tpl_kind="filled"
     if awk '/^## 1\./{on=1} on' "$TEMPLATE_MD" \
-         | grep -qE '<date>|<owner>|<next>|<who>|<what>|<ids the draft names>|<open:|the owner.s draft fills this in'; then
+         | grep -E '<date>|<owner>|<next>|<who>|<what>|<ids the draft names>|<open:|the owner.s draft fills this in' >/dev/null; then
       tpl_kind="skeleton"
     fi
     if [[ "$tpl_state" == "SKELETON" && "$tpl_kind" == "filled" ]]; then

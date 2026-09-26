@@ -4,6 +4,106 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S30 — U-59/P0-7 GUI partial-output guard + offscreen regression coverage (2026-09-26)
+
+**Changed:** On PR #5's active branch, ordinary GUI Batch/Merge/Auto runs now
+write to the shared helper's same-directory `<target>.gs-partial` path. They
+remove stale partials, snapshot and verify the isolated output, then promote it
+onto the user's target only on verified success. Non-zero exit, start failure,
+verification/promotion failure, and cancellation discard the partial; Explode
+remains prefix-based and unchanged. Every subsequent batch item gets the same
+guard. Added `fake_engine_partial_failure` (writes corrupt output then exits 7)
+and offscreen coverage for preserving existing output on failure and cancel,
+successful promotion to the existing explicit output, and sidecar cleanup.
+Re-inspected G16 per the session-start rule: actual `<date>`, `<owner>`, and
+P2 slot placeholders remain in §1–§10, so the plan correctly stays SKELETON;
+clarified two S14 snapshot references that had described this historical plan
+state as current. While running preflight, G16 was nondeterministic: its
+`grep -q` could close the AWK pipeline early under `pipefail`. Changed the
+matcher to consume its full input. Mutation probes: skeleton+slots passes;
+filled content with SKELETON fails; WORKING PLAN with remaining slots fails.
+
+**Partial:** None for U-59; Qt-enabled validation completed successfully.
+
+**Left:** An independent review and rerun of `test_gui_offscreen` is recorded
+as a separate next-agent task in WORKLIST.md, conditional on that agent having
+CMake + Qt6. No merge is authorized.
+
+**Verified:** `git diff --check`; local fake-engine fixture compiled with g++;
+`build.sh` (372/0); `smoke_cli.sh` (61/61); `test_output_verify.sh` (25/0);
+Qt-enabled PR run **36227237540** passed Linux and Windows, including build and
+both `test_gui_offscreen` steps. `check_docs.sh` passed 24/24 with G6 skipped
+(no local CMake/Qt6); `sweep_stale.sh` passed 5/5. G16 matcher mutations were
+exercised: skeleton+slots passed, filled content with SKELETON failed, and
+WORKING PLAN with remaining slots failed.
+
+**Not verifiable here:** a local Qt6/CMake GUI build or offscreen run, and the
+separate independent review assigned to the next agent; CI supplied the current
+cross-platform compile/run evidence.
+
+**Docs touched:** `COMPILED_AUDIT.md`, `STATUS.md` (generated), `WORKLIST.md`,
+`SESSION_HANDOFF.md`, `web/WEB_PLAN_TEMPLATE.md` (clarified historical S14
+state references; current SKELETON token retained), `working_code/gifscythe/README.md` (fixture and test count),
+`working_code/gifscythe/scripts/check_docs.sh` (G16 pipeline reliability), and
+this entry.
+
+## S29 — PR #4 post-merge sync + U-94/P2-18 seeded engine-oracle gate (2026-09-26)
+
+**Changed:**
+
+- With explicit owner approval, merged PR #4 as true merge commit `7c035fd`.
+  It is the post-PR-3 documentation sync: PR #3's ledger SHA and merged batch
+  totals, P6 moved through PR #3, and both G10 base lines re-anchored. Main's
+  repair run `36225207865` succeeded; the prior main run `36218999564` on
+  `42306bb` failed exactly at G10.
+- **U-94 / P2-18 — seeded real-engine oracle.** Added
+  `working_code/gifscythe/scripts/oracle_fuzz.mjs`, a zero-dependency offline
+  harness with 24 curated boundary cases plus 40 deterministic combinations
+  from xorshift seed `0x47534631`. Every sample compares JS argv with the real
+  C++ CLI's parsed-conf command, checks JS validation against `--strict`, probes
+  the bundled gifsicle engine directly, and verifies successful outputs are
+  non-empty GIF87a/GIF89a files. Product-accepted settings must succeed against
+  the engine; an engine refusal must be warned/refused by the product. Cases
+  where gifsicle returns success but the product correctly warns (including
+  scale `0x1` no-op and invalid gamma) are covered too. `--quick` checks the 24
+  curated prefix; `--full` checks all 64. The committed outcomes/settings are
+  `tests/oracle_fuzz_matrix.json` (about 32 KB), so any drift requires an
+  intentional reviewed matrix update via `--write`.
+- Wired `--quick` into `.githooks/pre-push`; added verify_audit **W7** and a
+  Linux CI full run. The workflow copy `docs/ci/build.yml.proposed` was
+  re-synchronized byte-for-byte. Opened PR #5 from the fixed session branch
+  after P1/P2/P3/P3b/P4/P6 preflight; initial push run 36225748067 passed on
+  linux, windows, and csharp-spike.
+
+**Partial:** none for U-94; its acceptance criteria are covered by both modes,
+its committed matrix, and the CI/verify-audit hooks.
+
+**Left:** the separate open rows are unchanged. In particular U-59 remains
+PARTIAL because the Qt GUI path is not covered in this sandbox; no claim is
+made about the offscreen GUI or Windows-only execution.
+
+**Verified:** `./build.sh` → **372 checks, 0 failures**; `test_engine.sh` 5/5;
+`smoke_cli.sh` 61/61; all nine web suites pass; oracle `--quick` 24/24 and
+`--full` 64/64, including JS/C++ argv parity, product/engine acceptance
+invariants, output verification, and committed-matrix comparison. Mutation probes
+confirmed a changed matrix is rejected, a removed colors bound is caught against
+strict C++ CLI behavior, pre-push blocks a forced quick-oracle failure, and W7
+fails against a changed matrix. PR #4's post-merge main run `36225207865` is
+SUCCESS. Final `check_docs.sh` and
+`sweep_stale.sh` measurements are recorded in the session handoff.
+
+**Not verifiable here:** Qt6/CMake and the offscreen GUI harness; Windows
+MinGW/Wine behavior. The oracle's engine measurements are for the Linux-native
+bundled gifsicle 1.96 build only.
+
+**Docs touched:** `COMPILED_AUDIT.md` (U-94/P2-18 evidence and S29/G10 headers),
+`STATUS.md` (re-emitted after U-94 closure), `WORKLIST.md`,
+`SESSION_HANDOFF.md` (PR #4 ledger/P6 sync and S29 proof), and this log. CI
+copies were synced in `.github/workflows/build.yml` and
+`docs/ci/build.yml.proposed`.
+
+---
+
 ## S28 — U-59 / P0-7 (the last data-loss row) fixed on the CLI/core half, red main diagnosed as G11, capability triage of the whole OPEN board (2026-09-26)
 
 **Changed:**

@@ -203,14 +203,16 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   `GS_SETTINGS_PATH`. The queue and Save-as field are deliberately *not*
   restored. Corrupt files apply their valid keys and warn in the status bar.
 - Regression net: `tests/test_gui_offscreen.cpp` — T1–T20 plus the S23 desktop
-  round-trip block, 251 `CHECK(` sites in source (8 of them that block, which is 8
+  round-trip block, 270 `CHECK(` sites in source (8 of them that block, which is 8
   runtime assertions); last measured at **324 runtime
   checks** in the S11 sandbox (Qt 6.4.2);
   306 in the S10 sandbox before that. Runs in CI and in any Qt6-equipped
   sandbox (S10/S11 both compiled and ran it locally).
-- Cross-platform engine-probe fixture: `tests/fake_engine_exit0.cpp` (CMake
-  target `fake_engine_exit0`) — a lying engine that exits 0 without writing;
-  T7 uses it to prove explode verification refuses the false success.
+- Cross-platform engine-probe fixtures: `tests/fake_engine_exit0.cpp` (CMake
+  target `fake_engine_exit0`) — exits 0 without writing for T7; and
+  `tests/fake_engine_partial_failure.cpp` (CMake target
+  `fake_engine_partial_failure`) — writes corrupt `-o` bytes then exits 7 for
+  the U-59 failure-preservation regression.
 
 ## Versioning
 0.1.0 → 1.0.0–1.9.9 (finished GIF product) → 2.0.0–3.0.0 (WebP + APNG).  
