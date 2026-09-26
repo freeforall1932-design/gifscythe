@@ -6,6 +6,7 @@
 #include "core/EngineLocator.h"
 #include "core/OutputName.h"
 #include "core/OutputPlan.h"
+#include "core/OutputVerify.h"
 #include "core/SettingsIO.h"
 #include "core/Validate.h"
 #include "core/version.h"
@@ -837,10 +838,14 @@ void MainWindow::runCommand() {
     updateStatus(QStringLiteral("Optimizing 1/%1…").arg(batchQueue_.size()));
     QString in = batchQueue_.at(0);
     pendingOutput_ = batchTargets_.value(0);  // from the plan, not re-derived
+    pendingPartial_ = QString::fromStdString(
+        gs::partial_output_path(pendingOutput_.toStdString()));
+    gs::discard_partial(pendingPartial_.toStdString());  // self-heal a prior hard kill
+    partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
     gs::Settings one = settings;
     one.mode = gs::Mode::Auto;  // single-file, no -b needed
     one.inputs = {in.toStdString()};
-    one.output = pendingOutput_.toStdString();
+    one.output = pendingPartial_.toStdString();
     gs::GifsicleCommand cmd(one);
     QStringList qargs;
     for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
@@ -848,6 +853,8 @@ void MainWindow::runCommand() {
     process_->setArguments(qargs);
     process_->start();
     if (!process_->waitForStarted(5000)) {
+      gs::discard_partial(pendingPartial_.toStdString());
+      pendingPartial_.clear();
       setBusy(false);
       QMessageBox::critical(this, QStringLiteral("Gifscythe"),
           QStringLiteral("Could not start the GIF engine: %1").arg(process_->errorString()));
@@ -888,6 +895,15 @@ void MainWindow::runCommand() {
   }
 
   pendingOutput_ = QString::fromStdString(settings.output);
+  if (settings.mode != gs::Mode::Explode) {
+    pendingPartial_ = QString::fromStdString(
+        gs::partial_output_path(pendingOutput_.toStdString()));
+    gs::discard_partial(pendingPartial_.toStdString());  // self-heal a prior hard kill
+    partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
+    settings.output = pendingPartial_.toStdString();
+  } else {
+    pendingPartial_.clear();
+  }
   batchIndex_ = -1;
   batchQueue_.clear();
   // Explode frame verification (audit U-17 / P1-19): snapshot the files under
@@ -910,6 +926,8 @@ void MainWindow::runCommand() {
   process_->setArguments(qargs);
   process_->start();
   if (!process_->waitForStarted(5000)) {
+    gs::discard_partial(pendingPartial_.toStdString());
+    pendingPartial_.clear();
     setBusy(false);
     QMessageBox::critical(this, QStringLiteral("Gifscythe"),
         QStringLiteral("Could not start the GIF engine: %1").arg(process_->errorString()));
@@ -927,6 +945,8 @@ void MainWindow::cancelRun() {
     process_->waitForFinished(3000);
   }
   cancelling_ = false;
+  gs::discard_partial(pendingPartial_.toStdString());
+  pendingPartial_.clear();
   batchQueue_.clear();
   batchIndex_ = -1;
   invalidatePreview();  // P1-10: a cancelled run invalidates any preview state
@@ -946,6 +966,8 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       // cancelRun() finishes the cleanup and sets the "Cancelled." status.
       return;
     }
+    gs::discard_partial(pendingPartial_.toStdString());
+    pendingPartial_.clear();
     setBusy(false);
     batchQueue_.clear();
     batchIndex_ = -1;
@@ -980,19 +1002,37 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     return;
   }
 
-  // Verify output for non-explode modes.
+  // Verify the isolated write before replacing the user's previous output.
   if (!pendingOutput_.isEmpty()) {
-    QFileInfo fi(pendingOutput_);
-    if (!fi.exists() || fi.size() == 0) {
+    const std::string verificationError =
+        gs::verify_output(pendingPartial_.toStdString(), partialSnapshot_);
+    if (!verificationError.empty()) {
+      gs::discard_partial(pendingPartial_.toStdString());
+      pendingPartial_.clear();
       setBusy(false);
       batchQueue_.clear();
       batchIndex_ = -1;
-      updateStatus(QStringLiteral("No output produced — check the command below."));
+      updateStatus(QStringLiteral("Output verification failed."));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
-          QStringLiteral("The GIF engine exited 0 but no output file was written:\n%1")
-              .arg(pendingOutput_));
+          QStringLiteral("The GIF engine exited 0, but its output was rejected:\n%1\n\n%2")
+              .arg(pendingOutput_, QString::fromStdString(verificationError)));
       return;
     }
+    const std::string promotionError =
+        gs::promote_partial(pendingPartial_.toStdString(), pendingOutput_.toStdString());
+    if (!promotionError.empty()) {
+      gs::discard_partial(pendingPartial_.toStdString());
+      pendingPartial_.clear();
+      setBusy(false);
+      batchQueue_.clear();
+      batchIndex_ = -1;
+      updateStatus(QStringLiteral("Could not promote output."));
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QStringLiteral("The verified output could not replace the destination:\n%1\n\n%2")
+              .arg(pendingOutput_, QString::fromStdString(promotionError)));
+      return;
+    }
+    pendingPartial_.clear();
   }
 
   // Continue batch?
@@ -1004,11 +1044,15 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
                        .arg(batchQueue_.size()));
       QString in = batchQueue_.at(batchIndex_);
       pendingOutput_ = batchTargets_.value(batchIndex_);  // from the plan
+      pendingPartial_ = QString::fromStdString(
+          gs::partial_output_path(pendingOutput_.toStdString()));
+      gs::discard_partial(pendingPartial_.toStdString());
+      partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
       auto settings = currentSettings();
       gs::Settings one = settings;
       one.mode = gs::Mode::Auto;
       one.inputs = {in.toStdString()};
-      one.output = pendingOutput_.toStdString();
+      one.output = pendingPartial_.toStdString();
       gs::GifsicleCommand cmd(one);
       QStringList qargs;
       for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
@@ -1034,6 +1078,8 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
 
 void MainWindow::onProcessError(QProcess::ProcessError error) {
   if (error == QProcess::FailedToStart) {
+    gs::discard_partial(pendingPartial_.toStdString());
+    pendingPartial_.clear();
     setBusy(false);
     batchQueue_.clear();
     batchIndex_ = -1;

@@ -160,10 +160,14 @@ the S24 intake was triaged in the same session (each row carries its §6 id).
    is renamed onto only after verification, so a cancel, a signal or a refusal
    leaves the previous bytes intact (smoke 54 → 58/58, three cases run RED
    first; `test_output_verify.sh` 25 assertions). **Remaining: the Qt half** —
-   `runCommand()` still passes the real target to the engine, so the GUI Cancel
-   keeps the old behaviour until the same guard is wired there and
-   `tests/test_gui_offscreen.cpp` gets a cancel-with-preexisting case (needs
-   Qt6). The row is PARTIAL, not DONE.
+   **S30: GUI guard implemented, pending Qt-enabled PR CI.** Batch/Merge/Auto
+   now write beside the destination to `<target>.gs-partial`, verify before
+   promotion, and discard partials on failure/cancel; offscreen T4/T8/T9 cover
+   success, partial-writing failure, and cancellation while preserving an
+   existing output. U-59 stays PARTIAL until Qt CI runs. **Separate follow-up
+   task for the next agent:** independently review the change and rerun the
+   offscreen suite if that agent has CMake + Qt6; report findings without
+   merging absent owner approval.
 2. **U-09 / P0-4 + U-95 / P1-45** — re-cut release artifacts from one exact
    tagged SHA; the owner marks the pre-relicence `snapshot-2026-09-07` release
    superseded in its notes (never delete — rollback policy).

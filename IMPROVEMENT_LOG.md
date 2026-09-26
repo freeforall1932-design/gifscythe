@@ -4,6 +4,36 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S30 — U-59/P0-7 GUI partial-output guard + offscreen regression coverage (2026-09-26)
+
+**Changed:** On PR #5's active branch, ordinary GUI Batch/Merge/Auto runs now
+write to the shared helper's same-directory `<target>.gs-partial` path. They
+remove stale partials, snapshot and verify the isolated output, then promote it
+onto the user's target only on verified success. Non-zero exit, start failure,
+verification/promotion failure, and cancellation discard the partial; Explode
+remains prefix-based and unchanged. Every subsequent batch item gets the same
+guard. Added `fake_engine_partial_failure` (writes corrupt output then exits 7)
+and offscreen coverage for preserving existing output on failure and cancel,
+successful promotion to the existing explicit output, and sidecar cleanup.
+
+**Partial:** U-59 remains PARTIAL until fresh Qt-enabled Linux and Windows PR
+CI compiles and executes the GUI harness. The existing green PR run predates
+these changes.
+
+**Left:** An independent review and rerun of `test_gui_offscreen` is recorded
+as a separate next-agent task in WORKLIST.md, conditional on that agent having
+CMake + Qt6. No merge is authorized.
+
+**Verified:** `git diff --check` passed. The local environment has g++ but no
+CMake or Qt6, so GUI compilation and offscreen execution could not be run here.
+
+**Not verifiable here:** Qt6/CMake compilation and `test_gui_offscreen`; Windows
+runtime behavior. Fresh PR CI is required.
+
+**Docs touched:** `COMPILED_AUDIT.md`, `STATUS.md` (generated), `WORKLIST.md`,
+`SESSION_HANDOFF.md`, `working_code/gifscythe/README.md` (fixture and test
+count), and this entry.
+
 ## S29 — PR #4 post-merge sync + U-94/P2-18 seeded engine-oracle gate (2026-09-26)
 
 **Changed:**
