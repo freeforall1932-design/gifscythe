@@ -28,7 +28,9 @@ Chronological log of decisions and changes. **Newest at the top.**
   intentional reviewed matrix update via `--write`.
 - Wired `--quick` into `.githooks/pre-push`; added verify_audit **W7** and a
   Linux CI full run. The workflow copy `docs/ci/build.yml.proposed` was
-  re-synchronized byte-for-byte.
+  re-synchronized byte-for-byte. Opened PR #5 from the fixed session branch
+  after P1/P2/P3/P3b/P4/P6 preflight; initial push run 36225748067 passed on
+  linux, windows, and csharp-spike.
 
 **Partial:** none for U-94; its acceptance criteria are covered by both modes,
 its committed matrix, and the CI/verify-audit hooks.
@@ -40,8 +42,11 @@ made about the offscreen GUI or Windows-only execution.
 **Verified:** `./build.sh` → **372 checks, 0 failures**; `test_engine.sh` 5/5;
 `smoke_cli.sh` 61/61; all nine web suites pass; oracle `--quick` 24/24 and
 `--full` 64/64, including JS/C++ argv parity, product/engine acceptance
-invariants, output verification, and committed-matrix comparison. PR #4's
-post-merge main run `36225207865` is SUCCESS. Final `check_docs.sh` and
+invariants, output verification, and committed-matrix comparison. Mutation probes
+confirmed a changed matrix is rejected, a removed colors bound is caught against
+strict C++ CLI behavior, pre-push blocks a forced quick-oracle failure, and W7
+fails against a changed matrix. PR #4's post-merge main run `36225207865` is
+SUCCESS. Final `check_docs.sh` and
 `sweep_stale.sh` measurements are recorded in the session handoff.
 
 **Not verifiable here:** Qt6/CMake and the offscreen GUI harness; Windows

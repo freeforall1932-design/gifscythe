@@ -117,7 +117,7 @@ this ledger exists to make obvious.
 | #3 | S28 | `arena/01a0dbc8-gifscythe` | `42306bb` | Opened 2026-09-26. S28: **U-59/P0-7 CLI/core half** (the only registered data-loss row) fixed test-first — the engine now writes `<target>.gs-partial` and the target is renamed onto only after verification, so a cancel, a signal or a refusal leaves the previous bytes intact (3 smoke cases run RED first, `cmp=DIFFERS`; smoke 54 → **58/58**, `test_output_verify.sh` 12 → **25 assertions**, unit 372/0, transport 79 cases, `verify_audit.sh` 30/1/5) + the Qt half deliberately left (no Qt6 here) so **U-59 is PARTIAL** + the `set -e`/`wait` harness trap fixed + the **P6 doc sync to PR #2** (the header had lagged one merge) + the S28 log entry that **clears G11**, the red main on `e06b5db` (run 35904935321) + the whole OPEN board triaged against this sandbox's measured toolchain. Gates: check_docs 24/0/1, sweep 5/0/0, python 20/20, review_change 4/0/1 (no R1), pr_preflight P1/P2/P3/P3b/P4/P6 PASS. CI on this PR is the Windows/MinGW compile proof. *(Batch 2 landed in the same PR before the merge — U-92/U-84/U-85/U-93/U-86/U-81/U-83 also closed — so the MERGED totals are smoke 61/61, transport 86 cases, body-limit 13, server-bounds 10 groups, register **130/9/30/0**; the numbers above are batch 1's, kept as written rather than rewritten. Merged 2026-09-26 as `42306bb`, linux + windows + csharp-spike green on run 36218477342.)* |
 
 | #4 | S28 | `arena/01a0dbc8-gifscythe` | `7c035fd` | Opened 2026-09-26, immediately after merging #3. The post-merge sync the ledger's rules require: row #3's *Merged as* cell filled with `42306bb` (rule 2 — whoever merges edits it) with batch 2's real totals appended as a note rather than a rewrite, the **P6** line moved to PR #3, and the **G10 base-line lag the merge itself caused** repaired — merging moved main's tip, so `COMPILED_AUDIT.md`'s enforced **Base:** line naming `824bf20` stopped matching (it was only legal as `e06b5db`'s first parent) and main went red at the doc gate; both enforced lines now name `42306bb`, which stays legal across the next merge because a merge sha is also its first parent (the S26 mechanic). No product code. Gates: check_docs 24/0/1, sweep 5/0/0, pre-push green. Merged 2026-09-26 as `7c035fd` (merge commit). |
-
+| #5 | S29 | `arena/01a0dc78-gifscythe` | **open** | Opened 2026-09-26. Closes U-94/P2-18: adds seeded offline 64-case engine-oracle harness (`--quick` 24-case prefix), committed result matrix, verify_audit W7, Linux CI full run, and pre-push quick run. No product behavior changes. Preflight passed P1/P2/P3/P3b/P4/P6; push CI run 36225748067 succeeded on linux/windows/csharp-spike. |
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned
    and `**open**` in the *Merged as* cell. Never guess the number beforehand.
@@ -155,7 +155,8 @@ checks its output. The full measured matrix is committed at
 `working_code/gifscythe/tests/oracle_fuzz_matrix.json`; `--quick` checks the
 24-case prefix in pre-push, and `--full` checks all 64 rows in verify_audit W7
 and Linux CI. There are no downloads, third-party dependencies, or random-seed
-nondeterminism.
+nondeterminism. PR #5 carries the change from this fixed session branch; its
+initial push CI run `36225748067` passed on linux, windows, and csharp-spike.
 
 **Gates wired.** `.githooks/pre-push` now requires the quick oracle after the
 existing docs gate; `verify_audit.sh` W7 runs the full sample; Linux CI runs the
