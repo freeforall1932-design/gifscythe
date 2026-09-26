@@ -15,6 +15,10 @@ remains prefix-based and unchanged. Every subsequent batch item gets the same
 guard. Added `fake_engine_partial_failure` (writes corrupt output then exits 7)
 and offscreen coverage for preserving existing output on failure and cancel,
 successful promotion to the existing explicit output, and sidecar cleanup.
+Re-inspected G16 per the session-start rule: actual `<date>`, `<owner>`, and
+P2 slot placeholders remain in §1–§10, so the plan correctly stays SKELETON;
+clarified two S14 snapshot references that had described this historical plan
+state as current.
 
 **Partial:** U-59 remains PARTIAL until fresh Qt-enabled Linux and Windows PR
 CI compiles and executes the GUI harness. The existing green PR run predates
@@ -31,8 +35,8 @@ CMake or Qt6, so GUI compilation and offscreen execution could not be run here.
 runtime behavior. Fresh PR CI is required.
 
 **Docs touched:** `COMPILED_AUDIT.md`, `STATUS.md` (generated), `WORKLIST.md`,
-`SESSION_HANDOFF.md`, `working_code/gifscythe/README.md` (fixture and test
-count), and this entry.
+`SESSION_HANDOFF.md`, `web/WEB_PLAN_TEMPLATE.md` (clarified historical S14
+state references; current SKELETON token retained), `working_code/gifscythe/README.md` (fixture and test count), and this entry.
 
 ## S29 — PR #4 post-merge sync + U-94/P2-18 seeded engine-oracle gate (2026-09-26)
 
