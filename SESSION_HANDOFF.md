@@ -173,7 +173,8 @@ patch.
 from audit), `WORKLIST.md` (current U-59 state and separate next-agent review
 task), `SESSION_HANDOFF.md` (S30 handoff and PR #5 scope),
 `working_code/gifscythe/README.md` (fixture and test count),
-`web/WEB_PLAN_TEMPLATE.md` (historical S14 state wording; G16 token retained), and
+`web/WEB_PLAN_TEMPLATE.md` (historical S14 state wording; G16 token retained),
+`working_code/gifscythe/scripts/check_docs.sh` (G16 pipeline reliability), and
 `IMPROVEMENT_LOG.md` (this entry).
 
 ## S29 — PR #4 post-merge doc sync; U-94/P2-18 seeded real-engine oracle gate (2026-09-26)
