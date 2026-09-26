@@ -29,7 +29,7 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 131 DONE · 9 PARTIAL · 29 OPEN · 0 UNTRIAGED · 169 total
+**Counts (generated - do not edit by hand):** 132 DONE · 8 PARTIAL · 29 OPEN · 0 UNTRIAGED · 169 total
 **Last regenerated:** S30 · 2026-09-26 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
@@ -95,7 +95,7 @@ hand-fudged roll-up fails the gate.
 | U-56 | Desktop sanitization misses superscript COM/LPT aliases — `is_windows_reserved_device_name()` checks ASCII digit only; Windows reserves `COM¹²³` / `LPT¹²³` (U+00B9/00B2/00B3). | DONE | S23 | `is_windows_reserved_device_name()` folds U+00B9/B2/B3 after COM/LPT; one shared table `tests/windows_reserved_names.txt` (27 rows) drives the C++ ... | - |
 | U-57 | WASM singleton reuses stale /out.gif — `wasm.js` does not unlink/snapshot `/out.gif` before `callMain()`; after one success, exit-zero/no-write run reads previous GIF and reports success for wrong input. | OPEN | - | not started; scoped as P1-37 in COMPILED_AUDIT.md §6 | P1-37: WASM stale /out.gif — NEW E:NA-05 — gpt 5.6. |
 | U-58 | Batch continuation re-reads LIVE settings — targets planned once (`batchTargets_` U-01) but `currentSettings()` called live for... | OPEN | - | not started; scoped as P1-38 in COMPILED_AUDIT.md §6 | P1-38: Snapshot batch settings — NEW F:NF-01 — fable 5.1 low — WINNER. |
-| U-59 | Cancel / failure leaves truncated file over PRE-EXISTING output — gifsicle writes direct to `-o <target>`; `cancelRun()` kills mid-write, failure branch never removes/restores; re-optimising existing `_opt.gif` + Cancel destroys last good result. | PARTIAL | S30 | CLI/core proof remains as recorded below. GUI `runCommand()` now sends ordinary Batch/Merge/Auto output to the same-directory `<target>.gs-partial`... | P0-7: Cancel must not leave truncated file over pre-existing output — NEW F:NF-02 — fable 5.1 low — WINNER ... |
+| U-59 | Cancel / failure leaves truncated file over PRE-EXISTING output — gifsicle writes direct to `-o <target>`; `cancelRun()` kills mid-write, failure branch never removes/restores; re-optimising existing `_opt.gif` + Cancel destroys last good result. | DONE | S30 | CLI/core proof remains as recorded below. GUI Batch/Merge/Auto writes to the same-directory `<target>.gs-partial`, snapshots/verifies the partial, ... | - |
 | U-60 | CLI resolves `#0` frame selector to bogus path — `GifsicleSettings.h` documents `#0` as legal input, man page defines it, but... | DONE | S22 | special input tokens (`#...`, `-`) now stay literal through CLI resolution/planning. Proof: `web/test/command.test.mjs` parity fixtures + `scripts/... | - |
 | U-61 | `output = -` treated as file → false failure rc=1 — man page `-o - means stdout`; CLI streams GIF to stdout correctly but `verify_output("-")` reports missing file and returns rc=1. | DONE | S22 | stream output is now normalized before path resolution, planning, and verification. Proof: `web/test/command.test.mjs` pins `-o -`; `scripts/smoke_... | - |
 | U-62 | Validate.h refuses crop W/H 0, engine allows 0=extend to edge — man `--crop x1,y1+WxH`: width/height can be zero or negative, zero=to edge. | DONE | S22 | crop `0x0` now passes native and web validation. Proof: `./build.sh` 308/308, `web/test/validate.test.mjs`, and `scripts/smoke_cli.sh` strict crop ... | - |

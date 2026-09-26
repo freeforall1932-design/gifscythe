@@ -23,19 +23,23 @@ state as current. While running preflight, G16 was nondeterministic: its
 matcher to consume its full input. Mutation probes: skeleton+slots passes;
 filled content with SKELETON fails; WORKING PLAN with remaining slots fails.
 
-**Partial:** U-59 remains PARTIAL until fresh Qt-enabled Linux and Windows PR
-CI compiles and executes the GUI harness. The existing green PR run predates
-these changes.
+**Partial:** None for U-59; Qt-enabled validation completed successfully.
 
 **Left:** An independent review and rerun of `test_gui_offscreen` is recorded
 as a separate next-agent task in WORKLIST.md, conditional on that agent having
 CMake + Qt6. No merge is authorized.
 
-**Verified:** `git diff --check` passed. The local environment has g++ but no
-CMake or Qt6, so GUI compilation and offscreen execution could not be run here.
+**Verified:** `git diff --check`; local fake-engine fixture compiled with g++;
+`build.sh` (372/0); `smoke_cli.sh` (61/61); `test_output_verify.sh` (25/0);
+Qt-enabled PR run **36227234549** passed Linux and Windows, including build and
+both `test_gui_offscreen` steps. `check_docs.sh` passed 24/24 with G6 skipped
+(no local CMake/Qt6); `sweep_stale.sh` passed 5/5. G16 matcher mutations were
+exercised: skeleton+slots passed, filled content with SKELETON failed, and
+WORKING PLAN with remaining slots failed.
 
-**Not verifiable here:** Qt6/CMake compilation and `test_gui_offscreen`; Windows
-runtime behavior. Fresh PR CI is required.
+**Not verifiable here:** a local Qt6/CMake GUI build or offscreen run, and the
+separate independent review assigned to the next agent; CI supplied the current
+cross-platform compile/run evidence.
 
 **Docs touched:** `COMPILED_AUDIT.md`, `STATUS.md` (generated), `WORKLIST.md`,
 `SESSION_HANDOFF.md`, `web/WEB_PLAN_TEMPLATE.md` (clarified historical S14

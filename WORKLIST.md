@@ -164,7 +164,8 @@ the S24 intake was triaged in the same session (each row carries its §6 id).
    now write beside the destination to `<target>.gs-partial`, verify before
    promotion, and discard partials on failure/cancel; offscreen T4/T8/T9 cover
    success, partial-writing failure, and cancellation while preserving an
-   existing output. U-59 stays PARTIAL until Qt CI runs. **Separate follow-up
+   existing output. **DONE S30:** Qt-enabled PR CI run `36227234549` passed
+   Linux and Windows builds and both GUI offscreen suites. **Separate follow-up
    task for the next agent:** independently review the change and rerun the
    offscreen suite if that agent has CMake + Qt6; report findings without
    merging absent owner approval.
