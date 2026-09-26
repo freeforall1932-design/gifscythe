@@ -565,6 +565,31 @@ int main(int argc, char** argv) {
     explode_before = gs::snapshot_explode_candidates(explode_prefix);
   }
 
+  // ---- U-59 / P0-7 (P0 data loss): guard the user's output file ----
+  // The engine writes direct to `-o <target>`, so a Cancel (the engine is
+  // killed mid-write) or any failed run used to leave a TRUNCATED file over the
+  // last good result. Every run that writes a real file now writes a partial
+  // beside the target instead, and the target is replaced only after the run is
+  // over — so the previous bytes survive a cancel, a signal and a refusal.
+  // Streaming stdout (`-o -`) has no file to guard; explode writes frames and
+  // is verified by ExplodeVerify.h instead.
+  const bool guard_output =
+      !s.output.empty() && !stream_output && s.mode != gs::Mode::Explode;
+  std::string output_partial;
+  if (guard_output) {
+    output_partial = gs::partial_output_path(s.output);
+    gs::discard_partial(output_partial);  // a partial left by an earlier crash
+    if (!gs::redirect_output_operand(full_argv, s.output, output_partial)) {
+      std::fprintf(stderr,
+                   "ERROR: refusing to run: cannot guard the output file %s\n"
+                   "       (no single '-o <output>' operand to redirect)\n",
+                   s.output.c_str());
+      return 1;
+    }
+    note("# -> writing to %s, promoted to %s on success\n",
+         output_partial.c_str(), s.output.c_str());
+  }
+
   note("# -> running (argv exec, no shell)\n");
   int rc = gs::run_argv(full_argv);
   if (rc == 0 && s.mode == gs::Mode::Explode) {
@@ -583,11 +608,26 @@ int main(int argc, char** argv) {
       rc = 1;  // honest: the run did NOT produce what explode promises
     }
   }
-  if (rc == 0 && verify_file) {
-    const auto error = gs::verify_output(s.output, output_before);
-    if (!error.empty()) {
-      std::fprintf(stderr, "ERROR: output verification failed: %s: %s\n", s.output.c_str(), error.c_str());
+  if (guard_output) {
+    // The engine wrote the PARTIAL, never the target. Verify it where this mode
+    // verifies at all, then promote it; every other outcome discards it — that
+    // discard is what keeps a cancelled, signalled or refused run from damaging
+    // a pre-existing output (U-59 / P0-7). Messages name the real target: the
+    // partial is an implementation detail of the guard.
+    std::string output_error;
+    if (rc == 0) {
+      if (verify_file) output_error = gs::verify_output(output_partial, output_before);
+      if (output_error.empty()) output_error = gs::promote_partial(output_partial, s.output);
+    }
+    if (rc != 0) {
+      gs::discard_partial(output_partial);
+    } else if (!output_error.empty()) {
+      gs::discard_partial(output_partial);
+      std::fprintf(stderr, "ERROR: output verification failed: %s: %s\n",
+                   s.output.c_str(), output_error.c_str());
       rc = 1;
+    } else {
+      note("# -> promoted to %s\n", s.output.c_str());
     }
   }
   note("# -> exit code %d\n", rc);

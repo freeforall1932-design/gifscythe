@@ -1,16 +1,16 @@
 # Session Handoff
 
-**Session:** S27 · **Date:** 2026-09-23 (opened 2026-09-22; crossed the sandbox's UTC midnight mid-session)
-**Branch:** s27-recreation-repair
+**Session:** S28 · **Date:** 2026-09-26
+**Branch:** arena/01a0dbc8-gifscythe
 **Repo re-created 2026-09-22:** the GitHub repo was rebuilt from a zip upload; the old remote's history (S1–S26, PRs #1–#33, shas like `5c93680`) does not exist in this clone — every such sha below is an old-remote record kept for the written history. The new remote: `04a1cd4` (initial) → `60d3df4` (zip upload) → `ce5fd51` (unpack to root) → PR #1 merge `824bf20`, whose tree is the S26 state minus the four root license files (loss = finding **U-97**, restored in S27 with executed proof). The ledger carries a separator: rows #1–#33 are the OLD repo's; the new repo's numbering restarts at #1. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number. This records the merged baseline, not a claim about current CI health.
-**Docs synced through:** PR #1 (re-created repo) · branch `arena/01a0c72c-gifscythe` · merged as `824bf20`
+**Docs synced through:** PR #2 (re-created repo) · branch `s27-recreation-repair` · merged as `e06b5db`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. Move this line as part of the sync, never before the writing is done.)*
-Based on `main` commit `824bf20` (the re-created repo's PR #1 merge; old-remote shas inside the historical sections are records this clone cannot resolve) ·
+Based on `main` commit `e06b5db` (the re-created repo's PR #2 merge, the S27 repair; old-remote shas inside the historical sections are records this clone cannot resolve) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (after S27)
+## Next session — fast hand-off (after S28)
 
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
@@ -31,7 +31,7 @@ Based on `main` commit `824bf20` (the re-created repo's PR #1 merge; old-remote 
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 123 DONE · 8 PARTIAL · 38 OPEN · 0 UNTRIAGED · 169 total
+- **Register:** 123 DONE · 9 PARTIAL · 37 OPEN · 0 UNTRIAGED · 169 total
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -107,7 +107,7 @@ this ledger exists to make obvious.
 | PR (new repo) | Handoff said "session …" at that merge | Branch | Merged as | What it did |
 |---|---|---|---|---|
 | #1 | S26 (the uploaded tree's own header) | `arena/01a0c72c-gifscythe` | `824bf20` | The platform unpack: zip upload (`60d3df4`) unpacked to root + zip removed (`ce5fd51`); content = the old repo's S26 state minus the four root license files (the loss is registered as U-97 and restored in S27). `git diff ce5fd51..824bf20` is empty — the merge took the branch tree as-is |
-| #2 | S27 | `s27-recreation-repair` | **open** | Opened 2026-09-23. S27: the re-creation repair — root license set restored (**U-97 ✅ FIXED**; executed packager fail-closed repro flipped exit 1 `ERROR: COPYING.ms-pl missing or empty` → exit 0 `Package created`, 11/11 required files non-empty; canonical texts, digests in the S27 log entry) + doc-gate re-sync (G10 enforced lines → `824bf20`; G11 entry dated 2026-09-23) + old/new-repo ledger separator + register re-emitted 122/8/38/0 → **123/8/38/0 = 169**. Gates: check_docs 24/0/2, sweep 5/0/0, python 20/20, review_change 4/0/1 ×2 (no R1), pr_preflight P1/P2/P3/P3b PASS (P4/P6 SKIP — no gh; API-equivalents via urllib). CI on this PR is the packaging + engine-suite proof (no toolchain in the S27 sandbox) |
+| #2 | S27 | `s27-recreation-repair` | `e06b5db` | Opened 2026-09-23. S27: the re-creation repair — root license set restored (**U-97 ✅ FIXED**; executed packager fail-closed repro flipped exit 1 `ERROR: COPYING.ms-pl missing or empty` → exit 0 `Package created`, 11/11 required files non-empty; canonical texts, digests in the S27 log entry) + doc-gate re-sync (G10 enforced lines → `824bf20`; G11 entry dated 2026-09-23) + old/new-repo ledger separator + register re-emitted 122/8/38/0 → **123/8/38/0 = 169**. Gates: check_docs 24/0/2, sweep 5/0/0, python 20/20, review_change 4/0/1 ×2 (no R1), pr_preflight P1/P2/P3/P3b PASS (P4/P6 SKIP — no gh; API-equivalents via urllib). CI on this PR is the packaging + engine-suite proof (no toolchain in the S27 sandbox) |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned
@@ -122,6 +122,61 @@ this ledger exists to make obvious.
 here each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**,
 and `arena/01a096ec-gifscythe` produced **#18 and #19**. A check comparing
 branch names alone would have passed straight through both skipped syncs.
+
+## S28 — U-59/P0-7 CLI/core half fixed test-first, red main diagnosed as G11, whole OPEN board triaged against this sandbox (2026-09-26)
+
+**PR #2 write-up (the P6 sync this header records).** The new remote's PR #2
+(branch `s27-recreation-repair`, merged as `e06b5db`) was S27's re-creation
+repair: the four root licence files restored (**U-97 ✅ FIXED**) and the two
+enforced base lines re-synced. The header had lagged it by exactly one merge —
+the ledger row still said **open** and the sync line still named PR #1, which is
+the drift **P6** exists to fail. Both moved in this session.
+
+**What S28 changed in product code (the first product change since S26):**
+
+1. **U-59 / P0-7, the only registered data-loss row — CLI/core half, test-first.**
+   The engine wrote direct to `-o <target>`, so a cancel or any failed run left a
+   truncated file over the last good result. `OutputVerify.h` now carries the
+   tmp+rename guard (`partial_output_path` / `redirect_output_operand` /
+   `promote_partial` / `discard_partial`) and `main.cpp` runs every real-file
+   output through `<target>.gs-partial`, verifies the PARTIAL and only then
+   renames it onto the target; a cancel, a signal or a refusal discards the
+   partial, so the previous bytes survive. Three new smoke cases were run RED
+   against the unfixed build first (`cmp=DIFFERS` — the pre-existing output
+   really was destroyed) and are green after; a fourth pins the self-heal
+   contract. Smoke 54 → **58/58**, `test_output_verify.sh` 12 → **25 assertions**,
+   unit 372/0 and transport 79 cases unchanged.
+2. **Left deliberately: the Qt half.** `runCommand()` still passes the real
+   target to the engine, so the GUI Cancel keeps the old behaviour. No Qt6/cmake
+   in this sandbox (measured), so the edit would have been unverifiable here and
+   could only have reddened CI. **U-59 is PARTIAL, not DONE**, and the row names
+   the remainder — this is the same discipline the Windows-only rows follow.
+3. **A harness trap worth recording:** `smoke_cli.sh` runs with `set -e` active
+   (case 1 turns it on, nothing turns it off), so a `wait` on a SIGTERM'd job
+   returned 143 and aborted the suite before `==> Done.` — exit 143 with no trap
+   fired and no signal ever delivered to the script. The cancel case now runs in
+   an explicit `set +e` window like every other negative case in the file.
+
+**The red main, diagnosed rather than assumed.** Run `35904935321` on `e06b5db`:
+linux `failure` at **Documentation status gate** (`check_docs.sh
+--no-gate-run`, `build.yml:35-37`), **windows all 11 steps green** — including
+Package portable (Windows) + manifest assert, which is the platform proof U-97
+asked for — and csharp-spike green. Reproduced locally on the same tree: **G11**,
+newest log entry 2026-09-23 vs the merge commit's own author date 2026-09-24
++0700 (the N-08 class again). The S28 entry clears it. Also measured: the new
+remote has **zero releases and zero tags**, so U-95's "mark the published
+Release superseded" has no artifact left to act on; the only downloadable build
+is the CI artifact `gifscythe-windows` (52,955,462 B, expires 2026-10-07).
+
+**Capability triage of the OPEN board (this sandbox: g++ 12.2, node v22, gh,
+curl — no cmake/Qt6/mingw/wine/emcc/dotnet).** Provable here and therefore
+schedulable without a new sandbox: the web lane (U-92, U-93, U-85, U-84, U-86,
+U-96), the CLI/core lane (U-81, U-83, U-94) and the doc-machine rows (U-88,
+U-89). CI-provable only (source edit here, proof on the runner): the Qt rows
+(U-59's half, U-12, U-58, U-70/U-72, DS-10, GS-205, GS-203's GUI half) and the
+Windows rows (U-55, U-71). Not doable in ANY sandbox: W-18 (clean Windows
+machine), W-19 (physical desktop), U-09/U-95 (an owner release) and every OD-*
+decision.
 
 ## S27 — the re-creation repair: license set restored (U-97), double-red main re-synced (2026-09-23)
 
@@ -471,27 +526,27 @@ only stick if they are in files a new session reads, not in a conversation.
   per-session copies of audit/legal/ci/planning docs; extend the merged file
   (`docs/archive/AUDIT_HISTORY.md` indexes what was folded where).
 
-## Verification status this session (S27)
+## Verification status this session (S28)
 
-Everything marked ✅ was **run in this sandbox**; ⏳ could not be. The S26 table
-this replaces lives in `IMPROVEMENT_LOG.md`'s S26 entry (**Verified** / **Not
-verifiable here**). Quote the **runtime** counter for test counts, never the
-`CHECK(` source site count (**G9** compares like with like).
+Everything marked ✅ was **run in this sandbox**; ⏳ could not be. The S27 table
+this replaces lives in `IMPROVEMENT_LOG.md`'s S27 entry. Quote the **runtime**
+counter for test counts, never the `CHECK(` source site count (**G9** compares
+like with like).
 
 | Check | Result |
 |---|---|
-| `scripts/check_docs.sh` | ✅ session start: 21 passed / 3 failed / 2 skipped (G10 stale base ×2 docs, G11 log five days behind the code, G15 unbootstrapped clone); after the edits + `--emit`: **23 / 1 / 2** — the 1 is G18 (dirty tree mid-edit, resolved by the commit itself; the pre-push hook re-runs the gate on the committed tree) |
-| `scripts/check_docs.sh --emit` | ✅ STATUS.md regenerated — **123 DONE · 8 PARTIAL · 38 OPEN · 0 UNTRIAGED · 169 total**; U-97 row emitted DONE/S27 |
-| `scripts/sweep_stale.sh` | ✅ 5/0/0 |
-| `python3 tests/test_sweep_stale.py` | ✅ 20/20 |
-| Packager fail-closed repro (fixture binaries + the real repo root) | ✅ before restore: exit 1 `ERROR: COPYING.ms-pl missing or empty`; after restore: exit 0 `Package created`, the packager's own check listing all 11 required files non-empty |
-| Licence-text fidelity | ✅ GPLv3 35147 B / LGPLv3 7639 B / Ms-PL 2663 B — canonical sizes + head/tail + section structure verified, sha256 digests recorded in the S27 log entry; the 42 KB SPDX combined LGPL text was rejected; `COPYING.gifsicle` digest identical to its `reference_code` source |
-| Engine-free web suites (numeric-honesty, request-guard, device-names, body-limit, static-hygiene) | ✅ green |
-| `server-bounds` | ⏳ 3/5 here — its 2 failures need a discoverable engine (`Engine [none]`); environmental, not code |
-| Engine-backed suites (command/validate parity, transport, smoke, unit, engine, verify_audit) | ⏳ no compiler here — this branch's CI linux/windows build+test steps are the proof (all of them were green on `824bf20` except the two named failures) |
-| `review_change.sh --commit` | ✅ run on both S27 commits — output recorded in the PR body (no check-logic edits; R1 not expected) |
-| GitHub API state | ✅ token owner verified before the first push (`GET /user` → `freeforall1932-design`, id 300004558 — the commit-identity rule); main `824bf20` double-red: linux "Documentation status gate" + windows "Package portable (Windows)", csharp-spike skipped (`needs: windows`); the new remote has **zero releases, zero tags** — `snapshot-2026-09-07` went away with the old repo (noted for U-95/P0-4; no register change made) |
-| CI log text for the red steps | ⏳ blob storage answers HTTP 401 from this sandbox (as in S26) — step names came from the job summaries, the causes from exact local reproductions |
+| `./build.sh` | ✅ engine `LCDF Gifsicle 1.96` + CLI + **372 checks, 0 failures** |
+| `scripts/smoke_cli.sh` | ✅ **58 passed, 0 failed** (was 54; the 4 U-59 cases are new and were RED before the fix) |
+| `scripts/test_output_verify.sh` | ✅ **25 assertions, 0 failures** (was 12; the U-59 helper pins) |
+| `scripts/test_engine.sh` · `scripts/test_package.sh` | ✅ 5/5 · **36/36** |
+| All nine `web/test/*.test.mjs` | ✅ green — transport **79 cases**, command/validate parity against the real CLI, server-bounds **5/5 groups** (S27 could only run 3/5) |
+| `scripts/verify_audit.sh` | ✅ **30 PASS / 1 FAIL / 5 SKIP** — the 1 FAIL is F1, its own re-report of the doc gate row below |
+| `scripts/check_docs.sh` | ✅ 23 / 1 / 1 before the doc edits (the 1 = **G11**, the red main, reproduced exactly); G15 was the second failure until `build.sh` bootstrapped the hooks (the known fresh-clone R-04 state) |
+| `gh run view 35904935321` (main at `e06b5db`) | ✅ linux `failure` at **Documentation status gate**; **windows all 11 steps green** (Package portable + manifest assert + upload); csharp-spike green. Artifact `gifscythe-windows` 52,955,462 B, expires 2026-10-07 |
+| Release/tag state of the new remote | ✅ `gh release list` and `git ls-remote --tags origin` both EMPTY — zero releases, zero tags (recorded for U-09/U-95; no register change) |
+| Qt/GUI harness (`test_gui_offscreen`) | ⏳ no cmake, no Qt6 here — **U-59's GUI half is therefore untouched and unproven either way** |
+| Windows-only rows, wasm rows | ⏳ no mingw-w64, no wine, no emcc |
+| CI log TEXT for the red step | ⏳ `gh run view --log-failed` dies at `results-receiver.actions.githubusercontent.com` (EOF), as in S26/S27 — "the red step is G11" is an exact local reproduction of that step's own command, not a log read |
 
 ## Network/toolchain reality of this sandbox (re-check every session)
 
@@ -505,7 +560,16 @@ verifiable here**). Quote the **runtime** counter for test counts, never the
   At every token hand-off: verify the token owner with `GET /user` before the
   first push; keep this clone's `user.name`/`user.email` set to the owner.
 
-* **S27 sandbox (current):** node v20.20.2, python3 3.11, git 2.39, bash 5.2,
+* **S28 sandbox (current):** node v22.22.3, **g++ 12.2 + make**,
+  python3 3.11, git, **gh 2.23 authenticated**, curl, mawk (no gawk). **No cmake,
+  no Qt6, no mingw-w64, no wine, no emcc, no dotnet** — the S26 shape. Network:
+  github.com + api.github.com reachable through gh; Actions **log blobs are
+  not** (EOF at `results-receiver`), so a red run can be *identified* but not
+  *read*. Clone is SHALLOW (`depth 1`, risk **R-02**). Consequence: the whole
+  engine/CLI/core lane and every web suite are fully provable here — which is
+  why U-59's CLI half could be closed with executed proof — while every Qt,
+  Windows-binary and wasm row stays source-read or CI-proved only.
+* **S27 sandbox:** node v20.20.2, python3 3.11, git 2.39, bash 5.2,
   **mawk** (no gawk), **no compiler, no cmake/Qt6, no mingw/wine, no dotnet/emcc,
   no gh, no curl** — the S24/S25 shape. GitHub API works via python urllib + the
   session token; Actions log blobs are NOT reachable (HTTP 401 at the redirect
@@ -572,12 +636,13 @@ verifiable here**). Quote the **runtime** counter for test counts, never the
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 123 DONE · 8 PARTIAL · 38 OPEN · 0
+   its generated counts line (currently: 123 DONE · 9 PARTIAL · 37 OPEN · 0
    UNTRIAGED · 169 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the
-   exact tagged SHA*): U-59/P0-7 (the last data-loss row) → release re-cut
+   exact tagged SHA*): **U-59/P0-7's Qt half** (the CLI/core half landed S28;
+   the GUI still writes straight onto the target) → release re-cut
    U-09/P0-4 + the U-95 release-notes edit → W-18 clean-Windows smoke →
    W-19 desktop probes → GS-203's GUI half (P1-25) → the Qt/platform rows →
    the S24 web-intake batch (**P1-44 closed S26** — next is P2-19/U-92, then

@@ -150,7 +150,15 @@ the S24 intake was triaged in the same session (each row carries its §6 id).
 
 1. **U-59 / P0-7** — cancel/failure must never leave a truncated file over a
    pre-existing good output (temp+rename on verified success). The only
-   registered data-loss row; fix before anything else.
+   registered data-loss row; fix before anything else. **S28: the CLI/core half
+   landed test-first** — the engine writes `<target>.gs-partial` and the target
+   is renamed onto only after verification, so a cancel, a signal or a refusal
+   leaves the previous bytes intact (smoke 54 → 58/58, three cases run RED
+   first; `test_output_verify.sh` 25 assertions). **Remaining: the Qt half** —
+   `runCommand()` still passes the real target to the engine, so the GUI Cancel
+   keeps the old behaviour until the same guard is wired there and
+   `tests/test_gui_offscreen.cpp` gets a cancel-with-preexisting case (needs
+   Qt6). The row is PARTIAL, not DONE.
 2. **U-09 / P0-4 + U-95 / P1-45** — re-cut release artifacts from one exact
    tagged SHA; the owner marks the pre-relicence `snapshot-2026-09-07` release
    superseded in its notes (never delete — rollback policy).
