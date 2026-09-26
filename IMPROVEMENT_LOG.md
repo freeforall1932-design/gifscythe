@@ -31,7 +31,7 @@ CMake + Qt6. No merge is authorized.
 
 **Verified:** `git diff --check`; local fake-engine fixture compiled with g++;
 `build.sh` (372/0); `smoke_cli.sh` (61/61); `test_output_verify.sh` (25/0);
-Qt-enabled PR run **36227234549** passed Linux and Windows, including build and
+Qt-enabled PR run **36227237540** passed Linux and Windows, including build and
 both `test_gui_offscreen` steps. `check_docs.sh` passed 24/24 with G6 skipped
 (no local CMake/Qt6); `sweep_stale.sh` passed 5/5. G16 matcher mutations were
 exercised: skeleton+slots passed, filled content with SKELETON failed, and
