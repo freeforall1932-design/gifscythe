@@ -21,21 +21,23 @@ clarified two S14 snapshot references that had described this historical plan
 state as current. While running preflight, G16 was nondeterministic: its
 `grep -q` could close the AWK pipeline early under `pipefail`. Changed the
 matcher to consume its full input. Mutation probes: skeleton+slots passes;
-filled content with SKELETON fails; WORKING PLAN with remaining slots fails.
+filled content with SKELETON fails; WORKING PLAN with remaining slots fails. With explicit owner approval, PR #5
+was merged on 2026-09-26 as **`957c143`**.
 
 **Partial:** None for U-59; Qt-enabled validation completed successfully.
 
 **Left:** An independent review and rerun of `test_gui_offscreen` is recorded
 as a separate next-agent task in WORKLIST.md, conditional on that agent having
-CMake + Qt6. No merge is authorized.
+CMake + Qt6.
 
 **Verified:** `git diff --check`; local fake-engine fixture compiled with g++;
 `build.sh` (372/0); `smoke_cli.sh` (61/61); `test_output_verify.sh` (25/0);
-Qt-enabled PR run **36227237540** passed Linux and Windows, including build and
-both `test_gui_offscreen` steps. `check_docs.sh` passed 24/24 with G6 skipped
-(no local CMake/Qt6); `sweep_stale.sh` passed 5/5. G16 matcher mutations were
-exercised: skeleton+slots passed, filled content with SKELETON failed, and
-WORKING PLAN with remaining slots failed.
+Qt-enabled PR run **36227561080** and post-merge main run **36227885126** passed
+Linux and Windows builds and both `test_gui_offscreen` steps; post-merge also
+passed csharp-spike. `check_docs.sh` passed 24/24 with G6 skipped (no local
+CMake/Qt6); `sweep_stale.sh` passed 5/5. G16 matcher mutations were exercised:
+skeleton+slots passed, filled content with SKELETON failed, and WORKING PLAN
+with remaining slots failed.
 
 **Not verifiable here:** a local Qt6/CMake GUI build or offscreen run, and the
 separate independent review assigned to the next agent; CI supplied the current

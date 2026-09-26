@@ -155,20 +155,16 @@ the S24 intake was triaged in the same session (each row carries its §6 id).
 
 1. **U-59 / P0-7** — cancel/failure must never leave a truncated file over a
    pre-existing good output (temp+rename on verified success). The only
-   registered data-loss row; fix before anything else. **S28: the CLI/core half
-   landed test-first** — the engine writes `<target>.gs-partial` and the target
-   is renamed onto only after verification, so a cancel, a signal or a refusal
-   leaves the previous bytes intact (smoke 54 → 58/58, three cases run RED
-   first; `test_output_verify.sh` 25 assertions). **Remaining: the Qt half** —
-   **S30: GUI guard implemented, pending Qt-enabled PR CI.** Batch/Merge/Auto
-   now write beside the destination to `<target>.gs-partial`, verify before
-   promotion, and discard partials on failure/cancel; offscreen T4/T8/T9 cover
-   success, partial-writing failure, and cancellation while preserving an
-   existing output. **DONE S30:** Qt-enabled PR CI run `36227237540` passed
-   Linux and Windows builds and both GUI offscreen suites. **Separate follow-up
-   task for the next agent:** independently review the change and rerun the
-   offscreen suite if that agent has CMake + Qt6; report findings without
-   merging absent owner approval.
+   registered data-loss row; fix before anything else. **DONE S30:** the
+   S28 CLI/core half writes to `<target>.gs-partial` and promotes only after
+   verification; GUI Batch/Merge/Auto now use the same lifecycle and discard
+   partials on failure/cancel. Offscreen T4/T8/T9 cover successful promotion,
+   failed partial writes, and cancellation preserving existing output.
+   Qt-enabled PR run `36227561080` and post-merge main run `36227885126` passed
+   Linux and Windows builds and both GUI offscreen suites. PR #5 merged as
+   `957c143`. **Separate follow-up task for the next agent:** independently
+   review the change and rerun the offscreen suite if that agent has CMake +
+   Qt6; report findings without merging absent owner approval.
 2. **U-09 / P0-4 + U-95 / P1-45** — re-cut release artifacts from one exact
    tagged SHA; the owner marks the pre-relicence `snapshot-2026-09-07` release
    superseded in its notes (never delete — rollback policy).
