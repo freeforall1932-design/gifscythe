@@ -47,7 +47,26 @@ import { uploadNameError, outputNameKey, requestPath, assertContainedPath } from
 
 const ROOT = dirname(fileURLToPath(import.meta.url)); // web/
 const PRODUCT = resolve(ROOT, "..", "working_code", "gifscythe");
-const PORT = Number(process.argv[2] || process.env.PORT || 8000);
+// U-85 / P3-13: `Number("abc")` is NaN and `listen(NaN)` threw a raw
+// ERR_SOCKET_BAD_PORT RangeError at module top level — no usage message and no
+// caller-error exit code, which is what a self-hosting panel that sets PORT hit
+// first. Validate once, name the reason, exit 2 (the CLI's caller-error shape).
+const PORT = (() => {
+  const raw = process.argv[2] || process.env.PORT || "8000";
+  const text = String(raw).trim();
+  if (!/^\d+$/.test(text)) {
+    process.stderr.write(`ERROR: port must be a decimal integer 0..65535, got "${raw}"\n`);
+    process.stderr.write("       usage: node web/server.mjs [port]   (or set PORT)\n");
+    process.exit(2);
+  }
+  const n = Number(text);
+  if (n > 65535) {
+    process.stderr.write(`ERROR: port must be a decimal integer 0..65535, got "${raw}"\n`);
+    process.stderr.write("       usage: node web/server.mjs [port]   (or set PORT)\n");
+    process.exit(2);
+  }
+  return n;
+})();
 // U-06: the demo used to bind 0.0.0.0 unconditionally, so anyone on the network
 // could submit 64 MB bodies and 120 s engine runs to an endpoint with no auth
 // and no concurrency cap. Default to loopback; opt in explicitly.
@@ -62,6 +81,12 @@ const HOST = process.env.GS_WEB_HOST || "127.0.0.1";
 const MAX_BODY = (() => {
   const fromEnv = Number(process.env.GS_MAX_BODY);
   return Number.isInteger(fromEnv) && fromEnv > 0 ? fromEnv : 64 * 1024 * 1024;
+})();
+// U-93 / P2-20: the stderr a single engine run may contribute to a response.
+// Override with GS_MAX_STDERR; 0 means "cap at 0" is refused, so the floor is 1.
+const MAX_STDERR = (() => {
+  const fromEnv = Number(process.env.GS_MAX_STDERR);
+  return Number.isInteger(fromEnv) && fromEnv > 0 ? fromEnv : 16 * 1024;
 })();
 // The engine-run bound (U-06 / P1-5). It existed as a hard 120 s, which is a
 // long time to hold a socket for a GIF optimizer and impossible to size from a
@@ -202,22 +227,47 @@ async function findEngine() {
 
 function run(argv) {
   return new Promise((resolvePromise) => {
+    // U-86 / P3-16: this promise could resolve TWICE — the timeout resolves with
+    // 124 and the `close` event then resolves again with the real code. The first
+    // resolution wins today only because that is how promises work, which is a
+    // trap for any future close-time logic. Make the single resolution explicit.
+    let settled = false;
+    const settleOnce = (value) => { if (!settled) { settled = true; resolvePromise(value); } };
     const child = spawn(argv[0], argv.slice(1), {
       stdio: ["ignore", "ignore", "pipe"],
     });
+    // U-93 / P2-20: stderr was accumulated without bound and then echoed whole
+    // in 422 bodies, so a chatty engine (or a batch that warns per frame) turned
+    // one request into unbounded server memory plus a wire response larger than
+    // the upload that produced it. Cap the capture and SAY it was capped, so the
+    // client can tell a complete message from a truncated one.
     let stderr = "";
-    child.stderr.on("data", (d) => { stderr += d.toString(); });
+    let stderrCapped = false;
+    child.stderr.on("data", (d) => {
+      if (stderr.length >= MAX_STDERR) { stderrCapped = true; return; }
+      stderr += d.toString();
+      if (stderr.length > MAX_STDERR) {
+        stderr = stderr.slice(0, MAX_STDERR);
+        stderrCapped = true;
+      }
+    });
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
-      resolvePromise({ code: 124, stderr: "engine timed out", killed: true });
+      settleOnce({ code: 124, stderr: "engine timed out", killed: true });
     }, ENGINE_TIMEOUT_MS);
     child.on("error", (err) => {
       clearTimeout(timer);
-      resolvePromise({ code: 127, stderr: String(err), failed: true });
+      settleOnce({ code: 127, stderr: String(err), failed: true });
     });
     child.on("close", (code) => {
       clearTimeout(timer);
-      resolvePromise({ code: code ?? 1, stderr });
+      resolvePromise({
+        code: code ?? 1,
+        stderr: stderrCapped
+          ? `${stderr}\n[stderr truncated at ${MAX_STDERR} characters]`
+          : stderr,
+        stderrCapped,
+      });
     });
   });
 }
@@ -401,6 +451,34 @@ async function handleOptimize(req, res, url) {
     return;
   }
 
+  // U-84 / P3-14: the body is read BEFORE the engine is discovered, exactly like
+  // handleRun. This handler used to discover the engine first, so an oversized
+  // upload to an engine-less server answered 503 "engine not found" instead of
+  // 413 — identical clients got a different body-cap contract per endpoint.
+  // Reading first also means a refused upload never takes an engine slot.
+  let body;
+  try {
+    body = await readBody(req, MAX_BODY);
+  } catch (err) {
+    if (err && err.statusCode === 413) { sendTooLarge(res, req, MAX_BODY); return; }
+    sendJson(res, 400, { ok: false, error: "could not read request body" });
+    return;
+  }
+  if (!body.length) {
+    sendJson(res, 400, { ok: false, error: "empty upload" });
+    return;
+  }
+  // U-92 / P2-19: for /optimize the body IS the GIF, so admission is a signature
+  // check on it — a named 400 instead of relaying whatever the engine said about
+  // somebody else's bytes.
+  if (!hasGifMagic(body)) {
+    sendJson(res, 400, {
+      ok: false,
+      error: "invalid upload: not a GIF (expected a GIF87a or GIF89a signature)",
+    });
+    return;
+  }
+
   const resolution = await findEngine();
   if (!resolution.path) {
     res.writeHead(503, { "Content-Type": "application/json" });
@@ -412,18 +490,12 @@ async function handleOptimize(req, res, url) {
 
   const engine = resolution.path;
   // U-06 / P1-5: the bounded resource is the ENGINE RUN, so the slot is taken
-  // here — after validation (a refused request must not consume capacity) and
-  // before the temp tree exists.
+  // here — after validation AND after the body has been read and admitted, so a
+  // refused request never consumes capacity — and before the temp tree exists.
   if (!(await acquireEngineSlot())) { sendTooMany(req, res); return; }
   let slotHeld = true;
   const dir = await mkdtemp(join(tmpdir(), "gsweb-"));
   try {
-    const body = await readBody(req, MAX_BODY);
-    if (!body.length) {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: false, error: "empty upload" }));
-      return;
-    }
     const inFile = join(dir, "in.gif");
     const outFile = join(dir, "out.gif");
     await writeFile(inFile, body);
@@ -466,9 +538,10 @@ async function handleOptimize(req, res, url) {
     });
     res.end(outBytes);
   } catch (err) {
-    // U-68 / NF-11: an oversized upload is a 413, not a generic 500. (This
-    // handler discovers the engine before reading the body, so the 413 is
-    // reachable only when an engine is present; /run reads the body first.)
+    // U-68 / NF-11: an oversized upload is a 413, not a generic 500. Since U-84
+    // this handler reads the body BEFORE discovering the engine, so the 413 is
+    // mapped above and reachable with no engine present — same contract as /run.
+    // This branch is now defence in depth for any later read.
     if (err && err.statusCode === 413) { sendTooLarge(res, req, MAX_BODY); return; }
     res.writeHead(500, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: false, error: String(err && err.message ? err.message : err) }));
@@ -553,6 +626,16 @@ async function listWrittenFrames(dir, prefixName, before) {
   return { frames, suspicious };
 }
 
+// U-92 / P2-19: `Buffer.from(str, "base64")` is forgiving — it silently decodes
+// truncated and foreign payloads, so "the client sent base64" was never actually
+// checked. A strict shape test plus a canonical round trip makes it a real claim.
+const BASE64_SHAPE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+function isStrictBase64(text) {
+  if (typeof text !== "string" || text.length === 0 || text.length % 4 !== 0) return false;
+  if (!BASE64_SHAPE.test(text)) return false;
+  return Buffer.from(text, "base64").toString("base64") === text;
+}
+
 async function handleRun(req, res) {
   let payload;
   // U-68 / NF-11: reading the body and parsing it are separate failures and must
@@ -602,6 +685,34 @@ async function handleRun(req, res) {
       return;
     }
   }
+  // U-92 / P2-19: admission — GS-205's web twin (that row names the Qt picker and
+  // drop filter only). Both endpoints used to accept arbitrary bytes and let the
+  // engine's stderr be the error message; a non-GIF upload is now a named 400
+  // BEFORE any engine discovery, slot or temp tree, and the decoded buffers are
+  // kept so nothing is decoded twice.
+  const uploads = [];
+  for (const f of files) {
+    if (!isStrictBase64(f.data)) {
+      sendJson(res, 400, {
+        ok: false, error: `invalid upload: ${f.name} is not valid base64`, file: f.name });
+      return;
+    }
+    const buf = Buffer.from(f.data, "base64");
+    if (!buf.length) {
+      sendJson(res, 400, {
+        ok: false, error: `invalid upload: ${f.name} decodes to zero bytes`, file: f.name });
+      return;
+    }
+    if (!hasGifMagic(buf)) {
+      sendJson(res, 400, {
+        ok: false,
+        error: `invalid upload: ${f.name} is not a GIF (expected a GIF87a or GIF89a signature)`,
+        file: f.name });
+      return;
+    }
+    uploads.push(buf);
+  }
+
   // Mode usage rules, mirroring what the desktop enforces in MainWindow:
   if (mode === "auto" && files.length !== 1) {
     sendJson(res, 400, {
@@ -680,7 +791,11 @@ async function handleRun(req, res) {
         if (sourceKeys.has(key)) {
           sendJson(res, 422, {
             ok: false,
-            error: `refusing to run: the planned output ${targets[i]} would overwrite the uploaded file of the same name`,
+            // U-86 / P3-16: this message claimed it protects "the uploaded file
+            // of the same name", but uploads are renamed inN.gif in the temp tree —
+            // what is actually protected is a PLANNED OUTPUT colliding with a
+            // user-facing upload name. Say what the check really does.
+            error: `refusing to run: the planned output ${targets[i]} collides with an upload name in this request`,
           });
           return;
         }
@@ -692,7 +807,7 @@ async function handleRun(req, res) {
     const paths = [];
     let inBytes = 0;
     for (let i = 0; i < files.length; i += 1) {
-      const buf = Buffer.from(files[i].data, "base64");
+      const buf = uploads[i];  // U-92: already admitted (strict base64 + GIF magic)
       if (!buf.length) {
         sendJson(res, 400, { ok: false, error: `file "${files[i].name}" has empty data` });
         return;
@@ -804,6 +919,15 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", "http://localhost");
   try {
     if (req.method === "GET" || req.method === "HEAD") {
+      // U-93 / P2-20: browsers request /favicon.ico on every page load and the
+      // allow-list had no entry, so each visit produced a 404 in the log. index.html
+      // now carries a data-URI icon (no request at all); this answers the ones
+      // that arrive anyway. 204, not a served file: nothing to disclose.
+      if (url.pathname === "/favicon.ico") {
+        res.writeHead(204, { "Cache-Control": "no-store" });
+        res.end();
+        return;
+      }
       await serveStatic(req, res, url.pathname);
       return;
     }

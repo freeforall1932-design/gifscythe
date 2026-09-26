@@ -91,28 +91,35 @@ the S24 intake was triaged in the same session (each row carries its §6 id).
       - [ ] **U-95** → **P1-45** — the published Release predates the Ms-PL
             relicence: owner release-notes edit (mark superseded/pre-release,
             never delete), then the P0-4 re-cut + tag-triggered asset gate.
-      - [ ] **U-81** → **P1-46** — explode frame verification ignores the
+      - [x] **U-81** → **P1-46** — explode frame verification ignores the
             stream-output/--info exemptions the ordinary verifier documents;
             `output = -` explode downgrades an honest run to rc=1.
+            **DONE (S28)** — measured first: the intake's repro was wrong on both halves (`-e -o -` scatters `<input>.NNN` into the CWD, it does not stream; `--info` + explode is refused by the ENGINE itself). `verify_explode` now carries the `verify_file` exemptions and explode + `output = -` is refused rc=2 with nothing scattered (smoke 61/61).
       - [ ] **U-94** → **P2-18** — oracle-fuzz gate: sweep the settings space
             against the REAL engine (both mirrors can be wrong together —
             U-62/U-63/N-05 proved it); seeded, offline, committed matrix.
-      - [ ] **U-92** → **P2-19** — web upload admission: GIF magic on the
+      - [x] **U-92** → **P2-19** — web upload admission: GIF magic on the
             decoded buffer + strict base64 (GS-205's web twin).
-      - [ ] **U-93** → **P2-20** — web transport bounds: capped stderr echo,
+            **DONE (S28)** — strict base64 + GIF-magic admission on both endpoints before any engine discovery (transport 79 → 86 cases, plus 2 in body-limit).
+      - [x] **U-93** → **P2-20** — web transport bounds: capped stderr echo,
             output envelope, favicon 404.
+            **DONE (S28)** — `GS_MAX_STDERR` cap with a disclosed truncation marker, `/favicon.ico` 204 + data-URI icon, `/run` output envelope documented (server-bounds 10/10).
       - [ ] **U-88** → **P2-21** — register mechanics: derived P-id state +
             harness:/desktop: proof markers + derived release-bar counters.
       - [ ] **U-89** → **P2-22** — doc-machine cost: --json/digest instead of
             hand-typed counts, truncation revisit, gate freeze until P0/P1 empty.
-      - [ ] **U-85** → **P3-13** — PORT validation (named error + exit 2, not
+      - [x] **U-85** → **P3-13** — PORT validation (named error + exit 2, not
             a raw RangeError stack).
-      - [ ] **U-84** → **P3-14** — /optimize reads the body before discovering
+            **DONE (S28)** — PORT validated once: named reason + usage line + exit 2, no RangeError stack (4 server-bounds cases).
+      - [x] **U-84** → **P3-14** — /optimize reads the body before discovering
             the engine (413 contract parity with /run).
-      - [ ] **U-83** → **P3-15** — pin single-input batch+output engine
+            **DONE (S28)** — `/optimize` reads and admits the body before `findEngine()`, so an oversized upload to an engine-less server is 413 on both endpoints, not 503 on one.
+      - [x] **U-83** → **P3-15** — pin single-input batch+output engine
             semantics with a smoke case (or refuse it until pinned).
-      - [ ] **U-86** → **P3-16** — three comment-vs-behavior mismatches
+            **DONE (S28)** — pinned with a smoke case: the `-o` target is written and the source stays byte-identical.
+      - [x] **U-86** → **P3-16** — three comment-vs-behavior mismatches
             (collision message, expand_home bare-~, run() double-resolve).
+            **DONE (S28)** — all three comment/message truths corrected, and `run()`'s double-resolve is now an explicit `settleOnce` guard; the two transport assertions that pinned the old wording were re-pinned, not deleted.
       - [ ] **U-91** → **P3-17** — one shared exit-code contract (CLI vs C#
             spike collide on 3) + the spike's ReadExactly/quoting port traps.
       - [ ] **U-96** → **P3-18** — stemOf dotfile/extensionless parity vs Qt
@@ -170,8 +177,14 @@ the S24 intake was triaged in the same session (each row carries its §6 id).
 5. **The Qt/platform rows** — U-12 (P1-24 async state machine), U-58 (P1-38
    batch settings snapshot), U-59's GUI half, U-70/U-72 (P1-42), DS-10, GS-205,
    U-71 (now CI-testable per P2-17's S24 note).
-6. **The S24 web-intake batch** — P1-44 first (U-78/U-87), then the P2/P3 rows
-   above; all are provable with node alone except where noted.
+6. **The S24 web-intake batch** — P1-44 first (U-78/U-87, closed S26), then the
+   P2/P3 rows above; all are provable with node alone except where noted.
+   **S28 closed the rest of the node/CLI-provable set**: U-92/P2-19, U-93/P2-20,
+   U-85/P3-13, U-84/P3-14, U-86/P3-16, U-81/P1-46 and U-83/P3-15. What is left in
+   this lane is U-94/P2-18 (the oracle-fuzz gate — the real engine is available,
+   it is a big enough build to want its own session) and the two doc-machine rows
+   U-88/P2-21 + U-89/P2-22 (they edit gate logic, so they are R1 work and need
+   mutation testing).
 7. **Owner decisions** — `docs/planning/OWNER_DECISIONS.md`: remaining
    OD-03…OD-07, OD-10, OD-13…OD-16, OD-18 (OD-16 blocks `web/wasm/`;
    OD-18 blocks closing U-76). Version decision (0.2.0 vs 1.0.0) last, per

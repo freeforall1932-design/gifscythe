@@ -31,7 +31,7 @@ Based on `main` commit `e06b5db` (the re-created repo's PR #2 merge, the S27 rep
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 123 DONE · 9 PARTIAL · 37 OPEN · 0 UNTRIAGED · 169 total
+- **Register:** 130 DONE · 9 PARTIAL · 30 OPEN · 0 UNTRIAGED · 169 total
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -169,6 +169,29 @@ newest log entry 2026-09-23 vs the merge commit's own author date 2026-09-24
 remote has **zero releases and zero tags**, so U-95's "mark the published
 Release superseded" has no artifact left to act on; the only downloadable build
 is the CI artifact `gifscythe-windows` (52,955,462 B, expires 2026-10-07).
+
+**The whole high-confidence lane closed in the same session (7 more rows).**
+Measured, not argued: **U-92** (strict base64 + GIF-magic admission on both
+endpoints, before engine discovery), **U-84** (both endpoints now share one
+body-cap contract — 413 with no engine present, not 503 on one), **U-85** (PORT
+validated once: named reason, usage line, exit 2), **U-93** (`GS_MAX_STDERR` cap
+with a disclosed truncation marker, `/favicon.ico` 204 + data-URI icon, the
+`/run` output envelope documented), **U-86** (three comment/message truths; the
+two transport assertions that pinned the old wording were re-pinned, not
+deleted), **U-81** and **U-83**. Two of those deserve the emphasis:
+
+- **U-81's intake repro was wrong on BOTH halves, and measuring is what caught
+  it.** `gifsicle -e -o - in.gif` writes ZERO bytes to stdout and drops
+  `in.gif.000..011` into the CWD (rc=0) — N-05's scatter class, not the "honest
+  stdout run" the row described; and `--info` + explode is refused by the ENGINE
+  itself (rc=1, its own reason), so no false frame failure existed there either.
+  The verifier now carries the `verify_file` exemptions, and explode + `output=-`
+  is refused rc=2 with nothing scattered. §19's "re-probe every fixed row" rule,
+  applied to an OPEN one, found a wrong scope.
+- **U-83 was pinned rather than refused** because the measured behaviour is sound
+  (the `-o` target is written, the source stays byte-identical).
+
+Register after both batches: **130 DONE · 9 PARTIAL · 30 OPEN · 169**.
 
 **Capability triage of the OPEN board (this sandbox: g++ 12.2, node v22, gh,
 curl — no cmake/Qt6/mingw/wine/emcc/dotnet).** Provable here and therefore
@@ -538,10 +561,10 @@ like with like).
 | Check | Result |
 |---|---|
 | `./build.sh` | ✅ engine `LCDF Gifsicle 1.96` + CLI + **372 checks, 0 failures** |
-| `scripts/smoke_cli.sh` | ✅ **58 passed, 0 failed** (was 54; the 4 U-59 cases are new and were RED before the fix) |
+| `scripts/smoke_cli.sh` | ✅ **61 passed, 0 failed** (was 54: +4 U-59, all RED before that fix, +2 U-81, +1 U-83) |
 | `scripts/test_output_verify.sh` | ✅ **25 assertions, 0 failures** (was 12; the U-59 helper pins) |
 | `scripts/test_engine.sh` · `scripts/test_package.sh` | ✅ 5/5 · **36/36** |
-| All nine `web/test/*.test.mjs` | ✅ green — transport **79 cases**, command/validate parity against the real CLI, server-bounds **5/5 groups** (S27 could only run 3/5) |
+| All nine `web/test/*.test.mjs` | ✅ green — transport 79 → **86 cases**, body-limit 8 → **13**, server-bounds 5 → **10 groups**, command/validate parity against the real CLI unchanged, static-hygiene green after the favicon route |
 | `scripts/verify_audit.sh` | ✅ **30 PASS / 1 FAIL / 5 SKIP** — the 1 FAIL is F1, its own re-report of the doc gate row below |
 | `scripts/check_docs.sh` | ✅ 23 / 1 / 1 before the doc edits (the 1 = **G11**, the red main, reproduced exactly); G15 was the second failure until `build.sh` bootstrapped the hooks (the known fresh-clone R-04 state) |
 | `gh run view 35904935321` (main at `e06b5db`) | ✅ linux `failure` at **Documentation status gate**; **windows all 11 steps green** (Package portable + manifest assert + upload); csharp-spike green. Artifact `gifscythe-windows` 52,955,462 B, expires 2026-10-07 |
@@ -638,7 +661,7 @@ like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 123 DONE · 9 PARTIAL · 37 OPEN · 0
+   its generated counts line (currently: 130 DONE · 9 PARTIAL · 30 OPEN · 0
    UNTRIAGED · 169 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High

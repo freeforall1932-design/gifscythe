@@ -452,6 +452,24 @@ int main(int argc, char** argv) {
     return 2;
   }
 
+  // ---- U-81 / P1-46: Explode + `output = -` scatters frames, it does not stream ----
+  // MEASURED on the bundled 1.96, not assumed — the intake note called this "an
+  // honest stdout run" and that is not what happens:
+  //   gifsicle -e -o - in.gif  ->  rc=0, ZERO bytes on stdout, and the frames
+  //                                written as in.gif.000..011 into the CWD
+  // The engine ignores `-o` for `-e` and names frames after the input, so `-o -`
+  // streams nothing and silently drops a dozen files wherever the CLI happened to
+  // be invoked. That is N-05's class (explode scattering frames), so it gets
+  // N-05's treatment: a named refusal, exit 2, before any process starts. Print
+  // mode still prints.
+  if (do_run && s.mode == gs::Mode::Explode && stream_output) {
+    std::fprintf(stderr,
+                 "ERROR: refusing to run — Explode cannot stream to stdout\n"
+                 "       the engine ignores `-o -` for -e and writes <input>.NNN frames into\n"
+                 "       the CURRENT DIRECTORY instead. Set `output` to a frame prefix.\n");
+    return 2;
+  }
+
   // Locate engine.
   std::string engine_path;
   const char* engine_source = "--engine";
@@ -558,9 +576,17 @@ int main(int argc, char** argv) {
       return 1;
     }
   }
+  // U-81 / P1-46: the explode frame verifier must honour the SAME two exemptions
+  // the ordinary output verifier documents (`verify_file` below): `-o -` streams
+  // the GIF to stdout and `--info` writes text, so in both cases there are no
+  // frames to count. Ungated, `explode_prefix_for()` handed back the literal
+  // output "-", the snapshot hunted files named "-.*", found none, and an honest
+  // stdout explode was downgraded to rc=1 "engine exited 0 but wrote no frames".
+  const bool verify_explode =
+      s.mode == gs::Mode::Explode && !stream_output && !s.info;
   std::vector<gs::ExplodeFileState> explode_before;
   std::string explode_prefix;
-  if (s.mode == gs::Mode::Explode) {
+  if (verify_explode) {
     explode_prefix = gs::explode_prefix_for(s);
     explode_before = gs::snapshot_explode_candidates(explode_prefix);
   }
@@ -592,7 +618,7 @@ int main(int argc, char** argv) {
 
   note("# -> running (argv exec, no shell)\n");
   int rc = gs::run_argv(full_argv);
-  if (rc == 0 && s.mode == gs::Mode::Explode) {
+  if (rc == 0 && verify_explode) {  // U-81: same exemptions as verify_file
     const gs::ExplodeResult vr =
         gs::verify_explode_frames(explode_prefix, explode_before);
     if (vr.ok) {

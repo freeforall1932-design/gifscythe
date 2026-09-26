@@ -47,6 +47,64 @@ Chronological log of decisions and changes. **Newest at the top.**
   143 and no trap fired. The cancel case now runs inside an explicit
   `set +e` / `set -e` window like every other negative case in the file.
 
+**Changed (second batch — the whole high-confidence lane, same session):**
+
+Seven more rows closed, each with executed proof. The web lane needed no compiler
+and the CLI lane had one, so every one of these was measurable here.
+
+- **U-92 / P2-19 — upload admission (GS-205's web twin).** Both endpoints now
+  require **strict base64** (shape + canonical round trip; `Buffer.from(s,"base64")`
+  alone silently decodes truncated and foreign payloads) and a **GIF87a/89a
+  signature on the decoded buffer**, before engine discovery, slot and temp tree.
+  A non-GIF upload is a named 400 that names the file instead of relaying the
+  engine's opinion of somebody else's bytes. The decoded buffers are kept, so
+  nothing decodes twice. `/optimize` gets the same signature check on its body.
+- **U-84 / P3-14 — one body-cap contract.** `handleOptimize` reads and admits the
+  body BEFORE `findEngine()`, like `handleRun`. An oversized upload to an
+  engine-less server is now 413 on both endpoints instead of 503 on one, and a
+  refused upload never takes an engine slot. `body-limit.test.mjs`'s own header
+  comment described the old ordering as current fact and explained its
+  `GS_ENGINE=node` workaround; corrected, and a new case proves the 413 with
+  `GS_ENGINE` pointing at a path that does not exist.
+- **U-85 / P3-13 — PORT.** Validated once at startup: decimal-integer shape +
+  0..65535, a named `ERROR:` with a usage line on stderr, **exit 2**. No more raw
+  `ERR_SOCKET_BAD_PORT` RangeError at module top level.
+- **U-93 / P2-20 — three transport bounds.** Engine stderr capture capped
+  (`GS_MAX_STDERR`, 16 KiB default) with the cap DISCLOSED in the message; the
+  fixture had to write to **stderr**, not stdout, because the server discards
+  stdout — measured, not assumed. `/favicon.ico` answers 204 and `index.html`
+  carries an empty data-URI icon, so a page load no longer logs a 404. The `/run`
+  base64 output envelope is documented in `web/README.md` as a deliberate shape.
+- **U-86 / P3-16 — three comment/message truths.** The `/run` collision message
+  claimed it protects "the uploaded file of the same name" (uploads are renamed
+  `inN.gif`); it now says a planned output collides with an upload name, and the
+  **two transport assertions that pinned the old wording were re-pinned, not
+  deleted** — a message-truth fix must move its pin, not lose it. `expand_home`'s
+  comment now says what the code does (bare `~` expands to `$HOME`; only `~user`
+  is left alone). `run()`'s double-resolve (timeout then close, first wins by
+  accident) is now an explicit `settleOnce` guard.
+- **U-81 / P1-46 — MEASURED FIRST, and the intake's repro was wrong on both
+  halves.** `gifsicle -e -o - in.gif` writes ZERO bytes to stdout and drops
+  `in.gif.000..011` into the CWD (rc=0): it is N-05's scatter class, not the
+  "honest stdout run" the row described. And `--info` + explode is refused by the
+  ENGINE itself (`'--info' suppresses normal output`, rc=1), so no false frame
+  failure existed there either. Fix: `verify_explode` carries the same
+  `!stream_output && !info` exemptions as `verify_file` (the verifier can no
+  longer add its own verdict to an exempt run), and explode + `output = -` gets
+  N-05's treatment — a named refusal, rc=2, before any process starts, with print
+  mode still printing. This is the §19 discipline paying for itself: both halves
+  of a "verified" intake row were re-probed and both were wrong.
+  **The scatter is not theoretical — this session produced it.** The first,
+  pre-fix run of the new explode case wrote `-.000` … `-.011` (12 frames, 533–1001 B)
+  straight into `working_code/gifscythe/`, and `git add -A` picked them up; they
+  were caught in the commit's own diffstat and removed before the push. That is
+  the defect happening to the person testing it, which is why the fixed case runs
+  in its own temp CWD and asserts the directory is still empty.
+- **U-83 / P3-15 — pinned, not refused**, because the measured behaviour is
+  sound: batch + one input + an `output` key writes the `-o` target and leaves the
+  source byte-identical. The case asserts exactly that, so a future engine that
+  changes it fails the suite instead of drifting.
+
 **Partial:**
 
 - **U-59 is PARTIAL, not DONE — the Qt half is still exposed.** `runCommand()`
@@ -70,15 +128,17 @@ Chronological log of decisions and changes. **Newest at the top.**
 **Verified:**
 
 - `./build.sh` → engine `LCDF Gifsicle 1.96` + CLI + **372 checks, 0 failures**.
-- `scripts/smoke_cli.sh` → **58 passed, 0 failed** (was 54; the 4 U-59 cases are
-  new, and were RED before the fix).
+- `scripts/smoke_cli.sh` → **61 passed, 0 failed** (was 54: +4 U-59 cases, all RED
+  before that fix, +2 U-81 and +1 U-83).
 - `scripts/test_output_verify.sh` → **25 assertions, 0 failures** (was 12).
 - `scripts/test_engine.sh` 5/5 · `scripts/test_package.sh` **36/36** ·
   `scripts/verify_audit.sh` **30 PASS / 1 FAIL / 5 SKIP** where the 1 FAIL is
   F1, its own re-report of the doc gate below.
-- All nine web suites green, including the engine-backed ones
-  (`transport` **79 cases**, `command`/`validate` parity against the real CLI)
-  and `server-bounds` **5/5 groups** (S27 could only run 3/5).
+- All nine web suites green, including the engine-backed ones: `transport`
+  79 → **86 cases** (+7 U-92), `body-limit` 8 → **13** (+2 U-92, +2 U-84, +1
+  re-pin), `server-bounds` 5 → **10 groups** (+1 U-93, +4 U-85), `command`/
+  `validate` parity against the real CLI unchanged, `static-hygiene` still green
+  after the favicon route.
 - **The red main diagnosed, not assumed:** `gh run view 35904935321` → linux
   job `failure` at the step **Documentation status gate**, which runs
   `./scripts/check_docs.sh --no-gate-run` (`build.yml:35-37`); windows
@@ -105,9 +165,12 @@ Chronological log of decisions and changes. **Newest at the top.**
   red step is G11" is therefore an exact local reproduction of that step's own
   command, not a log read.
 
-**Docs touched:** `COMPILED_AUDIT.md` (§5 U-59 row ⬜ OPEN → ◐ PARTIAL with the
-executed proof and the named remainder; §6 P0-7 annotated), `STATUS.md`
-(re-emitted — U-59 OPEN → PARTIAL, so 123/8/38/0 → 122/9/38/0), this file,
+**Docs touched:** `COMPILED_AUDIT.md` (§5: U-59 ⬜ OPEN → ◐ PARTIAL with the
+executed proof and the named remainder, and U-81/U-83/U-84/U-85/U-86/U-92/U-93
+⬜ OPEN → ✅ FIXED with their proofs; §6 P0-7 annotated), `STATUS.md` (re-emitted
+twice — 123/8/38/0 → 123/9/37/0 → **130/9/30/0**), `web/README.md` (the
+`GS_MAX_STDERR` row, the two admission rules, the favicon contract and the
+documented `/run` output envelope), this file,
 `SESSION_HANDOFF.md` (header, the P6 sync to PR #2 + its merge sha, the S28
 section, the verification table, the toolchain section), `WORKLIST.md` (road to
 1.0.0 step 1 marked as the CLI half landed / GUI half open).

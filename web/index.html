@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Gifscythe — web build (POC)</title>
   <link rel="stylesheet" href="style.css" />
+  <!-- U-93 / P2-20: an empty data-URI icon, so a page load does not also fire a
+       /favicon.ico request that the static allow-list would 404. -->
+  <link rel="icon" href="data:," />
 </head>
 <body>
   <header>
