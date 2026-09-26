@@ -13,7 +13,10 @@
 //
 // WHY THIS TEST NEEDS NO REAL ENGINE: in handleRun() the body is read BEFORE
 // findEngine(), so /run's 413 is reachable with no gifsicle at all. /optimize
-// discovers the engine first, so to reach ITS readBody we point GS_ENGINE at an
+// (U-84 note: it no longer does — /optimize reads the body first, exactly like
+// /run, and case F below proves the 413 with NO engine at all. The stub stays so
+// the U-68 cases keep exercising the post-admission path.) Historically it
+// discovered the engine first, so to reach ITS readBody we pointed GS_ENGINE at an
 // inert executable — process.execPath (node itself). That stub is NEVER executed
 // by these cases: the oversize rejection happens in readBody, before run() is
 // ever called, so node-as-"engine" only satisfies discovery (isExecutableFile).
@@ -141,14 +144,51 @@ try {
       `json=${JSON.stringify(r.json)}`);
   }
 
-  // E) /optimize with a normal-sized body is NOT wrongly rejected as 413: it
-  //    passes the body check and proceeds (here the inert stub engine produces no
-  //    valid GIF, so the honest result is a 422 — the point is "not 413").
+  // E) /optimize with a normal-sized body is NOT wrongly rejected as 413. Since
+  //    U-92 the body is also admitted on its GIF signature, so a non-GIF body is
+  //    a named 400 before any engine relay — still "not 413", now pinned exactly.
   {
     const r = await postRaw(port, "/optimize?settings=%7B%7D", "GIF89a-small-body");
     check("U-68 /optimize normal-sized body is not 413",
       r.status !== 413,
       r.threw ? `threw ${r.threw}` : `status ${r.status} (expected != 413)`);
+    // NOTE: the body above DOES carry a GIF89a signature, so it passes admission
+    // and fails later, honestly, at output verification. The admission gate needs
+    // a body without the magic:
+    const notGif = await postRaw(port, "/optimize?settings=%7B%7D", "PNG-not-a-gif");
+    check("U-92 /optimize non-GIF body -> named 400 admission (no engine relay)",
+      notGif.status === 400 && /not a GIF/.test(notGif.json?.error || ""),
+      `status ${notGif.status} json=${JSON.stringify(notGif.json)}`);
+    check("U-92 /optimize a GIF-signed body still passes admission (not 400)",
+      r.status !== 400,
+      `status ${r.status} json=${JSON.stringify(r.json)}`);
+  }
+
+  // F) U-84 / P3-14: an ENGINE-LESS server. /optimize used to discover the engine
+  //    before reading the body, so an oversized upload answered 503 "engine not
+  //    found" instead of 413 — a different body-cap contract per endpoint. (The
+  //    GS_ENGINE=node stub above existed only to work around that ordering; these
+  //    cases need no engine at all, which is the point.)
+  {
+    const port2 = await freePort();
+    const noEngine = spawn(process.execPath, [SERVER, String(port2)], {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, GS_WEB_HOST: "127.0.0.1", GS_MAX_BODY: String(LIMIT),
+             GS_ENGINE: join(__dirname, "gs-no-such-engine-binary") },
+    });
+    try {
+      await waitForServer(port2);
+      const big = await postRaw(port2, "/optimize?settings=%7B%7D", "x".repeat(LIMIT + 128));
+      check("U-84 /optimize oversized body with NO engine -> 413 (was 503)",
+        big.status === 413,
+        big.threw ? `threw ${big.threw}` : `status ${big.status} json=${JSON.stringify(big.json)}`);
+      const runBig = await postRaw(port2, "/run", "x".repeat(LIMIT + 128));
+      check("U-84 /run and /optimize now share one cap contract (both 413, no engine)",
+        runBig.status === 413 && big.status === 413,
+        `run=${runBig.status} optimize=${big.status}`);
+    } finally {
+      noEngine.kill("SIGKILL");
+    }
   }
 } catch (err) {
   failures++;

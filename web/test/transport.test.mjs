@@ -413,7 +413,7 @@ try {
 
     for (const [label, names, error] of [
       ["case-only target collision", ["Clip.gif", "clip.GIF"], "would both write"],
-      ["case-only source collision", ["Clip.gif", "CLIP_OPT.GIF"], "overwrite the uploaded file"],
+      ["case-only source collision", ["Clip.gif", "CLIP_OPT.GIF"], "collides with an upload name"],
       ["Unicode normalized target collision", ["café.gif", "cafe\u0301.gif"], "would both write"],
     ]) {
       const beforeLaunches = await launches();
@@ -493,8 +493,47 @@ try {
     r = await postRun(port, { mode: "batch" }, [gifFile("y_opt.gif"), gifFile("y.gif")]);
     p = [];
     if (r.status !== 422) p.push(`status ${r.status}`);
-    if (!String(r.json?.error || "").includes("overwrite the uploaded file")) p.push(`error ${JSON.stringify(r.json?.error)}`);
+    if (!String(r.json?.error || "").includes("collides with an upload name")) p.push(`error ${JSON.stringify(r.json?.error)}`);
     t("U-41 batch target-equals-source is refused", p);
+
+    // U-92 / P2-19: upload admission — GS-205's web twin. Arbitrary bytes used
+    // to reach the engine and come back as its stderr; they are a named 400 now,
+    // before any engine discovery, slot or temp tree.
+    const postRaw = async (files) => {
+      const r = await fetch(`http://127.0.0.1:${port}/run`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings: { mode: "auto" }, files }),
+      });
+      return { status: r.status, json: await r.json().catch(() => null) };
+    };
+    const b64 = (b) => b.toString("base64");
+    const launchProbe = await launches();
+    for (const [label, data, want] of [
+      ["a non-GIF body is refused by name", b64(Buffer.from("PNG\r\n\x1a\n not a gif")), "not a GIF"],
+      ["a truncated GIF header is refused", b64(Buffer.from("GIF8")), "not a GIF"],
+      // an empty data field fails the strict shape test first; the zero-byte
+      // branch in the handler is defence in depth behind that gate.
+      ["an empty data field is refused", "", "not valid base64"],
+      ["non-base64 text is refused", "not base64 at all!!", "not valid base64"],
+      ["non-canonical base64 padding is refused", b64(GIF).slice(0, 8) + "====", "not valid base64"],
+    ]) {
+      const r = await postRaw([{ name: "probe.gif", data }]);
+      p = [];
+      if (r.status !== 400) p.push(`status ${r.status} (expected 400)`);
+      if (!String(r.json?.error || "").includes(want)) p.push(`error ${JSON.stringify(r.json?.error)}`);
+      t(`U-92 ${label}`, p);
+    }
+    // the launch probe must close BEFORE the admitted case below, which does
+    // start the engine on purpose.
+    if (await launches() !== launchProbe) p = ["a refused upload launched the engine"];
+    else p = [];
+    t("U-92 refused uploads never reach the engine", p);
+    // and a real GIF is still admitted (the gate must not over-reject)
+    {
+      const r = await postRaw([{ name: "ok.gif", data: b64(GIF) }]);
+      t("U-92 a real GIF upload is still admitted",
+        r.status === 200 ? [] : [`status ${r.status} ${JSON.stringify(r.json?.error)}`]);
+    }
 
     // explode: frames verified; the 1x1 GIF yields exactly clip_frame.000
     r = await postRun(port, { mode: "explode" }, [gifFile("clip.gif")]);

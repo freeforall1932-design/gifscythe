@@ -43,7 +43,26 @@ name-template controls stay desktop-only.
 | `GS_MAX_QUEUED` | `8` | how many wait past that; the rest get `429` with an explanatory body instead of queueing unbounded |
 | `GS_RATE_LIMIT_PER_MIN` | `300` | per-client-address POST window; static is exempt because a page load is several GETs by design. `0` disables it |
 | `GS_ENGINE_TIMEOUT_MS` | `120000` | the engine-run bound (was a hard 120 s); a timed-out run answers `422` with `exitCode: 124`. `0` disables |
+| `GS_MAX_STDERR` | `16384` | how much engine stderr one run may contribute to a response. It used to be unbounded and was echoed whole in `422` bodies, so a chatty engine made the response bigger than the upload that produced it; a capped message ends with `[stderr truncated at N characters]` so the client can tell it was cut (U-93 / P2-20) |
 | `GS_ENGINE` | unset | exact engine path; an invalid non-empty value refuses fallback with `503` (GS-207) |
+
+Two admission rules both endpoints now share (U-92 / P2-19, GS-205's web twin):
+an upload must be **strict base64** (shape + canonical round trip — `Buffer.from`
+alone silently decodes truncated and foreign payloads) and must carry a
+**GIF87a/GIF89a signature**. Anything else is a named `400` that names the file,
+before engine discovery, so a non-GIF upload no longer comes back as whatever the
+engine said about somebody else's bytes. And the body is read **before** the
+engine is discovered on `/optimize` too (U-84 / P3-14): an oversized upload to an
+engine-less server is a `413` on both endpoints, not a `503` on one.
+
+`/favicon.ico` answers `204` and `index.html` carries an empty data-URI icon
+(U-93), so a page load no longer logs a 404.
+
+**The `/run` output envelope:** every output is inlined as base64 in one JSON
+response, so a batch answers with more bytes than it was sent. That is a
+deliberate, documented shape — not a bound the server enforces — and it is why
+`GS_MAX_CONCURRENT`/`GS_MAX_QUEUED` exist: the response size scales with the
+batch a caller is already allowed to submit. `GET /favicon.ico`, `204`.
 
 Engine discovery mirrors the desktop: `release/current` first (one pin moves both
 surfaces — U-66), then the newest numeric `release/<version>/`.

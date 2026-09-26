@@ -267,6 +267,59 @@ try {
     t("U-06 the /run endpoint shares the one engine semaphore", p);
     await stop(child);
   }
+
+  // ---- 6: U-93 / P2-20 — stderr capture is bounded, and says so ----
+  {
+    // A chatty FAILING engine: without a cap its whole output was echoed in the
+    // 422 body, so one request could put an unbounded string in server memory and
+    // answer with more bytes than the upload that produced it.
+    const chatty = join(dir, "chatty.sh");
+    // stderr, not stdout: the server captures ONLY stderr (stdout is "ignore"),
+    // so a stdout-chatty engine proves nothing about this bound.
+    await writeFile(chatty, `#!/bin/sh
+i=0
+while [ "$i" -lt 400 ]; do echo "engine warning line $i padding padding padding" >&2; i=$((i+1)); done
+exit 3
+`);
+    await chmod(chatty, 0o755);
+    const CAP = 64;
+    const { port, child } = await startServer({
+      GS_ENGINE: chatty, GS_MAX_STDERR: String(CAP),
+    });
+    const p = [];
+    try {
+      const r = await runMode(port, { mode: "auto" });
+      const stderr = String(r.body?.stderr || "");
+      if (r.status !== 422) p.push(`status ${r.status}, expected 422`);
+      // CAP characters of engine text + the marker line the cap adds
+      if (stderr.length > CAP + 80) p.push(`stderr is ${stderr.length} chars, cap was ${CAP}`);
+      if (!/truncated at 64 characters/.test(stderr)) p.push(`no truncation marker: ${JSON.stringify(stderr.slice(-60))}`);
+    } catch (err) { p.push(`threw ${err.message}`); }
+    t("U-93 engine stderr is capped and the cap is disclosed", p);
+    await stop(child);
+  }
+
+  // ---- 7: U-85 / P3-13 — a bad PORT is a named caller error, not a stack ----
+  {
+    for (const bad of ["abc", "-1", "99999", "80.5"]) {
+      const child = spawn(process.execPath, [SERVER, bad], {
+        env: { ...process.env, GS_WEB_HOST: "127.0.0.1" },
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      let err = "";
+      child.stderr.on("data", (d) => { err += d.toString(); });
+      const code = await new Promise((res) => {
+        child.once("exit", (c) => res(c));
+        setTimeout(() => { child.kill("SIGKILL"); res("timeout"); }, 8000);
+      });
+      const p = [];
+      if (code !== 2) p.push(`exit ${code}, expected 2 (the caller-error convention)`);
+      if (!/port must be a decimal integer 0\.\.65535/.test(err)) p.push(`no named reason: ${JSON.stringify(err.slice(0, 120))}`);
+      if (!/usage:/.test(err)) p.push("no usage line");
+      if (/RangeError|ERR_SOCKET_BAD_PORT|at /.test(err)) p.push(`leaked a raw stack: ${err.slice(0, 120)}`);
+      t(`U-85 PORT="${bad}" exits 2 with a named reason and no stack`, p);
+    }
+  }
 } finally {
   await rm(dir, { recursive: true, force: true }).catch(() => {});
 }

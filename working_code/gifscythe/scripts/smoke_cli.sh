@@ -813,5 +813,196 @@ EOF
   done
 done
 
+# U-59 / P0-7 (P0 data loss): a run that dies mid-write must never damage a
+# PRE-EXISTING output. The engine writes direct to `-o <target>`, so a cancel or
+# a failed run used to leave a truncated file over the last good result. The
+# engine must write a partial beside the target and the target may only be
+# replaced on verified success.
+U59_GOOD="$WORK/u59-good.gif"
+U59_TARGET="$WORK/u59.gif"
+U59_PARTIAL="$WORK/u59.gif.gs-partial"
+cp "$SRC_GIF" "$U59_GOOD"
+cat > "$WORK/u59.conf" <<EOF
+mode = auto
+input = $SRC_GIF
+output = $U59_TARGET
+EOF
+
+# (a) engine writes garbage to -o then exits 0: the run must be refused AND the
+#     pre-existing target must survive byte-identical, with no partial left.
+cat > "$WORK/u59-bogus-engine" <<'EOF'
+#!/bin/sh
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = -o ]; then shift; printf 'not a GIF' > "$1"; exit 0; fi
+  shift
+done
+exit 1
+EOF
+chmod +x "$WORK/u59-bogus-engine"
+cp "$U59_GOOD" "$U59_TARGET"
+rm -f "$U59_PARTIAL"
+set +e
+"$CLI" "$WORK/u59.conf" --run --engine "$WORK/u59-bogus-engine" >"$WORK/u59a.out" 2>"$WORK/u59a.err"
+u59_rc=$?
+set -e
+if [[ "$u59_rc" == 1 ]] && cmp -s "$U59_GOOD" "$U59_TARGET" && [[ ! -e "$U59_PARTIAL" ]]; then
+  ok "U-59 refused run leaves the pre-existing output byte-identical"
+else
+  bad "U-59 refused run damaged the pre-existing output (rc=$u59_rc cmp=$(cmp -s "$U59_GOOD" "$U59_TARGET" && echo same || echo DIFFERS) partial=$([[ -e "$U59_PARTIAL" ]] && echo left || echo none))"
+fi
+
+# (b) engine is killed by a signal mid-write: rc follows 128+signum (U-32) and
+#     the pre-existing target must survive byte-identical.
+cat > "$WORK/u59-die-engine" <<'EOF'
+#!/bin/sh
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = -o ]; then shift; printf 'partial' > "$1"; kill -TERM $$; fi
+  shift
+done
+exit 0
+EOF
+chmod +x "$WORK/u59-die-engine"
+cp "$U59_GOOD" "$U59_TARGET"
+rm -f "$U59_PARTIAL"
+set +e
+"$CLI" "$WORK/u59.conf" --run --engine "$WORK/u59-die-engine" >"$WORK/u59b.out" 2>"$WORK/u59b.err"
+u59_rc=$?
+set -e
+if [[ "$u59_rc" -ne 0 ]] && cmp -s "$U59_GOOD" "$U59_TARGET" && [[ ! -e "$U59_PARTIAL" ]]; then
+  ok "U-59 engine signalled mid-write leaves the pre-existing output intact (rc=$u59_rc)"
+else
+  bad "U-59 signalled run damaged the pre-existing output (rc=$u59_rc cmp=$(cmp -s "$U59_GOOD" "$U59_TARGET" && echo same || echo DIFFERS) partial=$([[ -e "$U59_PARTIAL" ]] && echo left || echo none))"
+fi
+
+# (c) the audit's literal scenario: Cancel (SIGTERM to the CLI) while the engine
+#     is still writing. The last good output must keep its OLD bytes and no
+#     partial may be left behind.
+cat > "$WORK/u59-slow-engine" <<EOF
+#!/bin/sh
+echo \$\$ > "$WORK/u59-engine.pid"
+while [ "\$#" -gt 0 ]; do
+  if [ "\$1" = -o ]; then shift; printf 'truncated' > "\$1"; sleep 8; exit 0; fi
+  shift
+done
+exit 1
+EOF
+chmod +x "$WORK/u59-slow-engine"
+cp "$U59_GOOD" "$U59_TARGET"
+rm -f "$U59_PARTIAL"
+# NOTE: this block runs with `set -e` active (case 1 turns it on), and every
+# command here is allowed to fail — a SIGTERM'd job makes `wait` return 143,
+# which would otherwise abort the whole suite. Hence the explicit set +e window.
+set +e
+"$CLI" "$WORK/u59.conf" --run --engine "$WORK/u59-slow-engine" >"$WORK/u59c.out" 2>"$WORK/u59c.err" &
+u59_pid=$!
+u59_seen=0
+for _ in $(seq 1 200); do
+  # break as soon as the engine has touched SOMETHING: the partial (fixed build)
+  # or the target itself (unfixed build, where the damage has already happened)
+  if [[ -e "$U59_PARTIAL" ]] || ! cmp -s "$U59_GOOD" "$U59_TARGET"; then u59_seen=1; break; fi
+  sleep 0.05
+done
+kill -TERM "$u59_pid" 2>/dev/null
+wait "$u59_pid" 2>/dev/null
+u59_rc=$?
+if [[ -f "$WORK/u59-engine.pid" ]]; then kill "$(cat "$WORK/u59-engine.pid")" 2>/dev/null; fi
+sleep 0.2
+set -e
+if [[ "$u59_seen" == 1 ]] && cmp -s "$U59_GOOD" "$U59_TARGET"; then
+  ok "U-59 cancel mid-write keeps the last good output (old bytes intact)"
+else
+  bad "U-59 cancel mid-write damaged the pre-existing output (seen=$u59_seen rc=$u59_rc cmp=$(cmp -s "$U59_GOOD" "$U59_TARGET" && echo same || echo DIFFERS))"
+fi
+
+# (d) the partial a hard kill cannot clean up (the CLI was SIGTERM'd, so it ran
+#     no cleanup) must be swept by the NEXT guarded run, and must never be
+#     mistaken for an output: the run still produces the real target.
+if [[ -e "$U59_PARTIAL" ]]; then
+  set +e
+  "$CLI" "$WORK/u59.conf" --run --engine "$ENGINE" >"$WORK/u59d.out" 2>"$WORK/u59d.err"
+  u59_rc=$?
+  set -e
+  if [[ "$u59_rc" == 0 ]] && [[ ! -e "$U59_PARTIAL" ]] && [[ -s "$U59_TARGET" ]]; then
+    ok "U-59 next run sweeps the partial a hard kill left behind"
+  else
+    bad "U-59 stale partial survived the next run (rc=$u59_rc partial=$([[ -e "$U59_PARTIAL" ]] && echo left || echo gone))"
+  fi
+else
+  ok "U-59 cancel left no partial behind at all"
+fi
+
+# U-81 / P1-46: the explode frame verifier must honour the same exemptions the
+# ordinary output verifier documents. `-o -` streams and `--info` writes text, so
+# there are no frames to count — ungated, both were downgraded to rc=1 "engine
+# exited 0 but wrote no frames" over an honest run.
+cat > "$WORK/u81-stream.conf" <<EOF
+mode = explode
+input = $SRC_GIF
+output = -
+EOF
+# MEASURED on the bundled 1.96: `gifsicle -e -o - in.gif` writes ZERO bytes to
+# stdout and drops in.gif.000..011 into the CWD (rc=0). The intake note called
+# this "an honest stdout run" — it is not; it is N-05's scatter class, so the CLI
+# refuses it with a named reason instead of either lying or scattering.
+u81_cwd="$WORK/u81cwd"
+mkdir -p "$u81_cwd"
+set +e
+(cd "$u81_cwd" && "$CLI" "$WORK/u81-stream.conf" --run --engine "$ENGINE" >"$WORK/u81s.out" 2>"$WORK/u81s.err")
+u81_rc=$?
+set -e
+u81_scatter="$(ls "$u81_cwd" 2>/dev/null | wc -l | tr -d ' ')"
+if [[ "$u81_rc" -eq 2 ]] && grep -q "cannot stream to stdout" "$WORK/u81s.err" \
+   && [[ "$u81_scatter" == 0 ]]; then
+  ok "U-81 explode + output=- is refused by name and scatters nothing into the CWD"
+else
+  bad "U-81 explode output=- wrong contract (rc=$u81_rc expected 2; files_in_cwd=$u81_scatter; err=$(tail -1 "$WORK/u81s.err"))"
+fi
+
+# info=true + explode is a validation WARNING (Validate.h: --info cannot be
+# combined with a mode option), so this runs in advisory mode; the point is that
+# the explode verifier no longer turns the honest run into rc=1.
+cat > "$WORK/u81-info.conf" <<EOF
+mode = explode
+input = $SRC_GIF
+info = true
+EOF
+set +e
+"$CLI" "$WORK/u81-info.conf" --run --engine "$ENGINE" >"$WORK/u81i.out" 2>"$WORK/u81i.err"
+u81_rc=$?
+set -e
+# Also MEASURED, and also not what the intake note said: the engine ITSELF
+# refuses this combination ("'--info' suppresses normal output, can't use with an
+# output mode"), rc=1 with its own reason. So the honest contract is rc=1 from the
+# engine — what must NOT happen is the frame verifier adding its own false
+# "wrote no frames" on top of an honest engine refusal.
+if [[ "$u81_rc" -eq 1 ]] && grep -q "suppresses normal output" "$WORK/u81i.err" \
+   && ! grep -q "wrote no frames" "$WORK/u81i.err"; then
+  ok "U-81 explode + info reports the ENGINE's own refusal, not a false frame failure"
+else
+  bad "U-81 explode+info wrong contract (rc=$u81_rc expected 1 with the engine's reason; err=$(tail -1 "$WORK/u81i.err"))"
+fi
+
+# U-83 / P3-15: batch + an explicit output + ONE input was neither refused nor
+# pinned — the planner classifies it as the merge shape, so argv carries both -b
+# and -o. Pin what the engine actually does: the output is written to the -o
+# target and the SOURCE is left byte-identical.
+cp "$SRC_GIF" "$WORK/u83-src.gif"
+u83_before="$WORK/u83-src-before.gif"
+cp "$WORK/u83-src.gif" "$u83_before"
+cat > "$WORK/u83.conf" <<EOF
+mode = batch
+input = $WORK/u83-src.gif
+output = $WORK/u83-out.gif
+EOF
+set +e
+"$CLI" "$WORK/u83.conf" --run --engine "$ENGINE" >"$WORK/u83.out" 2>"$WORK/u83.err"
+u83_rc=$?
+set -e
+if [[ "$u83_rc" -eq 0 ]] && [[ -s "$WORK/u83-out.gif" ]] && cmp -s "$u83_before" "$WORK/u83-src.gif"; then
+  ok "U-83 batch + output + one input writes the -o target and leaves the source intact"
+else
+  bad "U-83 batch+output single input unpinned behaviour (rc=$u83_rc out=$([[ -s $WORK/u83-out.gif ]] && echo yes || echo no) source=$(cmp -s "$u83_before" "$WORK/u83-src.gif" && echo intact || echo CHANGED))"
+fi
+
 echo "==> Done. $PASS passed, $FAIL failed."
 [[ "$FAIL" -eq 0 ]]

@@ -4,6 +4,179 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S28 — U-59 / P0-7 (the last data-loss row) fixed on the CLI/core half, red main diagnosed as G11, capability triage of the whole OPEN board (2026-09-26)
+
+**Changed:**
+
+- **U-59 / P0-7 — the engine no longer writes straight onto the user's file
+  (CLI/core half, test-first).** `src/core/OutputVerify.h` gains the tmp+rename
+  guard: `partial_output_path()` (target + `.gs-partial`), `redirect_output_operand()`
+  (rewrites the SINGLE `-o <target>` operand of a full argv vector, refusing
+  anything ambiguous), `promote_partial()` (one `std::filesystem::rename`, which
+  has replace semantics on POSIX and Windows) and `discard_partial()`.
+  `src/cli/main.cpp` now, for every run that writes a real file (not `-o -`, not
+  explode): drops any partial a previous crash left, redirects `-o` to the
+  partial, and — only after the run returns 0 and, where the mode verifies at
+  all, `verify_output()` passes on the PARTIAL — renames it onto the target.
+  Every other outcome (non-zero rc, signal, refusal) discards the partial.
+  Failure messages keep naming the real target: the partial is an
+  implementation detail of the guard, and renaming it in the message would have
+  made smoke's existing `grep -F "$WORK/verify.gif"` assertion pass vacuously
+  against the partial's path (review rule R2).
+- **Failing test FIRST (the §17.1 order, and the R2 proof that the cases are not
+  vacuous).** Three U-59 cases were added to `scripts/smoke_cli.sh` and run
+  against the UNFIXED build: all three reported `cmp=DIFFERS` — the
+  pre-existing output really was destroyed — for (a) an engine that writes
+  garbage to `-o` and exits 0, (b) an engine killed by SIGTERM mid-write
+  (rc=143, the U-32 convention) and (c) the audit's literal scenario, a SIGTERM
+  cancel of the CLI while the engine is still writing. After the fix all three
+  are green with the target byte-identical (`cmp -s` against a saved copy).
+  A fourth case pins the self-heal contract: a partial that a hard kill could
+  not clean up is swept by the next guarded run, which still produces the real
+  target. Smoke went 54 → **58/58**.
+- **`tests/test_output_verify.cpp` 12 → 25 assertions** pinning the helpers:
+  the partial's name, a successful redirect that leaves the rest of argv alone,
+  refusal of a non-matching `-o`, of a DOUBLED `-o` and of a command line with
+  no `-o` at all, promote really replacing the old bytes (read back, not just
+  `exists`), promote of a missing partial returning an error, and `discard`
+  being idempotent.
+- **Harness trap found and fixed while writing the tests:** `smoke_cli.sh` runs
+  with `set -e` ACTIVE (case 1 turns it on and never turns it off), so a `wait`
+  on a SIGTERM'd job returned 143 and silently aborted the whole suite — the
+  three new cases reported and then the script died before `==> Done.` with exit
+  143 and no trap fired. The cancel case now runs inside an explicit
+  `set +e` / `set -e` window like every other negative case in the file.
+
+**Changed (second batch — the whole high-confidence lane, same session):**
+
+Seven more rows closed, each with executed proof. The web lane needed no compiler
+and the CLI lane had one, so every one of these was measurable here.
+
+- **U-92 / P2-19 — upload admission (GS-205's web twin).** Both endpoints now
+  require **strict base64** (shape + canonical round trip; `Buffer.from(s,"base64")`
+  alone silently decodes truncated and foreign payloads) and a **GIF87a/89a
+  signature on the decoded buffer**, before engine discovery, slot and temp tree.
+  A non-GIF upload is a named 400 that names the file instead of relaying the
+  engine's opinion of somebody else's bytes. The decoded buffers are kept, so
+  nothing decodes twice. `/optimize` gets the same signature check on its body.
+- **U-84 / P3-14 — one body-cap contract.** `handleOptimize` reads and admits the
+  body BEFORE `findEngine()`, like `handleRun`. An oversized upload to an
+  engine-less server is now 413 on both endpoints instead of 503 on one, and a
+  refused upload never takes an engine slot. `body-limit.test.mjs`'s own header
+  comment described the old ordering as current fact and explained its
+  `GS_ENGINE=node` workaround; corrected, and a new case proves the 413 with
+  `GS_ENGINE` pointing at a path that does not exist.
+- **U-85 / P3-13 — PORT.** Validated once at startup: decimal-integer shape +
+  0..65535, a named `ERROR:` with a usage line on stderr, **exit 2**. No more raw
+  `ERR_SOCKET_BAD_PORT` RangeError at module top level.
+- **U-93 / P2-20 — three transport bounds.** Engine stderr capture capped
+  (`GS_MAX_STDERR`, 16 KiB default) with the cap DISCLOSED in the message; the
+  fixture had to write to **stderr**, not stdout, because the server discards
+  stdout — measured, not assumed. `/favicon.ico` answers 204 and `index.html`
+  carries an empty data-URI icon, so a page load no longer logs a 404. The `/run`
+  base64 output envelope is documented in `web/README.md` as a deliberate shape.
+- **U-86 / P3-16 — three comment/message truths.** The `/run` collision message
+  claimed it protects "the uploaded file of the same name" (uploads are renamed
+  `inN.gif`); it now says a planned output collides with an upload name, and the
+  **two transport assertions that pinned the old wording were re-pinned, not
+  deleted** — a message-truth fix must move its pin, not lose it. `expand_home`'s
+  comment now says what the code does (bare `~` expands to `$HOME`; only `~user`
+  is left alone). `run()`'s double-resolve (timeout then close, first wins by
+  accident) is now an explicit `settleOnce` guard.
+- **U-81 / P1-46 — MEASURED FIRST, and the intake's repro was wrong on both
+  halves.** `gifsicle -e -o - in.gif` writes ZERO bytes to stdout and drops
+  `in.gif.000..011` into the CWD (rc=0): it is N-05's scatter class, not the
+  "honest stdout run" the row described. And `--info` + explode is refused by the
+  ENGINE itself (`'--info' suppresses normal output`, rc=1), so no false frame
+  failure existed there either. Fix: `verify_explode` carries the same
+  `!stream_output && !info` exemptions as `verify_file` (the verifier can no
+  longer add its own verdict to an exempt run), and explode + `output = -` gets
+  N-05's treatment — a named refusal, rc=2, before any process starts, with print
+  mode still printing. This is the §19 discipline paying for itself: both halves
+  of a "verified" intake row were re-probed and both were wrong.
+  **The scatter is not theoretical — this session produced it.** The first,
+  pre-fix run of the new explode case wrote `-.000` … `-.011` (12 frames, 533–1001 B)
+  straight into `working_code/gifscythe/`, and `git add -A` picked them up; they
+  were caught in the commit's own diffstat and removed before the push. That is
+  the defect happening to the person testing it, which is why the fixed case runs
+  in its own temp CWD and asserts the directory is still empty.
+- **U-83 / P3-15 — pinned, not refused**, because the measured behaviour is
+  sound: batch + one input + an `output` key writes the `-o` target and leaves the
+  source byte-identical. The case asserts exactly that, so a future engine that
+  changes it fails the suite instead of drifting.
+
+**Partial:**
+
+- **U-59 is PARTIAL, not DONE — the Qt half is still exposed.** `runCommand()`
+  in `src/qtui/MainWindow.cpp` still passes the real target to the engine, so
+  the GUI's Cancel keeps the old behaviour. Deliberately NOT edited this
+  session: no Qt6/cmake here, so the edit could not be compiled, and an
+  unverified Qt change is a red CI build the next session inherits. The
+  register row names exactly what remains (wire the same guard + a harness
+  cancel-with-preexisting case).
+
+**Left:**
+
+- Every other OPEN row. A capability triage of the whole board against this
+  sandbox's measured toolchain was written up for the owner in the session
+  response rather than guessed at: provable here (node/CLI/core lane) vs
+  CI-provable (Qt/Windows) vs impossible anywhere in a sandbox (W-18
+  clean-Windows machine, W-19 physical desktop, the OD-* owner decisions).
+- The Qt half of U-59 (above); the signal-handler cleanup that would remove the
+  partial at the moment of a hard kill instead of on the next run.
+
+**Verified:**
+
+- `./build.sh` → engine `LCDF Gifsicle 1.96` + CLI + **372 checks, 0 failures**.
+- `scripts/smoke_cli.sh` → **61 passed, 0 failed** (was 54: +4 U-59 cases, all RED
+  before that fix, +2 U-81 and +1 U-83).
+- `scripts/test_output_verify.sh` → **25 assertions, 0 failures** (was 12).
+- `scripts/test_engine.sh` 5/5 · `scripts/test_package.sh` **36/36** ·
+  `scripts/verify_audit.sh` **30 PASS / 1 FAIL / 5 SKIP** where the 1 FAIL is
+  F1, its own re-report of the doc gate below.
+- All nine web suites green, including the engine-backed ones: `transport`
+  79 → **86 cases** (+7 U-92), `body-limit` 8 → **13** (+2 U-92, +2 U-84, +1
+  re-pin), `server-bounds` 5 → **10 groups** (+1 U-93, +4 U-85), `command`/
+  `validate` parity against the real CLI unchanged, `static-hygiene` still green
+  after the favicon route.
+- **The red main diagnosed, not assumed:** `gh run view 35904935321` → linux
+  job `failure` at the step **Documentation status gate**, which runs
+  `./scripts/check_docs.sh --no-gate-run` (`build.yml:35-37`); windows
+  **all 11 steps green** (including Package portable + manifest assert, which is
+  the platform proof U-97 asked for) and csharp-spike green. Reproduced locally
+  on the same tree: gate **G11** — newest `IMPROVEMENT_LOG.md` entry 2026-09-23
+  vs the merge commit's own author date 2026-09-24 +0700 — which THIS entry
+  clears. `check_docs.sh` here: 23 passed / 1 failed (G11 only) / 1 skipped
+  after `build.sh` bootstrapped the hooks (G15 was the second failure before
+  that, the known fresh-clone R-04 state).
+- Also measured this session: the new remote has **zero releases and zero
+  tags** (`gh release list` and `git ls-remote --tags origin` both empty), so
+  U-95's "mark the published Release superseded" has no artifact left to act
+  on, and the only downloadable build is the CI artifact `gifscythe-windows`
+  (52,955,462 B, expires 2026-10-07) off run 35904935321.
+
+**Not verifiable here:**
+
+- The Qt half of U-59 (no cmake/Qt6 — measured: both absent), so the GUI Cancel
+  path is unchanged and unproven either way.
+- Every Windows-only row (no mingw-w64, no wine) and the wasm rows (no emcc).
+- **The CI log TEXT for the red step** — `gh run view --log-failed` fails at
+  `results-receiver.actions.githubusercontent.com` (EOF), as in S26/S27. "The
+  red step is G11" is therefore an exact local reproduction of that step's own
+  command, not a log read.
+
+**Docs touched:** `COMPILED_AUDIT.md` (§5: U-59 ⬜ OPEN → ◐ PARTIAL with the
+executed proof and the named remainder, and U-81/U-83/U-84/U-85/U-86/U-92/U-93
+⬜ OPEN → ✅ FIXED with their proofs; §6 P0-7 annotated), `STATUS.md` (re-emitted
+twice — 123/8/38/0 → 123/9/37/0 → **130/9/30/0**), `web/README.md` (the
+`GS_MAX_STDERR` row, the two admission rules, the favicon contract and the
+documented `/run` output envelope), this file,
+`SESSION_HANDOFF.md` (header, the P6 sync to PR #2 + its merge sha, the S28
+section, the verification table, the toolchain section), `WORKLIST.md` (road to
+1.0.0 step 1 marked as the CLI half landed / GUI half open).
+
+---
+
 ## S27 — the repo was re-created from a zip: root license set restored (U-97), doc gate re-synced (G10/G11), double-red main diagnosed (2026-09-23)
 
 **Changed:**
