@@ -35,7 +35,7 @@ for (const field of ["color_count", "optimize_level", "lossy", "delay_cs", "thre
   check(`${field} treats empty as unset`, empty.length === 0, JSON.stringify(empty));
 }
 
-// ---- N-10: the validator/builder seam (2026-09-27 external audit) ----------
+// ---- the validator/builder seam (2026-09-27 external audit) ----------------
 // validate.mjs COERCES — Number("5") is finite, so a string validates clean and
 // produces no warning. buildArgs used to require `typeof value === "number"`,
 // so the same string failed that guard and the flag was silently DROPPED:
