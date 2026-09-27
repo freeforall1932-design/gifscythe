@@ -567,15 +567,21 @@ int main(int argc, char** argv) {
   // literal name "-" as a path made an honest run report failure (U-61, P1-39).
   const bool verify_file =
       !s.output.empty() && !stream_output && s.mode != gs::Mode::Explode && !s.info;
+  // N-15: the pre-run snapshot belongs to the PARTIAL, not to the target.
+  // It used to snapshot s.output (the user's existing target) while the
+  // verify_output() call below is handed output_partial. OutputVerify.h
+  // refuses when before.size == after.size && before.mtime == after.mtime, so
+  // a brand-new partial that coincidentally matched the OLD target's size and
+  // timestamp was reported as "output is unchanged since the pre-run snapshot"
+  // and the run was refused with its work discarded. The GUI never had that
+  // asymmetry: it snapshots the partial immediately after discarding any stale
+  // one, so before.exists is false there and the clause cannot fire.
+  //
+  // The snapshot is therefore taken below, inside the guard block, once the
+  // partial path exists — and right after discard_partial(), so it describes
+  // an absent file exactly as the GUI's does. verify_file implies guard_output
+  // (it excludes stdout, Explode and --info too), so it is always reached.
   gs::OutputSnapshot output_before;
-  if (verify_file) {
-    output_before = gs::snapshot_output(s.output);
-    if (!output_before.error.empty()) {
-      std::fprintf(stderr, "ERROR: output verification preflight: %s: %s\n",
-                   s.output.c_str(), output_before.error.c_str());
-      return 1;
-    }
-  }
   // U-81 / P1-46: the explode frame verifier must honour the SAME two exemptions
   // the ordinary output verifier documents (`verify_file` below): `-o -` streams
   // the GIF to stdout and `--info` writes text, so in both cases there are no
@@ -605,6 +611,16 @@ int main(int argc, char** argv) {
   if (guard_output) {
     output_partial = gs::partial_output_path(s.output);
     gs::discard_partial(output_partial);  // a partial left by an earlier crash
+    // N-15: snapshot the PARTIAL (just discarded, so it does not exist yet),
+    // never the target. See the comment at output_before's declaration.
+    if (verify_file) {
+      output_before = gs::snapshot_output(output_partial);
+      if (!output_before.error.empty()) {
+        std::fprintf(stderr, "ERROR: output verification preflight: %s: %s\n",
+                     output_partial.c_str(), output_before.error.c_str());
+        return 1;
+      }
+    }
     if (!gs::redirect_output_operand(full_argv, s.output, output_partial)) {
       std::fprintf(stderr,
                    "ERROR: refusing to run: cannot guard the output file %s\n"

@@ -193,6 +193,15 @@ const fixtures = [
       inputs: ["/tmp/parity/in.gif"],
     },
   },
+  // N-17: --info had no cross-surface pin at all - `info` appeared nowhere in
+  // this suite, so a divergence between GifsicleCommand.h and web/command.mjs
+  // on that one flag would have shipped silently.
+  {
+    name: "info flag reaches argv on both surfaces (N-17)",
+    s: {
+      mode: "auto", info: true, inputs: ["/tmp/parity/in.gif"],
+    },
+  },
 ];
 
 let failures = 0;
