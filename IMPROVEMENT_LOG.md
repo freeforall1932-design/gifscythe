@@ -46,6 +46,10 @@ Chronological log of decisions and changes. **Newest at the top.**
 - **N-14 (fixed).** DOC_GATE_CHECKS is no longer a hand-typed constant. verify_audit.sh now
   derives it by counting the distinct gate ids in its own doc-gate block and publishes it
   on a GATE_TOTALS line; check_docs.sh parses that, with the old grep as a fallback.
+- **N-12 (fixed).** Gate B1-B15 asserted only the final banner, so deleting a T-block left
+  it green. It now parses the harness's block lines and check count with floors, and is
+  renamed B1-B20. No harness edit was needed. Mutation-tested against the harness's exact
+  output shape: deleting one T-block now FAILS, and that same case PASSED the old gate.
 - **N-23 (fixed).** The handoff bullet sending U-59/P0-7 to "the open PR #5
   branch" was false: PR #5 is merged and is the U-94 oracle, and the repo has
   zero open PRs. Bullet and both base lines corrected to `957c143`.

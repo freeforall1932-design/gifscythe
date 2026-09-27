@@ -145,10 +145,27 @@ if command -v cmake >/dev/null 2>&1 && (command -v qmake6 >/dev/null 2>&1 || [[ 
   # fake_engine_exit0 is T7's lying-engine fixture (audit U-17) — the harness
   # requires it next to the test binary, so build both targets here.
   if cmake --build "$work/gui" --target test_gui_offscreen fake_engine_exit0 -j2 >/dev/null 2>&1; then
-    if GS_ENGINE="$ENGINE" GS_TEST_REF_DIR="$self/../../reference_code/gifsicle" \
-       QT_QPA_PLATFORM=offscreen "$work/gui/test_gui_offscreen" 2>/dev/null | tail -1 | grep -q "ALL GUI TESTS PASSED"; then
-      ok "B1-B15" "offscreen GUI harness green (batch/merge/explode/cancel/close/dedupe/live pane)"
-    else bad "B1-B15" "GUI harness failed"; fi
+    # N-12: the old form piped through `tail -1`, so its ONLY assertion was the
+    # final banner. Deleting a T-block (T14 persistence, T17 batch planning,
+    # T19 atomic save) left this gate green while the STATUS.md rows that cite
+    # those T-numbers kept pointing at tests that no longer existed.
+    #
+    # The harness already prints "==> N checks, M failures" and one "== Tn ..."
+    # line per block, so a floor costs nothing and gives the gate the
+    # anti-vacuity property it never had. Floors are deliberately BELOW the last
+    # measured figure (324 checks over 20 blocks, STATUS.md R-01) so a normal
+    # run has headroom; each T-block is worth roughly 16 checks, so losing one
+    # block trips it.
+    gui_out="$(GS_ENGINE="$ENGINE" GS_TEST_REF_DIR="$self/../../reference_code/gifsicle" \
+       QT_QPA_PLATFORM=offscreen "$work/gui/test_gui_offscreen" 2>&1)"
+    gui_blocks="$(grep -c '^== T' <<<"$gui_out")"
+    gui_checks="$(grep -oE '==> [0-9]+ checks' <<<"$gui_out" | grep -oE '[0-9]+' | tail -1)"
+    if grep -q "ALL GUI TESTS PASSED" <<<"$gui_out" \
+       && [[ "${gui_blocks:-0}" -ge 20 ]] && [[ "${gui_checks:-0}" -ge 300 ]]; then
+      ok "B1-B20" "offscreen GUI harness green (${gui_checks} checks over ${gui_blocks} test blocks)"
+    else
+      bad "B1-B20" "GUI harness: banner said $(grep -q 'ALL GUI TESTS PASSED' <<<"$gui_out" && echo PASSED || echo NOT-passed), ${gui_blocks:-0} test blocks (<20) and ${gui_checks:-0} checks (<300)"
+    fi
   else skip "B" "GUI harness build failed (Qt6 incomplete?)"; fi
 else
   skip "B" "Qt6 not installed — run on a Qt machine or CI"

@@ -91,8 +91,8 @@ executed proof (no cmake, no Qt6, no engine binary in this sandbox):**
       ship-blocking.**
 - [ ] **N-11 (MEDIUM, data loss)** — a *verified* partial is deleted when
       promotion fails, and by a cancel that lands after engine exit.
-- [ ] **N-12 (HIGH, gate integrity)** — B1-B15 reads only the final banner.
-      Cheapest fix in the set: the harness already prints its check counts.
+- [x] **N-12 (HIGH, gate integrity)** — **DONE.** B1-B20 now parses the harness's
+      block lines and check count instead of trusting the final banner.
 - [ ] **N-13** — gate E7 checks a Markdown literal, not behaviour.
 - [ ] **N-14** — `DOC_GATE_CHECKS` is a hand-maintained constant.
 - [ ] **N-15** — the CLI snapshots the target but verifies the partial.
