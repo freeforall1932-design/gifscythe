@@ -57,6 +57,20 @@ Chronological log of decisions and changes. **Newest at the top.**
   engine destroyed 3 frames before and leaves all 36 intact after. New smoke case,
   mutation-tested. The GUI now reports 'Cancelled - frames already written may be
   incomplete.' instead of a flat 'Cancelled.'; harness T21 asserts it (CI-compiled).
+- **N-24 (fixed).** `GS_ENGINE_TIMEOUT_MS=0` is documented as "0 disables it", but
+  `setTimeout(fn, 0)` fires on the next tick, so every engine run was SIGKILLed and every
+  request answered 422 "engine timed out". The timer is now armed only above zero. Found
+  by the N-18 sweep of web/server.mjs, the audit's largest unread file. New transport case,
+  mutation-tested. Also made the `close` handler use the settleOnce guard its comment claims.
+- **N-25 (registered).** The rate-limit map only prunes on a repeat visit, so it grows
+  without bound once the server is exposed past loopback.
+- **N-18 (partially closed).** web/server.mjs is now DEEP and produced N-24. The rest of the
+  audit's PENDING files were risk-scanned rather than read line by line; no further defects.
+- **N-11 (fixed).** A verified partial was destroyed twice over: a promote failure discarded it,
+  and a cancel landing after engine exit but before finished() discarded it too. Both now keep
+  it and say so (CI-compiled proof: PR #6 run 36346732482).
+- **N-16 (fixed).** Harness T4 bounded the Run click at 3000 ms while the code allows
+  waitForStarted(5000), and the message named waitForFinished. Bound and message corrected.
 - **N-23 (fixed).** The handoff bullet sending U-59/P0-7 to "the open PR #5
   branch" was false: PR #5 is merged and is the U-94 oracle, and the repo has
   zero open PRs. Bullet and both base lines corrected to `957c143`.

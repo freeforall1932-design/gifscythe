@@ -496,7 +496,14 @@ int main(int argc, char** argv) {
     clickTime.start();
     x.run->click();  // async: must NOT block for the whole run
     const qint64 clickMs = clickTime.elapsed();
-    CHECK_MSG(clickMs < 3000, "Run click returns fast (no waitForFinished block)");
+    // N-16: the bound is now what runCommand actually allows, and the message
+    // names the function it bounds. The click may legitimately block on
+    // waitForStarted(5000) (MainWindow.cpp); what "async" means here is that it
+    // must NEVER block on waitForFinished, i.e. not for the length of the run.
+    // Asserting a tighter number than the code permits only made this flaky on
+    // a slow-starting engine, and the message pointed at the wrong function.
+    CHECK_MSG(clickMs < 5000,
+              "Run click returns within waitForStarted(5000) (no waitForFinished block)");
 
     CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "batch reports complete");
     const QString aOut = tmp.path() + QStringLiteral("/a_opt.gif");

@@ -726,6 +726,51 @@ try {
       assert.ok(log().includes(`Engine [${source}]:`), "startup log omits the selected source");
     });
   }
+  // ---- N-24: GS_ENGINE_TIMEOUT_MS=0 must DISABLE the bound, not fire it ----
+  // setTimeout(fn, 0) fires on the next event-loop tick, so the old code
+  // SIGKILLed every engine run almost immediately: with the documented
+  // "0 disables it" setting, the same upload that returns HTTP 200 at the
+  // default timeout answered 422 "engine timed out".
+  async function withTimeoutSetting(value, check) {
+    const p = await freePort();
+    const env = { ...process.env, GS_WEB_HOST: "127.0.0.1", GS_ENGINE: selectedEngine,
+      GS_TEST_SPAWN_LOG: launchLog, GS_TEST_OUTPUT_FIXTURE: outputFixture,
+      TMPDIR: requestRoot, TMP: requestRoot, TEMP: requestRoot };
+    if (value === null) delete env.GS_ENGINE_TIMEOUT_MS;
+    else env.GS_ENGINE_TIMEOUT_MS = value;
+    const server = spawn(process.execPath, ["--import", pathToFileURL(preload).href, SERVER, String(p)],
+      { cwd: testRoot, env, stdio: ["ignore", "pipe", "pipe"] });
+    try {
+      await waitForServer(p);
+      await check(p);
+    } finally {
+      const closed = once(server, "close");
+      server.kill("SIGKILL");
+      if (server.exitCode === null && server.signalCode === null) await closed;
+    }
+  }
+  {
+    let ok = true;
+    const seen = {};
+    for (const [label, value] of [["default", null], ["zero", "0"]]) {
+      try {
+        await withTimeoutSetting(value, async (p) => {
+          const r = await post(p, {});
+          seen[label] = r.status;
+          assert.equal(r.status, 200, `GS_ENGINE_TIMEOUT_MS=${value}: ${JSON.stringify(r.json)}`);
+        });
+      } catch (err) {
+        ok = false;
+        console.log(`FAIL N-24 engine timeout ${label}\n       ${err}`);
+      }
+    }
+    if (ok) {
+      console.log(`PASS N-24 GS_ENGINE_TIMEOUT_MS=0 disables the bound (default HTTP ${seen.default}, zero HTTP ${seen.zero})`);
+    } else {
+      failures++;
+    }
+  }
+
   await engineCheck("override removed after startup still refuses fallback", selectedEngine, async (p) => {
     await rm(selectedEngine);
     await refused(p, selectedEngine);

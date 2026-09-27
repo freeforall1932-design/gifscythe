@@ -251,17 +251,32 @@ function run(argv) {
         stderrCapped = true;
       }
     });
-    const timer = setTimeout(() => {
-      child.kill("SIGKILL");
-      settleOnce({ code: 124, stderr: "engine timed out", killed: true });
-    }, ENGINE_TIMEOUT_MS);
+    // N-24: `setTimeout(fn, 0)` does NOT disable a timer — it fires on the next
+    // event-loop tick. ENGINE_TIMEOUT_MS is documented (and accepted) as "0
+    // disables it", so the timer must not be armed at all in that case. As
+    // written, setting 0 SIGKILLed every run almost immediately and every
+    // request answered 422 "engine timed out" — verified: the same upload that
+    // returns HTTP 200 at the default timeout returned 422 with
+    // GS_ENGINE_TIMEOUT_MS=0.
+    const timer = ENGINE_TIMEOUT_MS > 0
+      ? setTimeout(() => {
+          child.kill("SIGKILL");
+          settleOnce({ code: 124, stderr: "engine timed out", killed: true });
+        }, ENGINE_TIMEOUT_MS)
+      : null;
+    const disarm = () => { if (timer) clearTimeout(timer); };
     child.on("error", (err) => {
-      clearTimeout(timer);
+      disarm();
       settleOnce({ code: 127, stderr: String(err), failed: true });
     });
     child.on("close", (code) => {
-      clearTimeout(timer);
-      resolvePromise({
+      disarm();
+      // N-24: this used to call resolvePromise directly, bypassing the
+      // settleOnce guard the comment three lines above claims enforces single
+      // resolution. Promise resolution is idempotent so nothing observable was
+      // broken, but the invariant the comment advertises was not the one the
+      // code had.
+      settleOnce({
         code: code ?? 1,
         stderr: stderrCapped
           ? `${stderr}\n[stderr truncated at ${MAX_STDERR} characters]`

@@ -54,7 +54,7 @@ Based on `main` commit `957c143` (the re-created repo's PR #5 merge, the S29 ora
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 143 DONE · 8 PARTIAL · 32 OPEN · 0 UNTRIAGED · 183 total
+- **Register:** 146 DONE · 9 PARTIAL · 30 OPEN · 0 UNTRIAGED · 185 total
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -775,8 +775,8 @@ like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 143 DONE · 8 PARTIAL · 32 OPEN · 0
-   UNTRIAGED · 183 total — but `STATUS.md` itself always wins; sweep rule S2
+   its generated counts line (currently: 146 DONE · 9 PARTIAL · 30 OPEN · 0
+   UNTRIAGED · 185 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the
