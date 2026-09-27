@@ -153,11 +153,20 @@ gamma undefined   ["a.gif","-o","o.gif"]          (no flag — fine)
 gamma 0           ["--gamma=0","a.gif","-o","o.gif"]
 ```
 
-So an empty gamma does **not** silently change the image — it **throws an uncaught `TypeError`** inside
-the request path. That is a failed/hung request (or a crashed process, depending on the handler), not a
-wrong picture. **Severity should go up, not down.** Reachable: `validate.mjs` has **no numeric gamma
-rule at all** (only the `gamma_str` shape check at `:81-91`), so `{"settings":{"gamma":""}}` validates
-clean and then blows up in `buildArgs`.
+So an empty gamma does **not** silently change the image — it **throws a `TypeError` inside the request
+path**. Proven end-to-end against a running server (pre-fix tree):
+
+```
+POST /run  {"settings":{"gamma":""}}
+  -> {"ok":false,"error":"x.toPrecision is not a function"}
+```
+
+The raw JS message is leaked to the caller as the error body and no GIF is produced. The server
+survives it — so this is an unexplained `ok:false` carrying an internal error string, **not** a process
+crash as I first wrote. Still worse than a silently wrong image (the caller gets no image and an
+opaque error), so **severity goes up, not down**. Reachable: `validate.mjs` has **no numeric gamma rule
+at all** (only the `gamma_str` shape check at `:81-91`), so `{"settings":{"gamma":""}}` validates clean
+and then blows up in `buildArgs`.
 
 The audit's *scope* call is still right: `app.js` never populates `gamma` (no `gamma` in the file), so
 the shipped browser UI is unaffected. Direct `POST /run` clients are the exposure.
@@ -228,6 +237,28 @@ says so, not a full one pretending otherwise.
 4. **Fix the handoff's PR #5 bullet before anything else** — it currently points the next reviewer at
    the wrong work.
 
-Not done here: no code was changed, nothing committed. The 39 PENDING files (`check_docs.sh`,
-`smoke_cli.sh`, `SettingsIO.h`, `GifsicleCommand.h`, T15–T20, the remaining web suites) are still
-unaudited, as is the missing `docs/audit/FIX_PICK_2026-09-10.md decision record`.
+---
+
+## 6. What was done with this, after the verification
+
+This document is the verification record; the actions it justified are recorded in the repo's own
+register. **Fixed here (DONE, each with a mutation-tested proof): N-19** (the coercion seam and the
+gamma TypeError), **N-20** (E3's "never" hatch), **N-21** (duplicate gate ids A1 **and** A5 — A5 was
+missed by the audit), **N-22** (the two false code comments), **N-23** (the handoff's wrong PR #5
+bullet). **Registered as OPEN: N-10…N-18** — everything whose fix or proof needs CMake + Qt6.
+
+Two things changed the picture mid-way and are worth recording:
+
+- **The "cannot verify here" set was smaller than I first claimed.** I wrote that the CLI and engine
+  were unbuildable. They are not: `g++ -std=c++17 -I src src/cli/main.cpp` builds the CLI and
+  `scripts/build_engine.sh` builds gifsicle 1.96 with plain gcc, no autotools. With both present,
+  **all nine web suites pass** — including the JS-vs-C++ parity suite, which is the decisive
+  regression check that the N-19 fix did not disturb the C++-matching argv — plus
+  `oracle_fuzz.mjs --quick` 24/24, and the HTTP before/after above.
+- **What is genuinely blocked is smaller too.** Only the Qt side is out of reach: nothing in
+  `src/qtui/` was compiled and the offscreen harness never ran, which is exactly why N-10, N-11,
+  N-12, N-15 and N-16 stay open.
+
+Still unaudited: the 39 PENDING files (`check_docs.sh`, `smoke_cli.sh`, `SettingsIO.h`,
+`GifsicleCommand.h`, T15–T20), and the `docs/audit/FIX_PICK_2026-09-10.md decision record` the
+planner's header cites.

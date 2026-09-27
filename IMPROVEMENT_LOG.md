@@ -48,11 +48,26 @@ the one worth calling ship-blocking; it needs CMake + Qt6 for both the fix and
 the proof.
 
 **Verified:** all executed in this sandbox.
-- `web/test/numeric-honesty.test.mjs`, `device-names.test.mjs`,
-  `request-guard.test.mjs`: PASS. The new seam block fails **11 assertions**
-  against the pre-fix builder (restored from `HEAD`) and passes after;
-  number-typed argv is byte-identical to before; junk (`"abc"`, `"1e999"`) is
-  still never emitted.
+- The CLI and the engine turned out to be buildable here after all: `g++
+  -std=c++17 -I src src/cli/main.cpp` produces `build/gifscythe-cli` and
+  `scripts/build_engine.sh` builds gifsicle 1.96 natively with plain gcc (no
+  autotools needed). Both are gitignored, so the tree stayed clean.
+- **All nine web suites PASS**: command (JS-vs-C++ parity, 25 fixtures),
+  validate, numeric-honesty, device-names, request-guard, transport,
+  server-bounds, body-limit, static-hygiene. The parity suite is the decisive
+  regression check for N-19: `web/command.mjs` still emits argv identical to
+  the real C++ `gifscythe-cli`.
+- `scripts/oracle_fuzz.mjs --quick`: 24/24 deterministic cases passed.
+- N-19 end-to-end over HTTP, both directions. Against the pre-fix builder
+  (`8d30614`), `POST /run` with `{"disposal":"5","loopcount":"-2",...}`
+  returned `ok:true` with an argv containing **none** of them; with the fix
+  the argv is identical to the number-typed request. `gamma:""` returned
+  `{"ok":false,"error":"x.toPrecision is not a function"}` before and a clean
+  200 with no `--gamma` after. This is what closes the audit's open question:
+  `server.mjs` does not normalise, so the seam is reachable over HTTP.
+- The new seam block in `numeric-honesty.test.mjs` fails **11 assertions**
+  against the pre-fix builder and passes after; number-typed argv is
+  byte-identical to before; junk (`"abc"`, `"1e999"`) is still never emitted.
 - E3 mutation test, both directions: injecting `std::system(cmd); // never do
   this` into `src/` leaves the OLD gate PASS and makes the NEW gate FAIL;
   removing it returns the new gate to PASS; the real `src/` is PASS.
@@ -60,14 +75,22 @@ the proof.
   legitimate ok+bad+skip triples); 74 emissions before and after.
 - `bash -n verify_audit.sh`; `node --check command.mjs`.
 
-**Not verifiable here:** no cmake, no Qt6, no `/opt/gifsicle` and no built
-`gifscythe-cli` in this sandbox, so **no C++ was compiled and no Qt harness,
-parity suite or Windows-only path was executed**. Specifically unverified:
-N-10's fix, N-11, N-12's floor measurement, N-15, N-16 and the parity fixture
-N-17. `web/test/validate.test.mjs` and `command.test.mjs` cannot run (they
-spawn the built CLI). U-70/U-71/U-55 are Windows-only and U-72 is a narrow
-race; all four were confirmed by reading source only, never by execution. Rows
-closed in this session are closed on Node and bash evidence alone.
+**Not verifiable here:** there is still no cmake and no Qt6, so **nothing in
+`src/qtui/` was compiled and the offscreen GUI harness never ran**. That is
+what leaves N-10, N-11, N-12's floor measurement, N-15 and N-16 open: each
+needs a Qt build for both the fix and the proof. N-17 (the `info` parity
+fixture) and N-14 (reading `check_docs.sh` in full) were left open by choice,
+not blocked. U-70/U-71/U-55 are Windows-only and U-72 is a narrow timing race;
+all four were confirmed by reading source only, never by execution. Rows closed
+in this session are closed on Node, bash, gcc and g++ evidence.
+
+**Correction to the audit, and to my own first pass:** the audit said an empty
+gamma "emits `--gamma=0`". It does not. Pre-fix, the API returned
+`{"ok":false,"error":"x.toPrecision is not a function"}` — the raw JS TypeError
+leaked as the error body, and the request produced no GIF. Earlier in this
+session I described that as crashing the request; the precise behaviour is an
+`ok:false` JSON response carrying the raw message, and the server survives it.
+Worse than a silently wrong image, but not a process crash.
 
 **Docs touched:** `STATUS.md` (N-10..N-23), `WORKLIST.md` (S31 section),
 `SESSION_HANDOFF.md` (U-59 bullet + two base lines), `COMPILED_AUDIT.md` (base
