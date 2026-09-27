@@ -1,0 +1,260 @@
+I'll start by enumerating the repo tree (read-only, public URL — no credentials) so the Phase 0 ledger is grounded in real files rather than in the prompt's list.
+
+
+Tree listing truncated, so I'll pull the in-scope directories directly and check the open PR list.
+
+
+
+
+
+
+Notable: the open-PR list is empty, which already contradicts the handoff's "open PR #5". Let me verify PR #5's real state and finish enumerating the source directories.
+
+
+
+
+
+
+Key discovery already: PR #5 is **closed and merged**, and it is the *oracle* PR (U-94/P2-18), not the U-59 partial-write fix. Now I'll check branches and the status register, plus the first batch of small in-scope files.
+
+
+
+
+
+
+## Session status (read this first)
+
+I hit a hard infrastructure wall partway through: after two batches of read-only fetches, **every subsequent request returned `HTTP 499 "token_quota_exhausted"`**. So this session produced a **verified Phase 0 ledger + two process-level findings that I can prove from API evidence**, and **zero code-level findings**. Phases 1–7 are unanswered, not "clean". I am reporting that rather than dressing up what I have.
+
+Read-only confirmed: only `api.github.com` and `raw.githubusercontent.com` public GETs. No clone, no token, no writes, no installs.
+
+---
+
+# PHASE 0 — COVERAGE LEDGER
+
+Line counts are **not derivable from the API** (it returns blob byte size only). I have not read any file body, so I claim **no line counts at all** rather than estimating. `bytes` is the API-reported blob size at `main` = `957c143c2cd0a792f85b952bb96f1494409b01bc`.
+
+**In-scope source (65 files) — all currently PENDING or BLOCKED**
+
+| path | bytes | lines | state | depth / reason |
+|---|---|---|---|---|
+| src/core/EngineLocator.h | 7621 | n/a | PENDING | not opened |
+| src/core/ExplodeVerify.h | 7318 | n/a | PENDING | not opened |
+| src/core/GifsicleCommand.h | 9083 | n/a | PENDING | not opened |
+| src/core/GifsicleSettings.h | 7388 | n/a | PENDING | not opened |
+| src/core/OutputName.h | 5449 | n/a | BLOCKED | quota 499 (Windows reserved names, trailing dot/space) |
+| src/core/OutputPlan.h | 8634 | n/a | PENDING | not opened |
+| src/core/OutputVerify.h | 4728 | n/a | PENDING | not opened |
+| src/core/ProcessRunner.h | 6522 | n/a | PENDING | not opened |
+| src/core/SettingsIO.h | 24375 | n/a | PENDING | not opened |
+| src/core/Validate.h | 7946 | n/a | PENDING | not opened (unvalidated-input question) |
+| src/core/WinUnicode.h | 6982 | n/a | PENDING | not opened |
+| src/core/version.h | 216 | n/a | PENDING | not opened |
+| src/cli/main.cpp | 31265 | n/a | PENDING | not opened (CLI atomic-write question) |
+| src/qtui/MainWindow.cpp | 55799 | n/a | PENDING | not opened (P1/P2 target) |
+| src/qtui/MainWindow.h | 8036 | n/a | PENDING | not opened |
+| src/qtui/SettingsPanel.cpp | 37270 | n/a | PENDING | not opened |
+| src/qtui/SettingsPanel.h | 4147 | n/a | PENDING | not opened |
+| src/qtui/PreviewPanel.cpp | 5894 | n/a | PENDING | not opened |
+| src/qtui/PreviewPanel.h | 1568 | n/a | PENDING | not opened |
+| src/qtui/DropListWidget.h | 1224 | n/a | PENDING | not opened |
+| src/qtui/main.cpp | 389 | n/a | PENDING | not opened |
+| src/.gitkeep | 0 | — | OUT-OF-SCOPE | empty placeholder |
+| scripts/check_docs.sh | 56897 | n/a | PENDING | not opened (G10 class) |
+| scripts/smoke_cli.sh | 40578 | n/a | PENDING | not opened |
+| scripts/verify_audit.sh | 19501 | n/a | PENDING | not opened |
+| scripts/sweep_stale.sh | 16454 | n/a | PENDING | not opened |
+| scripts/review_change.sh | 14411 | n/a | PENDING | not opened |
+| scripts/pr_preflight.sh | 11691 | n/a | PENDING | not opened |
+| scripts/oracle_fuzz.mjs | 11699 | n/a | BLOCKED | quota 499 (Phase 6 vacuity question) |
+| scripts/package_common.sh | 4967 | n/a | PENDING | not opened |
+| scripts/test_package.sh | 5987 | n/a | PENDING | not opened |
+| scripts/build_engine.sh | 4792 | n/a | PENDING | not opened |
+| scripts/bootstrap_hooks.sh | 1378 | n/a | PENDING | not opened |
+| scripts/test_engine.sh | 2282 | n/a | PENDING | not opened |
+| scripts/test_output_verify.sh | 371 | n/a | PENDING | not opened (may be a stub) |
+| scripts/package_portable.sh | 203 | n/a | PENDING | not opened (may be a stub) |
+| scripts/package_system.sh | 197 | n/a | PENDING | not opened (may be a stub) |
+| scripts/.gitkeep | 0 | — | OUT-OF-SCOPE | empty placeholder |
+| tests/test_gui_offscreen.cpp | 74909 | n/a | PENDING | not opened (U-59 test-vacuity question) |
+| tests/test_gifsicle_command.cpp | 51730 | n/a | PENDING | not opened |
+| tests/oracle_fuzz_matrix.json | 32465 | n/a | PENDING | not opened (**machine-generated evidence artifact** — see flag 3) |
+| tests/fake_engine_partial_failure.cpp | 783 | n/a | PENDING | not opened (P0-7 fixture) |
+| tests/fake_engine_exit0.cpp | 586 | n/a | PENDING | not opened |
+| tests/test_sweep_stale.py | 7526 | n/a | PENDING | not opened (**Python**, not listed in your scope text) |
+| tests/test_build_options.py | 1608 | n/a | PENDING | not opened (**Python**) |
+| tests/windows_reserved_names.txt | 1383 | n/a | PENDING | not opened (fixture data list) |
+| web/server.mjs | 41172 | n/a | PENDING | not opened |
+| web/app.js | 13423 | n/a | PENDING | not opened |
+| web/command.mjs | 11438 | n/a | PENDING | not opened (Phase 6 mirror) |
+| web/validate.mjs | 6766 | n/a | PENDING | not opened (Phase 6 mirror) |
+| web/style.css | 3865 | n/a | PENDING | not opened |
+| web/index.html | 6250 | n/a | PENDING | not opened |
+| web/request-guard.mjs | 3170 | n/a | PENDING | not opened |
+| web/run-paths.mjs | 2325 | n/a | BLOCKED | quota 499 (`assertContainedPath`) |
+| web/output-verify.mjs | 1454 | n/a | BLOCKED | quota 499 (Phase 6 mirror) |
+| web/test/transport.test.mjs | 41516 | n/a | PENDING | not opened |
+| web/test/validate.test.mjs | 12659 | n/a | PENDING | not opened |
+| web/test/server-bounds.test.mjs | 14989 | n/a | PENDING | not opened |
+| web/test/static-hygiene.test.mjs | 9694 | n/a | PENDING | not opened |
+| web/test/body-limit.test.mjs | 9442 | n/a | PENDING | not opened |
+| web/test/command.test.mjs | 9333 | n/a | PENDING | not opened |
+| web/test/request-guard.test.mjs | 3687 | n/a | PENDING | not opened |
+| web/test/device-names.test.mjs | 2200 | n/a | PENDING | not opened |
+| web/test/numeric-honesty.test.mjs | 1920 | n/a | PENDING | not opened |
+
+**Out of scope, stated explicitly (not silently skipped)**
+
+- `reference_code/gifsicle/**` and `reference_code/gifsicle-nested-1.96/**` — vendored/provenance, per your instruction.
+- `web/wasm/**` — OUT-OF-SCOPE per OD-16. **File count unknown**: I did not enumerate it and I am not going to invent a number.
+- `csharp/**` — parked.
+- All `*.md` — read for orientation/claim verification only (`SESSION_HANDOFF.md` header block skimmed; `STATUS.md`, `WORKLIST.md`, `COMPILED_AUDIT.md` **not** read).
+
+**Files you did not list — flag before I audit them**
+
+1. `.github/workflows/build.yml` (21303 B) and `.githooks/pre-push` (1838 B) — both are in the gate-integrity surface (Phase 7) but outside your written scope.
+2. `working_code/gifscythe/CMakeLists.txt` (5152 B), `build.sh` (6632 B), `gifscythe.pro` (1155 B), `VERSION.md` (1993 B) — build inputs in the product root, outside `src/**`.
+3. `tests/test_sweep_stale.py`, `tests/test_build_options.py` — Python suites in a C++/Node repo. **Who runs them, and in which gate, is UNVERIFIED.**
+4. `tests/oracle_fuzz_matrix.json` — checked-in machine-generated evidence; if the oracle compares against it rather than against a live engine, that is the Phase 6 vacuity question. Unread.
+5. `docs/ci/build.yml.proposed` — see F3.
+
+---
+
+# FINDINGS
+
+Only two findings are provable from what I actually retrieved. Both are process/claims findings, and both are in the repo's own "claims the code/docs do not honour" class.
+
+### [high] stale-claim / audit-blocker — the Phase 1 target does not exist
+**Status:** contradicts `SESSION_HANDOFF.md` header + "Next session" bullet. I could **not** check `STATUS.md`/`COMPILED_AUDIT.md` for the U-59 row (quota), so I am **not** asserting a U-nn number.
+
+**Quote** (`https://api.github.com/repos/freeforall1932-design/gifscythe/pulls/5`, verbatim):
+
+```json
+  "number": 5,
+  "state": "closed",
+  "title": "Add seeded real-engine settings oracle (U-94 / P2-18)",
+  "created_at": "2026-09-26T07:10:16Z",
+  "closed_at": "2026-09-26T07:48:07Z",
+  "merged_at": "2026-09-26T07:48:07Z",
+  "merge_commit_sha": "957c143c2cd0a792f85b952bb96f1494409b01bc",
+```
+
+**Quote** (`SESSION_HANDOFF.md` header, verbatim):
+
+```text
+* **U-59 / P0-7 GUI implementation is on the open PR #5 branch.** Ordinary Batch/Merge/Auto runs use `<target>.gs-partial`, verify then promote, and clean up on failure/cancel.
+```
+
+**Mechanism:** `GET /pulls?state=open&per_page=20` returns `[\n\n]` — the repository has **zero open pull requests**. PR #5 is closed-and-merged, and its subject is the U-94/P2-18 oracle, not U-59/P0-7. `GET /commits?sha=main` shows `957c143c2cd0a792f85b952bb96f1494409b01bc` ("Merge pull request #5 … Add seeded real-engine settings oracle") is current `main` HEAD. The handoff's own header forbids exactly this: *"a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` … returns the number."* The U-59 bullet names PR #5 anyway, and the number belongs to a different piece of work that has already landed on `main`.
+
+**Scenario:** an auditor (me, or S31) follows the handoff to PR #5 to review the P0-7 partial-write fix, reviews the oracle instead, and reports "PR #5 reviewed" — a P0 data-loss row is silently never reviewed while the ledger shows a merged PR. The repo's own failure class is silent success.
+
+**Fix:** the U-59 bullet must cite the branch/PR that actually carries the change, or state plainly that it is on a local/branch-only state with no PR. I could not enumerate branches (`/branches` was cut by the same quota error), so **I cannot tell you where the U-59 work is** — that is the first thing the next session must resolve.
+
+**Confidence:** CONFIRMED (read the API JSON and the handoff header in this session).
+
+### [medium] stale-claim / doc-lag — handoff header pinned to a superseded `main`
+**Status:** same class as the tracked G10 base-line lag / P6 preflight check. I could not read `pr_preflight.sh` or `check_docs.sh` to confirm whether P6 would have caught this — **UNVERIFIED whether a gate covers it.**
+
+**Quote** (`SESSION_HANDOFF.md` header, verbatim):
+
+```text
+**Docs synced through:** PR #4 (re-created repo) · branch `arena/01a0dbc8-gifscythe` · merged as `7c035fd` … **Based on `main` commit `7c035fd` (the re-created repo's PR #4 merge, the S28 doc sync; old-remote shas inside the historical sections are records this clone cannot resolve)**
+```
+
+**Quote** (`/commits?sha=main`, verbatim):
+
+```json
+    "sha": "957c143c2cd0a792f85b952bb96f1494409b01bc",
+      "message": "Merge pull request #5 from freeforall1932-design/arena/01a0dc78-gifscythe\n\nAdd seeded real-engine settings oracle (U-94 / P2-18)",
+    "parents": [
+      { "sha": "7c035fd94f129683da2016824e086e75fd467543" },
+      { "sha": "94c95df21a6cb6dfaff350edab5517e151f5b2d0" }
+    ]
+```
+
+**Mechanism:** the header's baseline commit is `7c035fd`, which is the *first parent* of current `main` HEAD `957c143`. One merge landed after the last doc sync. The header's own parenthetical says it "records the merged baseline, not a claim about current CI health" — but the "Next session" bullets *are* read as current state, and they already describe PR #5's content (the oracle, U-94/P2-18) as done work in S29, so the register text moved while the header baseline did not.
+
+**Scenario:** every S31 reader is told the baseline is `7c035fd` and reasons about code as of that tree while reading files from `957c143`. Anything PR #5 changed is invisible to that reader's model of the world. If PR #5 changed product code or tests, the doc-sync claim is false; PR #5's own body claims *"No Qt/GUI/product behavior edits"*, which I have **not** verified against its diff (unread).
+
+**Fix:** the header line must be moved as part of the sync, per its own rule ("Move this line as part of the sync, never before the writing is done"). Concretely: `Based on main commit 957c143 (the re-created repo's PR #5 merge, the S29 oracle)`, and the U-59 bullet's PR reference corrected. Verify PR #5's file list before asserting "no product behavior edits".
+
+**Confidence:** CONFIRMED for the sha mismatch; UNVERIFIED for whether the merge needed a doc sync.
+
+### [low] duplication — a byte-identical copy of the CI workflow lives in `docs/`
+**Status:** NEW. No U-nn claim checked (STATUS.md unread).
+
+**Quote** (tree API, two blobs, verbatim):
+
+```json
+      "path": ".github/workflows/build.yml",
+      "sha": "2978885391691e54a2f19dd17de5f2e2c9976f22",
+      "size": 21303,
+...
+      "path": "docs/ci/build.yml.proposed",
+      "sha": "2978885391691e54a2f19dd17de5f2e2c9976f22",
+      "size": 21303,
+```
+
+**Mechanism:** identical git blob SHA ⇒ identical content today. Two copies of the same workflow exist; any future edit to one silently desynchronises them, and `.proposed` naming invites someone to treat it as a live workflow. Whether a gate compares them is UNVERIFIED (`check_docs.sh` unread).
+
+**Fix:** delete `docs/ci/build.yml.proposed` and point `docs/ci/README.md` at `.github/workflows/build.yml`; or, if the duplication is deliberate (offline mirror), add a gate that fails when the two blob SHAs differ.
+
+**Confidence:** CONFIRMED that they are identical; SUSPECTED as a defect (the duplication may be intentional and documented).
+
+### [low] provenance flag — the vendored gifsicle is not byte-identical to its baseline
+Out of scope for this audit, so flagged, not reported. In `reference_code/`, three blobs differ between `gifsicle/` and `gifsicle-nested-1.96/`: `src/gifsicle.c` (`2f0b12aa…` vs `6b9fe8ee…`), `src/gifsicle.h` (`73e78162…` vs `5b2f859d…`), `src/Makefile.w32` (`15aa7b72…` vs `b8bd335c…`… exact values as returned). Every other listed file shares a SHA. That is presumably the intended local patch, but it means "vendored, unmodified" is false for three files, and U-10 provenance claims should be worded to match.
+
+### [info] observation, not yet a finding
+`working_code/gifscythe/tests/fake_engine_partial_failure.cpp` (783 B) **is already on `main`**, while the U-59 GUI work is not. Whether any `main`-branch code or test consumes that fixture is **UNVERIFIED** (I did not read it, and I have not established that the fix is absent from `main` — only that PR #5 did not carry it).
+
+---
+
+# COVERAGE STATEMENT — do not read this as a completed audit
+
+- **DEEP: 0 of 65 in-scope files.** No source file body was opened in this session, so I have no line-numbered citations and no code findings.
+- **READ: 1 file** — `SESSION_HANDOFF.md`, header block only (~12 000 of 63 647 chars, truncated). Orientation docs only, not in the audit scope.
+- **PENDING: 58 files** — not opened, no reason other than the session ended.
+- **BLOCKED: 6 files** — `src/core/OutputName.h`, `scripts/oracle_fuzz.mjs`, `web/run-paths.mjs`, `web/output-verify.mjs` plus `STATUS.md` and the branch list, all cut by `HTTP 499 token_quota_exhausted`.
+- **Not enumerated: `web/wasm/**`** (out of scope, count unknown), `working_code/gifscythe/{assets,build_support,examples,release,resources}` (empty-tree candidates, unconfirmed).
+- **Phase status:** Phase 0 partial (ledger real, nothing DEEP). Phases 1–7 **not performed**. Phase 8 blocked on Phases 1–7 inputs, with three process-level patterns noted below.
+
+Every question you asked that required reading code — is `.gs-partial` safe on every path, do the offscreen tests pass vacuously, does the CLI have the same protection, is `assertContainedPath` bypassable, does the parity harness import both sides, do the gates match anything — is **unanswered**. I did not guess at any of them.
+
+---
+
+# PRIORITIZED FIX ORDER
+
+**Today**
+1. Resolve where the U-59/P0-7 partial-write work actually lives (branch or local only) and correct the handoff bullet that names PR #5 — until then the open P0 data-loss row is unreviewable and mis-routed (F1).
+2. Move the handoff baseline line to `957c143` with a truthful one-line description of what PR #5 changed, after checking its file list (F2).
+3. Confirm whether `pr_preflight.sh --online` P6 would have flagged the one-merge lag. If it would not, that is a new U-row in the U-82 class.
+
+**This week**
+4. `docs/ci/build.yml.proposed` — delete or gate-compare (F3).
+5. Resume the sweep at Phase 4/5 rather than restarting Phase 0: the ledger above is accurate and is the resume point.
+
+**This month**
+6. Phases 2, 3, 6, 7 as originally scoped, once the tool quota allows bulk reads.
+
+---
+
+# PHASE 8 INPUT (partial — three patterns actually observed, not the full design)
+
+I refuse to write the Semgrep/CodeQL/parity design off zero confirmed code defects; that would be exactly the fabricated-plausible-defect failure you warned about. Three *process* patterns are real, and each is stated with the falsification test it would need:
+
+| pattern (observed) | proposed tool | where | falsification test it must pass |
+|---|---|---|---|
+| Doc/hand-off baseline pinned to a superseded merge; a "Next session" bullet cites a PR number that belongs to different work | doc-truth gate: assert the handoff header's `main` sha equals the newest merged PR's merge commit, and that every PR number named in a bullet resolves to a PR whose title matches the bullet's subject | CI on every PR (`pr_preflight.sh` P6 appears to be the right home — verify first) | a mutation test: rewrite the header sha to `7c035fd` and the gate **must** fail; rename PR #5's title and the subject-match check **must** fail |
+| Two hand-maintained copies of the same artifact (identical blob SHA today) | blob-equality or content-diff check in `check_docs.sh` | CI | delete one line of `docs/ci/build.yml.proposed` and the gate **must** fail; with both files identical it **must** pass |
+| A handoff bullet asserting an unmerged/unverified state while the referenced PR is closed | same doc-truth gate as row 1 | CI | flip a bullet from "open PR" to "merged as" and the gate **must** fail |
+
+**Highest-value first:** row 1. It is the only class in this session that demonstrably produced a wrong, reader-misleading claim, and unlike the code-level classes it needs no build, no CMake, and no Qt.
+
+The rule I would propose for this repo, stated so it is falsifiable: **any matcher in a gate that matches zero items must fail the gate, unless it declares a `EXPECT_EMPTY:` marker with a reason.** A matcher that cannot be shown to have matched something real in a negative test does not ship. That is the U-82 generalization.
+
+---
+
+## What I need to finish this
+
+Nothing from you except quota headroom — I have no further questions about scope, and the 65-file ledger is ready to work down. If you want Phase 1 attempted in a later session, the one open question I could not answer is the branch name carrying U-59; `/branches` will resolve it in a single call.
