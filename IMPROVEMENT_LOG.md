@@ -4,6 +4,78 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S31 — 2026-09-28: verification of the 2026-09-27 external audit, plus the fixes that could carry proof here
+
+**Changed:**
+
+- Established that the audit was checkable at all: fetched its stated target
+  `957c143` and diffed it against this HEAD. The only differing files are the
+  two review documents themselves, so every claim was checked against identical
+  bytes. Write-up: `AUDIT_VERIFICATION_2026-09-27.md`. Outcome: **20 of 22
+  checkable claims confirmed** (N-01 Explode guard, N-02..N-06 gates, N-07
+  coercion seam, U-71/U-70/U-72/U-55/U-12, every Phase 5 line number, the CLI
+  snapshot asymmetry, the parity suite's non-vacuity); **one mechanism wrong**;
+  **one supporting claim refuted**.
+- **N-19 (fixed).** `web/command.mjs` now reads every numeric setting through
+  one exported `numArg` helper and emits the coerced NUMBER rather than the raw
+  token. The audit proved the seam by reading both modules; this session ran it
+  and closed its one open question: `web/server.mjs` does **not** normalise
+  types before `buildArgs`, so a direct `POST /run` carrying `{"disposal":"5"}`
+  returns 200 with the flag missing — MEDIUM stands, it is not downgraded to
+  LOW. An empty `gamma` was **worse than reported**: it does not emit
+  `--gamma=0`, it throws `TypeError: x.toPrecision is not a function` inside the
+  request path, and `validate.mjs` has no numeric gamma rule to stop it.
+- **N-20 (fixed).** Gate E3 exempted any line containing "never"/"NEVER", so a
+  real `system()` call with an apologetic comment passed the no-shell check.
+  Replaced with `strip_c_comments`, which strips `//` and multi-line `/* */`
+  before matching.
+- **N-21 (fixed).** Duplicate gate ids `A1` **and `A5`** — the audit found A1
+  only and missed A5. Renamed A1b / A5b. Emission total unchanged at 74, so no
+  G6 doc-number drift.
+- **N-22 (fixed).** `OutputPlan.h` argued temp-file + rename was rejected (U-59
+  shipped it) and cited `docs/audit/FIX_PICK_2026-09-10.md, a file this repo has
+  never contained`; `MainWindow.h` claimed the GUI never blocks the UI thread.
+  Both rewritten with the contradicting code named inline.
+- **N-23 (fixed).** The handoff bullet sending U-59/P0-7 to "the open PR #5
+  branch" was false: PR #5 is merged and is the U-94 oracle, and the repo has
+  zero open PRs. Bullet and both base lines corrected to `957c143`.
+
+**Partial:** none.
+
+**Left:** the nine open rows N-10..N-18. **N-10** (Explode has no partial guard
+on either surface, so a re-run or cancel truncates the previous frame set) is
+the one worth calling ship-blocking; it needs CMake + Qt6 for both the fix and
+the proof.
+
+**Verified:** all executed in this sandbox.
+- `web/test/numeric-honesty.test.mjs`, `device-names.test.mjs`,
+  `request-guard.test.mjs`: PASS. The new seam block fails **11 assertions**
+  against the pre-fix builder (restored from `HEAD`) and passes after;
+  number-typed argv is byte-identical to before; junk (`"abc"`, `"1e999"`) is
+  still never emitted.
+- E3 mutation test, both directions: injecting `std::system(cmd); // never do
+  this` into `src/` leaves the OLD gate PASS and makes the NEW gate FAIL;
+  removing it returns the new gate to PASS; the real `src/` is PASS.
+- Gate-id audit: every id now belongs to exactly one gate (C6/C9/E9 are
+  legitimate ok+bad+skip triples); 74 emissions before and after.
+- `bash -n verify_audit.sh`; `node --check command.mjs`.
+
+**Not verifiable here:** no cmake, no Qt6, no `/opt/gifsicle` and no built
+`gifscythe-cli` in this sandbox, so **no C++ was compiled and no Qt harness,
+parity suite or Windows-only path was executed**. Specifically unverified:
+N-10's fix, N-11, N-12's floor measurement, N-15, N-16 and the parity fixture
+N-17. `web/test/validate.test.mjs` and `command.test.mjs` cannot run (they
+spawn the built CLI). U-70/U-71/U-55 are Windows-only and U-72 is a narrow
+race; all four were confirmed by reading source only, never by execution. Rows
+closed in this session are closed on Node and bash evidence alone.
+
+**Docs touched:** `STATUS.md` (N-10..N-23), `WORKLIST.md` (S31 section),
+`SESSION_HANDOFF.md` (U-59 bullet + two base lines), `COMPILED_AUDIT.md` (base
+line re-anchored to `957c143`, gate G10), `IMPROVEMENT_LOG.md` (this entry),
+`AUDIT_VERIFICATION_2026-09-27.md` (new).
+
+---
+
 ## S30 — U-59/P0-7 GUI partial-output guard + offscreen regression coverage (2026-09-26)
 
 **Changed:** On PR #5's active branch, ordinary GUI Batch/Merge/Auto runs now

@@ -32,8 +32,8 @@ if ./build.sh > /tmp/vs_build.log 2>&1; then ok "A1" "build.sh green (engine+CLI
 # ---------- A1: example conf end-to-end ----------
 rm -f /tmp/gifscythe_demo.gif
 if ./build/gifscythe-cli examples/animation.conf --run >/dev/null 2>&1 && [[ -s /tmp/gifscythe_demo.gif ]]; then
-  ok "A1" "example conf --run -> /tmp/gifscythe_demo.gif ($(stat -c%s /tmp/gifscythe_demo.gif 2>/dev/null) bytes)"
-else bad "A1" "example conf --run failed or empty output"; fi
+  ok "A1b" "example conf --run -> /tmp/gifscythe_demo.gif ($(stat -c%s /tmp/gifscythe_demo.gif 2>/dev/null) bytes)"
+else bad "A1b" "example conf --run failed or empty output"; fi
 
 # ---------- A2: missing engine exits non-zero ----------
 err="$(./build/gifscythe-cli examples/animation.conf --run --engine /nope 2>&1 >/dev/null)"; rc=$?
@@ -69,8 +69,8 @@ if ! grep -rq '"0\.1\.' src/cli src/qtui 2>/dev/null; then
   ok "A5" "no hardcoded product version in src/cli|src/qtui (GS_VERSION only)"
 else bad "A5" "hardcoded version string found"; fi
 if grep -q "GS_VERSION \"$version\"" src/core/version.h; then
-  ok "A5" "version.h synced with VERSION.md ($version)"
-else bad "A5" "version.h out of sync"; fi
+  ok "A5b" "version.h synced with VERSION.md ($version)"
+else bad "A5b" "version.h out of sync"; fi
 
 # ---------- A6/A7/A8/A9: unit suite ----------
 if ./build/test_gifsicle_command | tail -1 | grep -q "ALL TESTS PASSED"; then
@@ -195,12 +195,39 @@ else bad "D5" "test_package.sh reported failures"; fi
 # ---------- E: new-pit probes ----------
 # Audit U-30 follow-up: E3 is line-based, so a DOC COMMENT that merely mentions
 # "/bin/sh" used to trip it (verified: my own ProcessRunner.h comment turned a
-# green run into "22 passed, 1 failed"). Nothing can execute inside a `//` or
-# `*` comment line, so those are exempted here — code lines still must not match.
-if ! grep -rn "system(\|/bin/sh\|cmd\.exe\|sh -c" src/ 2>/dev/null \
-     | grep -v "not for system()\|no shell\|NEVER\|never" \
-     | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | grep -q .; then
-  ok "E3" "no shell execution in src/"
+# green run into "22 passed, 1 failed").
+#
+# The old fix exempted any line CONTAINING the word "never"/"NEVER" — which also
+# exempted a line that really calls system() and apologises for it in a comment,
+# i.e. the most likely way a shell gets introduced. That keyword allow-list is
+# gone. Comments are stripped FIRST (including multi-line /* */), and only what
+# is left — code — is matched.
+#
+# Falsification (both must hold, or this gate is vacuous):
+#   (a) add `std::system(cmd); // never do this` to a file in src/ -> E3 goes RED;
+#   (b) remove it -> E3 goes GREEN.
+strip_c_comments() {  # emit file:line:<code> with every C/C++ comment removed
+  awk '
+    FNR == 1 { in_block = 0 }
+    {
+      line = $0; out = ""
+      while (length(line) > 0) {
+        if (in_block) {
+          e = index(line, "*/")
+          if (e == 0) { line = ""; break }
+          line = substr(line, e + 2); in_block = 0; continue
+        }
+        b = index(line, "/*"); l = index(line, "//")
+        if (l > 0 && (b == 0 || l < b)) { out = out substr(line, 1, l - 1); break }
+        if (b > 0) { out = out substr(line, 1, b - 1); line = substr(line, b + 2); in_block = 1; continue }
+        out = out line; break
+      }
+      printf "%s:%d:%s\n", FILENAME, FNR, out
+    }' "$@"
+}
+if ! strip_c_comments $(find src/ -type f 2>/dev/null) 2>/dev/null \
+     | grep -E 'system\(|/bin/sh|cmd\.exe|sh -c' | grep -q .; then
+  ok "E3" "no shell execution in src/ (comments stripped; no keyword escape hatch)"
 else bad "E3" "shell execution pattern found in src/"; fi
 if grep -rq "GIFSYCYTHE" src/ 2>/dev/null; then bad "E8" "GIFSYCYTHE typo present"; else ok "E8" "include guards GIFSCYTHE_*"; fi
 if grep -q "1/100 s" ../../PROJECT_VISION.md; then ok "E7" "delay unit documented as 1/100 s (flag map folded into PROJECT_VISION.md, S24)"; else bad "E7" "delay unit doc"; fi

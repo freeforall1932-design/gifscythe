@@ -49,7 +49,21 @@ export function numOrNull(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-const finite = (value) => typeof value === "number" && Number.isFinite(value);
+// One coercion point for every numeric setting, shared with web/validate.mjs.
+//
+// A JSON client may legitimately send "5" where the desktop sends the number 5:
+// the conf file is text, Validate.h and validate.mjs both accept it (Number("5")
+// is finite), and the settings serializer accepts it. buildArgs used to require
+// `typeof value === "number"`, so such a value validated clean, was then
+// silently dropped from argv, and the run still reported success — the repo's
+// worst failure class (false success) reached through the validator/builder
+// seam. Every numeric branch below reads its value through numArg instead, and
+// emits the coerced NUMBER, never the raw JSON token.
+export function numArg(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
 
 function optimizationOpt(level) {
   // -O0 is valid ("no optimization"); -O without value = 1.
@@ -76,8 +90,9 @@ export function buildArgs(s) {
 
   // Whole-GIF
   if (s.careful) add("--careful");
-  if (finite(s.color_count) && s.color_count >= 2 && s.color_count <= 256) {
-    add("-k"); add(i2s(s.color_count));
+  const colorCount = numArg(s.color_count);
+  if (colorCount !== null && colorCount >= 2 && colorCount <= 256) {
+    add("-k"); add(i2s(colorCount));
   }
   // Dither: prefer explicit method string; fall back to bare -f when bool set.
   if (s.dither_method) {
@@ -85,41 +100,52 @@ export function buildArgs(s) {
   } else if (s.dither) {
     add("-f");
   }
-  if (finite(s.lossy) && s.lossy >= 0 && s.lossy <= 200) {
-    add("--lossy=" + i2s(s.lossy));
+  const lossy = numArg(s.lossy);
+  if (lossy !== null && lossy >= 0 && lossy <= 200) {
+    add("--lossy=" + i2s(lossy));
   }
   // Gamma: string form preferred (srgb|oklab|NUM); legacy double fallback.
+  // numArg, not a bare `>= 0`: an EMPTY gamma satisfied `"" >= 0` and then
+  // crashed fmtDouble ("x.toPrecision is not a function") — an uncaught
+  // TypeError in the request path, not a silently wrong image.
   if (s.gamma_str) add("--gamma=" + s.gamma_str);
-  else if (s.gamma >= 0) add("--gamma=" + fmtDouble(s.gamma));
+  else {
+    const gamma = numArg(s.gamma);
+    if (gamma !== null && gamma >= 0) add("--gamma=" + fmtDouble(gamma));
+  }
   if (s.color_method) { add("--color-method"); add(s.color_method); }
 
-  // Resize / scale
+  // Resize / scale — every dimension read through numArg (same seam as above).
+  const rw = numArg(s.resize_w);
+  const rh = numArg(s.resize_h);
+  const sx = numArg(s.scale_x);
+  const sy = numArg(s.scale_y);
   switch (s.resize_kind) {
     case "fit":
-      if (finite(s.resize_w) && finite(s.resize_h)) {
-        add("--resize-fit"); add(u2s(s.resize_w) + "x" + u2s(s.resize_h));
+      if (rw !== null && rh !== null) {
+        add("--resize-fit"); add(u2s(rw) + "x" + u2s(rh));
       }
       break;
     case "touch":
-      if (finite(s.resize_w) && finite(s.resize_h)) {
-        add("--resize-touch"); add(u2s(s.resize_w) + "x" + u2s(s.resize_h));
+      if (rw !== null && rh !== null) {
+        add("--resize-touch"); add(u2s(rw) + "x" + u2s(rh));
       }
       break;
     case "exact":
-      if (finite(s.resize_w) && finite(s.resize_h)) {
-        add("--resize"); add(u2s(s.resize_w) + "x" + u2s(s.resize_h));
+      if (rw !== null && rh !== null) {
+        add("--resize"); add(u2s(rw) + "x" + u2s(rh));
       }
       break;
     case "scale":
-      if (finite(s.scale_x) && finite(s.scale_y)) {
-        add("--scale"); add(fmtDouble(s.scale_x) + "x" + fmtDouble(s.scale_y));
+      if (sx !== null && sy !== null) {
+        add("--scale"); add(fmtDouble(sx) + "x" + fmtDouble(sy));
       }
       break;
     case "width":
-      if (finite(s.resize_w)) { add("--resize-width"); add(u2s(s.resize_w)); }
+      if (rw !== null) { add("--resize-width"); add(u2s(rw)); }
       break;
     case "height":
-      if (finite(s.resize_h)) { add("--resize-height"); add(u2s(s.resize_h)); }
+      if (rh !== null) { add("--resize-height"); add(u2s(rh)); }
       break;
     case "none": default: break;
   }
@@ -162,19 +188,25 @@ export function buildArgs(s) {
   }
 
   // Animation options (delay_cs is in 1/100 s, NOT milliseconds).
-  if (finite(s.delay_cs) && s.delay_cs >= 0) { add("-d"); add(i2s(s.delay_cs)); }
-  if (finite(s.disposal) && s.disposal >= 0 && s.disposal <= 7) { add("--disposal"); add(i2s(s.disposal)); }
+  const delayCs = numArg(s.delay_cs);
+  if (delayCs !== null && delayCs >= 0) { add("-d"); add(i2s(delayCs)); }
+  const disposal = numArg(s.disposal);
+  if (disposal !== null && disposal >= 0 && disposal <= 7) { add("--disposal"); add(i2s(disposal)); }
   // Must mirror GifsicleCommand.h (the parity test enforces it). Four states:
   // -2 play once (--no-loopcount), -1 unchanged, 0 forever, >0 a count.
-  if (s.loopcount === -2) {
+  // numArg, not `===`: a JSON "-2" is a string, so BOTH strict comparisons used
+  // to miss and a "play once" request emitted no loop flag at all.
+  const loopcount = numArg(s.loopcount);
+  if (loopcount === -2) {
     add("--no-loopcount");          // play once = the loop extension absent
-  } else if (s.loopcount === 0) {
+  } else if (loopcount === 0) {
     add("--loopcount=0");           // forever
-  } else if (s.loopcount > 0) {
-    add("--loopcount=" + i2s(s.loopcount));
+  } else if (loopcount !== null && loopcount > 0) {
+    add("--loopcount=" + i2s(loopcount));
   }
-  if (finite(s.optimize_level) && s.optimize_level >= 0 && s.optimize_level <= 3) {
-    add(optimizationOpt(s.optimize_level));
+  const optimizeLevel = numArg(s.optimize_level);
+  if (optimizeLevel !== null && optimizeLevel >= 0 && optimizeLevel <= 3) {
+    add(optimizationOpt(optimizeLevel));
   }
   if (s.unoptimize) add("-U");
   // Must mirror GifsicleCommand.h exactly (the parity test enforces it).
@@ -182,8 +214,11 @@ export function buildArgs(s) {
   // engine's single-threaded default; 0 is a bare -j = "auto"
   // (GIFSICLE_DEFAULT_THREAD_COUNT = 8); >0 is -jN. Emitting bare -j for -1
   // used to make the "unset" sentinel mean 8 threads.
-  if (s.threads > 0) add("-j" + i2s(s.threads));
-  else if (s.threads === 0) add("-j");
+  // numArg, not `=== 0`: a JSON "0" is a string, so the auto-threads state
+  // (-j with no count) used to be silently dropped. -1/unset still says nothing.
+  const threads = numArg(s.threads);
+  if (threads !== null && threads > 0) add("-j" + i2s(threads));
+  else if (threads === 0) add("-j");
 
   // Inputs
   for (const input of s.inputs || []) add(input);
@@ -256,7 +291,10 @@ export function saveSettingsLines(s) {
   else if (s.dither) out.push("dither = true");
   if (s.lossy >= 0) out.push("lossy = " + s.lossy);
   if (s.gamma_str) out.push("gamma = " + lineValue(s.gamma_str));
-  else if (s.gamma >= 0) out.push("gamma = " + s.gamma);
+  else {
+    const gammaOut = numArg(s.gamma);
+    if (gammaOut !== null && gammaOut >= 0) out.push("gamma = " + gammaOut);
+  }
   if (s.color_method) out.push("color_method = " + lineValue(s.color_method));
   if (s.careful) out.push("careful = true");
   const resizeName = { fit: "fit", touch: "touch", exact: "exact", scale: "scale", width: "width", height: "height" };
