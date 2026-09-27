@@ -590,11 +590,41 @@ int main(int argc, char** argv) {
   // stdout explode was downgraded to rc=1 "engine exited 0 but wrote no frames".
   const bool verify_explode =
       s.mode == gs::Mode::Explode && !stream_output && !s.info;
+  // N-10: two-phase write for Explode. gifsicle opens each <prefix>.NNN with
+  // truncating semantics (fopen(..., "wb")), so a failed re-run, a cancel or a
+  // SIGKILL truncated the PREVIOUS good frame set in place — the user was left
+  // with fewer valid frames than before and nothing telling them. The frames
+  // now land under a PARTIAL prefix and are moved over the old set only once
+  // they verify, which is what every other mode already did.
+  //
+  // This covers the no-output case too (gifsicle then explodes into the CWD
+  // under the input's basename), by adding the -o operand ourselves.
+  const bool guard_explode = verify_explode && !stream_output;
   std::vector<gs::ExplodeFileState> explode_before;
-  std::string explode_prefix;
+  std::string explode_prefix;   // user-visible prefix: where frames end up
+  std::string explode_partial;  // where the engine actually writes
+  bool explode_promoted = false;
   if (verify_explode) {
     explode_prefix = gs::explode_prefix_for(s);
-    explode_before = gs::snapshot_explode_candidates(explode_prefix);
+    if (guard_explode && !explode_prefix.empty()) {
+      const std::string pp = gs::partial_output_path(explode_prefix);
+      bool redirected;
+      if (!s.output.empty()) {
+        redirected = gs::redirect_output_operand(full_argv, s.output, pp);
+      } else {
+        full_argv.push_back("-o");
+        full_argv.push_back(pp);
+        redirected = true;
+      }
+      if (redirected) {
+        gs::discard_explode_frames(pp);  // leftovers from an earlier crash
+        explode_partial = pp;
+      }
+    }
+    if (explode_partial.empty()) explode_partial = explode_prefix;
+    // Snapshot the prefix the engine will WRITE, and only after the partial set
+    // was discarded above, so every frame this run produces counts as NEW.
+    explode_before = gs::snapshot_explode_candidates(explode_partial);
   }
 
   // ---- U-59 / P0-7 (P0 data loss): guard the user's output file ----
@@ -603,8 +633,8 @@ int main(int argc, char** argv) {
   // last good result. Every run that writes a real file now writes a partial
   // beside the target instead, and the target is replaced only after the run is
   // over — so the previous bytes survive a cancel, a signal and a refusal.
-  // Streaming stdout (`-o -`) has no file to guard; explode writes frames and
-  // is verified by ExplodeVerify.h instead.
+  // Streaming stdout (`-o -`) has no file to guard; explode writes a frame SET
+  // and is guarded by its own two-phase write just below (N-10).
   const bool guard_output =
       !s.output.empty() && !stream_output && s.mode != gs::Mode::Explode;
   std::string output_partial;
@@ -635,12 +665,32 @@ int main(int argc, char** argv) {
   note("# -> running (argv exec, no shell)\n");
   int rc = gs::run_argv(full_argv);
   if (rc == 0 && verify_explode) {  // U-81: same exemptions as verify_file
+    // Verify where the engine actually WROTE (the partial prefix when guarded),
+    // then promote the frame set. Nothing has touched the user's frames yet.
     const gs::ExplodeResult vr =
-        gs::verify_explode_frames(explode_prefix, explode_before);
+        gs::verify_explode_frames(explode_partial, explode_before);
     if (vr.ok) {
-      note("# -> explode wrote %zu frame(s) under %s\n", vr.frames.size(),
-           vr.prefix.c_str());
-      if (!vr.suspicious.empty()) {
+      if (guard_explode) {
+        // N-10: only now do the user's frames change. A failure here leaves the
+        // destination set MIXED, so say so rather than reporting success.
+        const std::string perr =
+            gs::promote_explode_frames(explode_partial, explode_prefix);
+        if (!perr.empty()) {
+          std::fprintf(stderr, "ERROR: could not promote exploded frames: %s "
+                       "(some frames under %s may have been replaced)\n",
+                       perr.c_str(), explode_prefix.c_str());
+          gs::discard_explode_frames(explode_partial);
+          rc = 1;
+        } else {
+          explode_promoted = true;
+        }
+      } else {
+        explode_promoted = true;  // unguarded explode wrote in place, as before
+      }
+      if (rc == 0)
+        note("# -> explode wrote %zu frame(s) under %s\n", vr.frames.size(),
+             explode_prefix.c_str());
+      if (rc == 0 && !vr.suspicious.empty()) {
         note("# -> NOTE: %zu new/changed file(s) under the prefix are not GIFs\n",
              vr.suspicious.size());
       }
@@ -649,6 +699,11 @@ int main(int argc, char** argv) {
                    vr.describe().c_str());
       rc = 1;  // honest: the run did NOT produce what explode promises
     }
+  }
+  // N-10: every outcome other than a completed promotion leaves the partial
+  // frame set behind. Remove it — the user's own frames were never touched.
+  if (guard_explode && explode_partial != explode_prefix && !explode_promoted) {
+    gs::discard_explode_frames(explode_partial);
   }
   if (guard_output) {
     // The engine wrote the PARTIAL, never the target. Verify it where this mode

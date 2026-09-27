@@ -1040,5 +1040,43 @@ else
   bad "N-15 false refusal still present (rc=$n15_rc: $(grep -i unchanged "$WORK/n15.err" | head -1))"
 fi
 
+# ---- N-10: a failed explode re-run must not truncate the previous frame set --
+# gifsicle opens each <prefix>.NNN with truncating semantics (fopen(...,"wb")),
+# so a re-run that dies mid-write used to overwrite good frames in place and the
+# user was left with fewer valid frames than before and no warning. The frames
+# are now written to a partial prefix and promoted only once they verify.
+n10_engine="$WORK/n10-truncating-engine"
+cat > "$n10_engine" <<'FAKE'
+#!/bin/sh
+prev=""; out=""
+for a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; done
+[ -n "$out" ] || exit 9
+for n in 000 001 002; do printf 'GIF89a' > "$out.$n"; done   # truncating open
+exit 1
+FAKE
+chmod +x "$n10_engine"
+mkdir -p "$WORK/n10f" && cp "$SRC_GIF" "$WORK/n10f/src.gif"
+cat > "$WORK/n10.conf" <<EOF
+mode = explode
+input = $WORK/n10f/src.gif
+output = $WORK/n10f/px
+EOF
+set +e
+"$CLI" "$WORK/n10.conf" --run --engine "$ENGINE" >/dev/null 2>&1
+n10_first=$?
+set -e
+n10_before="$(cd "$WORK/n10f" && md5sum px.* 2>/dev/null | sort)"
+set +e
+"$CLI" "$WORK/n10.conf" --run --engine "$n10_engine" >/dev/null 2>&1
+n10_rc=$?
+set -e
+n10_after="$(cd "$WORK/n10f" && md5sum px.* 2>/dev/null | sort)"
+if [[ "$n10_first" -eq 0 ]] && [[ -n "$n10_before" ]] && [[ "$n10_rc" -ne 0 ]] \
+   && [[ "$n10_before" == "$n10_after" ]]; then
+  ok "N-10 a failed explode re-run leaves the previous frame set intact"
+else
+  bad "N-10 explode truncation destroys frames (first_rc=$n10_first second_rc=$n10_rc)"
+fi
+
 echo "==> Done. $PASS passed, $FAIL failed."
 [[ "$FAIL" -eq 0 ]]

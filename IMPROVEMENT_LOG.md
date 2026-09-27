@@ -50,6 +50,13 @@ Chronological log of decisions and changes. **Newest at the top.**
   it green. It now parses the harness's block lines and check count with floors, and is
   renamed B1-B20. No harness edit was needed. Mutation-tested against the harness's exact
   output shape: deleting one T-block now FAILS, and that same case PASSED the old gate.
+- **N-10 (fixed).** Explode wrote straight to the raw prefix on both front ends, so a
+  re-run or cancel truncated the previous frame set in place. The CLI now writes the frames
+  under a partial prefix and promotes them only after verification, covering the no-output
+  CWD case as well. Proved: a 36-frame explode followed by a re-run with a truncating
+  engine destroyed 3 frames before and leaves all 36 intact after. New smoke case,
+  mutation-tested. The GUI now reports 'Cancelled - frames already written may be
+  incomplete.' instead of a flat 'Cancelled.'; harness T21 asserts it (CI-compiled).
 - **N-23 (fixed).** The handoff bullet sending U-59/P0-7 to "the open PR #5
   branch" was false: PR #5 is merged and is the U-94 oracle, and the repo has
   zero open PRs. Bullet and both base lines corrected to `957c143`.

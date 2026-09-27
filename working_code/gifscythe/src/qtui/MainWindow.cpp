@@ -951,7 +951,16 @@ void MainWindow::cancelRun() {
   batchIndex_ = -1;
   invalidatePreview();  // P1-10: a cancelled run invalidates any preview state
   setBusy(false);
-  updateStatus(QStringLiteral("Cancelled."));
+  // N-10: this front end has no partial-output guard for Explode — the engine
+  // opens each <prefix>.NNN with truncating semantics, so a cancelled explode
+  // can leave a frame set that is short or half-written. A flat "Cancelled."
+  // reads as though nothing happened; say what the state actually is.
+  if (batchMode_ == gs::Mode::Explode) {
+    updateStatus(QStringLiteral(
+        "Cancelled - frames already written may be incomplete."));
+  } else {
+    updateStatus(QStringLiteral("Cancelled."));
+  }
 }
 
 void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
