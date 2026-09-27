@@ -230,7 +230,7 @@ if ! strip_c_comments $(find src/ -type f 2>/dev/null) 2>/dev/null \
   ok "E3" "no shell execution in src/ (comments stripped; no keyword escape hatch)"
 else bad "E3" "shell execution pattern found in src/"; fi
 if grep -rq "GIFSYCYTHE" src/ 2>/dev/null; then bad "E8" "GIFSYCYTHE typo present"; else ok "E8" "include guards GIFSCYTHE_*"; fi
-if grep -q "1/100 s" ../../PROJECT_VISION.md; then ok "E7" "delay unit documented as 1/100 s (flag map folded into PROJECT_VISION.md, S24)"; else bad "E7" "delay unit doc"; fi
+if grep -q "1/100 s" ../../PROJECT_VISION.md; then ok "E7-doc" "delay unit DOCUMENTED as 1/100 s (doc literal only - the behavioural check is harness T11, which asserts the label shows 1/100 and never ms)"; else bad "E7-doc" "delay unit doc"; fi
 # E4: first mode item is Batch and combo starts at index 0 (SettingsPanel.cpp
 # since the 2026-09-07 tab retrofit; harness T1 enforces this at runtime too).
 if ! grep -q 'currentData.*Mode::Merge' src/qtui/MainWindow.cpp src/qtui/SettingsPanel.cpp \
@@ -268,13 +268,19 @@ fi
 # RECURSION NOTE: check_docs.sh runs THIS script to learn its real "N passed,
 # N failed, N skipped" (so docs cannot quote a stale gate count). To stop the
 # loop it invokes us with GS_SKIP_DOC_GATE=1, which suppresses this block.
-# DOC_GATE_CHECKS declares how many checks this block contributes and
-# check_docs.sh reads that number back out of this file, so the total the docs
-# must quote stays derived from the repo instead of hardcoded in the checker.
-DOC_GATE_CHECKS=2
+# DOC_GATE_CHECKS is DERIVED from what this block actually emits, not declared
+# by hand (N-14). It used to be a literal 2 that check_docs.sh grepped back out
+# of this file, so adding an F3 here without remembering to bump that number
+# silently under-reported the full-run total every doc must quote — the N-01
+# class, where every doc quoted a gate count that was already wrong. The block
+# now counts its own ok/bad/skip calls, and check_docs.sh reads the emitted
+# GATE_TOTALS line in preference to grepping this file.
+# >>> doc-gate-block
+DOC_GATE_CHECKS=0
 if [[ "${GS_SKIP_DOC_GATE:-0}" == "1" ]]; then
   : # nested run from check_docs.sh — do not recurse
 else
+  __dg_pass=$PASS; __dg_fail=$FAIL; __dg_skip=$SKIP
   if ./scripts/check_docs.sh --from-verify-audit > /tmp/vs_docs.log 2>&1; then
     ok "F1" "check_docs.sh green — STATUS.md register + all doc-consistency checks"
   else
@@ -292,6 +298,15 @@ else
     bad "F2" "STATUS.md missing, empty, or its state counts do not sum to the row count"
   fi
 fi
+# <<< doc-gate-block
+# Counted from the block above, so adding an F3 to it moves the number by
+# itself. Lexical rather than runtime-measured on purpose: check_docs.sh runs
+# this file with GS_SKIP_DOC_GATE=1, so a runtime count inside the block would
+# always read 0 there.
+DOC_GATE_CHECKS=$(awk '/^# >>> doc-gate-block$/{f=1;next} /^# <<< doc-gate-block$/{f=0} f' \
+  "${BASH_SOURCE[0]:-$0}" \
+  | grep -oE '(ok|bad|skip) "[A-Z][0-9A-Za-z-]*"' | sed -E 's/.*"(.*)"/\1/' | sort -u | wc -l)
+DOC_GATE_CHECKS=$((DOC_GATE_CHECKS))
 
 # New tooling regressions are independent of product/GUI build availability.
 if command -v python3 >/dev/null 2>&1; then
@@ -370,4 +385,8 @@ skip "D3/D4" "clean Windows machine smoke (windeployqt folder, double-click GUI)
 
 rm -rf "$work"
 echo "==> Done. $PASS passed, $FAIL failed, $SKIP skipped."
+# N-14: publish the derived count so check_docs.sh never has to grep a
+# hand-maintained constant out of this file.
+printf 'GATE_TOTALS passed=%d failed=%d skipped=%d doc_gate_checks=%d\n' \
+  "$PASS" "$FAIL" "$SKIP" "$DOC_GATE_CHECKS"
 [[ "$FAIL" -eq 0 ]]

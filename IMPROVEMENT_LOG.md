@@ -36,6 +36,16 @@ Chronological log of decisions and changes. **Newest at the top.**
   shipped it) and cited `docs/audit/FIX_PICK_2026-09-10.md, a file this repo has
   never contained`; `MainWindow.h` claimed the GUI never blocks the UI thread.
   Both rewritten with the contradicting code named inline.
+- **N-15 (fixed).** The CLI snapshotted the TARGET while verifying the PARTIAL, so a new
+  partial matching the old target's size and mtime tripped OutputVerify's "unchanged"
+  clause and the run was refused with its work discarded. It now snapshots the partial,
+  right after discard_partial, exactly as the GUI already did.
+- **N-17 (fixed).** The JS/C++ parity suite had no fixture exercising --info at all.
+- **N-13 (fixed).** Gate E7 renamed E7-doc: it checks a Markdown literal, and the register
+  read as if it covered behaviour. Its message now names harness T11, which does.
+- **N-14 (fixed).** DOC_GATE_CHECKS is no longer a hand-typed constant. verify_audit.sh now
+  derives it by counting the distinct gate ids in its own doc-gate block and publishes it
+  on a GATE_TOTALS line; check_docs.sh parses that, with the old grep as a fallback.
 - **N-23 (fixed).** The handoff bullet sending U-59/P0-7 to "the open PR #5
   branch" was false: PR #5 is merged and is the U-94 oracle, and the repo has
   zero open PRs. Bullet and both base lines corrected to `957c143`.
