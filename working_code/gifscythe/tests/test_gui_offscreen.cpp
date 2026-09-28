@@ -496,7 +496,14 @@ int main(int argc, char** argv) {
     clickTime.start();
     x.run->click();  // async: must NOT block for the whole run
     const qint64 clickMs = clickTime.elapsed();
-    CHECK_MSG(clickMs < 3000, "Run click returns fast (no waitForFinished block)");
+    // N-16: the bound is now what runCommand actually allows, and the message
+    // names the function it bounds. The click may legitimately block on
+    // waitForStarted(5000) (MainWindow.cpp); what "async" means here is that it
+    // must NEVER block on waitForFinished, i.e. not for the length of the run.
+    // Asserting a tighter number than the code permits only made this flaky on
+    // a slow-starting engine, and the message pointed at the wrong function.
+    CHECK_MSG(clickMs < 5000,
+              "Run click returns within waitForStarted(5000) (no waitForFinished block)");
 
     CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "batch reports complete");
     const QString aOut = tmp.path() + QStringLiteral("/a_opt.gif");
@@ -1726,6 +1733,53 @@ int main(int argc, char** argv) {
     CHECK_MSG(previewFiles().size() == 1, "temp dir holds exactly one preview after re-encode");
     delete w;
     CHECK_MSG(!QFileInfo::exists(previewDir), "window teardown removes the preview dir");
+  }
+
+  // ====== T21: Explode cancel is honest about frames already written (N-10) ==
+  // Every other mode writes a partial and promotes it, so "Cancelled." means
+  // nothing changed. Explode has no such guard here: the engine opens each
+  // <prefix>.NNN with truncating semantics, so a cancelled or failed run can
+  // leave a frame set that is short. The status must say so.
+  {
+    g_stage = "T21"; std::printf("== T21 explode cancel honesty ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a));
+
+    // (a) Explode. batchMode_ is captured when a run STARTS (MainWindow.cpp,
+    // startRun) rather than when the mode combo changes, so a real explode run
+    // has to happen before cancelRun() sees this mode. Waiting for "complete"
+    // also keeps the block deterministic — no racing the engine to cancel it.
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a});
+    x.mode->setCurrentIndex(2);  // Explode
+    x.output->clear();
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "explode run completes");
+    // The cancel button is disabled once a run is over (T9 asserts that state).
+    // What T21 pins is the MESSAGE this mode gets out of cancelRun(), so enter
+    // the path directly instead of racing the engine.
+    x.cancel->setEnabled(true);
+    x.cancel->click();
+    spinEvents(60);
+    CHECK_MSG(x.status->text().contains(QStringLiteral("incomplete")),
+              "explode cancel warns that frames already written may be incomplete");
+    CHECK_MSG(x.status->text().trimmed() != QStringLiteral("Cancelled."),
+              "explode cancel does not use the flat 'Cancelled.' status");
+    delete w;
+
+    // (b) A guarded mode keeps the flat message: its output goes through a
+    // partial file, so nothing changed and "Cancelled." is accurate.
+    MainWindow* w2 = makeWindow();
+    auto x2 = findWidgets(w2);
+    dropFiles(w2, {a});
+    x2.cancel->setEnabled(true);
+    x2.cancel->click();
+    spinEvents(60);
+    CHECK_MSG(x2.status->text().trimmed() == QStringLiteral("Cancelled."),
+              "a guarded mode still reports a flat 'Cancelled.'");
+    delete w2;
   }
 
   std::printf("==> %d checks, %d failures\n", g_checks, g_failures);

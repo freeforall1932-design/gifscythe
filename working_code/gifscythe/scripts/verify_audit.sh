@@ -32,8 +32,8 @@ if ./build.sh > /tmp/vs_build.log 2>&1; then ok "A1" "build.sh green (engine+CLI
 # ---------- A1: example conf end-to-end ----------
 rm -f /tmp/gifscythe_demo.gif
 if ./build/gifscythe-cli examples/animation.conf --run >/dev/null 2>&1 && [[ -s /tmp/gifscythe_demo.gif ]]; then
-  ok "A1" "example conf --run -> /tmp/gifscythe_demo.gif ($(stat -c%s /tmp/gifscythe_demo.gif 2>/dev/null) bytes)"
-else bad "A1" "example conf --run failed or empty output"; fi
+  ok "A1b" "example conf --run -> /tmp/gifscythe_demo.gif ($(stat -c%s /tmp/gifscythe_demo.gif 2>/dev/null) bytes)"
+else bad "A1b" "example conf --run failed or empty output"; fi
 
 # ---------- A2: missing engine exits non-zero ----------
 err="$(./build/gifscythe-cli examples/animation.conf --run --engine /nope 2>&1 >/dev/null)"; rc=$?
@@ -69,8 +69,8 @@ if ! grep -rq '"0\.1\.' src/cli src/qtui 2>/dev/null; then
   ok "A5" "no hardcoded product version in src/cli|src/qtui (GS_VERSION only)"
 else bad "A5" "hardcoded version string found"; fi
 if grep -q "GS_VERSION \"$version\"" src/core/version.h; then
-  ok "A5" "version.h synced with VERSION.md ($version)"
-else bad "A5" "version.h out of sync"; fi
+  ok "A5b" "version.h synced with VERSION.md ($version)"
+else bad "A5b" "version.h out of sync"; fi
 
 # ---------- A6/A7/A8/A9: unit suite ----------
 if ./build/test_gifsicle_command | tail -1 | grep -q "ALL TESTS PASSED"; then
@@ -145,10 +145,27 @@ if command -v cmake >/dev/null 2>&1 && (command -v qmake6 >/dev/null 2>&1 || [[ 
   # fake_engine_exit0 is T7's lying-engine fixture (audit U-17) — the harness
   # requires it next to the test binary, so build both targets here.
   if cmake --build "$work/gui" --target test_gui_offscreen fake_engine_exit0 -j2 >/dev/null 2>&1; then
-    if GS_ENGINE="$ENGINE" GS_TEST_REF_DIR="$self/../../reference_code/gifsicle" \
-       QT_QPA_PLATFORM=offscreen "$work/gui/test_gui_offscreen" 2>/dev/null | tail -1 | grep -q "ALL GUI TESTS PASSED"; then
-      ok "B1-B15" "offscreen GUI harness green (batch/merge/explode/cancel/close/dedupe/live pane)"
-    else bad "B1-B15" "GUI harness failed"; fi
+    # N-12: the old form piped through `tail -1`, so its ONLY assertion was the
+    # final banner. Deleting a T-block (T14 persistence, T17 batch planning,
+    # T19 atomic save) left this gate green while the STATUS.md rows that cite
+    # those T-numbers kept pointing at tests that no longer existed.
+    #
+    # The harness already prints "==> N checks, M failures" and one "== Tn ..."
+    # line per block, so a floor costs nothing and gives the gate the
+    # anti-vacuity property it never had. Floors are deliberately BELOW the last
+    # measured figure (324 checks over 20 blocks, STATUS.md R-01) so a normal
+    # run has headroom; each T-block is worth roughly 16 checks, so losing one
+    # block trips it.
+    gui_out="$(GS_ENGINE="$ENGINE" GS_TEST_REF_DIR="$self/../../reference_code/gifsicle" \
+       QT_QPA_PLATFORM=offscreen "$work/gui/test_gui_offscreen" 2>&1)"
+    gui_blocks="$(grep -c '^== T' <<<"$gui_out")"
+    gui_checks="$(grep -oE '==> [0-9]+ checks' <<<"$gui_out" | grep -oE '[0-9]+' | tail -1)"
+    if grep -q "ALL GUI TESTS PASSED" <<<"$gui_out" \
+       && [[ "${gui_blocks:-0}" -ge 20 ]] && [[ "${gui_checks:-0}" -ge 300 ]]; then
+      ok "B1-B20" "offscreen GUI harness green (${gui_checks} checks over ${gui_blocks} test blocks)"
+    else
+      bad "B1-B20" "GUI harness: banner said $(grep -q 'ALL GUI TESTS PASSED' <<<"$gui_out" && echo PASSED || echo NOT-passed), ${gui_blocks:-0} test blocks (<20) and ${gui_checks:-0} checks (<300)"
+    fi
   else skip "B" "GUI harness build failed (Qt6 incomplete?)"; fi
 else
   skip "B" "Qt6 not installed — run on a Qt machine or CI"
@@ -195,15 +212,42 @@ else bad "D5" "test_package.sh reported failures"; fi
 # ---------- E: new-pit probes ----------
 # Audit U-30 follow-up: E3 is line-based, so a DOC COMMENT that merely mentions
 # "/bin/sh" used to trip it (verified: my own ProcessRunner.h comment turned a
-# green run into "22 passed, 1 failed"). Nothing can execute inside a `//` or
-# `*` comment line, so those are exempted here — code lines still must not match.
-if ! grep -rn "system(\|/bin/sh\|cmd\.exe\|sh -c" src/ 2>/dev/null \
-     | grep -v "not for system()\|no shell\|NEVER\|never" \
-     | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | grep -q .; then
-  ok "E3" "no shell execution in src/"
+# green run into "22 passed, 1 failed").
+#
+# The old fix exempted any line CONTAINING the word "never"/"NEVER" — which also
+# exempted a line that really calls system() and apologises for it in a comment,
+# i.e. the most likely way a shell gets introduced. That keyword allow-list is
+# gone. Comments are stripped FIRST (including multi-line /* */), and only what
+# is left — code — is matched.
+#
+# Falsification (both must hold, or this gate is vacuous):
+#   (a) add `std::system(cmd); // never do this` to a file in src/ -> E3 goes RED;
+#   (b) remove it -> E3 goes GREEN.
+strip_c_comments() {  # emit file:line:<code> with every C/C++ comment removed
+  awk '
+    FNR == 1 { in_block = 0 }
+    {
+      line = $0; out = ""
+      while (length(line) > 0) {
+        if (in_block) {
+          e = index(line, "*/")
+          if (e == 0) { line = ""; break }
+          line = substr(line, e + 2); in_block = 0; continue
+        }
+        b = index(line, "/*"); l = index(line, "//")
+        if (l > 0 && (b == 0 || l < b)) { out = out substr(line, 1, l - 1); break }
+        if (b > 0) { out = out substr(line, 1, b - 1); line = substr(line, b + 2); in_block = 1; continue }
+        out = out line; break
+      }
+      printf "%s:%d:%s\n", FILENAME, FNR, out
+    }' "$@"
+}
+if ! strip_c_comments $(find src/ -type f 2>/dev/null) 2>/dev/null \
+     | grep -E 'system\(|/bin/sh|cmd\.exe|sh -c' | grep -q .; then
+  ok "E3" "no shell execution in src/ (comments stripped; no keyword escape hatch)"
 else bad "E3" "shell execution pattern found in src/"; fi
 if grep -rq "GIFSYCYTHE" src/ 2>/dev/null; then bad "E8" "GIFSYCYTHE typo present"; else ok "E8" "include guards GIFSCYTHE_*"; fi
-if grep -q "1/100 s" ../../PROJECT_VISION.md; then ok "E7" "delay unit documented as 1/100 s (flag map folded into PROJECT_VISION.md, S24)"; else bad "E7" "delay unit doc"; fi
+if grep -q "1/100 s" ../../PROJECT_VISION.md; then ok "E7-doc" "delay unit DOCUMENTED as 1/100 s (doc literal only - the behavioural check is harness T11, which asserts the label shows 1/100 and never ms)"; else bad "E7-doc" "delay unit doc"; fi
 # E4: first mode item is Batch and combo starts at index 0 (SettingsPanel.cpp
 # since the 2026-09-07 tab retrofit; harness T1 enforces this at runtime too).
 if ! grep -q 'currentData.*Mode::Merge' src/qtui/MainWindow.cpp src/qtui/SettingsPanel.cpp \
@@ -241,13 +285,19 @@ fi
 # RECURSION NOTE: check_docs.sh runs THIS script to learn its real "N passed,
 # N failed, N skipped" (so docs cannot quote a stale gate count). To stop the
 # loop it invokes us with GS_SKIP_DOC_GATE=1, which suppresses this block.
-# DOC_GATE_CHECKS declares how many checks this block contributes and
-# check_docs.sh reads that number back out of this file, so the total the docs
-# must quote stays derived from the repo instead of hardcoded in the checker.
-DOC_GATE_CHECKS=2
+# DOC_GATE_CHECKS is DERIVED from what this block actually emits, not declared
+# by hand (N-14). It used to be a literal 2 that check_docs.sh grepped back out
+# of this file, so adding an F3 here without remembering to bump that number
+# silently under-reported the full-run total every doc must quote — the N-01
+# class, where every doc quoted a gate count that was already wrong. The block
+# now counts its own ok/bad/skip calls, and check_docs.sh reads the emitted
+# GATE_TOTALS line in preference to grepping this file.
+# >>> doc-gate-block
+DOC_GATE_CHECKS=0
 if [[ "${GS_SKIP_DOC_GATE:-0}" == "1" ]]; then
   : # nested run from check_docs.sh — do not recurse
 else
+  __dg_pass=$PASS; __dg_fail=$FAIL; __dg_skip=$SKIP
   if ./scripts/check_docs.sh --from-verify-audit > /tmp/vs_docs.log 2>&1; then
     ok "F1" "check_docs.sh green — STATUS.md register + all doc-consistency checks"
   else
@@ -265,6 +315,15 @@ else
     bad "F2" "STATUS.md missing, empty, or its state counts do not sum to the row count"
   fi
 fi
+# <<< doc-gate-block
+# Counted from the block above, so adding an F3 to it moves the number by
+# itself. Lexical rather than runtime-measured on purpose: check_docs.sh runs
+# this file with GS_SKIP_DOC_GATE=1, so a runtime count inside the block would
+# always read 0 there.
+DOC_GATE_CHECKS=$(awk '/^# >>> doc-gate-block$/{f=1;next} /^# <<< doc-gate-block$/{f=0} f' \
+  "${BASH_SOURCE[0]:-$0}" \
+  | grep -oE '(ok|bad|skip) "[A-Z][0-9A-Za-z-]*"' | sed -E 's/.*"(.*)"/\1/' | sort -u | wc -l)
+DOC_GATE_CHECKS=$((DOC_GATE_CHECKS))
 
 # New tooling regressions are independent of product/GUI build availability.
 if command -v python3 >/dev/null 2>&1; then
@@ -343,4 +402,8 @@ skip "D3/D4" "clean Windows machine smoke (windeployqt folder, double-click GUI)
 
 rm -rf "$work"
 echo "==> Done. $PASS passed, $FAIL failed, $SKIP skipped."
+# N-14: publish the derived count so check_docs.sh never has to grep a
+# hand-maintained constant out of this file.
+printf 'GATE_TOTALS passed=%d failed=%d skipped=%d doc_gate_checks=%d\n' \
+  "$PASS" "$FAIL" "$SKIP" "$DOC_GATE_CHECKS"
 [[ "$FAIL" -eq 0 ]]

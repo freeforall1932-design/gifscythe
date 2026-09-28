@@ -26,11 +26,24 @@
 //   * REPORT (not refuse) targets already on disk   -> re-running an optimize
 //     is normal and expected; the caller surfaces it instead of hiding it.
 //
-// Not implemented here, and why: temp-file + rename. It would only protect a
-// PREVIOUS output from a crashed engine, and it perturbs the live command pane
-// contract (the pane must show the command that actually runs). The two
-// vectors that actually destroy data are closed by planning. See
-// docs/audit/FIX_PICK_2026-09-10.md §1.4.
+// Not implemented HERE, and why: temp-file + rename lives one layer up, in the
+// run path (U-59 / P0-7), not in the planner. Both the CLI and the GUI redirect
+// the engine's `-o` operand to a same-directory `<target>.gs-partial`, verify
+// that partial, and only then promote it over the target. The planner therefore
+// keeps returning the real, user-visible target, and the live command pane
+// still shows the command the operator asked for.
+//
+// CORRECTED 2026-09-27. This paragraph used to argue that temp-file + rename
+// was REJECTED, and cited `docs/audit/FIX_PICK_2026-09-10.md §1.4`. That file
+// does not exist in this repo (docs/ holds archive/, ci/, legal/, planning/,
+// release/, screenshots/ — no audit/), and the opposite of what it argued has
+// since shipped as U-59. The stale wording read as settled policy in the file
+// a reader opens first; it is now the truth.
+//
+// Known hole, tracked as N-10: Explode has NO partial guard. Frames are written
+// as <prefix>.NNN and gifsicle opens each with truncating semantics
+// (fopen(..., "wb")), so re-running or cancelling an Explode can leave a
+// half-written frame over the previous good frame set.
 
 #ifndef GIFSCYTHE_CORE_OUTPUT_PLAN_H
 #define GIFSCYTHE_CORE_OUTPUT_PLAN_H

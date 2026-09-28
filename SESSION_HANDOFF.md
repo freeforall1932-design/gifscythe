@@ -3,24 +3,33 @@
 **Session:** S30 · **Date:** 2026-09-26
 **Branch:** arena/01a0dc78-gifscythe
 **Repo re-created 2026-09-22:** the GitHub repo was rebuilt from a zip upload; the old remote's history (S1–S26, PRs #1–#33, shas like `5c93680`) does not exist in this clone — every such sha below is an old-remote record kept for the written history. The new remote: `04a1cd4` (initial) → `60d3df4` (zip upload) → `ce5fd51` (unpack to root) → PR #1 merge `824bf20`, whose tree is the S26 state minus the four root license files (loss = finding **U-97**, restored in S27 with executed proof). The ledger carries a separator: rows #1–#33 are the OLD repo's; the new repo's numbering restarts at #1. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number. This records the merged baseline, not a claim about current CI health.
-**Docs synced through:** PR #4 (re-created repo) · branch `arena/01a0dbc8-gifscythe` · merged as `7c035fd`
+**Docs synced through:** PR #5 (re-created repo) · branch `arena/01a0dc78-gifscythe` · merged as `957c143`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. Move this line as part of the sync, never before the writing is done.)*
-Based on `main` commit `7c035fd` (the re-created repo's PR #4 merge, the S28 doc sync; old-remote shas inside the historical sections are records this clone cannot resolve) ·
+Based on `main` commit `957c143` (the re-created repo's PR #5 merge, the S29 oracle; `main` has since advanced to `8d30614` via a direct upload whose only tree change was adding `space bunny review 2026-09-27.md` + `incomplete space bunny review.txt`, so this tree and that one are the code-identical; old-remote shas inside the historical sections are records this clone cannot resolve) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
 ## Next session — fast hand-off (after S30)
 
-- **U-59 / P0-7 GUI implementation is on the open PR #5 branch.** Ordinary
-  Batch/Merge/Auto runs use `<target>.gs-partial`, verify then promote, and
-  clean up on failure/cancel. Offscreen cases cover success promotion,
-  partial-writing failure preserving old bytes, and cancellation preserving
-  old bytes. Qt-enabled PR run `36227237540` passed Linux and Windows builds
-  and both GUI offscreen suites. This sandbox has no CMake/Qt6. **Separate
-  follow-up:** if you have CMake + Qt6, perform an independent code review and
-  rerun `test_gui_offscreen`; document findings. Do not merge without explicit
-  owner approval.
+- **U-59 / P0-7 is ON `main` — it is NOT on PR #5.** *(Corrected 2026-09-27.
+  This bullet used to say the work "is on the open PR #5 branch". PR #5 is
+  **already merged** and is "Add seeded real-engine settings oracle
+  (U-94 / P2-18)"; the repo has **zero open PRs**. The U-59 GUI work landed
+  separately as `4a8e353` "Protect GUI outputs with verified partial
+  promotion" + `9de2607` + `94c95df`, all ancestors of current `main`. Taking
+  the old wording literally sends the next reviewer to the oracle instead of
+  to the P0 data-loss code.)* Ordinary Batch/Merge/Auto runs use
+  `<target>.gs-partial`, verify then promote, and clean up on failure/cancel.
+  Offscreen cases cover success promotion, partial-writing failure preserving
+  old bytes, and cancellation preserving old bytes. Qt-enabled PR run
+  `36227237540` passed Linux and Windows builds and both GUI offscreen suites.
+  This sandbox has no CMake/Qt6. **Separate follow-up:** if you have CMake +
+  Qt6, perform an independent code review and rerun `test_gui_offscreen`;
+  document findings. Do not merge without explicit owner approval.
+  **Known hole: N-10 — Explode is exempt from the partial guard on BOTH the
+  GUI and the CLI.** See `STATUS.md` N-10; treat it as open before calling
+  U-59 complete.
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
   diff blindly: it flags check-logic edits (**R1**), matchers that match nothing
@@ -45,7 +54,7 @@ Based on `main` commit `7c035fd` (the re-created repo's PR #4 merge, the S28 doc
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 132 DONE · 8 PARTIAL · 29 OPEN · 0 UNTRIAGED · 169 total
+- **Register:** 146 DONE · 9 PARTIAL · 30 OPEN · 0 UNTRIAGED · 185 total
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -766,8 +775,8 @@ like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 132 DONE · 8 PARTIAL · 29 OPEN · 0
-   UNTRIAGED · 169 total — but `STATUS.md` itself always wins; sweep rule S2
+   its generated counts line (currently: 146 DONE · 9 PARTIAL · 30 OPEN · 0
+   UNTRIAGED · 185 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the

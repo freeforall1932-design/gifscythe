@@ -42,6 +42,64 @@ namespace gs {
 namespace fs = std::filesystem;
 
 // One candidate file's identity before/after a run.
+// Every regular file named "<prefix basename>.*" in the prefix's directory.
+// Shared by promotion and cleanup so the two can never disagree about what a
+// frame is (N-10).
+inline std::vector<fs::path> explode_frames_under(const std::string& prefix) {
+  std::vector<fs::path> out;
+  if (prefix.empty()) return out;
+  std::error_code ec;
+  const fs::path p = u8path_compat(prefix);
+  fs::path dir = p.parent_path();
+  if (dir.empty()) dir = fs::path(".");
+  const std::string match = path_u8string(p.filename()) + ".";
+  if (!fs::is_directory(dir, ec)) return out;
+  for (const auto& e : fs::directory_iterator(dir, ec)) {
+    if (ec) { ec.clear(); break; }
+    if (!e.is_regular_file(ec)) { ec.clear(); continue; }
+    const std::string name = path_u8string(e.path().filename());
+    if (name.size() <= match.size()) continue;
+    if (name.compare(0, match.size(), match) != 0) continue;
+    out.push_back(e.path());
+  }
+  return out;
+}
+
+// N-10: frame-level promotion. gifsicle opens every <prefix>.NNN with
+// truncating semantics (fopen(..., "wb")), so a failed re-run, a cancel or a
+// SIGKILL truncates the PREVIOUS good frame set in place: the user is left with
+// fewer valid frames than before and nothing telling them. The new set is
+// therefore written under a partial prefix and moved over the old one only
+// after verification, which is the two-phase write every other mode uses.
+//
+// Returns an error string on failure. A failure here leaves the destination set
+// MIXED (some frames replaced, some not), so the caller must report that
+// honestly rather than claim success.
+inline std::string promote_explode_frames(const std::string& partial_prefix,
+                                          const std::string& prefix) {
+  const std::vector<fs::path> frames = explode_frames_under(partial_prefix);
+  if (frames.empty()) return "no frames were produced under the partial prefix";
+  const std::string match =
+      path_u8string(u8path_compat(partial_prefix).filename()) + ".";
+  const std::string dst_base = prefix;
+  std::error_code ec;
+  for (const auto& src : frames) {
+    const std::string tail = path_u8string(src.filename()).substr(match.size());
+    const fs::path dst = u8path_compat(dst_base + "." + tail);
+    fs::rename(src, dst, ec);
+    if (ec) return "could not replace " + path_u8string(dst) + ": " + ec.message();
+  }
+  return std::string();
+}
+
+// Best-effort cleanup of a partial frame set left by a failed, cancelled or
+// superseded run. Never fatal: a leftover partial is untidy, not wrong.
+inline void discard_explode_frames(const std::string& partial_prefix) {
+  std::error_code ec;
+  for (const auto& f : explode_frames_under(partial_prefix)) fs::remove(f, ec);
+  ec.clear();
+}
+
 struct ExplodeFileState {
   std::string name;  // file NAME (not full path): comparison key
   std::uintmax_t size = 0;

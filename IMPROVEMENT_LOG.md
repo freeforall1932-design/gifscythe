@@ -4,6 +4,136 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S31 — 2026-09-28: verification of the 2026-09-27 external audit, plus the fixes that could carry proof here
+
+**Changed:**
+
+- Established that the audit was checkable at all: fetched its stated target
+  `957c143` and diffed it against this HEAD. The only differing files are the
+  two review documents themselves, so every claim was checked against identical
+  bytes. Write-up: `AUDIT_VERIFICATION_2026-09-27.md`. Outcome: **20 of 22
+  checkable claims confirmed** (N-01 Explode guard, N-02..N-06 gates, N-07
+  coercion seam, U-71/U-70/U-72/U-55/U-12, every Phase 5 line number, the CLI
+  snapshot asymmetry, the parity suite's non-vacuity); **one mechanism wrong**;
+  **one supporting claim refuted**.
+- **N-19 (fixed).** `web/command.mjs` now reads every numeric setting through
+  one exported `numArg` helper and emits the coerced NUMBER rather than the raw
+  token. The audit proved the seam by reading both modules; this session ran it
+  and closed its one open question: `web/server.mjs` does **not** normalise
+  types before `buildArgs`, so a direct `POST /run` carrying `{"disposal":"5"}`
+  returns 200 with the flag missing — MEDIUM stands, it is not downgraded to
+  LOW. An empty `gamma` was **worse than reported**: it does not emit
+  `--gamma=0`, it throws `TypeError: x.toPrecision is not a function` inside the
+  request path, and `validate.mjs` has no numeric gamma rule to stop it.
+- **N-20 (fixed).** Gate E3 exempted any line containing "never"/"NEVER", so a
+  real `system()` call with an apologetic comment passed the no-shell check.
+  Replaced with `strip_c_comments`, which strips `//` and multi-line `/* */`
+  before matching.
+- **N-21 (fixed).** Duplicate gate ids `A1` **and `A5`** — the audit found A1
+  only and missed A5. Renamed A1b / A5b. Emission total unchanged at 74, so no
+  G6 doc-number drift.
+- **N-22 (fixed).** `OutputPlan.h` argued temp-file + rename was rejected (U-59
+  shipped it) and cited `docs/audit/FIX_PICK_2026-09-10.md, a file this repo has
+  never contained`; `MainWindow.h` claimed the GUI never blocks the UI thread.
+  Both rewritten with the contradicting code named inline.
+- **N-15 (fixed).** The CLI snapshotted the TARGET while verifying the PARTIAL, so a new
+  partial matching the old target's size and mtime tripped OutputVerify's "unchanged"
+  clause and the run was refused with its work discarded. It now snapshots the partial,
+  right after discard_partial, exactly as the GUI already did.
+- **N-17 (fixed).** The JS/C++ parity suite had no fixture exercising --info at all.
+- **N-13 (fixed).** Gate E7 renamed E7-doc: it checks a Markdown literal, and the register
+  read as if it covered behaviour. Its message now names harness T11, which does.
+- **N-14 (fixed).** DOC_GATE_CHECKS is no longer a hand-typed constant. verify_audit.sh now
+  derives it by counting the distinct gate ids in its own doc-gate block and publishes it
+  on a GATE_TOTALS line; check_docs.sh parses that, with the old grep as a fallback.
+- **N-12 (fixed).** Gate B1-B15 asserted only the final banner, so deleting a T-block left
+  it green. It now parses the harness's block lines and check count with floors, and is
+  renamed B1-B20. No harness edit was needed. Mutation-tested against the harness's exact
+  output shape: deleting one T-block now FAILS, and that same case PASSED the old gate.
+- **N-10 (fixed).** Explode wrote straight to the raw prefix on both front ends, so a
+  re-run or cancel truncated the previous frame set in place. The CLI now writes the frames
+  under a partial prefix and promotes them only after verification, covering the no-output
+  CWD case as well. Proved: a 36-frame explode followed by a re-run with a truncating
+  engine destroyed 3 frames before and leaves all 36 intact after. New smoke case,
+  mutation-tested. The GUI now reports 'Cancelled - frames already written may be
+  incomplete.' instead of a flat 'Cancelled.'; harness T21 asserts it (CI-compiled).
+- **N-24 (fixed).** `GS_ENGINE_TIMEOUT_MS=0` is documented as "0 disables it", but
+  `setTimeout(fn, 0)` fires on the next tick, so every engine run was SIGKILLed and every
+  request answered 422 "engine timed out". The timer is now armed only above zero. Found
+  by the N-18 sweep of web/server.mjs, the audit's largest unread file. New transport case,
+  mutation-tested. Also made the `close` handler use the settleOnce guard its comment claims.
+- **N-25 (registered).** The rate-limit map only prunes on a repeat visit, so it grows
+  without bound once the server is exposed past loopback.
+- **N-18 (partially closed).** web/server.mjs is now DEEP and produced N-24. The rest of the
+  audit's PENDING files were risk-scanned rather than read line by line; no further defects.
+- **N-11 (fixed).** A verified partial was destroyed twice over: a promote failure discarded it,
+  and a cancel landing after engine exit but before finished() discarded it too. Both now keep
+  it and say so (CI-compiled proof: PR #6 run 36346732482).
+- **N-16 (fixed).** Harness T4 bounded the Run click at 3000 ms while the code allows
+  waitForStarted(5000), and the message named waitForFinished. Bound and message corrected.
+- **N-23 (fixed).** The handoff bullet sending U-59/P0-7 to "the open PR #5
+  branch" was false: PR #5 is merged and is the U-94 oracle, and the repo has
+  zero open PRs. Bullet and both base lines corrected to `957c143`.
+
+**Partial:** none.
+
+**Left:** the nine open rows N-10..N-18. **N-10** (Explode has no partial guard
+on either surface, so a re-run or cancel truncates the previous frame set) is
+the one worth calling ship-blocking; it needs CMake + Qt6 for both the fix and
+the proof.
+
+**Verified:** all executed in this sandbox.
+- The CLI and the engine turned out to be buildable here after all: `g++
+  -std=c++17 -I src src/cli/main.cpp` produces `build/gifscythe-cli` and
+  `scripts/build_engine.sh` builds gifsicle 1.96 natively with plain gcc (no
+  autotools needed). Both are gitignored, so the tree stayed clean.
+- **All nine web suites PASS**: command (JS-vs-C++ parity, 25 fixtures),
+  validate, numeric-honesty, device-names, request-guard, transport,
+  server-bounds, body-limit, static-hygiene. The parity suite is the decisive
+  regression check for N-19: `web/command.mjs` still emits argv identical to
+  the real C++ `gifscythe-cli`.
+- `scripts/oracle_fuzz.mjs --quick`: 24/24 deterministic cases passed.
+- N-19 end-to-end over HTTP, both directions. Against the pre-fix builder
+  (`8d30614`), `POST /run` with `{"disposal":"5","loopcount":"-2",...}`
+  returned `ok:true` with an argv containing **none** of them; with the fix
+  the argv is identical to the number-typed request. `gamma:""` returned
+  `{"ok":false,"error":"x.toPrecision is not a function"}` before and a clean
+  200 with no `--gamma` after. This is what closes the audit's open question:
+  `server.mjs` does not normalise, so the seam is reachable over HTTP.
+- The new seam block in `numeric-honesty.test.mjs` fails **11 assertions**
+  against the pre-fix builder and passes after; number-typed argv is
+  byte-identical to before; junk (`"abc"`, `"1e999"`) is still never emitted.
+- E3 mutation test, both directions: injecting `std::system(cmd); // never do
+  this` into `src/` leaves the OLD gate PASS and makes the NEW gate FAIL;
+  removing it returns the new gate to PASS; the real `src/` is PASS.
+- Gate-id audit: every id now belongs to exactly one gate (C6/C9/E9 are
+  legitimate ok+bad+skip triples); 74 emissions before and after.
+- `bash -n verify_audit.sh`; `node --check command.mjs`.
+
+**Not verifiable here:** there is still no cmake and no Qt6, so **nothing in
+`src/qtui/` was compiled and the offscreen GUI harness never ran**. That is
+what leaves N-10, N-11, N-12's floor measurement, N-15 and N-16 open: each
+needs a Qt build for both the fix and the proof. N-17 (the `info` parity
+fixture) and N-14 (reading `check_docs.sh` in full) were left open by choice,
+not blocked. U-70/U-71/U-55 are Windows-only and U-72 is a narrow timing race;
+all four were confirmed by reading source only, never by execution. Rows closed
+in this session are closed on Node, bash, gcc and g++ evidence.
+
+**Correction to the audit, and to my own first pass:** the audit said an empty
+gamma "emits `--gamma=0`". It does not. Pre-fix, the API returned
+`{"ok":false,"error":"x.toPrecision is not a function"}` — the raw JS TypeError
+leaked as the error body, and the request produced no GIF. Earlier in this
+session I described that as crashing the request; the precise behaviour is an
+`ok:false` JSON response carrying the raw message, and the server survives it.
+Worse than a silently wrong image, but not a process crash.
+
+**Docs touched:** `STATUS.md` (N-10..N-23), `WORKLIST.md` (S31 section),
+`SESSION_HANDOFF.md` (U-59 bullet + two base lines), `COMPILED_AUDIT.md` (base
+line re-anchored to `957c143`, gate G10), `IMPROVEMENT_LOG.md` (this entry),
+`AUDIT_VERIFICATION_2026-09-27.md` (new).
+
+---
+
 ## S30 — U-59/P0-7 GUI partial-output guard + offscreen regression coverage (2026-09-26)
 
 **Changed:** On PR #5's active branch, ordinary GUI Batch/Merge/Auto runs now

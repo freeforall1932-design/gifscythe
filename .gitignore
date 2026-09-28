@@ -33,3 +33,6 @@ reference_code/gifsicle-upstream/
 .idea/
 .vscode/
 *.user
+
+# Locally installed tooling (pip-provided cmake; not committed)
+.tools/

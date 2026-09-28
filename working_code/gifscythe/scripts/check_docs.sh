@@ -633,9 +633,18 @@ elif [[ -n "$(g6_missing_tools)" ]]; then
   skip "G6" "full verify_audit totals not measurable here (missing: $(g6_missing_tools)) - the tools that ARE present still run their own checks"
 else
   if [[ -x "$VERIFY" ]]; then
-    GATE_ADD="$(grep -oE '^DOC_GATE_CHECKS=[0-9]+' "$VERIFY" | grep -oE '[0-9]+' | head -1)"
-    GATE_ADD="${GATE_ADD:-0}"
     gate_out="$(GS_SKIP_DOC_GATE=1 "$VERIFY" 2>&1)"
+    # N-14: read the count verify_audit.sh PUBLISHES on its GATE_TOTALS line,
+    # which it derives from its own doc-gate block. The old grep looked for a
+    # hand-maintained `DOC_GATE_CHECKS=<n>` constant near the top of the file;
+    # that constant is gone, and the grep would now match the block's
+    # `DOC_GATE_CHECKS=0` reset instead. Fall back to it only for a run that
+    # predates the GATE_TOTALS line.
+    GATE_ADD="$(grep -oE 'doc_gate_checks=[0-9]+' <<<"$gate_out" | grep -oE '[0-9]+' | tail -1)"
+    if [[ -z "$GATE_ADD" ]]; then
+      GATE_ADD="$(grep -oE '^DOC_GATE_CHECKS=[0-9]+' "$VERIFY" | grep -oE '[0-9]+' | head -1)"
+    fi
+    GATE_ADD="${GATE_ADD:-0}"
     gate_line="$(grep -E '^==> Done\. [0-9]+ passed' <<<"$gate_out" | tail -1)"
     if [[ -n "$gate_line" ]]; then
       GATE_PASS=$(grep -oE '[0-9]+ passed' <<<"$gate_line" | grep -oE '^[0-9]+')

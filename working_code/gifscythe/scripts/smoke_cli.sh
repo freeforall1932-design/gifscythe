@@ -1004,5 +1004,79 @@ else
   bad "U-83 batch+output single input unpinned behaviour (rc=$u83_rc out=$([[ -s $WORK/u83-out.gif ]] && echo yes || echo no) source=$(cmp -s "$u83_before" "$WORK/u83-src.gif" && echo intact || echo CHANGED))"
 fi
 
+# ---- N-15: the pre-run snapshot must describe the PARTIAL, not the target ----
+# A controlled fake engine writes a partial whose size AND mtime equal the
+# pre-existing target's. Snapshotting the TARGET (the old behaviour) makes
+# OutputVerify.h's "unchanged since the pre-run snapshot" clause fire, so a run
+# that really did produce correct output was refused with its work discarded.
+# The CLI now snapshots the partial right after discarding it, matching the GUI.
+n15_engine="$WORK/n15-fake-engine"
+cat > "$n15_engine" <<'FAKE'
+#!/bin/sh
+out=""; prev=""
+for a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; done
+[ -n "$out" ] || exit 9
+printf '%s' "$FAKE_BYTES" > "$out"
+touch -d "@$FAKE_MTIME" "$out"
+exit 0
+FAKE
+chmod +x "$n15_engine"
+printf 'GIF89a' > "$WORK/n15-in.gif"
+printf 'GIF89a' > "$WORK/n15-out.gif"        # same byte count the fake engine writes
+touch -d "@1000000000" "$WORK/n15-out.gif"   # ...and the mtime it will pin
+cat > "$WORK/n15.conf" <<EOF
+mode = auto
+input = $WORK/n15-in.gif
+output = $WORK/n15-out.gif
+EOF
+set +e
+FAKE_BYTES="GIF89a" FAKE_MTIME=1000000000 \
+  "$CLI" "$WORK/n15.conf" --run --engine "$n15_engine" >"$WORK/n15.out" 2>"$WORK/n15.err"
+n15_rc=$?
+set -e
+if [[ "$n15_rc" -eq 0 ]] && ! grep -qi "unchanged" "$WORK/n15.err"; then
+  ok "N-15 a partial matching the old target's size+mtime is promoted, not refused"
+else
+  bad "N-15 false refusal still present (rc=$n15_rc: $(grep -i unchanged "$WORK/n15.err" | head -1))"
+fi
+
+# ---- N-10: a failed explode re-run must not truncate the previous frame set --
+# gifsicle opens each <prefix>.NNN with truncating semantics (fopen(...,"wb")),
+# so a re-run that dies mid-write used to overwrite good frames in place and the
+# user was left with fewer valid frames than before and no warning. The frames
+# are now written to a partial prefix and promoted only once they verify.
+n10_engine="$WORK/n10-truncating-engine"
+cat > "$n10_engine" <<'FAKE'
+#!/bin/sh
+prev=""; out=""
+for a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; done
+[ -n "$out" ] || exit 9
+for n in 000 001 002; do printf 'GIF89a' > "$out.$n"; done   # truncating open
+exit 1
+FAKE
+chmod +x "$n10_engine"
+mkdir -p "$WORK/n10f" && cp "$SRC_GIF" "$WORK/n10f/src.gif"
+cat > "$WORK/n10.conf" <<EOF
+mode = explode
+input = $WORK/n10f/src.gif
+output = $WORK/n10f/px
+EOF
+set +e
+"$CLI" "$WORK/n10.conf" --run --engine "$ENGINE" >/dev/null 2>&1
+n10_first=$?
+set -e
+n10_before="$(cd "$WORK/n10f" && md5sum px.* 2>/dev/null | sort)"
+set +e
+"$CLI" "$WORK/n10.conf" --run --engine "$n10_engine" >/dev/null 2>&1
+n10_rc=$?
+set -e
+n10_after="$(cd "$WORK/n10f" && md5sum px.* 2>/dev/null | sort)"
+if [[ "$n10_first" -eq 0 ]] && [[ -n "$n10_before" ]] && [[ "$n10_rc" -ne 0 ]] \
+   && [[ "$n10_before" == "$n10_after" ]]; then
+  ok "N-10 a failed explode re-run leaves the previous frame set intact"
+else
+  bad "N-10 explode truncation destroys frames (first_rc=$n10_first second_rc=$n10_rc)"
+fi
+
 echo "==> Done. $PASS passed, $FAIL failed."
 [[ "$FAIL" -eq 0 ]]

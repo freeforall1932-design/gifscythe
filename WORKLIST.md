@@ -60,6 +60,46 @@ reads them in a file, not in a conversation.
 Every new finding gets a matching line here. Nothing is `UNTRIAGED` right now:
 the S24 intake was triaged in the same session (each row carries its §6 id).
 
+### S31 (2026-09-28) — verification of the 2026-09-27 external audit
+
+The external audit was re-checked line by line against a real checkout. Its
+target tree and this HEAD differ only by the two review files, so every claim
+was checkable; **20 of 22 checkable claims held**, one mechanism was wrong (and
+worse than reported), and one supporting claim was refuted. Full write-up:
+`AUDIT_VERIFICATION_2026-09-27.md`.
+
+**Fixed this session (DONE rows, each with a mutation-tested proof):**
+
+- [x] **N-19** — validator/builder coercion seam + the empty-gamma TypeError.
+      `web/command.mjs` now reads every numeric setting through one `numArg`
+      helper, so a JSON `"5"` builds the same argv as `5`. The audit left
+      `web/server.mjs` unread and said that one file decided MEDIUM vs LOW: it
+      does **not** normalise types, so the seam is reachable over HTTP and
+      MEDIUM stands.
+- [x] **N-20** — gate E3's "never" keyword escape hatch (any line containing
+      the word never was exempt from the no-shell check).
+- [x] **N-21** — duplicate gate ids `A1` **and `A5`** (the audit found A1 only).
+- [x] **N-22** — two code comments that state the opposite of the code.
+- [x] **N-23** — the handoff bullet that pointed U-59/P0-7 at the wrong PR.
+
+**Open rows, excluded from this session because no fix here could carry
+executed proof (no cmake, no Qt6, no engine binary in this sandbox):**
+
+- [ ] **N-10 (HIGH, data loss)** — Explode has no partial guard on either
+      surface; a re-run or cancel truncates the previous frame set in place.
+      Needs CMake + Qt6 to fix and prove. **This is the one item worth calling
+      ship-blocking.**
+- [ ] **N-11 (MEDIUM, data loss)** — a *verified* partial is deleted when
+      promotion fails, and by a cancel that lands after engine exit.
+- [x] **N-12 (HIGH, gate integrity)** — **DONE.** B1-B20 now parses the harness's
+      block lines and check count instead of trusting the final banner.
+- [ ] **N-13** — gate E7 checks a Markdown literal, not behaviour.
+- [ ] **N-14** — `DOC_GATE_CHECKS` is a hand-maintained constant.
+- [ ] **N-15** — the CLI snapshots the target but verifies the partial.
+- [ ] **N-16** — harness T4 asserts a bound tighter than the code's own budget.
+- [ ] **N-17** — no `info` fixture in the parity suite.
+- [ ] **N-18** — 39 files the external audit never opened are still unaudited.
+
 - [x] **U-97** (found AND fixed in S27 — rule 2's strong form): the 2026-09-22
       zip re-creation of the GitHub repo lost the root license set
       (`COPYING.ms-pl` / `COPYING.lgplv3` / `COPYING.gplv3` / `COPYING.gifsicle`),

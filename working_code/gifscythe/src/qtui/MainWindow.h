@@ -22,8 +22,23 @@
 //
 // Preview pipeline: any control/queue/selection change restarts a 1200 ms
 // debounce timer; on fire, a SEPARATE QProcess re-encodes the selected file
-// to a temp dir. Never blocks the UI thread (S3-7 rule); main runs pause
-// previewing and kill any in-flight preview process.
+// to a temp dir. Main runs pause previewing and kill any in-flight preview
+// process.
+//
+// CORRECTED 2026-09-27. This comment used to claim the GUI "Never blocks the
+// UI thread (S3-7 rule)". It does block, in five bounded places; U-12 is still
+// OPEN and this header is the comment a maintainer trusts:
+//     ~MainWindow()              process_->waitForFinished(2000)
+//     runCommand()  batch branch process_->waitForStarted(5000)
+//     runCommand() single branch process_->waitForStarted(5000)
+//     cancelRun()                process_->waitForFinished(3000)
+//     killPreview()              previewProcess_->waitForFinished(1000)
+//   killPreview() is also called from startPreview() and from setBusy(true),
+//   i.e. on the UI thread during the first frame of every run.
+// What IS true: nothing blocks for the DURATION of a run. The engine runs in a
+// separate QProcess and completion arrives via the finished() signal; the waits
+// above bound START and CANCEL only. Do not restore the old wording until the
+// five sites are actually gone.
 //
 // Session persistence (S7 — closes the OFFLINE_BUILD_REVIEW §6 gap and audit
 // row 15): on close, the Actions-tab state is written through the core

@@ -945,13 +945,37 @@ void MainWindow::cancelRun() {
     process_->waitForFinished(3000);
   }
   cancelling_ = false;
+
+  // N-11: the engine may have already exited successfully in the gap between
+  // the last event-loop turn and this call. pendingPartial_ then holds VERIFIED
+  // output that onProcessFinished has simply not promoted yet. Discarding it
+  // destroyed work the user cannot recover without re-running, and then
+  // reported "Cancelled." as though nothing had happened. Leave it in place and
+  // let the normal completion path promote it.
+  if (process_ && process_->state() == QProcess::NotRunning &&
+      process_->exitStatus() == QProcess::NormalExit &&
+      process_->exitCode() == 0 && !pendingPartial_.isEmpty()) {
+    setBusy(false);
+    updateStatus(QStringLiteral("Run had already finished - result kept."));
+    return;
+  }
+
   gs::discard_partial(pendingPartial_.toStdString());
   pendingPartial_.clear();
   batchQueue_.clear();
   batchIndex_ = -1;
   invalidatePreview();  // P1-10: a cancelled run invalidates any preview state
   setBusy(false);
-  updateStatus(QStringLiteral("Cancelled."));
+  // N-10: this front end has no partial-output guard for Explode — the engine
+  // opens each <prefix>.NNN with truncating semantics, so a cancelled explode
+  // can leave a frame set that is short or half-written. A flat "Cancelled."
+  // reads as though nothing happened; say what the state actually is.
+  if (batchMode_ == gs::Mode::Explode) {
+    updateStatus(QStringLiteral(
+        "Cancelled - frames already written may be incomplete."));
+  } else {
+    updateStatus(QStringLiteral("Cancelled."));
+  }
 }
 
 void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
@@ -1021,15 +1045,22 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     const std::string promotionError =
         gs::promote_partial(pendingPartial_.toStdString(), pendingOutput_.toStdString());
     if (!promotionError.empty()) {
-      gs::discard_partial(pendingPartial_.toStdString());
+      // N-11: this partial is VERIFIED good output — the engine produced it and
+      // the verifier accepted it; only the final rename failed. On Windows that
+      // rename fails for ordinary, recoverable reasons (an antivirus still
+      // holding the handle, the target open in a viewer). Deleting it threw
+      // away work the user cannot get back without re-running the whole job, so
+      // keep it and tell them where it is.
+      const QString keptPartial = pendingPartial_;
       pendingPartial_.clear();
       setBusy(false);
       batchQueue_.clear();
       batchIndex_ = -1;
-      updateStatus(QStringLiteral("Could not promote output."));
+      updateStatus(QStringLiteral("Could not promote output - result kept."));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
-          QStringLiteral("The verified output could not replace the destination:\n%1\n\n%2")
-              .arg(pendingOutput_, QString::fromStdString(promotionError)));
+          QStringLiteral("The verified output could not replace the destination:\n%1\n\n%2\n\n"
+                         "Your work was NOT discarded. It is saved here:\n%3")
+              .arg(pendingOutput_, QString::fromStdString(promotionError), keptPartial));
       return;
     }
     pendingPartial_.clear();
