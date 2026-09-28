@@ -52,11 +52,11 @@
 > and is superseded by the register.
 
 **Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7…S17 (2026-09-13), S18–S20 (2026-09-14), S21 (2026-09-15 — v3 consolidation + U-68 413), S22 (2026-09-16 — U-67 + web gates + U-53/U-60/U-61/U-62/U-64/DS-09), S23 (2026-09-16 — Tier-1 batch, PR #29), PR #30 (2026-09-16 — U-77/U-79/U-80), **S24 (2026-09-17 — v4: external-review intake §20, doc consolidation, U-82 fix, stale-row closures W-30/R-03/GS-208)**, S25 (2026-09-17 — P1-44 implementation, PR #32), **S26 (2026-09-17 — P1-44 proof + closeout U-78/U-87, DS-09 register sync, G10 base-line repair)**, **S27 (2026-09-23 — repair of the 2026-09-22 zip re-creation: root license set restored (U-97), base lines + register re-synced (G10/G11))**, **S29 (2026-09-26 — U-94/P2-18 seeded real-engine oracle gate + PR #4 post-merge sync)**
-**Base:** `main` at `957c143` (the re-created repo's PR #5 merge, 2026-09-26 —
-S29's U-94 oracle; `main` has since advanced to `8d30614` by a direct upload
-whose only tree change was adding the two 2026-09-27 review files, so the two
-trees are code-identical. It stays legal across the next merge because
-a merge sha is also that merge's first parent, the S26 mechanic. The repo was
+**Base:** `main` at `2ade969` (PR #6 merge, 2026-09-28 — S31: the N-10 Explode
+frame guard, N-11 verified-partial preservation, N-12 harness gate, N-13, N-14,
+N-15, N-16, N-24 and the N-18 sweep; first parent `8d30614`, the pre-PR tip).
+It stays legal across the next merge because a merge sha is also that merge's
+first parent, the S26 mechanic. The repo was
 rebuilt from a zip upload on 2026-09-22, so the pre-recreation base `5c93680`
 and the rest of the old remote's history do not exist in this clone; re-confirm with
 `gh api repos/freeforall1932-design/gifscythe/branches/main --jq .commit.sha`;

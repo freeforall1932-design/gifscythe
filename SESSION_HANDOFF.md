@@ -1,11 +1,11 @@
 # Session Handoff
 
-**Session:** S30 · **Date:** 2026-09-26
-**Branch:** arena/01a0dc78-gifscythe
+**Session:** S31 · **Date:** 2026-09-28
+**Branch:** arena/01a0e3f4-gifscythe
 **Repo re-created 2026-09-22:** the GitHub repo was rebuilt from a zip upload; the old remote's history (S1–S26, PRs #1–#33, shas like `5c93680`) does not exist in this clone — every such sha below is an old-remote record kept for the written history. The new remote: `04a1cd4` (initial) → `60d3df4` (zip upload) → `ce5fd51` (unpack to root) → PR #1 merge `824bf20`, whose tree is the S26 state minus the four root license files (loss = finding **U-97**, restored in S27 with executed proof). The ledger carries a separator: rows #1–#33 are the OLD repo's; the new repo's numbering restarts at #1. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number. This records the merged baseline, not a claim about current CI health.
-**Docs synced through:** PR #5 (re-created repo) · branch `arena/01a0dc78-gifscythe` · merged as `957c143`
+**Docs synced through:** PR #6 · branch `arena/01a0e3f4-gifscythe` · merged as `2ade969`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. Move this line as part of the sync, never before the writing is done.)*
-Based on `main` commit `957c143` (the re-created repo's PR #5 merge, the S29 oracle; `main` has since advanced to `8d30614` via a direct upload whose only tree change was adding `space bunny review 2026-09-27.md` + `incomplete space bunny review.txt`, so this tree and that one are the code-identical; old-remote shas inside the historical sections are records this clone cannot resolve) ·
+Based on `main` commit `2ade969` (PR #6 merge, 2026-09-28 — S31's nine finding closures; first parent `8d30614`, the pre-PR tip. Old-remote shas inside the historical sections are records this clone cannot resolve) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
@@ -54,7 +54,7 @@ Based on `main` commit `957c143` (the re-created repo's PR #5 merge, the S29 ora
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 146 DONE · 9 PARTIAL · 30 OPEN · 0 UNTRIAGED · 185 total
+- **Register:** 146 DONE · 9 PARTIAL · 31 OPEN · 0 UNTRIAGED · 186 total
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -775,8 +775,8 @@ like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 146 DONE · 9 PARTIAL · 30 OPEN · 0
-   UNTRIAGED · 185 total — but `STATUS.md` itself always wins; sweep rule S2
+   its generated counts line (currently: 146 DONE · 9 PARTIAL · 31 OPEN · 0
+   UNTRIAGED · 186 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the
