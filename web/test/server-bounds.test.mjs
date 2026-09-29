@@ -15,7 +15,11 @@
 //   3. per-client rate limit  — 429 with Retry-After once the window is full;
 //   4. the engine-run bound   — GS_ENGINE_TIMEOUT_MS is honoured and the caller
 //                              gets an honest 422 naming the timeout;
-//   5. static is not rate limited (a page load is several GETs by design).
+//   5. static is not rate limited (a page load is several GETs by design);
+//   6. N-25 (S32): the rate-limit WINDOW is bounded by live traffic — driven
+//      in-process against web/rate_limit.mjs, because the HTTP cases cannot
+//      vary remoteAddress (everything arrives from loopback) and the defect
+//      only appears with many distinct source addresses.
 //
 // Run: node web/test/server-bounds.test.mjs   (after ./build.sh, which builds the
 // real engine the non-slow cases use)
@@ -27,6 +31,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRateLimiter } from "../rate_limit.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SERVER = join(HERE, "..", "server.mjs");
@@ -319,6 +324,65 @@ exit 3
       if (/RangeError|ERR_SOCKET_BAD_PORT|at /.test(err)) p.push(`leaked a raw stack: ${err.slice(0, 120)}`);
       t(`U-85 PORT="${bad}" exits 2 with a named reason and no stack`, p);
     }
+  }
+
+  // ---- 8: N-25 — the rate-limit window is bounded by live traffic, not uptime.
+  // Drove web/rate_limit.mjs in-process: the HTTP cases above cannot vary
+  // remoteAddress (every request arrives from loopback), which is exactly why
+  // the unbounded-growth defect survived — it only shows with many distinct
+  // source addresses, as on the documented GS_WEB_HOST=0.0.0.0 opt-in.
+  {
+    const p = [];
+    let t0 = 1_000_000;
+    const clock = () => t0;
+    const lim = createRateLimiter({ perMin: 3, windowMs: 60_000, now: clock });
+
+    // 200 one-off addresses inside one window: one entry each, none limited.
+    for (let i = 0; i < 200; i += 1) {
+      if (lim.rateLimited(`addr-${i}`)) p.push(`fresh addr-${i} was limited`);
+    }
+    if (lim.size() !== 200) p.push(`after 200 live addrs, size ${lim.size()}, expected 200`);
+
+    // One call after the window slides must prune EVERY dead entry (N-25's fix:
+    // the old per-address-only pruning left all 200 behind forever).
+    t0 += 60_001;
+    lim.rateLimited("fresh-after-slide");
+    if (lim.size() !== 1) {
+      p.push(`after the window slid, size ${lim.size()}, expected 1 - dead entries were not pruned`);
+    }
+
+    // Steady one-off drift with each visit past the window: no accumulation.
+    for (let i = 0; i < 50; i += 1) {
+      t0 += 61_000;
+      lim.rateLimited(`drift-${i}`);
+    }
+    if (lim.size() !== 1) p.push(`under one-off drift past the window, size ${lim.size()}, expected 1`);
+
+    t("N-25 rate-limit window prunes every dead entry and stays bounded (200 addrs -> 1)", p);
+  }
+
+  {
+    // Per-address semantics unchanged by the extraction: the limit still bites
+    // per address, a blocked call does not extend its own window, other
+    // addresses are unaffected, and perMin=0 still disables.
+    const p = [];
+    let t0 = 2_000_000;
+    const lim = createRateLimiter({ perMin: 3, windowMs: 60_000, now: () => t0 });
+    for (let i = 0; i < 3; i += 1) {
+      if (lim.rateLimited("a")) p.push(`hit ${i + 1} unexpectedly limited`);
+    }
+    if (!lim.rateLimited("a")) p.push("4th hit in the window was not limited");
+    if (!lim.rateLimited("a")) p.push("5th hit (still blocked) was not limited");
+    if (lim.size() !== 1) p.push(`blocked hits were recorded (size ${lim.size()})`);
+    if (lim.rateLimited("b")) p.push("a distinct address inherited a's limit");
+    t0 += 60_001;
+    if (lim.rateLimited("a")) p.push("a was still limited after the window slid (blocked hits extended it?)");
+    const off = createRateLimiter({ perMin: 0, now: () => t0 });
+    for (let i = 0; i < 10; i += 1) if (off.rateLimited("a")) p.push("perMin=0 limited a request");
+    if (off.size() !== 0) p.push(`perMin=0 still recorded hits (size ${off.size()})`);
+    lim.reset();
+    if (lim.size() !== 0) p.push("reset() did not clear the window");
+    t("N-25 rate-limit semantics unchanged: per-address, no window extension, 0 disables", p);
   }
 } finally {
   await rm(dir, { recursive: true, force: true }).catch(() => {});
