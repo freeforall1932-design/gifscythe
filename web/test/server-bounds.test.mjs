@@ -373,10 +373,21 @@ exit 3
     }
     if (!lim.rateLimited("a")) p.push("4th hit in the window was not limited");
     if (!lim.rateLimited("a")) p.push("5th hit (still blocked) was not limited");
-    if (lim.size() !== 1) p.push(`blocked hits were recorded (size ${lim.size()})`);
+    if (lim.size() !== 1) p.push(`blocked hits created entries (size ${lim.size()})`);
     if (lim.rateLimited("b")) p.push("a distinct address inherited a's limit");
     t0 += 60_001;
     if (lim.rateLimited("a")) p.push("a was still limited after the window slid (blocked hits extended it?)");
+
+    // A blocked hit must not extend its own window. perMin=1 makes a recorded
+    // block visible as delayed recovery; perMin=3 would hide it behind the
+    // other two slots.
+    let u0 = 3_000_000;
+    const strict = createRateLimiter({ perMin: 1, windowMs: 60_000, now: () => u0 });
+    if (strict.rateLimited("c")) p.push("first hit on c was limited");
+    u0 += 30_000;
+    if (!strict.rateLimited("c")) p.push("c's in-window hit was not limited");
+    u0 += 31_001; // 61.001 s after the accepted hit, 31.001 s after the blocked one
+    if (strict.rateLimited("c")) p.push("c did not recover once its accepted hit slid out (a blocked hit extended the window?)");
     const off = createRateLimiter({ perMin: 0, now: () => t0 });
     for (let i = 0; i < 10; i += 1) if (off.rateLimited("a")) p.push("perMin=0 limited a request");
     if (off.size() !== 0) p.push(`perMin=0 still recorded hits (size ${off.size()})`);
