@@ -1,11 +1,11 @@
 # Session Handoff
 
-**Session:** S30 · **Date:** 2026-09-26
-**Branch:** arena/01a0dc78-gifscythe
+**Session:** S32 · **Date:** 2026-09-29
+**Branch:** arena/01a0eebe-gifscythe
 **Repo re-created 2026-09-22:** the GitHub repo was rebuilt from a zip upload; the old remote's history (S1–S26, PRs #1–#33, shas like `5c93680`) does not exist in this clone — every such sha below is an old-remote record kept for the written history. The new remote: `04a1cd4` (initial) → `60d3df4` (zip upload) → `ce5fd51` (unpack to root) → PR #1 merge `824bf20`, whose tree is the S26 state minus the four root license files (loss = finding **U-97**, restored in S27 with executed proof). The ledger carries a separator: rows #1–#33 are the OLD repo's; the new repo's numbering restarts at #1. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number. This records the merged baseline, not a claim about current CI health.
-**Docs synced through:** PR #5 (re-created repo) · branch `arena/01a0dc78-gifscythe` · merged as `957c143`
+**Docs synced through:** PR #6 · branch `arena/01a0e3f4-gifscythe` · merged as `2ade969`
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. Move this line as part of the sync, never before the writing is done.)*
-Based on `main` commit `957c143` (the re-created repo's PR #5 merge, the S29 oracle; `main` has since advanced to `8d30614` via a direct upload whose only tree change was adding `space bunny review 2026-09-27.md` + `incomplete space bunny review.txt`, so this tree and that one are the code-identical; old-remote shas inside the historical sections are records this clone cannot resolve) ·
+Based on `main` commit `13d95a7` (the owner's 2026-09-29 direct upload — tree = the PR #6 merge plus `GIFSCYTHE_PLANNING_REPORT.md` only; PR #6 is S31's finding closures, merged 2026-09-28; old-remote shas inside the historical sections are records this clone cannot resolve) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
@@ -27,9 +27,12 @@ Based on `main` commit `957c143` (the re-created repo's PR #5 merge, the S29 ora
   This sandbox has no CMake/Qt6. **Separate follow-up:** if you have CMake +
   Qt6, perform an independent code review and rerun `test_gui_offscreen`;
   document findings. Do not merge without explicit owner approval.
-  **Known hole: N-10 — Explode is exempt from the partial guard on BOTH the
-  GUI and the CLI.** See `STATUS.md` N-10; treat it as open before calling
-  U-59 complete.
+  *(Corrected S32 2026-09-29. This bullet used to end with "Known hole: N-10
+  — Explode is exempt from the partial guard on BOTH the GUI and the CLI —
+  treat it as open". That tail was written at S30, before S31 closed the hole:
+  `STATUS.md` **N-10 is DONE** (CLI two-phase frame promotion + mutation-tested
+  smoke case; GUI cancel honesty asserted by harness T21). Taking the old
+  wording literally sends the next reviewer to fix a closed finding.)*
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
   diff blindly: it flags check-logic edits (**R1**), matchers that match nothing
@@ -54,7 +57,7 @@ Based on `main` commit `957c143` (the re-created repo's PR #5 merge, the S29 ora
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 146 DONE · 9 PARTIAL · 30 OPEN · 0 UNTRIAGED · 185 total
+- **Register:** 146 DONE · 9 PARTIAL · 31 OPEN · 0 UNTRIAGED · 186 total
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -775,18 +778,24 @@ like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 146 DONE · 9 PARTIAL · 30 OPEN · 0
-   UNTRIAGED · 185 total — but `STATUS.md` itself always wins; sweep rule S2
+   its generated counts line (currently: 146 DONE · 9 PARTIAL · 31 OPEN · 0
+   UNTRIAGED · 186 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the
-   exact tagged SHA*): **U-59/P0-7's Qt half** (the CLI/core half landed S28;
-   the GUI still writes straight onto the target) → release re-cut
-   U-09/P0-4 + the U-95 release-notes edit → W-18 clean-Windows smoke →
-   W-19 desktop probes → GS-203's GUI half (P1-25) → the Qt/platform rows →
-   the S24 web-intake batch (**P1-44 closed S26** — next is P2-19/U-92, then
-   the P2/P3 rows) → owner decisions (OD-16/OD-18 +
-   the version call). PARTIALs: U-10 (CI hash-pinning), U-14 (verify_audit
+   exact tagged SHA*). **U-59/P0-7 is DONE end to end** (CLI/core S28, GUI S30,
+   and the N-10 Explode hole closed S31 — the "Qt half still writes onto the
+   target / next is P2-19/U-92" wording that lived here was two sessions stale
+   and is exactly what misled `GIFSCYTHE_PLANNING_REPORT.md`'s item 1). Real
+   remaining set, in order: release re-cut **U-09/P0-4** + the **U-95**
+   release-notes edit (owner action first) → **W-18** clean-Windows smoke
+   (needs a green CI run — see **N-26**, the linux flake — then real hardware)
+   → **W-19** desktop probes (real hardware) → **GS-203**'s GUI half (P1-25)
+   + the Qt/platform rows (Qt-blocked) → the register/docs rows
+   (**P2-21/U-88**, **P2-22/U-89**, P3-17/U-91, P3-18/U-96, P3-19/U-90) →
+   **N-18**'s remaining line-by-line reads → **N-25** (rate-limit map) →
+   **N-26** (CI linux flake) → owner decisions (OD-16/OD-18 + the version
+   call). PARTIALs: U-10 (CI hash-pinning), U-14 (verify_audit
    stays out of CI by design), U-68 (cap value), U-76 (OD-18 directory
    policy), GS-203/204/210 (named handoffs in `docs/planning/PLANNING.md` §4).
 2. **Direction:** offline-only; C++17 + Qt6 through 1.0.0; the `web/` build is

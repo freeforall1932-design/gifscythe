@@ -82,23 +82,42 @@ worse than reported), and one supporting claim was refuted. Full write-up:
 - [x] **N-22** — two code comments that state the opposite of the code.
 - [x] **N-23** — the handoff bullet that pointed U-59/P0-7 at the wrong PR.
 
-**Open rows, excluded from this session because no fix here could carry
-executed proof (no cmake, no Qt6, no engine binary in this sandbox):**
+**Corrected S32 (2026-09-29):** the block that used to sit here ("Open rows,
+excluded from this session because no fix here could carry executed proof")
+was a *pre-fix draft* that S31 never updated after PR #6 closed those rows —
+and the engine was buildable after all. That stale list is what
+`GIFSCYTHE_PLANNING_REPORT.md`'s item 1 was written against. Live state is
+`STATUS.md`; the closures, with proof, ticked here to match:
 
-- [ ] **N-10 (HIGH, data loss)** — Explode has no partial guard on either
-      surface; a re-run or cancel truncates the previous frame set in place.
-      Needs CMake + Qt6 to fix and prove. **This is the one item worth calling
-      ship-blocking.**
-- [ ] **N-11 (MEDIUM, data loss)** — a *verified* partial is deleted when
-      promotion fails, and by a cancel that lands after engine exit.
-- [x] **N-12 (HIGH, gate integrity)** — **DONE.** B1-B20 now parses the harness's
+- [x] **N-10 (HIGH, data loss)** — DONE: CLI two-phase frame write, promote
+      only after verify (no-output CWD case included), mutation-tested smoke
+      case; GUI cancel honesty asserted by harness T21 (CI-compiled).
+- [x] **N-11 (MEDIUM, data loss)** — DONE: a verified partial is KEPT on
+      promote failure (its path is named) and on cancel-after-exit ("Run had
+      already finished - result kept.").
+- [x] **N-12 (HIGH, gate integrity)** — DONE: B1-B20 parses the harness's
       block lines and check count instead of trusting the final banner.
-- [ ] **N-13** — gate E7 checks a Markdown literal, not behaviour.
-- [ ] **N-14** — `DOC_GATE_CHECKS` is a hand-maintained constant.
-- [ ] **N-15** — the CLI snapshots the target but verifies the partial.
-- [ ] **N-16** — harness T4 asserts a bound tighter than the code's own budget.
-- [ ] **N-17** — no `info` fixture in the parity suite.
-- [ ] **N-18** — 39 files the external audit never opened are still unaudited.
+- [x] **N-13** — DONE: E7 renamed E7-doc (doc literal; harness T11 is the
+      behavioural check it now names).
+- [x] **N-14** — DONE: `DOC_GATE_CHECKS` is derived from the gate block and
+      published on a `GATE_TOTALS` line.
+- [x] **N-15** — DONE: the CLI snapshots the partial, exactly as the GUI does.
+- [x] **N-16** — DONE: T4's bound matches the code's 5000 ms budget, and the
+      message names the right function.
+- [x] **N-17** — DONE: `info` parity fixture added, mutation-tested both ways.
+
+Still open from the audit intake (state lives in `STATUS.md`):
+
+- [ ] **N-18 (PARTIAL)** — 39 files the external audit never opened.
+      `web/server.mjs` is now DEEP (produced N-24); the rest were risk-scanned,
+      not read line by line. Resume on the three largest: `src/core/SettingsIO.h`,
+      `src/qtui/SettingsPanel.cpp`, `tests/test_gifsicle_command.cpp`.
+- [ ] **N-25 (OPEN)** — `requestWindow` grows without bound once the server is
+      exposed past loopback (keyed by remoteAddress, never pruned).
+- [ ] **N-26 (OPEN)** — CI's linux job is flaky (5 of the last 7 main runs
+      failed linux while windows passed) and this repo uses CI as the proof
+      lane for anything the sandboxes cannot compile. Registered from the
+      open PR #7 investigation; needs an Actions-UI look to name the step.
 
 - [x] **U-97** (found AND fixed in S27 — rule 2's strong form): the 2026-09-22
       zip re-creation of the GitHub repo lost the root license set

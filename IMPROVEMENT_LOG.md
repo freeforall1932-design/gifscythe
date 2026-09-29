@@ -75,12 +75,17 @@ Chronological log of decisions and changes. **Newest at the top.**
   branch" was false: PR #5 is merged and is the U-94 oracle, and the repo has
   zero open PRs. Bullet and both base lines corrected to `957c143`.
 
-**Partial:** none.
+**Partial:** N-18 — `web/server.mjs` is DEEP and the rest of the PENDING files
+were risk-scanned, not read line by line.
 
-**Left:** the nine open rows N-10..N-18. **N-10** (Explode has no partial guard
-on either surface, so a re-run or cancel truncates the previous frame set) is
-the one worth calling ship-blocking; it needs CMake + Qt6 for both the fix and
-the proof.
+**Left:** *(tail corrected S32, 2026-09-29 — the draft tail of this entry
+predated the session's own closures and contradicted the Changed list above;
+that contradiction is what `GIFSCYTHE_PLANNING_REPORT.md`'s item 1 was written
+against.)* The live remainder at S31 close is **N-18** PARTIAL (resume line by
+line on `src/core/SettingsIO.h`, `src/qtui/SettingsPanel.cpp`,
+`tests/test_gifsicle_command.cpp`), **N-25** (registered, OPEN) and the as-yet
+unregistered CI linux flake (became **N-26**). N-10..N-17 were closed **in**
+this session — see Changed.
 
 **Verified:** all executed in this sandbox.
 - The CLI and the engine turned out to be buildable here after all: `g++
@@ -111,13 +116,13 @@ the proof.
 - `bash -n verify_audit.sh`; `node --check command.mjs`.
 
 **Not verifiable here:** there is still no cmake and no Qt6, so **nothing in
-`src/qtui/` was compiled and the offscreen GUI harness never ran**. That is
-what leaves N-10, N-11, N-12's floor measurement, N-15 and N-16 open: each
-needs a Qt build for both the fix and the proof. N-17 (the `info` parity
-fixture) and N-14 (reading `check_docs.sh` in full) were left open by choice,
-not blocked. U-70/U-71/U-55 are Windows-only and U-72 is a narrow timing race;
-all four were confirmed by reading source only, never by execution. Rows closed
-in this session are closed on Node, bash, gcc and g++ evidence.
+`src/qtui/` was compiled and the offscreen GUI harness never ran in this
+sandbox** — the Qt-side assertions of the closures above (N-10's GUI cancel
+text via T21, N-11's dialog wording, N-12's block-count floors, N-16's T4
+bound) are CI-compiled proof (PR #6 runs), not local execution. U-70/U-71/U-55
+are Windows-only and U-72 is a narrow timing race; all four were confirmed by
+reading source only, never by execution. Rows closed in this session are
+closed on Node, bash, gcc and g++ evidence.
 
 **Correction to the audit, and to my own first pass:** the audit said an empty
 gamma "emits `--gamma=0`". It does not. Pre-fix, the API returned
