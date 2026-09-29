@@ -4,6 +4,101 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S32 — 2026-09-29: audit/review close-out lane — N-25, N-27, N-29 fixed, the review documents folded, and the doc drift that misled the owner's planning report repaired
+
+**Changed:**
+
+- **Path decision (recorded, because the inputs disagreed):** the owner's
+  `GIFSCYTHE_PLANNING_REPORT.md` (uploaded to main at `13d95a7`) ordered
+  "finish GUI partial-write safety + the Explode hole" first — that work was
+  already DONE (S28/S30/S31), and the report had been written against the
+  stale WORKLIST/IMPROVEMENT_LOG tails this session deleted. Items 2–7 of the
+  report are owner-, hardware- or Qt-blocked and cannot carry executed proof
+  in this sandbox. So the lane taken was the only one where audit/review
+  tasks remain OPEN *and* provable here: **N-25, N-18's named resume targets,
+  and the review-document handling itself.**
+- **Doc-drift repair (the corruption that produced the stale report):** the
+  WORKLIST S31 block ("open rows, excluded because no fix here could carry
+  executed proof...") and the IMPROVEMENT_LOG S31 "Left"/"Not verifiable
+  here" tails still called N-10..N-17 open — the pre-fix drafts S31 never
+  updated after PR #6 closed them. Corrected in place after the N-23 pattern
+  (inline "Corrected S32" notes); the handoff's "Known hole: N-10" bullet and
+  the stale "what remains before 1.0.0" orientation item rewritten to the
+  real remaining set; N-26 registered (the CI-flake row the open PR #7
+  investigates — duplicated here so one merge carries the full register).
+- **N-25 (fixed).** The rate-limit map only pruned an entry when the same
+  address revisited, so one-off source addresses accumulated forever once
+  the server is exposed past loopback. The limiter is now `web/rate_limit.mjs`
+  (pure module — the HTTP suites cannot vary remoteAddress, which is why the
+  defect was unprovable where it lived) and prunes the whole map on every
+  call. server-bounds 10 → **12 groups**, mutation-tested both directions.
+- **N-27 (fixed, found by the N-18 sweep of SettingsIO.h).** The
+  position-pair validity probe narrow-cast long→unsigned — the GS-206 class
+  alive in the one helper the strict parsers bypassed — so
+  `position_x = 4294967296` probed valid (wrapped to 0) while the real parser
+  refused it and the pair was enabled half-live (`-p 0,5`), exactly what the
+  U-33/U-53 comment promises cannot happen. A quoted `"5"` hit the mirror
+  bug. Fixed: width-strict probe + decode exactly as `set_field` does.
+- **N-29 (fixed, same sweep).** `save_settings` wrote dither OFF + a
+  remembered method as the combined `dither = <m>` line, which loads as
+  dither=TRUE — a deliberately unchecked dither resurrected itself on reload.
+  Off + method now saves as `dither = false` + `dither_method = <m>`.
+- **Review-of-problem documents folded (the S24 §20 pattern, `COMPILED_AUDIT`
+  §21):** the two root "space bunny" review files deleted after incorporation
+  (texts at `8d30614`); the executed verification record moved to
+  `docs/archive/` (kept in full); `AUDIT_HISTORY.md` rows 8–9 added; the
+  owner's planning report folded into `docs/planning/PLANNING.md` §6 with
+  three reconciliations (item 1 already done; list restarts at 2 + gains the
+  audit remainder; its Sources cited a docs/web/WEB_FEASIBILITY.md file that
+  never existed in this repo).
+
+**Partial:** **N-18** — the three named resume targets are read (proof in the
+register); the remaining PENDING files stay risk-scanned only.
+
+**Left:** **N-26** (CI linux flake — needs an Actions-UI look),
+**N-25/N-27/N-29** closed here; the release re-cut (U-09 + U-95, owner action
+first), W-18/W-19 (real hardware), GS-203's GUI half + the Qt/platform rows
+(Qt), the register/docs rows P2-21/P2-22/P3-17/P3-18/P3-19, and owner
+decisions OD-16/OD-18 + the version call. Open PR #7 (doc sync + N-26) is NOT
+merged — that needs the owner's explicit yes; if this PR merges first, close
+PR #7 or drop its duplicated N-26 row on rebase.
+
+**Verified:** all executed in this sandbox (g++ 12.2 + make, node 22, gh):
+`./build.sh` engine `LCDF Gifsicle 1.96` + CLI + **384 checks, 0 failures**
+(372 before the N-27/N-29 cases); `smoke_cli.sh` **63/63**;
+`test_output_verify.sh` 25/0; `test_engine.sh` 5/5; `test_package.sh` 36/36;
+all **nine** web suites green (server-bounds **12 groups**; command parity
+25 fixtures against the rebuilt CLI; numeric-honesty, validate, transport,
+body-limit, static-hygiene, device-names, request-guard);
+`oracle_fuzz.mjs --quick` 24/24; `verify_audit.sh` 31/0/5 (its one FAIL was
+F1 re-reporting the two expected mid-session doc stalenesses — the 372→384
+quote and G11 — both cleared by this entry); `check_docs.sh` and
+`sweep_stale.sh` green after `--emit` (149/9/30/0 = 188).
+Mutation tests: N-25's two mutations each fail exactly their own group;
+N-27/N-29's five assertions run RED against the pre-fix code and green after.
+
+**Not verifiable here:** no cmake/Qt6 in this sandbox, so nothing in
+`src/qtui/` was compiled and `test_gui_offscreen` never ran — the
+SettingsPanel.cpp review is source-read only (its two representation limits
+are documented in the N-29 row, unproven either way). No mingw/wine: the
+Windows halves of the SettingsIO atomic-save path (`_wopen`/`_commit`) are
+unchanged this session but remain CI-proved only. N-26 cannot be diagnosed
+from here (Actions log blobs unreachable — S26/S27/S28 wall). One
+observation to carry: an intermediate server-bounds run under mutation
+load flaked one non-N-25 timing group and re-ran green — the suite's
+timing-sensitive groups are known-flaky under load (cf. N-16's T4 history)
+and that is a reason to distrust single red runs of it, locally or in CI.
+
+**Docs touched:** `STATUS.md` (N-25/N-18 updated, N-27/N-29 added, W-03/W-04
+proofs re-measured), `COMPILED_AUDIT.md` (§21 intake + disposition table,
+base re-anchor), `WORKLIST.md` (S31 block corrected, S32 section),
+`SESSION_HANDOFF.md` (header, drift fixes, fast hand-off, verification table),
+`IMPROVEMENT_LOG.md` (this entry), `docs/planning/PLANNING.md` (§6, the
+folded planning report), `docs/archive/AUDIT_HISTORY.md` (rows 8–9),
+`docs/archive/AUDIT_VERIFICATION_2026-09-27.md` (moved from root).
+
+---
+
 ## S31 — 2026-09-28: verification of the 2026-09-27 external audit, plus the fixes that could carry proof here
 
 **Changed:**

@@ -2956,6 +2956,7 @@ U-34/U-47/U-16/U-01/U-45 — those rows cite per-test ids; the gate fix stayed r
 | `GS_ENGINE_TIMEOUT_MS=0` SIGKILLs every run (found by the N-18 sweep of server.mjs) | **N-24** | DONE S31 |
 | rate-limit map unbounded growth (found by the same sweep) | **N-25** | OPEN |
 | — (CI linux flake noticed while proving the above; investigated on PR #7) | **N-26** | OPEN |
+| S32 sweep suspicion: `to_double` accepts nan/inf and gamma junk reaches the engine unchecked | **N-28** (id kept so the numbering reads continuously) | REFUTED by execution: libstdc++ `istringstream >> double` rejects both `nan` and `inf` (the "not a number" warnings fire), and `validate()` already warns `gamma=nan: must be srgb, oklab or a number` with `--strict` refusing — no code change |
 | U-71 / U-70 / U-72 / U-55 / U-12 re-derived from source | (tracked rows) | CONFIRMED, no state change |
 | suspicion that test deps were missing from CMakeLists | — | REFUTED by the code (`add_dependencies` line) |
 | "STATUS cites B1-B15 as proof for five DONE rows" | — | REFUTED (rows cite T18/T19/T20; the gate fix stands on its own) |

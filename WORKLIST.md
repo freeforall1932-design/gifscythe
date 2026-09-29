@@ -60,6 +60,37 @@ reads them in a file, not in a conversation.
 Every new finding gets a matching line here. Nothing is `UNTRIAGED` right now:
 the S24 intake was triaged in the same session (each row carries its §6 id).
 
+### S32 (2026-09-29) — audit/review close-out lane
+
+Path call of record: the owner's planning report item 1 was stale (already
+done at S28/S30/S31) and its items 2–7 are owner/hardware/Qt-blocked, so this
+session took the only lane where audit/review tasks were still OPEN and
+provable in this sandbox. Full detail in `IMPROVEMENT_LOG.md`'s S32 entry.
+
+- [x] **N-25** — rate-limit map unbounded growth. **DONE** — limiter extracted
+      to `web/rate_limit.mjs`, whole-map prune per call, server-bounds
+      10 → 12 groups, mutation-tested both directions.
+- [x] **N-27** *(found this session, N-18 sweep of SettingsIO.h)* — the
+      position-pair probe narrow-cast long→unsigned (GS-206 class alive in the
+      bypassed helper): `position_x = 4294967296` probed valid, the real parser
+      refused, and the pair went live half-formed (`-p 0,5`). **DONE** —
+      width-strict probe + decoded value, 4 assertions RED→green.
+- [x] **N-28** *(suspicion this session, REFUTED by execution — the id is kept
+      so the numbering reads continuously)*: "to_double accepts nan/inf and
+      gamma junk reaches the engine" — libstdc++ rejects nan/inf (warns "not a
+      number"), and `validate()` already warns "gamma=nan: must be srgb, oklab
+      or a number" with `--strict` refusing. No code change.
+- [x] **N-29** *(found this session, same sweep)* — dither OFF + remembered
+      method saved as `dither = <m>` (loads as dither=TRUE): a deliberately
+      unchecked dither resurrected itself on reload. **DONE** — the off+method
+      state now saves as `dither = false` + `dither_method = <m>`.
+- [x] **Doc drift repaired** — the S31 tails that still called N-10..N-17
+      open (and misled the owner's planning report) corrected in place; review
+      documents folded (`COMPILED_AUDIT` §21, `docs/planning/PLANNING.md` §6,
+      `docs/archive/` rows 8–9).
+- [ ] **N-26 (OPEN)** — CI linux flake; needs an Actions-UI look (PR #7 has
+      the investigation so far).
+
 ### S31 (2026-09-28) — verification of the 2026-09-27 external audit
 
 The external audit was re-checked line by line against a real checkout. Its
@@ -108,12 +139,12 @@ and the engine was buildable after all. That stale list is what
 
 Still open from the audit intake (state lives in `STATUS.md`):
 
-- [ ] **N-18 (PARTIAL)** — 39 files the external audit never opened.
-      `web/server.mjs` is now DEEP (produced N-24); the rest were risk-scanned,
-      not read line by line. Resume on the three largest: `src/core/SettingsIO.h`,
-      `src/qtui/SettingsPanel.cpp`, `tests/test_gifsicle_command.cpp`.
-- [ ] **N-25 (OPEN)** — `requestWindow` grows without bound once the server is
-      exposed past loopback (keyed by remoteAddress, never pruned).
+- [ ] **N-18 (PARTIAL)** — 39 files the external audit never opened. The
+      three named resume targets are now read (S32: `SettingsIO.h` found
+      N-27/N-29; `SettingsPanel.cpp` data paths clean; `test_gifsicle_command.cpp`
+      vacuity-scanned). The rest stay risk-scanned only — read on touch.
+- [x] **N-25 (DONE S32)** — `requestWindow` bounded by live traffic now
+      (see the S32 section above).
 - [ ] **N-26 (OPEN)** — CI's linux job is flaky (5 of the last 7 main runs
       failed linux while windows passed) and this repo uses CI as the proof
       lane for anything the sandboxes cannot compile. Registered from the

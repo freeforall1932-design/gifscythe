@@ -526,7 +526,8 @@ int main() {
     CHECK(!warns_for(dm2, "dither"));
   }
 
-  // 21b. threads < -1 is warned (audit DS-09).
+  // 21e. threads < -1 is warned (audit DS-09). (Block number fixed S32 — two
+  //      blocks here both claimed 21b.)
   //
   // This block arrived in PR #28 pinning the builder's behavior at the time —
   // ANY negative fell back to a bare `-j`. S23's P0-2 (DS-06) split "unset"

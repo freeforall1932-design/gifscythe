@@ -10,29 +10,34 @@ Based on `main` commit `13d95a7` (the owner's 2026-09-29 direct upload — tree 
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (after S30)
+## Next session — fast hand-off (after S32)
 
-- **U-59 / P0-7 is ON `main` — it is NOT on PR #5.** *(Corrected 2026-09-27.
-  This bullet used to say the work "is on the open PR #5 branch". PR #5 is
-  **already merged** and is "Add seeded real-engine settings oracle
-  (U-94 / P2-18)"; the repo has **zero open PRs**. The U-59 GUI work landed
-  separately as `4a8e353` "Protect GUI outputs with verified partial
-  promotion" + `9de2607` + `94c95df`, all ancestors of current `main`. Taking
-  the old wording literally sends the next reviewer to the oracle instead of
-  to the P0 data-loss code.)* Ordinary Batch/Merge/Auto runs use
-  `<target>.gs-partial`, verify then promote, and clean up on failure/cancel.
-  Offscreen cases cover success promotion, partial-writing failure preserving
-  old bytes, and cancellation preserving old bytes. Qt-enabled PR run
-  `36227237540` passed Linux and Windows builds and both GUI offscreen suites.
-  This sandbox has no CMake/Qt6. **Separate follow-up:** if you have CMake +
-  Qt6, perform an independent code review and rerun `test_gui_offscreen`;
-  document findings. Do not merge without explicit owner approval.
-  *(Corrected S32 2026-09-29. This bullet used to end with "Known hole: N-10
-  — Explode is exempt from the partial guard on BOTH the GUI and the CLI —
-  treat it as open". That tail was written at S30, before S31 closed the hole:
-  `STATUS.md` **N-10 is DONE** (CLI two-phase frame promotion + mutation-tested
-  smoke case; GUI cancel honesty asserted by harness T21). Taking the old
-  wording literally sends the next reviewer to fix a closed finding.)*
+- **S32 was the audit/review close-out lane.** The owner's planning report
+  (uploaded at `13d95a7`) ordered "finish U-59 partial-write safety + the
+  Explode hole" first — **already DONE** (S28 CLI / S30 GUI / S31 N-10), and
+  the report was written against the stale WORKLIST/IMPROVEMENT_LOG tails S32
+  deleted. Don't redo item 1. The report is now `docs/planning/PLANNING.md`
+  §6 with the correction inline; its real remaining EXE order is its items
+  2–7 (release re-cut → W-18 → W-19 → GS-203 → register/docs rows → owner
+  decisions) plus the audit remainder. **N-25, N-27, N-29 closed S32** with
+  executed, mutation-tested proof; **N-28** was a suspicion checked and
+  refuted; **N-18**'s three named resume targets are read (PARTIAL on the
+  long tail); **N-26** (CI linux flake) is the open audit-intake row.
+- **Open PR #7** (`arena/01a0e3f4-gifscythe`) carries the post-merge doc sync
+  + the N-26 investigation. **Not merged — that takes the owner's explicit
+  yes.** N-26's row is duplicated in `STATUS.md` so one merge carries the
+  full register: if S32's PR merges first, close PR #7 or drop its copies on
+  rebase (its base-line naming also needs the mechanical G10 re-sync after
+  any merge).
+- **U-59 / P0-7 is DONE end to end** — CLI/core S28 (`5bbfb83`), GUI S30
+  (`4a8e353` + `9de2607` + `94c95df`), Explode hole N-10 closed S31 (PR #6).
+  Ordinary Batch/Merge/Auto runs use `<target>.gs-partial`, verify then
+  promote; Explode writes frames under a partial prefix and promotes after
+  verification. Qt-enabled PR run `36227237540` passed Linux and Windows
+  builds and both GUI offscreen suites. This sandbox has no CMake/Qt6.
+  **Separate follow-up:** if you have CMake + Qt6, perform an independent
+  code review and rerun `test_gui_offscreen`; document findings. Do not
+  merge without explicit owner approval.
 - **Review before accepting:** `working_code/gifscythe/scripts/review_change.sh`
   (`--commit <sha>` / `--range A..B` / `--patch FILE` / `--pr N`). Never take a
   diff blindly: it flags check-logic edits (**R1**), matchers that match nothing
@@ -40,11 +45,10 @@ Based on `main` commit `13d95a7` (the owner's 2026-09-29 direct upload — tree 
   still live: G10 never matched this audit's own header shape), prose counts
   that disagree with a measurement taken now (**R3**), lost executable bits
   (**R4**), and lists the docs the change obliges you to update (**R5**).
-- **S29 completed U-94/P2-18:** the seeded 64-case engine-oracle suite is at
+- **U-94/P2-18's seeded engine oracle** is at
   `working_code/gifscythe/scripts/oracle_fuzz.mjs`; its checked-in evidence is
   `working_code/gifscythe/tests/oracle_fuzz_matrix.json`. `--quick` (24 cases)
-  is in pre-push; `--full` (64) is verify_audit W7 + Linux CI. See the S29 log
-  entry for the exact assertions and measurements.
+  is in pre-push; `--full` (64) is verify_audit W7 + Linux CI.
 - **Copy-paste prompt:** `docs/planning/PLANNING.md` §5 — recovery steps, the
   SkillOpt ask, the decision backlog and the standing constraints in one block.
 - **Owner decisions:** `docs/planning/OWNER_DECISIONS.md` — answered so far:
@@ -57,7 +61,7 @@ Based on `main` commit `13d95a7` (the owner's 2026-09-29 direct upload — tree 
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 146 DONE · 9 PARTIAL · 31 OPEN · 0 UNTRIAGED · 186 total
+- **Register:** 149 DONE · 9 PARTIAL · 30 OPEN · 0 UNTRIAGED · 188 total
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -668,27 +672,25 @@ only stick if they are in files a new session reads, not in a conversation.
   per-session copies of audit/legal/ci/planning docs; extend the merged file
   (`docs/archive/AUDIT_HISTORY.md` indexes what was folded where).
 
-## Verification status this session (S28)
+## Verification status this session (S32)
 
-Everything marked ✅ was **run in this sandbox**; ⏳ could not be. The S27 table
-this replaces lives in `IMPROVEMENT_LOG.md`'s S27 entry. Quote the **runtime**
-counter for test counts, never the `CHECK(` source site count (**G9** compares
-like with like).
+Everything marked ✅ was **run in this sandbox**; ⏳ could not be. The S28-era
+table this replaces lives in the PR ledger rows below / `IMPROVEMENT_LOG.md`.
+Quote the **runtime** counter for test counts, never the `CHECK(` source site
+count (**G9** compares like with like).
 
 | Check | Result |
 |---|---|
-| `./build.sh` | ✅ engine `LCDF Gifsicle 1.96` + CLI + **372 checks, 0 failures** |
-| `scripts/smoke_cli.sh` | ✅ **61 passed, 0 failed** (was 54: +4 U-59, all RED before that fix, +2 U-81, +1 U-83) |
-| `scripts/test_output_verify.sh` | ✅ **25 assertions, 0 failures** (was 12; the U-59 helper pins) |
+| `./build.sh` | ✅ engine `LCDF Gifsicle 1.96` + CLI + **384 checks, 0 failures** (372 before the N-27/N-29 cases) |
+| `scripts/smoke_cli.sh` | ✅ **63 passed, 0 failed** |
+| `scripts/test_output_verify.sh` | ✅ **25 assertions, 0 failures** |
 | `scripts/test_engine.sh` · `scripts/test_package.sh` | ✅ 5/5 · **36/36** |
-| All nine `web/test/*.test.mjs` | ✅ green — transport 79 → **86 cases**, body-limit 8 → **13**, server-bounds 5 → **10 groups**, command/validate parity against the real CLI unchanged, static-hygiene green after the favicon route |
-| `scripts/verify_audit.sh` | ✅ **30 PASS / 1 FAIL / 5 SKIP** — the 1 FAIL is F1, its own re-report of the doc gate row below |
-| `scripts/check_docs.sh` | ✅ 23 / 1 / 1 before the doc edits (the 1 = **G11**, the red main, reproduced exactly); G15 was the second failure until `build.sh` bootstrapped the hooks (the known fresh-clone R-04 state) |
-| `gh run view 35904935321` (main at `e06b5db`) | ✅ linux `failure` at **Documentation status gate**; **windows all 11 steps green** (Package portable + manifest assert + upload); csharp-spike green. Artifact `gifscythe-windows` 52,955,462 B, expires 2026-10-07 |
-| Release/tag state of the new remote | ✅ `gh release list` and `git ls-remote --tags origin` both EMPTY — zero releases, zero tags (recorded for U-09/U-95; no register change) |
-| Qt/GUI harness (`test_gui_offscreen`) | ⏳ no cmake, no Qt6 here — **U-59's GUI half is therefore untouched and unproven either way** |
-| Windows-only rows, wasm rows | ⏳ no mingw-w64, no wine, no emcc |
-| CI log TEXT for the red step | ⏳ `gh run view --log-failed` dies at `results-receiver.actions.githubusercontent.com` (EOF), as in S26/S27 — "the red step is G11" is an exact local reproduction of that step's own command, not a log read |
+| All nine `web/test/*.test.mjs` | ✅ green — server-bounds 10 → **12 groups** (+2 N-25, mutation-tested both directions), command parity 25 fixtures against the rebuilt CLI, numeric-honesty/validate/transport/body-limit/static-hygiene/device-names/request-guard unchanged-green |
+| `scripts/oracle_fuzz.mjs --quick` | ✅ **24/24** deterministic cases |
+| `scripts/verify_audit.sh` | ✅ **31 PASS / 1 FAIL / 5 SKIP** — the 1 FAIL is F1 re-reporting the two expected mid-session stalenesses (the 372→384 quote, G11), both cleared by the S32 docs |
+| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **149/9/30/0 = 188**); G18 kept true by the commit-as-you-go rule |
+| Qt/GUI harness (`test_gui_offscreen`) | ⏳ no cmake, no Qt6 here — the SettingsPanel.cpp review is source-read only |
+| Windows-only rows, wasm rows, CI log blobs | ⏳ no mingw-w64, no wine, no emcc; Actions logs unreachable (N-26 stays undiagnosed) |
 
 ## Network/toolchain reality of this sandbox (re-check every session)
 
@@ -702,10 +704,11 @@ like with like).
   At every token hand-off: verify the token owner with `GET /user` before the
   first push; keep this clone's `user.name`/`user.email` set to the owner.
 
-* **S28 sandbox (current):** node v22.22.3, **g++ 12.2 + make**,
-  python3 3.11, git, **gh 2.23 authenticated**, curl, mawk (no gawk). **No cmake,
-  no Qt6, no mingw-w64, no wine, no emcc, no dotnet** — the S26 shape. Network:
-  github.com + api.github.com reachable through gh; Actions **log blobs are
+* **S32 sandbox (current):** node v22.22.3, **g++ 12.2 + make**,
+  python3 3.11, git 2.39, **gh 2.23 authenticated**, curl, mawk (no gawk).
+  **No cmake, no Qt6, no mingw-w64, no wine, no emcc, no dotnet** — the
+  S26/S28 shape, re-measured S32. Network: github.com + api.github.com
+  reachable through gh; Actions **log blobs are
   not** (EOF at `results-receiver`), so a red run can be *identified* but not
   *read*. Clone is SHALLOW (`depth 1`, risk **R-02**). Consequence: the whole
   engine/CLI/core lane and every web suite are fully provable here — which is
@@ -778,8 +781,8 @@ like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 146 DONE · 9 PARTIAL · 31 OPEN · 0
-   UNTRIAGED · 186 total — but `STATUS.md` itself always wins; sweep rule S2
+   its generated counts line (currently: 149 DONE · 9 PARTIAL · 30 OPEN · 0
+   UNTRIAGED · 188 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the
