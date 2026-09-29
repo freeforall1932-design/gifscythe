@@ -80,8 +80,8 @@ were risk-scanned, not read line by line.
 
 **Left:** *(tail corrected S32, 2026-09-29 — the draft tail of this entry
 predated the session's own closures and contradicted the Changed list above;
-that contradiction is what `GIFSCYTHE_PLANNING_REPORT.md`'s item 1 was written
-against.)* The live remainder at S31 close is **N-18** PARTIAL (resume line by
+that contradiction is what the owner's planning report item 1 — folded and
+corrected at `docs/planning/PLANNING.md` §6 in S32 — was written against.)* The live remainder at S31 close is **N-18** PARTIAL (resume line by
 line on `src/core/SettingsIO.h`, `src/qtui/SettingsPanel.cpp`,
 `tests/test_gifsicle_command.cpp`), **N-25** (registered, OPEN) and the as-yet
 unregistered CI linux flake (became **N-26**). N-10..N-17 were closed **in**

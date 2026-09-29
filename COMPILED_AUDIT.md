@@ -53,7 +53,8 @@
 
 **Compiled:** 2026-09-10 · **Verification sessions:** S4 (2026-09-07), S7…S17 (2026-09-13), S18–S20 (2026-09-14), S21 (2026-09-15 — v3 consolidation + U-68 413), S22 (2026-09-16 — U-67 + web gates + U-53/U-60/U-61/U-62/U-64/DS-09), S23 (2026-09-16 — Tier-1 batch, PR #29), PR #30 (2026-09-16 — U-77/U-79/U-80), **S24 (2026-09-17 — v4: external-review intake §20, doc consolidation, U-82 fix, stale-row closures W-30/R-03/GS-208)**, S25 (2026-09-17 — P1-44 implementation, PR #32), **S26 (2026-09-17 — P1-44 proof + closeout U-78/U-87, DS-09 register sync, G10 base-line repair)**, **S27 (2026-09-23 — repair of the 2026-09-22 zip re-creation: root license set restored (U-97), base lines + register re-synced (G10/G11))**, **S29 (2026-09-26 — U-94/P2-18 seeded real-engine oracle gate + PR #4 post-merge sync)**
 **Base:** `main` at `13d95a7` (the owner's 2026-09-29 direct upload — tree =
-the PR #6 merge plus `GIFSCYTHE_PLANNING_REPORT.md` only; PR #6 is the S31
+the PR #6 merge plus `GIFSCYTHE_PLANNING_REPORT.md` only — that report was
+folded into `docs/planning/PLANNING.md` §6 by S32; PR #6 is the S31
 session's finding closures, merged 2026-09-28). It stays legal across the
 next merge because the gate accepts the main tip or its first parent, the
 S26 mechanic. The repo was
@@ -2917,4 +2918,66 @@ which is recorded as the governing decision.
 
 ---
 
-*End of compiled audit v4 — 96 findings, 10 reviews merged. v4 (2026-09-17, S24) incorporated the four 2026-09-16 external review uploads (§20: 20 new rows U-77..U-96 — 4 already fixed, 16 OPEN and scoped; every other external item dispositioned as already-tracked, already-fixed or refuted, with evidence), fixed the stale header base line (U-82) into the G10-enforced shape, added the U-22↔U-62 pairing to §19.3, and recorded the dated-snapshot consolidation into `docs/archive/AUDIT_HISTORY.md`. v3 (2026-09-15) recovered the dropped non-finding sections (§16), the VP / false-positive guardrails (§15), the intake E/F reviewer prose (§17), and added §18/§19.*
+## 21. External review intake — 2026-09-27 (the "space bunny" audit) — verified S31, incorporated S32
+
+**What arrived.** Two root uploads at `8d30614` (2026-09-27): `space bunny review 2026-09-27.md`
+(1,052 lines — the audit) and `incomplete space bunny review.txt` (260 lines — the earlier
+truncated attempt). The audit ran **without a checkout** (every file read through the GitHub raw
+endpoint against `main` at `957c143`) and said so; its coverage ledger was honest — 22 of 62
+in-scope files DEEP, 39 PENDING.
+
+**How it was verified.** S31 fetched the audit's stated target tree, diffed it against the working
+tree (identical except the two review files themselves), and executed every checkable claim —
+Node, bash, gcc and g++ evidence, plus CI-compiled proof for the Qt-side assertions. Full
+write-up: `docs/archive/AUDIT_VERIFICATION_2026-09-27.md`. Result: **20 of 22 checkable claims
+confirmed** (several verbatim to the line), **one mechanism wrong** (the gamma case — reality was
+worse: an empty gamma throws `TypeError` in the request path, it does not emit `--gamma=0`), and
+**one supporting claim refuted** (the register does NOT cite the B1-B15 gate as proof for
+U-34/U-47/U-16/U-01/U-45 — those rows cite per-test ids; the gate fix stayed right anyway).
+
+**Disposition — every finding maps to a register row (live state in `STATUS.md`):**
+
+| Audit claim (its own numbering) | Register row | State |
+|---|---|---|
+| N-01 Explode exempt from the partial guard (HIGH, data loss) | **N-10** | DONE S31 (CLI two-phase frame write + mutation-tested smoke; GUI cancel honesty + T21) |
+| — verified partial destroyed on promote failure / late cancel | **N-11** | DONE S31 (partial KEPT, path named / "Run had already finished") |
+| N-02 B1-B15 gate collapses the harness to one banner (HIGH, gate integrity) | **N-12** | DONE S31 (B1-B20 parses block lines + check floors) |
+| N-04 E7 checks a Markdown literal | **N-13** | DONE S31 (E7-doc + names T11) |
+| N-05 DOC_GATE_CHECKS hand-maintained | **N-14** | DONE S31 (derived, `GATE_TOTALS`) |
+| CLI snapshot asymmetry (target vs partial) | **N-15** | DONE S31 |
+| T4 threshold tighter than the code's budget | **N-16** | DONE S31 (5000 ms, right function named) |
+| parity suite has no `info` fixture | **N-17** | DONE S31 |
+| 39 PENDING files never opened | **N-18** | PARTIAL (server.mjs DEEP → produced N-24; rest risk-scanned; resume on SettingsIO.h / SettingsPanel.cpp / test_gifsicle_command.cpp) |
+| N-07 validator coerces, builder drops (MEDIUM) + gamma TypeError | **N-19** | DONE S31 (`numArg` seam, mutation-tested; `server.mjs` does not normalise — MEDIUM stands) |
+| N-03 gate E3 "never" keyword hatch | **N-20** | DONE S31 (`strip_c_comments`) |
+| N-06 duplicate gate id A1 (A5 missed by the audit) | **N-21** | DONE S31 |
+| OutputPlan.h + MainWindow.h comments contradict the code | **N-22** | DONE S31 |
+| handoff sends U-59 to the wrong PR | **N-23** | DONE S31 |
+| `GS_ENGINE_TIMEOUT_MS=0` SIGKILLs every run (found by the N-18 sweep of server.mjs) | **N-24** | DONE S31 |
+| rate-limit map unbounded growth (found by the same sweep) | **N-25** | OPEN |
+| — (CI linux flake noticed while proving the above; investigated on PR #7) | **N-26** | OPEN |
+| U-71 / U-70 / U-72 / U-55 / U-12 re-derived from source | (tracked rows) | CONFIRMED, no state change |
+| suspicion that test deps were missing from CMakeLists | — | REFUTED by the code (`add_dependencies` line) |
+| "STATUS cites B1-B15 as proof for five DONE rows" | — | REFUTED (rows cite T18/T19/T20; the gate fix stands on its own) |
+
+- [x] **Originals deleted after incorporation** (this commit): full text in git history at
+      `8d30614` (the commit that added them). The verification record is KEPT, moved under
+      `docs/archive/` — it is this repo's own executed evidence, not an external snapshot.
+- [x] **The report-and-reality drift this intake exposed is fixed the same session:** the
+      WORKLIST/IMPROVEMENT_LOG tails that still called N-10 ship-blocking open are corrected,
+      and the owner's `GIFSCYTHE_PLANNING_REPORT.md` (item 1 written against that stale text)
+      is folded into `docs/planning/PLANNING.md` §6 with the correction inline.
+
+---
+
+*End of compiled audit v4 — 96 findings, 10 reviews merged. v5 (2026-09-29, S32) incorporated the
+2026-09-27 "space bunny" external audit (§21: verified S31 claim-by-claim, 15 new N-rows
+N-10..N-26 registered across S31/S32, originals deleted S32), and folded the owner's S31
+planning report into `docs/planning/PLANNING.md` §6. v4 (2026-09-17, S24) incorporated the four
+2026-09-16 external review uploads (§20: 20 new rows U-77..U-96 — 4 already fixed, 16 OPEN and
+scoped; every other external item dispositioned as already-tracked, already-fixed or refuted,
+with evidence), fixed the stale header base line (U-82) into the G10-enforced shape, added the
+U-22↔U-62 pairing to §19.3, and recorded the dated-snapshot consolidation into
+`docs/archive/AUDIT_HISTORY.md`. v3 (2026-09-15) recovered the dropped non-finding sections
+(§16), the VP / false-positive guardrails (§15), the intake E/F reviewer prose (§17), and added
+§18/§19.*

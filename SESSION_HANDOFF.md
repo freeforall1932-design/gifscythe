@@ -786,7 +786,8 @@ like with like).
    exact tagged SHA*). **U-59/P0-7 is DONE end to end** (CLI/core S28, GUI S30,
    and the N-10 Explode hole closed S31 — the "Qt half still writes onto the
    target / next is P2-19/U-92" wording that lived here was two sessions stale
-   and is exactly what misled `GIFSCYTHE_PLANNING_REPORT.md`'s item 1). Real
+   and is exactly what misled the planning report's item 1 — now folded and
+   corrected at `docs/planning/PLANNING.md` §6). Real
    remaining set, in order: release re-cut **U-09/P0-4** + the **U-95**
    release-notes edit (owner action first) → **W-18** clean-Windows smoke
    (needs a green CI run — see **N-26**, the linux flake — then real hardware)

@@ -66,7 +66,7 @@ The external audit was re-checked line by line against a real checkout. Its
 target tree and this HEAD differ only by the two review files, so every claim
 was checkable; **20 of 22 checkable claims held**, one mechanism was wrong (and
 worse than reported), and one supporting claim was refuted. Full write-up:
-`AUDIT_VERIFICATION_2026-09-27.md`.
+`docs/archive/AUDIT_VERIFICATION_2026-09-27.md` (moved from the root S32).
 
 **Fixed this session (DONE rows, each with a mutation-tested proof):**
 
@@ -86,7 +86,7 @@ worse than reported), and one supporting claim was refuted. Full write-up:
 excluded from this session because no fix here could carry executed proof")
 was a *pre-fix draft* that S31 never updated after PR #6 closed those rows —
 and the engine was buildable after all. That stale list is what
-`GIFSCYTHE_PLANNING_REPORT.md`'s item 1 was written against. Live state is
+`docs/planning/PLANNING.md` §6.1's original item 1 was written against. Live state is
 `STATUS.md`; the closures, with proof, ticked here to match:
 
 - [x] **N-10 (HIGH, data loss)** — DONE: CLI two-phase frame write, promote
