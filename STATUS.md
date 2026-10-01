@@ -29,8 +29,8 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 150 DONE · 10 PARTIAL · 29 OPEN · 0 UNTRIAGED · 189 total
-**Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 11 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
+**Counts (generated - do not edit by hand):** 151 DONE · 10 PARTIAL · 28 OPEN · 0 UNTRIAGED · 189 total
+**Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 10 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
 **Last regenerated:** S33 · 2026-10-01 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
@@ -132,7 +132,7 @@ hand-fudged roll-up fails the gate.
 | U-92 | Both web endpoints accept arbitrary bytes: no GIF-magic admission on uploads and forgiving base64 — /run checks only a... | DONE | S28 | admission on BOTH endpoints, before engine discovery, slot and temp tree: `isStrictBase64()` (shape + canonical round trip, because... | - |
 | U-93 | Web transport shape is unbounded: stderr capture has no cap and is echoed in 422 bodies, /run inlines every output as base64 in... | DONE | S28 | three bounds. (1) Engine stderr capture is capped (`GS_MAX_STDERR`, default 16 KiB) and the cap is DISCLOSED: a truncated message ends with `[stderr... | - |
 | U-94 | No suite sweeps the settings space against the real engine: hand-written mirrors prove agreement, not correctness — U-62, U-63... | DONE | S29 | `scripts/oracle_fuzz.mjs` runs a seeded, offline 64-case matrix (24-case `--quick` prefix): JS argv vs real C++ CLI parity, validator/strict-CLI... | - |
-| U-95 | The only published Release predates the Ms-PL relicence — snapshot-2026-09-07 was built from GPLv3-era first-party code and its... | OPEN | S24 | not started; scoped as P1-45 in COMPILED_AUDIT.md §6 | P1-45: Published-release legality — S24 intake (G:GN-15). |
+| U-95 | The only published Release predates the Ms-PL relicence — snapshot-2026-09-07 was built from GPLv3-era first-party code and its... | DONE | S24 | MOOT BY VERIFICATION: the same GitHub releases API check that confirmed the defect (S24) now returns 0 releases and 0 tags on the live repo (created... | - |
 | U-96 | stemOf is hand-duplicated (app.js + server.mjs) and its dotfile/extensionless boundary is unpinned against Qt completeBaseName... | OPEN | S24 | not started; scoped as P3-18 in COMPILED_AUDIT.md §6 | P3-18: stemOf edge-name parity — S24 intake (G:GN-18). |
 | U-97 | The 2026-09-22 zip re-creation of the GitHub repo lost the root license set, so both packagers fail closed on every platform —... | DONE | S27 | canonical texts restored (GNU GPLv3 35147 B + standalone LGPLv3 7639 B via the gcc mirror, Ms-PL 2663 B via SPDX, COPYING.gifsicle byte-copied from... | - |
 <!-- END GENERATED -->
@@ -315,7 +315,7 @@ finished?"* without hand-reading (U-88 / P2-21).
 | P1-42 | U-70,U-72 | OPEN | 2 member(s); OPEN: U-70,U-72 | close the OPEN member(s): U-70,U-72 |
 | P1-43 | U-73,U-74,U-76 | PARTIAL | 3 member(s); PARTIAL: U-76 | close the PARTIAL member(s): U-76 |
 | P1-44 | U-78,U-87 | DONE | 2 member(s) - all DONE | - |
-| P1-45 | U-95 | OPEN | 1 member(s); OPEN: U-95 | close the OPEN member(s): U-95 |
+| P1-45 | U-95 | DONE | 1 member(s) - all DONE | - |
 | P1-46 | U-81 | DONE | 1 member(s) - all DONE | - |
 | P2-1 | U-14,U-38 | PARTIAL | 2 member(s); PARTIAL: U-14 | close the PARTIAL member(s): U-14 |
 | P2-2 | U-15 | DONE | 1 member(s) - all DONE | - |

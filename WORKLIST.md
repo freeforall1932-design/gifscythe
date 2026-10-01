@@ -214,9 +214,14 @@ Still open from the audit intake (state lives in `STATUS.md`):
             is the conf parser's `not an integer` + `--strict` rc=3), explicit
             zero pinned as parity, empty-vs-zero pinned over HTTP (transport
             72 → 79 cases).
-      - [ ] **U-95** → **P1-45** — the published Release predates the Ms-PL
+      - [x] **U-95** → **P1-45** — the published Release predates the Ms-PL
             relicence: owner release-notes edit (mark superseded/pre-release,
             never delete), then the P0-4 re-cut + tag-triggered asset gate.
+            **DONE (S33)** — moot by verification: the same releases API check
+            that confirmed the defect (S24) now returns 0 releases on the live
+            repo (created 2026-09-22; the re-creation dropped the old
+            snapshot with it) — nothing to mark. The re-cut + deferred
+            tag-triggered asset gate are recorded on P0-4.
       - [x] **U-81** → **P1-46** — explode frame verification ignores the
             stream-output/--info exemptions the ordinary verifier documents;
             `output = -` explode downgrades an honest run to rc=1.

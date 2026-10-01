@@ -236,12 +236,16 @@ fix_order_members() {
         c = $i; gsub(/[* \t]/, "", c)
         if (c ~ /^[A-Za-z]+-[0-9]+(,[A-Za-z]+-[0-9]+)*$/) { closes_idx = i; break }
       }
-      if (!closes_idx) next
+      if (!closes_idx) { print aid "\tUNPARSEABLE"; next }
       n = split($closes_idx, ids, /[^0-9A-Za-z-]+/)
       out = ""
       for (i = 1; i <= n; i++)
         if (ids[i] ~ /^[A-Za-z]+-[0-9]+$/) out = out (out == "" ? "" : ",") ids[i]
-      if (out != "") print aid "\t" out
+      # Fail loud, never silently drop: a P-id whose Closes cell parses to
+      # nothing must still appear in the derived block (S33: a wrong-cell edit
+      # once made P0-4 vanish from the whole P-block with no trace).
+      if (out == "") out = "UNPARSEABLE"
+      print aid "\t" out
     }
   '
 }
@@ -388,6 +392,13 @@ emit_p_rows() {
         split(line, p, "\t"); pid = p[1]; nm = p[2]
         ns = split(nm, m, /,/)
         derived = "DONE"; miss = ""; openm = ""; partm = ""
+        if (nm == "UNPARSEABLE") {
+          derived = "PARTIAL"
+          how = "§6 Closes cell did not parse to member ids - fix the §6 row"
+          nxt = "repair the §6 row, then re-run check_docs.sh --emit"
+          printf "| %s | %s | %s | %s | %s |\n", pid, "(unparsed)", derived, esc(how), esc(nxt)
+          continue
+        }
         for (i = 1; i <= ns; i++) {
           id = m[i]
           if (!(id in state)) { derived = "PARTIAL"; miss = miss (miss == "" ? "" : ",") id; continue }

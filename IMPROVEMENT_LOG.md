@@ -40,6 +40,16 @@ Chronological log of decisions and changes. **Newest at the top.**
   **150 DONE · 10 PARTIAL · 29 OPEN · 0 UNTRIAGED · 189 total** (U-88 DONE,
   U-89 PARTIAL, +N-30 registered below). Derived bar at emit time: 11 open P0/P1 ids · 13
   offscreen-only rows.
+- **U-95 / P1-45 ✅ DONE — moot by verification (plan item #3 executed).** The
+  same GitHub releases API check that confirmed the defect (S24: the only
+  published Release predates the Ms-PL relicence) now returns **0 releases, 0
+  tags** on the live repo (created 2026-09-22 — the re-creation dropped the
+  old `snapshot-2026-09-07` with it), so the owner release-notes edit has no
+  target left and nothing is published that could misrepresent the licence.
+  The evidence half + the tag-triggered asset-manifest gate P1-45 deferred "at
+  the next cut" are both recorded on P0-4's action so neither is lost (with
+  the U-89 freeze tension named: a NEW gate while the bar > 0 needs a decision
+  at the cut).
 - **Found and registered this session (rule 2 / G12): N-30** — Windows CI's
   MinGW "Build CLI + unit tests" step fails while linux passes (three
   consecutive runs: `36629967875` @ `a2d002f`, `36885986466` @ `42ba939`,

@@ -20,7 +20,7 @@ Based on `main` commit `13d95a7` (the owner's 2026-09-29 direct upload — tree 
   offscreen-only via `; harness:`/`; desktop:` markers), and
   `verify_audit.sh --json` publishes the gate ledger + sha256 digest. All
   derivation was mutation-tested (M1/M2/M3 in the S33 log entry). Register
-  **150 DONE · 10 PARTIAL · 29 OPEN · 0 UNTRIAGED** (was 149/9/30; +N-30 registered S33).
+  **151 DONE · 10 PARTIAL · 28 OPEN · 0 UNTRIAGED** (was 149/9/30; +N-30 registered S33).
   **Lane close-out:** `GifsicleCommand.h` (the named remaining core file)
   read line by line — clean; U-96/U-91 non-Qt halves assessed with exact
   remainders in their §5 rows (Qt-probe-blocked / dotnet-blocked — do NOT
@@ -82,7 +82,7 @@ Based on `main` commit `13d95a7` (the owner's 2026-09-29 direct upload — tree 
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 150 DONE · 10 PARTIAL · 29 OPEN · 0 UNTRIAGED · 189 total (at S32: 149/9/30/0 — historical)
+- **Register:** 151 DONE · 10 PARTIAL · 28 OPEN · 0 UNTRIAGED · 189 total (at S32: 149/9/30/0 — historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -166,7 +166,7 @@ this ledger exists to make obvious.
 | #5 | S29/S30 | `arena/01a0dc78-gifscythe` | `957c143` | Opened 2026-09-26. U-94/P2-18: seeded offline 64-case engine-oracle harness (`--quick` 24-case prefix), committed matrix, verify_audit W7, Linux CI full run, and pre-push quick run. S30 adds U-59/P0-7 GUI partial-output guard plus offscreen success/failure/cancel preservation cases and a fake partial-writing failure engine. Qt-enabled run **36227237540** passed linux/windows/csharp-spike, including both GUI offscreen suites; run 36226011075 was the previous green baseline. Not merged; no merge without owner approval. |
 | #6 | S31 | `arena/01a0e3f4-gifscythe` | `2ade969` | Opened 2026-09-27. S31: the executable half of the external-audit close-out — **N-10** (Explode no longer truncates the previous frame set: CLI two-phase frame write + mutation-tested smoke case; GUI cancel honesty asserted by harness T21), **N-12** (B1-B20 parses the harness's block lines and floors instead of the banner), **N-13, N-14, N-15, N-16, N-17**, plus the **N-18** sweep (`web/server.mjs` DEEP → **N-24** fixed, **N-25** registered) and the N-19 coercion-seam/gamma work. Merged 2026-09-27 as `2ade969`. *(Row added late by S32 — the create-time append was missed; recorded now so the numbering has no gap.)* |
 | #7 | S31 | `arena/01a0e3f4-gifscythe` | **open** | Opened 2026-09-28. The post-merge doc sync for #6 (base re-anchor + counts) + **N-26** registered: CI's linux job is flaky (5 of the last 7 main runs failed linux while windows passed; the same tree passed linux on PR run 36354221846, so the merge did not cause it). Still **open** — merging takes the owner's explicit yes. Its base-line naming and duplicated N-26 row need the mechanical re-sync if #8 merges first. *(Row added late by S32.)* |
-| #8 | S32 | `arena/01a0eebe-gifscythe` | **open** | Opened 2026-09-29. S32: the audit/review close-out lane — **N-25** closed (the rate-limit map is bounded by live traffic: `web/rate_limit.mjs`, whole-map prune, server-bounds 10 → 12 groups, both mutations caught by their own group), **N-27 + N-29** closed (SettingsIO.h: the half-live `-p` pair probe narrow-cast long→unsigned; a disabled dither resurrected itself on reload — 5 assertions RED → green), **N-28** refuted by execution; the review-of-problem documents folded per the S24 §20 pattern (`COMPILED_AUDIT` §21, `docs/planning/PLANNING.md` §6, `docs/archive/` rows 8–9, root review files deleted after incorporation); and the S31 doc drift that misled the owner's planning report repaired. Register **149/9/30/0 = 188**. **S33 pushed to the same PR (`42ba939`)**: U-88/P2-21 ✅ DONE (derived part-3 P-id block + release-bar line + `harness:`/`desktop:` markers + M1/M2/M3 mutation proofs), U-89/P2-22 ◐ PARTIAL (`verify_audit.sh --json` + digest; freeze rule landed; remainder = CI-artifact + register-quoted digest vs U-14's design), §21 disposition drift fixed (N-25 → DONE S32, N-27/N-29 rows added). Register **150/10/29/0 = 189**. Title updated to cover S32+S33. |
+| #8 | S32 | `arena/01a0eebe-gifscythe` | **open** | Opened 2026-09-29. S32: the audit/review close-out lane — **N-25** closed (the rate-limit map is bounded by live traffic: `web/rate_limit.mjs`, whole-map prune, server-bounds 10 → 12 groups, both mutations caught by their own group), **N-27 + N-29** closed (SettingsIO.h: the half-live `-p` pair probe narrow-cast long→unsigned; a disabled dither resurrected itself on reload — 5 assertions RED → green), **N-28** refuted by execution; the review-of-problem documents folded per the S24 §20 pattern (`COMPILED_AUDIT` §21, `docs/planning/PLANNING.md` §6, `docs/archive/` rows 8–9, root review files deleted after incorporation); and the S31 doc drift that misled the owner's planning report repaired. Register **149/9/30/0 = 188**. **S33 pushed to the same PR (`42ba939`)**: U-88/P2-21 ✅ DONE (derived part-3 P-id block + release-bar line + `harness:`/`desktop:` markers + M1/M2/M3 mutation proofs), U-89/P2-22 ◐ PARTIAL (`verify_audit.sh --json` + digest; freeze rule landed; remainder = CI-artifact + register-quoted digest vs U-14's design), §21 disposition drift fixed (N-25 → DONE S32, N-27/N-29 rows added). Register **151/10/28/0 = 189**. Title updated to cover S32+S33. |
 
 **Maintenance rule (one row per PR, three touches):**
 1. At `gh pr create`, append this session's row with the number GitHub returned
@@ -713,7 +713,7 @@ count (**G9** compares like with like).
 | All nine `web/test/*.test.mjs` | ✅ green — server-bounds 10 → **12 groups** (+2 N-25, mutation-tested both directions), command parity 25 fixtures against the rebuilt CLI, numeric-honesty/validate/transport/body-limit/static-hygiene/device-names/request-guard unchanged-green |
 | `scripts/oracle_fuzz.mjs --quick` | ✅ **24/24** deterministic cases |
 | `scripts/verify_audit.sh` | ✅ **31 PASS / 1 FAIL / 5 SKIP** — the 1 FAIL is F1 re-reporting the two expected mid-session stalenesses (the 372→384 quote, G11), both cleared by the S32 docs |
-| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **150/10/29/0 = 189** at S33; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
+| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **151/10/28/0 = 189** at S33; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
 | Qt/GUI harness (`test_gui_offscreen`) | ⏳ no cmake, no Qt6 here — the SettingsPanel.cpp review is source-read only |
 | Windows-only rows, wasm rows, CI log blobs | ⏳ no mingw-w64, no wine, no emcc; Actions logs unreachable (N-26 stays undiagnosed) |
 
@@ -806,7 +806,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 150 DONE · 10 PARTIAL · 29 OPEN · 0
+   its generated counts line (currently: 151 DONE · 10 PARTIAL · 28 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
