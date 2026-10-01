@@ -57,10 +57,14 @@ reads them in a file, not in a conversation.
 
 ## Found this session — pending lines (rule 2)
 
-- **N-30** (S33): Windows CI's MinGW "Build CLI + unit tests" step fails while
-  linux passes (runs 36629967875 / 36885986466 / 36886469319); exact CI flags
-  pass locally 384/0 under g++ 12 — MinGW-specific or aqt toolchain drift;
-  read the job log in the Actions UI (blob wall here) and fix accordingly.
+- **N-30** (S33): Windows CI red while linux passes — **code refuted as the
+  cause** (main `13d95a7` is code-identical to the last green windows tree
+  `2ade969` yet red, dying at the aqt/MinGW install step itself, exit 254;
+  PR runs fail later at the build step after the fallback chain provisions a
+  toolchain — consistent with tools_mingw90 = gcc 8 needing `-lstdc++fs`).
+  Exact CI flags pass locally 384/0. Read the provisioner error in the
+  Actions UI (blob wall here), then fix the workflow provision step in both
+  byte-identical copies together (E9/G7/S1).
 
 **Gate/register freeze (U-89 / P2-22, effective S33).** While the derived
 release bar in `STATUS.md` (open P0/P1 fix-order ids) is above zero: add **no

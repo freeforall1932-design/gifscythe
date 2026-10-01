@@ -43,15 +43,22 @@ Chronological log of decisions and changes. **Newest at the top.**
 - **Found and registered this session (rule 2 / G12): N-30** — Windows CI's
   MinGW "Build CLI + unit tests" step fails while linux passes (three
   consecutive runs: `36629967875` @ `a2d002f`, `36885986466` @ `42ba939`,
-  `36886469319` @ `903d1c6`). The identical command compiles and passes
-  **384/0** here under g++ 12 `-std=c++17 -O2 -static`, so the failure is
-  MinGW-specific or aqt-toolchain drift (the install step falls back
-  tools_mingw1310 → 1120 → 90 → choco — which compiler a run gets can vary);
-  the job log blob is unreachable from this sandbox (the N-26 wall), so the
-  error text must be read in the Actions UI. The only C++ delta since the
-  last green windows build is `3a4f600` (SettingsIO.h from_chars probe + 63
-  test lines). Registered as N-30 (STATUS hand block + §21); it shares N-26's
-  "CI is our only Windows proof" consequence.
+  `36886469319` @ `903d1c6`). **Hypothesis resolved same session:** the code
+  is refuted as the cause — main (`13d95a7`) is code-identical to the last
+  green windows tree (`2ade969`) yet windows-red too, and it dies EARLIER, at
+  the "Install Qt6 (aqt) + MinGW toolchain" step itself (exit 254, job
+  `109583917611`), while the PR runs survive install via the aqt fallback
+  chain (tools_mingw1310 → 1120 → 90 → choco) and then fail the build step —
+  consistent with the fallback landing on gcc 8 (tools_mingw90), where
+  `std::filesystem` needs `-lstdc++fs` that the frozen build line does not
+  pass. The identical build command compiles and passes **384/0** here under
+  g++ 12 `-std=c++17 -O2 -static`. Job log blobs are unreachable from this
+  sandbox (TLS EOF to Azure blob storage — the N-26 wall, confirmed at the
+  network level), so the provisioner's exact error must be read in the
+  Actions UI. Remainder: name the error there, then fix the WORKFLOW provision
+  step (both byte-identical copies in one commit — E9/G7/S1) to pin a modern
+  MinGW deterministically instead of the drifting fallback chain. Shares
+  N-26's "CI is our only Windows proof" consequence.
 
 **Left / Not verifiable here:** the lane's remaining planned pieces closed out
 as follows: the N-18 tail's named remaining core file
