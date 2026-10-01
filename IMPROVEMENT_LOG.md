@@ -37,9 +37,21 @@ Chronological log of decisions and changes. **Newest at the top.**
   design" and with N-26 (flaky linux doc gate), both owner-visible rows; do
   not paper over the tension.
 - **Register:** 149 DONE · 9 PARTIAL · 30 OPEN · 0 UNTRIAGED · 188 total →
-  **150 DONE · 10 PARTIAL · 28 OPEN · 0 UNTRIAGED · 188 total** (U-88 DONE,
-  U-89 PARTIAL). Derived bar at emit time: 11 open P0/P1 ids · 13
+  **150 DONE · 10 PARTIAL · 29 OPEN · 0 UNTRIAGED · 189 total** (U-88 DONE,
+  U-89 PARTIAL, +N-30 registered below). Derived bar at emit time: 11 open P0/P1 ids · 13
   offscreen-only rows.
+- **Found and registered this session (rule 2 / G12): N-30** — Windows CI's
+  MinGW "Build CLI + unit tests" step fails while linux passes (three
+  consecutive runs: `36629967875` @ `a2d002f`, `36885986466` @ `42ba939`,
+  `36886469319` @ `903d1c6`). The identical command compiles and passes
+  **384/0** here under g++ 12 `-std=c++17 -O2 -static`, so the failure is
+  MinGW-specific or aqt-toolchain drift (the install step falls back
+  tools_mingw1310 → 1120 → 90 → choco — which compiler a run gets can vary);
+  the job log blob is unreachable from this sandbox (the N-26 wall), so the
+  error text must be read in the Actions UI. The only C++ delta since the
+  last green windows build is `3a4f600` (SettingsIO.h from_chars probe + 63
+  test lines). Registered as N-30 (STATUS hand block + §21); it shares N-26's
+  "CI is our only Windows proof" consequence.
 
 **Left / Not verifiable here:** the lane's remaining planned pieces closed out
 as follows: the N-18 tail's named remaining core file

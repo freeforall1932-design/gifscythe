@@ -2958,6 +2958,7 @@ U-34/U-47/U-16/U-01/U-45 — those rows cite per-test ids; the gate fix stayed r
 | — (CI linux flake noticed while proving the above; investigated on PR #7) | **N-26** | OPEN |
 | SettingsIO.h position-pair probe narrow-cast long→unsigned (N-18 sweep of SettingsIO.h) | **N-27** | DONE S32 (width-strict probe + decode-as-set_field; 5 assertions red→green) |
 | `save_settings` wrote dither OFF + remembered method as combined `dither = <m>` (loads as dither=TRUE) | **N-29** | DONE S32 (off + method save as the loader's two keys) |
+| Windows CI MinGW "Build CLI + unit tests" red while linux green (S33 intake: runs 36629967875/36885986466/36886469319) | **N-30** | OPEN (local 384/0 under g++ 12 with the exact CI flags; MinGW-specific or aqt toolchain drift; log blob unreachable — the N-26 wall) |
 | S32 sweep suspicion: `to_double` accepts nan/inf and gamma junk reaches the engine unchecked | **N-28** (id kept so the numbering reads continuously) | REFUTED by execution: libstdc++ `istringstream >> double` rejects both `nan` and `inf` (the "not a number" warnings fire), and `validate()` already warns `gamma=nan: must be srgb, oklab or a number` with `--strict` refusing — no code change |
 | U-71 / U-70 / U-72 / U-55 / U-12 re-derived from source | (tracked rows) | CONFIRMED, no state change |
 | suspicion that test deps were missing from CMakeLists | — | REFUTED by the code (`add_dependencies` line) |

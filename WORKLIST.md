@@ -57,6 +57,11 @@ reads them in a file, not in a conversation.
 
 ## Found this session — pending lines (rule 2)
 
+- **N-30** (S33): Windows CI's MinGW "Build CLI + unit tests" step fails while
+  linux passes (runs 36629967875 / 36885986466 / 36886469319); exact CI flags
+  pass locally 384/0 under g++ 12 — MinGW-specific or aqt toolchain drift;
+  read the job log in the Actions UI (blob wall here) and fix accordingly.
+
 **Gate/register freeze (U-89 / P2-22, effective S33).** While the derived
 release bar in `STATUS.md` (open P0/P1 fix-order ids) is above zero: add **no
 new gates and no new registers** — extend `check_docs.sh`'s existing gates and
@@ -77,7 +82,8 @@ PARTIAL / else DONE; MISSING members surfaced), the derived release-bar line
 markers that survive word-boundary truncation, `verify_audit.sh --json` +
 sha256 digest, and the gate/register freeze rule (above). Mutation-tested
 (M1 state derivation + bar move, M2 counter move, M3 hand-edit → G0 red).
-Register 149/9/30/0 → **150/10/28/0**. Detail in `IMPROVEMENT_LOG.md`'s S33
+Register 149/9/30/0 → **150/10/29/0 = 189** (+N-30, found and registered
+same session). Detail in `IMPROVEMENT_LOG.md`'s S33
 entry. **Lane close-out (same session):** `src/core/GifsicleCommand.h` (the
 named remaining core file) read line by line — **clean**; U-96/U-91 non-Qt
 halves **assessed** with exact remainders recorded in their §5 rows
