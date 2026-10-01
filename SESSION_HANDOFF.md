@@ -1,6 +1,6 @@
 # Session Handoff
 
-**Session:** S32 · **Date:** 2026-09-29
+**Session:** S33 · **Date:** 2026-10-01
 **Branch:** arena/01a0eebe-gifscythe
 **Repo re-created 2026-09-22:** the GitHub repo was rebuilt from a zip upload; the old remote's history (S1–S26, PRs #1–#33, shas like `5c93680`) does not exist in this clone — every such sha below is an old-remote record kept for the written history. The new remote: `04a1cd4` (initial) → `60d3df4` (zip upload) → `ce5fd51` (unpack to root) → PR #1 merge `824bf20`, whose tree is the S26 state minus the four root license files (loss = finding **U-97**, restored in S27 with executed proof). The ledger carries a separator: rows #1–#33 are the OLD repo's; the new repo's numbering restarts at #1. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number. This records the merged baseline, not a claim about current CI health.
 **Docs synced through:** PR #6 · branch `arena/01a0e3f4-gifscythe` · merged as `2ade969`
@@ -10,8 +10,28 @@ Based on `main` commit `13d95a7` (the owner's 2026-09-29 direct upload — tree 
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (after S32)
+## Next session — fast hand-off (after S33)
 
+- **S33 was the register-mechanics + doc-machine lane (U-88/P2-21 ✅ DONE,
+  U-89/P2-22 ◐ PARTIAL).** `STATUS.md` now has a derived part-3 block (every
+  §6 P-id with its full member list — non-U ids like GS-203 included — and a
+  derived state: any-OPEN → OPEN, else any-PARTIAL → PARTIAL, else DONE), a
+  derived **release bar** line (open P0/P1 fix-order ids + DONE rows proven
+  offscreen-only via `; harness:`/`; desktop:` markers), and
+  `verify_audit.sh --json` publishes the gate ledger + sha256 digest. All
+  derivation was mutation-tested (M1/M2/M3 in the S33 log entry). Register
+  **150 DONE · 10 PARTIAL · 28 OPEN · 0 UNTRIAGED** (was 149/9/30).
+  **Still open from that lane:** the N-18 tail (`src/core/GifsicleCommand.h`
+  line-by-line), the U-96/U-91 non-Qt halves assessment (record the exact
+  remainder — do NOT force them), and U-89's remainder (CI-artifact + register
+  quotes the digest; U-14's verify_audit-stays-out-of-CI design tension must
+  be surfaced to the owner, not papered over).
+- **Gate/register freeze (U-89 / P2-22).** While the derived release bar in
+  `STATUS.md` (open P0/P1 fix-order ids) is above zero, add **no new gates and
+  no new registers** — extend `check_docs.sh`'s existing gates and the existing
+  register blocks instead; new findings wait in `UNTRIAGED`/pending rows (rule 2)
+  and ship under **G18** discipline. The freeze lifts itself when the derived
+  bar reads 0 (`check_docs.sh --emit` owns the number; never type it).
 - **S32 was the audit/review close-out lane.** The owner's planning report
   (uploaded at `13d95a7`) ordered "finish U-59 partial-write safety + the
   Explode hole" first — **already DONE** (S28 CLI / S30 GUI / S31 N-10), and
@@ -61,7 +81,7 @@ Based on `main` commit `13d95a7` (the owner's 2026-09-29 direct upload — tree 
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 149 DONE · 9 PARTIAL · 30 OPEN · 0 UNTRIAGED · 188 total
+- **Register:** 150 DONE · 10 PARTIAL · 28 OPEN · 0 UNTRIAGED · 188 total (at S32: 149/9/30/0)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -692,7 +712,7 @@ count (**G9** compares like with like).
 | All nine `web/test/*.test.mjs` | ✅ green — server-bounds 10 → **12 groups** (+2 N-25, mutation-tested both directions), command parity 25 fixtures against the rebuilt CLI, numeric-honesty/validate/transport/body-limit/static-hygiene/device-names/request-guard unchanged-green |
 | `scripts/oracle_fuzz.mjs --quick` | ✅ **24/24** deterministic cases |
 | `scripts/verify_audit.sh` | ✅ **31 PASS / 1 FAIL / 5 SKIP** — the 1 FAIL is F1 re-reporting the two expected mid-session stalenesses (the 372→384 quote, G11), both cleared by the S32 docs |
-| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **149/9/30/0 = 188**); G18 kept true by the commit-as-you-go rule |
+| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **150/10/28/0 = 188** at S33; 149/9/30/0 at S32); G18 kept true by the commit-as-you-go rule |
 | Qt/GUI harness (`test_gui_offscreen`) | ⏳ no cmake, no Qt6 here — the SettingsPanel.cpp review is source-read only |
 | Windows-only rows, wasm rows, CI log blobs | ⏳ no mingw-w64, no wine, no emcc; Actions logs unreachable (N-26 stays undiagnosed) |
 
@@ -785,7 +805,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 149 DONE · 9 PARTIAL · 30 OPEN · 0
+   its generated counts line (currently: 150 DONE · 10 PARTIAL · 28 OPEN · 0
    UNTRIAGED · 188 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High

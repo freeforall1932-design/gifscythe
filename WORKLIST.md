@@ -57,8 +57,32 @@ reads them in a file, not in a conversation.
 
 ## Found this session — pending lines (rule 2)
 
+**Gate/register freeze (U-89 / P2-22, effective S33).** While the derived
+release bar in `STATUS.md` (open P0/P1 fix-order ids) is above zero: add **no
+new gates and no new registers** — extend `check_docs.sh`'s existing gates and
+the existing register blocks instead; anything newly discovered goes in an
+`UNTRIAGED`/pending row per rule 2 and is committed under **G18** discipline as
+usual. The freeze lifts itself when the derived bar reads 0 (no hand-editing:
+`check_docs.sh --emit` owns the number).
+
 Every new finding gets a matching line here. Nothing is `UNTRIAGED` right now:
 the S24 intake was triaged in the same session (each row carries its §6 id).
+
+### S33 (2026-10-01) — register mechanics + doc-machine cost (the provable lane)
+
+**U-88/P2-21 DONE** and **U-89/P2-22 PARTIAL** — the derived fix-order block
+(P-id members from §6 incl. non-U ids; state any-OPEN→OPEN / any-PARTIAL→
+PARTIAL / else DONE; MISSING members surfaced), the derived release-bar line
+(open P0/P1 + offscreen-only DONE rows), `; harness:`/`; desktop:` proof
+markers that survive word-boundary truncation, `verify_audit.sh --json` +
+sha256 digest, and the gate/register freeze rule (above). Mutation-tested
+(M1 state derivation + bar move, M2 counter move, M3 hand-edit → G0 red).
+Register 149/9/30/0 → **150/10/28/0**. Detail in `IMPROVEMENT_LOG.md`'s S33
+entry. **Still open from this lane's plan:** the N-18 tail
+(`src/core/GifsicleCommand.h` line-by-line), the U-96/U-91 non-Qt halves
+assessment (leave PARTIAL with the exact remainder — do NOT force), and
+U-89's recorded remainder (CI-artifact publication + register quoting the
+digest; U-14 tension to surface, not paper over).
 
 ### S32 (2026-09-29) — audit/review close-out lane
 
@@ -192,10 +216,12 @@ Still open from the audit intake (state lives in `STATUS.md`):
       - [x] **U-93** → **P2-20** — web transport bounds: capped stderr echo,
             output envelope, favicon 404.
             **DONE (S28)** — `GS_MAX_STDERR` cap with a disclosed truncation marker, `/favicon.ico` 204 + data-URI icon, `/run` output envelope documented (server-bounds 10/10).
-      - [ ] **U-88** → **P2-21** — register mechanics: derived P-id state +
+      - [x] **U-88** → **P2-21** — register mechanics: derived P-id state +
             harness:/desktop: proof markers + derived release-bar counters.
+            **DONE (S33)** — derived part-3 P-id block + release-bar line in `STATUS.md`, word-boundary truncation that keeps markers, M1/M2/M3 mutation proofs.
       - [ ] **U-89** → **P2-22** — doc-machine cost: --json/digest instead of
             hand-typed counts, truncation revisit, gate freeze until P0/P1 empty.
+            **PARTIAL (S33)** — `verify_audit.sh --json` + sha256 digest done, truncation revisited, freeze rule landed; remainder: CI-artifact + register quotes the digest (U-14 tension, owner-visible).
       - [x] **U-85** → **P3-13** — PORT validation (named error + exit 2, not
             a raw RangeError stack).
             **DONE (S28)** — PORT validated once: named reason + usage line + exit 2, no RangeError stack (4 server-bounds cases).

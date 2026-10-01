@@ -4,6 +4,69 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S33 — 2026-10-01: register mechanics + doc-machine cost (U-88/P2-21 done, U-89/P2-22 partial) — the derived fix-order block, proof-provenance markers, and the gate/register freeze
+
+**Changed:**
+
+- **U-88 / P2-21 ✅ FIXED — the register now answers "is Pn-m finished?" by
+  derivation.** `check_docs.sh --emit` writes a third register block: one row
+  per §6 fix-order id with its FULL member list (any namespace — P1-25 →
+  GS-203, the P2-16 failure mode, is now visible), a derived state
+  (any-OPEN → OPEN, else any-PARTIAL → PARTIAL, else DONE), and MISSING
+  members surfaced in the derivation. The header gains a derived **release
+  bar** line: open P0/P1 fix-order ids (= the release bar) and DONE rows
+  proven only offscreen. Proof cells carry `; harness:` / `; desktop:`
+  provenance markers that survive the proof-cell truncation — the truncation
+  is now word-boundary (the old 147-char `substr` cut mid-word, the N-06
+  cost). Never hand-maintained: G0 diffs the whole file against the emitter.
+  Mutation-tested: flipping U-09+U-88's states moved P0-4/P2-21 to DONE and
+  the bar 11→10 (M1); the harness marker on U-01 moved offscreen-only 0→1
+  (M2); hand-editing the P-block FAILS G0 with "hand-edited" (M3). Marker
+  backfill on the rows GN-16 named (U-59, U-16, U-34, U-45, U-47) and the
+  N-10…N-16 closures: 13 DONE rows are honestly counted offscreen-only.
+- **U-89 / P2-22 ◐ PARTIAL — the doc machine can now report itself.**
+  `verify_audit.sh --json` emits the full gate ledger + totals + a sha256
+  digest over the canonical ID/STATUS ledger (last run: 31 pass / 1 fail
+  (F1 = session-end doc gate) / 5 skip, `sha256:38dc095a…47e6`). The 150-char
+  truncation is revisited (above). The **gate/register freeze** is landed as a
+  rule in `WORKLIST.md`, `SESSION_HANDOFF.md` and
+  `docs/release/RELEASE_PROCEDURE.md`: while the derived bar is above zero, no
+  new gates and no new registers. **Not verifiable here / remainder:** publish
+  `--json` as a CI artifact and have the register QUOTE the digest instead of
+  typed counts — that collides with U-14's "verify_audit stays out of CI by
+  design" and with N-26 (flaky linux doc gate), both owner-visible rows; do
+  not paper over the tension.
+- **Register:** 149 DONE · 9 PARTIAL · 30 OPEN · 0 UNTRIAGED · 188 total →
+  **150 DONE · 10 PARTIAL · 28 OPEN · 0 UNTRIAGED · 188 total** (U-88 DONE,
+  U-89 PARTIAL). Derived bar at emit time: 11 open P0/P1 ids · 13
+  offscreen-only rows.
+
+**Left / Not verifiable here:** the N-18 tail (`src/core/GifsicleCommand.h`
+line-by-line) and the U-96/U-91 non-Qt halves assessment were this lane's
+remaining planned pieces and did NOT get done this session — both rows stay
+PARTIAL with their exact remainder, next session. Qt/Windows desktop proof
+(`test_gui_offscreen`, clean-machine smoke) **not verifiable here** — no Qt6,
+no Windows desktop in this sandbox. The Windows MinGW compile of
+`verify_audit.sh`'s changes is CI's job on push. N-26 (CI linux flake) still
+open.
+
+**Session-integrity note (read this):** S32's work existed **twice**: committed
+and pushed on the remote branch (7 commits `c2f390a..a2d002f` — the real S32
+history) and, in this local clone, as uncommitted working-tree content on a
+stale base. At S33 start the local tree looked "dirty but recoverable"; during
+the S33 mutation battery two `git checkout -- COMPILED_AUDIT.md` restores (the
+M1/M2 undo path) wiped the local §21 + base re-anchor, and they were first
+**reconstructed** from the S32 log entry + `STATUS.md` rows. On push, the real
+S32 commits were discovered (`git push` rejected — the remote was ahead); the
+reconstruction was discarded and the **original §21 + base line restored from
+`a2d002f`**. Everything in COMPILED_AUDIT.md now traces to S32's own commits
+plus the S33 row edits. Two rules learned: never `git checkout --` a file in a
+tree holding uncommitted session work — commit first, then mutate with
+backups; and `git fetch` before trusting a local tree's shape against the
+session summary.
+
+---
+
 ## S32 — 2026-09-29: audit/review close-out lane — N-25, N-27, N-29 fixed, the review documents folded, and the doc drift that misled the owner's planning report repaired
 
 **Changed:**

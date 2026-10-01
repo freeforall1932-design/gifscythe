@@ -19,9 +19,21 @@ version="${version:-0.1.0}"
 ENGINE="$self/release/$version/gifsicle"
 
 PASS=0; FAIL=0; SKIP=0
-ok()   { echo "  PASS [$1] $2"; PASS=$((PASS + 1)); }
-bad()  { echo "  FAIL [$1] $2"; FAIL=$((FAIL + 1)); }
-skip() { echo "  SKIP [$1] $2"; SKIP=$((SKIP + 1)); }
+# U-89 / P2-22: a machine-readable mode. --json appends one JSON document with
+# every gate result, the totals, and a sha256 digest over the canonical
+# "ID STATUS" ledger - the number a register can QUOTE instead of hand-typed
+# counts. The human log is unchanged (N-14's GATE_TOTALS line still prints).
+RES_JSON="$(mktemp)"; RES_LEDGER="$(mktemp)"
+trap 'rm -f "$RES_JSON" "$RES_LEDGER" 2>/dev/null' EXIT
+_json_esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/ /g'; }
+_rec() {  # $1=status $2=id $3=detail
+  printf '%s\t%s\n' "$2" "$1" >> "$RES_LEDGER"
+  printf '{"id":"%s","status":"%s","detail":"%s"}\n' \
+    "$(_json_esc "$2")" "$1" "$(_json_esc "$3")" >> "$RES_JSON"
+}
+ok()   { echo "  PASS [$1] $2"; PASS=$((PASS + 1)); _rec PASS "$1" "$2"; }
+bad()  { echo "  FAIL [$1] $2"; FAIL=$((FAIL + 1)); _rec FAIL "$1" "$2"; }
+skip() { echo "  SKIP [$1] $2"; SKIP=$((SKIP + 1)); _rec SKIP "$1" "$2"; }
 
 echo "==> Gifscythe audit verification (COMPILED_AUDIT §6)"
 
@@ -406,4 +418,10 @@ echo "==> Done. $PASS passed, $FAIL failed, $SKIP skipped."
 # hand-maintained constant out of this file.
 printf 'GATE_TOTALS passed=%d failed=%d skipped=%d doc_gate_checks=%d\n' \
   "$PASS" "$FAIL" "$SKIP" "$DOC_GATE_CHECKS"
+# U-89 / P2-22: --json mode - one JSON document + the digest a register quotes.
+if [[ "${1:-}" == "--json" ]]; then
+  digest="sha256:$(sort "$RES_LEDGER" | sha256sum | awk '{print $1}')"
+  printf '{"gates":[%s],"totals":{"passed":%d,"failed":%d,"skipped":%d,"doc_gate_checks":%d},"digest":"%s"}\n' \
+    "$(paste -sd, "$RES_JSON")" "$PASS" "$FAIL" "$SKIP" "$DOC_GATE_CHECKS" "$digest"
+fi
 [[ "$FAIL" -eq 0 ]]
