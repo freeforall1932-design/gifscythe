@@ -70,7 +70,9 @@ Chronological log of decisions and changes. **Newest at the top.**
   g++ 12 `-std=c++17 -O2 -static`. Job log blobs are unreachable from this
   sandbox (TLS EOF to Azure blob storage — the N-26 wall, confirmed at the
   network level), so the provisioner's exact error must be read in the
-  Actions UI. Remainder: name the error there, then fix the WORKFLOW provision
+  Actions UI. **Determinism proven** by an empty-commit CI re-trigger
+  (`d6ea8d3`, run `36932180314`): 5 consecutive PR runs fail the identical
+  step in ~2 min — not a transient aqt outage. Remainder: name the error there, then fix the WORKFLOW provision
   step (both byte-identical copies in one commit — E9/G7/S1) to pin a modern
   MinGW deterministically instead of the drifting fallback chain. Shares
   N-26's "CI is our only Windows proof" consequence.
@@ -103,7 +105,11 @@ reconstruction was discarded and the **original §21 + base line restored from
 plus the S33 row edits. Two rules learned: never `git checkout --` a file in a
 tree holding uncommitted session work — commit first, then mutate with
 backups; and `git fetch` before trusting a local tree's shape against the
-session summary.
+  session summary. **It recurred twice more this session** (the workspace is
+  re-cloned between turns — git state is NOT preserved, only files): each
+  time, back up the tree, `git reset --hard FETCH_HEAD`, diff, re-graft. Any
+  turn-start with "dirty tree vs unknown base" must begin with that dance
+  BEFORE any commit or mutation.
 
 ---
 

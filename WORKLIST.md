@@ -62,6 +62,7 @@ reads them in a file, not in a conversation.
   `2ade969` yet red, dying at the aqt/MinGW install step itself, exit 254;
   PR runs fail later at the build step after the fallback chain provisions a
   toolchain — consistent with tools_mingw90 = gcc 8 needing `-lstdc++fs`).
+  Deterministic (5 PR runs + a re-trigger, identical step, ~2 min profile).
   Exact CI flags pass locally 384/0. Read the provisioner error in the
   Actions UI (blob wall here), then fix the workflow provision step in both
   byte-identical copies together (E9/G7/S1).
