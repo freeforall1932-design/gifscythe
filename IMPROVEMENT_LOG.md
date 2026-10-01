@@ -49,7 +49,12 @@ Chronological log of decisions and changes. **Newest at the top.**
   The evidence half + the tag-triggered asset-manifest gate P1-45 deferred "at
   the next cut" are both recorded on P0-4's action so neither is lost (with
   the U-89 freeze tension named: a NEW gate while the bar > 0 needs a decision
-  at the cut).
+  at the cut). The derived release bar moved 11 → 10 (P1-45 derives DONE).
+  **M4 (same session):** a corrupted §6 Closes cell now yields a fail-loud
+  `(unparsed) | PARTIAL | repair the §6 row` row instead of a silently
+  vanishing P-id (the bug class caught live when a wrong-cell edit dropped
+  P0-4 from the whole block — fixed by extending the existing emitter, no new
+  gate, within the U-89 freeze).
 - **Found and registered this session (rule 2 / G12): N-30** — Windows CI's
   MinGW "Build CLI + unit tests" step fails while linux passes (three
   consecutive runs: `36629967875` @ `a2d002f`, `36885986466` @ `42ba939`,
