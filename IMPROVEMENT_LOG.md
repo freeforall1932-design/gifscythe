@@ -41,14 +41,20 @@ Chronological log of decisions and changes. **Newest at the top.**
   U-89 PARTIAL). Derived bar at emit time: 11 open P0/P1 ids · 13
   offscreen-only rows.
 
-**Left / Not verifiable here:** the N-18 tail (`src/core/GifsicleCommand.h`
-line-by-line) and the U-96/U-91 non-Qt halves assessment were this lane's
-remaining planned pieces and did NOT get done this session — both rows stay
-PARTIAL with their exact remainder, next session. Qt/Windows desktop proof
-(`test_gui_offscreen`, clean-machine smoke) **not verifiable here** — no Qt6,
-no Windows desktop in this sandbox. The Windows MinGW compile of
-`verify_audit.sh`'s changes is CI's job on push. N-26 (CI linux flake) still
-open.
+**Left / Not verifiable here:** the lane's remaining planned pieces closed out
+as follows: the N-18 tail's named remaining core file
+(`src/core/GifsicleCommand.h`) **was read line by line — CLEAN** (comments
+match behavior throughout; the register row's tail is now just the
+risk-scanned PENDING files), and the **U-96/U-91 non-Qt halves are assessed
+and recorded** in their §5 rows with exact remainders — U-91's contract + two
+port traps are C#-side and dotnet-blocked (no dotnet here; nothing forced),
+U-96's shared helper + fixture table are pin-blocked on a real Qt
+`completeBaseName` probe (guessing Qt semantics is the U-82/R2 class; not
+forced). Both rows stay OPEN/PARTIAL with those remainders. Qt/Windows
+desktop proof (`test_gui_offscreen`, clean-machine smoke) **not verifiable
+here** — no Qt6, no Windows desktop in this sandbox. The Windows MinGW
+compile of `verify_audit.sh`'s changes is CI's job on push. N-26 (CI linux
+flake) still open.
 
 **Session-integrity note (read this):** S32's work existed **twice**: committed
 and pushed on the remote branch (7 commits `c2f390a..a2d002f` — the real S32

@@ -78,11 +78,13 @@ markers that survive word-boundary truncation, `verify_audit.sh --json` +
 sha256 digest, and the gate/register freeze rule (above). Mutation-tested
 (M1 state derivation + bar move, M2 counter move, M3 hand-edit → G0 red).
 Register 149/9/30/0 → **150/10/28/0**. Detail in `IMPROVEMENT_LOG.md`'s S33
-entry. **Still open from this lane's plan:** the N-18 tail
-(`src/core/GifsicleCommand.h` line-by-line), the U-96/U-91 non-Qt halves
-assessment (leave PARTIAL with the exact remainder — do NOT force), and
-U-89's recorded remainder (CI-artifact publication + register quoting the
-digest; U-14 tension to surface, not paper over).
+entry. **Lane close-out (same session):** `src/core/GifsicleCommand.h` (the
+named remaining core file) read line by line — **clean**; U-96/U-91 non-Qt
+halves **assessed** with exact remainders recorded in their §5 rows
+(Qt-probe-blocked / dotnet-blocked — not forced). N-18's tail is now just the
+risk-scanned PENDING files; U-89's remainder (CI-artifact publication +
+register quoting the digest; U-14 tension to surface, not paper over) is the
+lane's one carried-open item.
 
 ### S32 (2026-09-29) — audit/review close-out lane
 

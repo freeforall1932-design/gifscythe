@@ -21,11 +21,12 @@ Based on `main` commit `13d95a7` (the owner's 2026-09-29 direct upload — tree 
   `verify_audit.sh --json` publishes the gate ledger + sha256 digest. All
   derivation was mutation-tested (M1/M2/M3 in the S33 log entry). Register
   **150 DONE · 10 PARTIAL · 28 OPEN · 0 UNTRIAGED** (was 149/9/30).
-  **Still open from that lane:** the N-18 tail (`src/core/GifsicleCommand.h`
-  line-by-line), the U-96/U-91 non-Qt halves assessment (record the exact
-  remainder — do NOT force them), and U-89's remainder (CI-artifact + register
-  quotes the digest; U-14's verify_audit-stays-out-of-CI design tension must
-  be surfaced to the owner, not papered over).
+  **Lane close-out:** `GifsicleCommand.h` (the named remaining core file)
+  read line by line — clean; U-96/U-91 non-Qt halves assessed with exact
+  remainders in their §5 rows (Qt-probe-blocked / dotnet-blocked — do NOT
+  force them). Carried open: U-89's remainder (CI-artifact + register quotes
+  the digest; U-14's verify_audit-stays-out-of-CI design tension must be
+  surfaced to the owner, not papered over).
 - **Gate/register freeze (U-89 / P2-22).** While the derived release bar in
   `STATUS.md` (open P0/P1 fix-order ids) is above zero, add **no new gates and
   no new registers** — extend `check_docs.sh`'s existing gates and the existing
