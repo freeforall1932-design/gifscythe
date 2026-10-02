@@ -64,15 +64,36 @@ reads them in a file, not in a conversation.
   clones (G10's precedent) and still enforces on full history; reproduced
   failing-first in a local depth-1 clone.
 
-- **N-30** (S33): Windows CI red while linux passes — **code refuted as the
-  cause** (main `13d95a7` is code-identical to the last green windows tree
-  `2ade969` yet red, dying at the aqt/MinGW install step itself, exit 254;
-  PR runs fail later at the build step after the fallback chain provisions a
-  toolchain — consistent with tools_mingw90 = gcc 8 needing `-lstdc++fs`).
-  Deterministic (5 PR runs + a re-trigger, identical step, ~2 min profile).
-  Exact CI flags pass locally 384/0. Read the provisioner error in the
-  Actions UI (blob wall here), then fix the workflow provision step in both
-  byte-identical copies together (E9/G7/S1).
+- **N-30** (S33 registered, **S34 closed — DONE**): Windows CI red while linux
+  passed. S33 read it as toolchain provisioning ("code refuted as the cause",
+  "pin a modern MinGW") — that was **wrong**. The first un-masked Windows run
+  (S34, run 36966494878) showed g++ 13.1.0 from `tools_mingw1310` (the aqt
+  chain's *first* choice), both compiles succeeding, and the unit exe itself
+  failing: the integer probes in `SettingsIO.h` classified values with a
+  `long` (4 bytes on Windows), so 2147483648..4294967295 were refused there
+  while Linux accepted them (N-27 was incomplete on Windows). Fixed test-first
+  (`to_llong` + unit block 37; RED 7 failures on a 32-bit-`long` build, GREEN
+  on both widths) and proven by Windows CI (run 36967608254, every Windows
+  step green). **Do not pin MinGW or touch the provision step on N-30's
+  account.** Optional follow-up (a proposal, not a defect, so not registered):
+  a Linux CI step running the unit suite on a 32-bit-`long` target
+  (`pip install ziglang`) would catch this class without a Windows runner.
+
+- **N-26** (S31 registered, **S34 closed — DONE**): not a flake. All 8 red
+  main runs since 2026-09-22 failed linux at the *same* step, "Documentation
+  status gate" — G10/G11 verdicts that depended on the checkout depth and the
+  UTC date (reproduced deterministically in CI-shaped depth-1 clones). Fixed
+  by N-31 (S33) + the full-history `docs` job and the gate leaving the linux
+  job (S34); run 36967608254 has every job green. Evidence in the STATUS row.
+
+- **N-32** (S34, **OPEN**): the wasm track's documented proof bar (output
+  byte-equal to the native oracle) cannot be met by a build with a different
+  libc, and `prove_wasm.mjs` never compares bytes. Needs an owner-visible
+  decision on a bar that can pass; do not chase byte parity with the glibc
+  oracle. Detail and the measurement caveat in the STATUS row.
+
+- **N-33** (S34, found and fixed the same session): the README's honesty
+  summary was stale in all three claims — rewritten from live state.
 
 **Gate/register freeze (U-89 / P2-22, effective S33).** While the derived
 release bar in `STATUS.md` (open P0/P1 fix-order ids) is above zero: add **no
@@ -132,8 +153,8 @@ provable in this sandbox. Full detail in `IMPROVEMENT_LOG.md`'s S32 entry.
       open (and misled the owner's planning report) corrected in place; review
       documents folded (`COMPILED_AUDIT` §21, `docs/planning/PLANNING.md` §6,
       `docs/archive/` rows 8–9).
-- [ ] **N-26 (OPEN)** — CI linux flake; needs an Actions-UI look (PR #7 has
-      the investigation so far).
+- [x] **N-26 (DONE S34)** — not a flake: the doc-gate step failed every red main
+      run, deterministically (see the pending-lines section above).
 
 ### S31 (2026-09-28) — verification of the 2026-09-27 external audit
 
@@ -189,10 +210,10 @@ Still open from the audit intake (state lives in `STATUS.md`):
       vacuity-scanned). The rest stay risk-scanned only — read on touch.
 - [x] **N-25 (DONE S32)** — `requestWindow` bounded by live traffic now
       (see the S32 section above).
-- [ ] **N-26 (OPEN)** — CI's linux job is flaky (5 of the last 7 main runs
-      failed linux while windows passed) and this repo uses CI as the proof
-      lane for anything the sandboxes cannot compile. Registered from the
-      open PR #7 investigation; needs an Actions-UI look to name the step.
+- [x] **N-26 (DONE S34)** — registered as "CI's linux job is flaky" (5 of the last 7
+      main runs failed linux while windows passed); the jobs API names the step —
+      the doc gate, every time — and the cause is G10/G11 under depth-1 checkouts.
+      Fixed S33/S34 (N-31 + the full-history `docs` job); run 36967608254 is green.
 
 - [x] **U-97** (found AND fixed in S27 — rule 2's strong form): the 2026-09-22
       zip re-creation of the GitHub repo lost the root license set

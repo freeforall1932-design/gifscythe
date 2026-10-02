@@ -1169,7 +1169,8 @@ engine pipeline, and smoke suite all pass after the move. The S11 upstream
 comparison remains valid after removing the sole local reference-tree file;
 updated digests are recorded in `reference_code/REFERENCE_MANIFEST.md`. Still
 open: CI hash-pinning
-(proposal-only — needs `workflows` scope).
+(proposal-only; the `workflows`-scope blocker it was written under is gone — pushes to
+`.github/workflows/` work, verified S18 and again S34).
 
 ---
 
@@ -2033,7 +2034,7 @@ Deduplicated across A/B/C/D/E/F. "Src" = which audit(s) raised it.
 | **U-07** | A:GS-006 | **Windows CLI execution is ANSI-only.** `CreateProcessA` + `std::string` cmdline ⇒ non-ASCII paths cannot be passed to the engine. | ✅ **EXEC** (wine 8, mingw 12) | ✅ FIXED (S11) — `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly |
 | **U-08** | A:GS-007 | **License set can ship incomplete, silently.** Root has `LICENSE` + `COPYING.gifsicle` but **no `COPYING`**; every license copy is `if [[ -f ]]`-guarded. | ✅ **EXEC**+SRC | ✅ FIXED (S19) — both packagers stage COPYING.lgplv3 + COPYING.gplv3 + GUI QT_NOTICE.txt; 36 packaging checks; CI manifest asserts the set |
 | **U-09** | A:GS-008 | **Banked Windows snapshot is 5 commits behind the SHA its own notes claim.** Release body pins `d3544b1`; main is `8190c08`. | ✅ **EXEC** | ⬜ OPEN |
-| **U-10** | A:GS-009 | **The "read-only, identical-to-upstream" vendored engine is neither.** Carries a handwritten `config.h` (Linux values), a functional patch, and an extra test. | ✅ **EXEC** (S11 re-clone; S13 relocation) | ◐ PARTIAL (S13) — provenance and product-config relocation verified; `reference_code/gifsicle/` is now upstream-only and native build stages `build_support/gifsicle/config.native.h`. MISSING: CI hash-pinning (workflows scope) |
+| **U-10** | A:GS-009 | **The "read-only, identical-to-upstream" vendored engine is neither.** Carries a handwritten `config.h` (Linux values), a functional patch, and an extra test. | ✅ **EXEC** (S11 re-clone; S13 relocation) | ◐ PARTIAL (S13) — provenance and product-config relocation verified; `reference_code/gifsicle/` is now upstream-only and native build stages `build_support/gifsicle/config.native.h`. MISSING: CI hash-pinning (not blocked: it was written as "needs workflows scope", and pushes to `.github/workflows/` work — S18, re-verified S34) |
 
 ### Medium
 
@@ -2955,11 +2956,13 @@ U-34/U-47/U-16/U-01/U-45 — those rows cite per-test ids; the gate fix stayed r
 | handoff sends U-59 to the wrong PR | **N-23** | DONE S31 |
 | `GS_ENGINE_TIMEOUT_MS=0` SIGKILLs every run (found by the N-18 sweep of server.mjs) | **N-24** | DONE S31 |
 | rate-limit map unbounded growth (found by the same sweep) | **N-25** | DONE S32 (limiter moved to `web/rate_limit.mjs`, whole-map prune; server-bounds 12 groups; both mutations caught) |
-| — (CI linux flake noticed while proving the above; investigated on PR #7) | **N-26** | OPEN |
+| — (CI linux "flake" noticed while proving the above; investigated on PR #7) | **N-26** | DONE S34 (not a flake: all 8 red main runs since 2026-09-22 failed linux at the same step, "Documentation status gate" — G10/G11 verdicts that depended on checkout depth and the UTC date; reproduced in CI-shaped depth-1 clones; fixed by N-31 + the full-history `docs` job + the gate leaving the linux job; run 36967608254 all four jobs green) |
 | SettingsIO.h position-pair probe narrow-cast long→unsigned (N-18 sweep of SettingsIO.h) | **N-27** | DONE S32 (width-strict probe + decode-as-set_field; 5 assertions red→green) |
 | `save_settings` wrote dither OFF + remembered method as combined `dither = <m>` (loads as dither=TRUE) | **N-29** | DONE S32 (off + method save as the loader's two keys) |
-| Windows CI MinGW "Build CLI + unit tests" red while linux green (S33 intake: runs 36629967875/36885986466/36886469319) | **N-30** | OPEN (S33: code refuted — main 13d95a7 is code-identical to the last green windows tree 2ade969 yet windows-red, failing at the toolchain-install step itself (exit 254, job 109583917611); PR runs fail later at the build step after the aqt fallback chain provisions some toolchain — consistent with tools_mingw90 = gcc 8 lacking in-tree std::filesystem under -static. Deterministic: 5 consecutive PR runs + an empty-commit re-trigger fail the identical step. Fix the provision step in both workflow copies together; local 384/0 with the exact CI flags) |
+| Windows CI MinGW "Build CLI + unit tests" red while linux green (S33 intake: runs 36629967875/36885986466/36886469319) | **N-30** | DONE S34 (a real code bug, not the toolchain — S33's "code refuted / provisioning" reading was wrong: the integer probes classified values with a `long`, 4 bytes on Windows, so 2147483648..4294967295 were refused as "not an integer" while the strict parser accepted them — N-27 was incomplete on Windows; reproduced on a 32-bit-`long` target, fixed test-first with `to_llong` + unit block 37; the Windows job is green in run 36967608254) |
 | G11 date rule degenerates in shallow clones (tip appears to add every file; the log is compared against the checkout date) — found by the post-merge sync CI red | **N-31** | DONE S33 (G10-style shallow skip added to G11; full-history enforcement kept; reproduced failing-first in a depth-1 clone) |
+| The wasm track's documented byte-for-byte proof bar cannot be met by a build with a different libc, and `prove_wasm.mjs` never compares bytes — S34 finding while building the engine to wasm32-wasi with zig | **N-32** | OPEN (S34: musl-built output is byte-identical to a musl-native build but differs from the glibc oracle in 7 of 9 scratch cases; the quantizer's libc `qsort` tie order is the mechanism; owner-visible decision on a bar that can pass) |
+| README honesty summary stale in all three claims (main green at an unresolvable old-remote sha; U-59 open; a published stale Release) — S34 finding | **N-33** | DONE S34 (re-derived from live state and rewritten) |
 | S32 sweep suspicion: `to_double` accepts nan/inf and gamma junk reaches the engine unchecked | **N-28** (id kept so the numbering reads continuously) | REFUTED by execution: libstdc++ `istringstream >> double` rejects both `nan` and `inf` (the "not a number" warnings fire), and `validate()` already warns `gamma=nan: must be srgb, oklab or a number` with `--strict` refusing — no code change |
 | U-71 / U-70 / U-72 / U-55 / U-12 re-derived from source | (tracked rows) | CONFIRMED, no state change |
 | suspicion that test deps were missing from CMakeLists | — | REFUTED by the code (`add_dependencies` line) |
