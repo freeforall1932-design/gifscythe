@@ -4,7 +4,7 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
-## S33 — 2026-10-01: register mechanics + doc-machine cost (U-88/P2-21 done, U-89/P2-22 partial) — the derived fix-order block, proof-provenance markers, and the gate/register freeze
+## S33 — 2026-10-02: register mechanics + doc-machine cost (started 2026-10-01 local; the UTC date rolled mid-session and G11 compares UTC-stamped commits — the entry is dated to the session's close day) (U-88/P2-21 done, U-89/P2-22 partial) — the derived fix-order block, proof-provenance markers, and the gate/register freeze
 
 **Changed:**
 
