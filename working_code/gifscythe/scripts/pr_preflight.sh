@@ -21,7 +21,10 @@
 #   P6  (--online only) checks SESSION_HANDOFF.md's "**Docs synced through:** PR #n"
 #       line against the newest MERGED PR. If a merge landed after the last doc
 #       sync, the docs are silently behind - nobody recorded what changed. Fails
-#       and names the PRs that have to be reviewed and written up.
+#       and names the PRs that have to be reviewed and written up. A PR may pre-sync
+#       itself (S34): the number of the branch's own OPEN PR passes, so a merge from
+#       the GitHub UI leaves nothing to edit afterwards; any other unmerged number fails.
+#       Regression test: tests/test_pr_preflight_p6.py
 #
 # Exits 1 if any check failed.
 #
@@ -220,8 +223,19 @@ else
          -q '.[] | "           unreviewed: PR #\(.number)  \(.headRefName)  \(.title)"' 2>/dev/null || true
       FAIL=$((FAIL+1))
     elif (( synced_pr > last_pr )); then
-      echo "  FAIL [P6] handoff claims to be synced through PR #$synced_pr, but the newest MERGED PR is #$last_pr - that PR is not merged yet"
-      FAIL=$((FAIL+1))
+      # S34: a PR pre-syncs ITSELF. Right after `gh pr create` it moves this line to its own number, so
+      # the owner can merge from the GitHub UI and continue with nothing left to edit (a follow-up
+      # "post-merge sync" PR is churn). The claim is legitimate for exactly one PR - the OPEN PR of the
+      # branch being checked: it becomes true at the merge and the PR already carries the write-up.
+      # Any other number that has not merged is still a false claim.
+      own_pr="$(gh pr view "$synced_pr" --json state,headRefName -q '"\(.state) \(.headRefName)"' 2>/dev/null || true)"
+      if [[ "$own_pr" == "OPEN $branch_now" ]]; then
+        echo "  PASS [P6] handoff is pre-synced through PR #$synced_pr - this branch's own open PR; the claim becomes true at the merge (newest merged so far: #$last_pr)"
+      else
+        echo "  FAIL [P6] handoff claims to be synced through PR #$synced_pr, but the newest MERGED PR is #$last_pr - that PR is not merged yet"
+        note "only the OPEN PR of the branch you are on may be claimed before it merges (found: ${own_pr:-no such PR})"
+        FAIL=$((FAIL+1))
+      fi
     else
       echo "  PASS [P6] handoff is synced through PR #$synced_pr, which is the newest merged PR"
       if [[ -n "$synced_branch" && "$synced_branch" != "$last_branch" ]]; then
