@@ -369,7 +369,8 @@ deliberately not started until GIF 1.0.0 ships.
 - Optional: logging framework, i18n, dark mode, system tray.
 - **Web client-side wasm** (`web/wasm/`, D-07): scaffolded S19, unbuilt, and
   NOT SHIPPABLE until `OD-16` (in-process licence — `docs/legal/README.md` §3)
-  + a real emcc byte proof. The Node server stays the shipped web path.
+  + a real emcc proof (the bar itself is open: byte parity with the glibc
+  oracle cannot pass — N-32). The Node server stays the shipped web path.
   History of the option analysis: `web/README.md` §History.
 - **Language migration (only if a trigger fires):** Rust + Tauri spike —
   `docs/planning/PLANNING.md` §1 triggers.
