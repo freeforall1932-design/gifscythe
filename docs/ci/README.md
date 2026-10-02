@@ -69,6 +69,9 @@ back to enforcing byte-equality with no standing exception.
 - **Gate places:** the gates run in three places — `.githooks/pre-push`
   (bootstrap once per clone: `scripts/bootstrap_hooks.sh`; `build.sh` does it),
   the CI `docs` job, and `scripts/pr_preflight.sh` at PR create **and** merge.
+  Step **P6** of the preflight lets a PR pre-sync itself (S34): the handoff's
+  "Docs synced through" line may name the branch's own open PR, so a merge from the
+  GitHub UI leaves nothing to edit afterwards.
   **`scripts/review_change.sh`** is the separate diff reviewer (R1 edited check
   logic, R2 matchers that match nothing — how G10 stayed dead for five PRs —
   R3 prose counts vs live measurement, R4 lost executable bits, R5 obliged doc

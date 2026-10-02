@@ -350,7 +350,7 @@ source.
 *(S34 correction: this bar cannot pass for any build whose libc differs from the oracle's —
 `qsort` orders equal keys differently and `random()` (the dither seed) differs between glibc
 and musl; a wasm32-wasi build matched a musl-native build in 9 of 9 cases and the glibc
-oracle in 3 of 9. Tracked as N-32; the owner-visible decision is which bar replaces it.)*
+oracle in 3 of 9 (re-run: `scripts/libc_parity/libc_parity.py --check`). Tracked as N-32; the owner-visible decision is which bar replaces it.)*
 
 #### Option B — adopt an existing pre-built implementation
 

@@ -75,9 +75,10 @@ reads them in a file, not in a conversation.
   (`to_llong` + unit block 37; RED 7 failures on a 32-bit-`long` build, GREEN
   on both widths) and proven by Windows CI (run 36967608254, every Windows
   step green). **Do not pin MinGW or touch the provision step on N-30's
-  account.** Optional follow-up (a proposal, not a defect, so not registered):
-  a Linux CI step running the unit suite on a 32-bit-`long` target
-  (`pip install ziglang`) would catch this class without a Windows runner.
+  account.** The check that would have caught it is committed:
+  `scripts/test_unit_32bit_long.sh` (unit suite on a 4-byte-`long` target via
+  zig). Wiring it into CI (about 2 more minutes per run) is an optional owner
+  call, not a defect, so not registered.
 
 - **N-26** (S31 registered, **S34 closed — DONE**): not a flake. All 8 red
   main runs since 2026-09-22 failed linux at the *same* step, "Documentation
@@ -93,7 +94,8 @@ reads them in a file, not in a conversation.
   orders equal keys differently and `random()` differs (with a stable
   `qsort` + a fixed `random()` all three builds agree 9/9). Needs an
   owner-visible decision on a bar that can pass; do not chase byte parity
-  with the glibc oracle. Detail in the STATUS row.
+  with the glibc oracle. The measurement kit is committed — re-run it with
+  `scripts/libc_parity/libc_parity.py --check`. Detail in the STATUS row.
 
 - **N-33** (S34, found and fixed the same session): the README's honesty
   summary was stale in all three claims — rewritten from live state.
@@ -398,6 +400,9 @@ cd working_code/gifscythe
 ./scripts/test_engine.sh
 ./scripts/smoke_cli.sh
 ./scripts/test_package.sh  # packaging negative suite
+./scripts/test_unit_32bit_long.sh   # unit suite on a 4-byte long (N-30 class); needs zig: pip install ziglang
+python3 tests/test_pr_preflight_p6.py   # P6 (docs-synced-through) regression, isolated temp repo + fake gh
+python3 scripts/libc_parity/libc_parity.py --check   # N-32 probe: glibc vs musl vs wasm output parity
 ./scripts/check_docs.sh    # documentation gate — must be green before any PR
 ./scripts/check_docs.sh --emit   # regenerate STATUS.md from the repo
 ./scripts/verify_audit.sh  # whole COMPILED_AUDIT §6 suite + the doc gate (F1/F2)
@@ -432,6 +437,11 @@ node web/server.mjs 8000              # from the repo root; binds 127.0.0.1
 - Link gifsicle into the GUI binary (keep subprocess for GPL v2-only vs Ms-PL).
 - Edit `reference_code/` (read-only; the manifest is the one exception).
 - Hand-edit the generated block in `STATUS.md` — run `check_docs.sh --emit`.
+- Leave reusable tooling only in `/tmp` (wiped between turns; `build/`, `dist/`, `.venv` are not
+  snapshotted either): commit it under `scripts/` or `tests/`, or write down the exact recipe.
+  `/tmp` is for one-time scratch.
+- Open a PR that only copies the previous PR's facts (a "post-merge sync"): a PR pre-syncs
+  itself after `gh pr create` (see the handoff's maintenance rule).
 - Push, open or merge a PR with a red `check_docs.sh`, or bypass the pre-push
   hook with `--no-verify`.
 - Reintroduce the removed `scripts/build_gifsicle.sh` shim.

@@ -153,7 +153,8 @@ Chronological log of decisions and changes. **Newest at the top.**
   non-empty GIF). PLANNING §6, the wasm README and the WORKLIST carry the
   correction; which bar replaces byte parity — a same-libc native oracle, the
   stable-qsort/fixed-random shim, or pixel equality where no quantizer or dither
-  runs — is the owner's decision.
+  runs — is the owner's decision. The probe is committed:
+  `scripts/libc_parity/libc_parity.py --check`.
 
 - **N-34 registered (OPEN, dated 2026-10-19, owner call): the runner image floats.**
   The check-run annotations of runs 36967608254 and 36974199294 carry GitHub's
@@ -168,17 +169,47 @@ Chronological log of decisions and changes. **Newest at the top.**
   `windows-latest` carried no such notice. Not applied: whether to pin is a
   policy call (a pin needs a deliberate bump later), like `concurrency`.
 
+- **The post-merge sync is pre-included, and P6 now allows it.** The owner merges from the
+  GitHub UI and continues, so a "post-merge sync" PR (#4 after #3, #9 after #8: the ledger's
+  merge sha, the base re-anchor, Docs-synced-through, a merge note) is pure churn — and the old
+  P6 forced one by refusing a handoff line that names a PR before it merges. Checked, not
+  assumed: a simulated merge of this PR into main (a real merge commit dated 2026-10-03 01:00
+  UTC, the worst case for G11, and separately a squash) leaves the `docs` job's gate at 24
+  passed / 0 failed / 1 skipped with G10 and G11 PASS — the base lines already name `c999061`,
+  the merge's first parent. What could not be written before the merge now can: **P6 accepts a
+  number above the newest merged PR when it is the branch's own OPEN PR** (any other unmerged
+  number still fails; a merge the line does not name still fails as BEHIND), the handoff line
+  names PR #10, and the ledger's *Merged as* cell holds a lookup instead of `**open**` — the sha
+  does not exist yet and nobody edits the cell later. `tests/test_pr_preflight_p6.py` runs the
+  real script in an isolated repo with a fake `gh`: against the old script 7 pass and 1 FAILS
+  (the own-open-PR case, with exactly the message a pre-synced PR gets), against the new one
+  8/8; the jq filter was also checked against the real `gh`. `review_change.sh` R1 cannot see
+  this edit (it matches `ok`/`bad`/`skip` ids and `grep -o` matchers, not echoed verdicts), so
+  the test is the evidence. It is not wired into `verify_audit.sh`: the freeze allows extending
+  gates, not adding an F5.
+- **Tooling that lived only in `/tmp` is now committed (owner remark: scratch space is wiped,
+  reusable work does not belong there).** After the sandbox reset the N-32 measurement kit and
+  the 32-bit-`long` harness behind N-30 were gone. In the repo now:
+  `scripts/test_unit_32bit_long.sh` (zig `x86-linux-musl`; it asserts `sizeof(long) == 4` before
+  trusting the run and exits 3 with a printed SKIP when it cannot run — never silently; GREEN
+  396/0, and RED with the 7 documented failures on the pre-fix `SettingsIO.h`) and
+  `scripts/libc_parity/` (`libc_parity.py`, `shim.h`, `wasi_run.mjs`; `--check` re-asserts N-32's
+  claims and flips to FAILED, 7/9, when `random()` is left unpinned). One-time scratch (edit
+  scripts, the merge-simulation clones, tree backups, the tool venv) stays in `/tmp` on purpose;
+  the venv's exact pins are in the handoff's sandbox section, and the handoff now carries the
+  rule.
+
 **Partial / Left on purpose:**
 
 - **Not changed: the duplicate push + pull_request runs and `concurrency`.**
   Duplicates are cost and noise, not masking, and `cancel-in-progress` would
   cancel older per-commit runs while this repo cites the run of a specific
   commit as evidence (N-11, N-16, N-30). That is an owner call.
-- **Proposed, not added:** a Linux CI step running the unit suite on a
-  32-bit-`long` target (`pip install ziglang`, one compile, one run) would keep
-  the N-30 class from regressing without waiting for Windows. It is optional
-  now that Windows CI runs the suite again; not registered (a proposal, not a
-  defect).
+- **Proposed, not added:** a Linux CI step that calls
+  `scripts/test_unit_32bit_long.sh` (`pip install ziglang` plus a cold libc++ build for
+  the target — about two more minutes per run) would keep the N-30 class from
+  regressing without waiting for Windows. The runner is committed; whether it earns a
+  CI step is an owner call. Not registered (a proposal, not a defect).
 - **N-32 stays OPEN on purpose:** choosing the replacement proof bar is an owner
   decision (it also feeds OD-16 / D-07), and OD-16 blocks shipping the wasm
   track either way.
@@ -220,38 +251,48 @@ Chronological log of decisions and changes. **Newest at the top.**
   exactly this branch's content and against the previous tip as exactly PR #9's.
 - Live GitHub state used by the docs: releases 0, tags 0, PR #9 merged
   `c999061`, PR #7 closed unmerged, run ids as quoted.
-- N-32's recipe (the scripts are not committed): from `reference_code/gifsicle`,
-  `python -m ziglang cc -O2 -target <x86_64-linux-musl | x86_64-linux-gnu.2.36 |
-  wasm32-wasi> -DHAVE_CONFIG_H -DVERSION='"1.96"' -I<a dir holding
-  config.native.h (config.wasm.h for wasi) as config.h> -Iinclude -Isrc <the 13
-  sources of build_engine.sh> -lm`; for wasi add `-include` a header of static
-  inline `popen`/`pclose`/`umask`/`mkstemp` stubs and run the module under
-  Node's `node:wasi` with the work directory preopened; the "stable" builds add
-  `-include` a header that defines `qsort` as a stable merge sort and `random`
-  as a fixed LCG. Outputs compared by sha256, and by Pillow-decoded RGBA frames
-  (alpha-0 pixels normalised) where the bytes differed.
+- N-32: `python3 working_code/gifscythe/scripts/libc_parity/libc_parity.py --check` from its
+  committed location — `CHECK OK` (oracle == glibc 9/9, glibc == musl 3/9, musl == wasm 9/9,
+  stable libc 9/9), output hashes identical to the earlier scratch run; mutation: with `random()`
+  left unpinned in `shim.h` it exits 1 and reports 7/9.
+- The 32-bit-`long` runner: exit 0 on this tree (396/0); exit 1 on a scratch copy holding the
+  pre-fix `SettingsIO.h` (the 7 documented failures, including the real Windows CI line
+  `position_x == 3000000000u ... line 1284`); exit 3 with a printed SKIP when no zig is on
+  PATH; exit 2 when pointed at a 64-bit target; shellcheck clean.
+- The post-merge simulation: this PR merged into `c999061` in a scratch clone as a real merge
+  commit dated 2026-10-03 01:00 UTC (and, separately, as a squash), `./build.sh`, then the
+  `docs` job's gate with `origin/main` set to the merge as GitHub would leave it: 24 passed,
+  0 failed, 1 skipped, G10 and G11 PASS in both shapes. A rebase-merge is the one shape it
+  does not survive (the tip's parent would no longer be `c999061`); the owner has merged with
+  merge commits so far and the PR body asks for one.
+- The Python tests: `unittest discover` over `working_code/gifscythe/tests` — 29 tests OK (the
+  earlier 21 plus the 8 P6 cases).
 
 **Not verifiable here:** the Windows rows that need real hardware (W-18 clean
 machine, W-19 desktop probes — a CI artifact is not a clean-machine run);
 whether GitHub accepts annotation messages larger than the ~700 bytes seen so
 far (the failure case is capped at 3.5 KB); what an emcc build would do (inferred
-from Emscripten's musl-derived libc, unmeasured — emcc is unobtainable here), and
-that N-32's measurement scripts are not committed (the recipe is above); semantic integer-width
+from Emscripten's musl-derived libc, unmeasured — emcc is unobtainable here); a
+rebase-merge of this PR (G10 would fail after it; merge commit and squash are verified);
+semantic integer-width
 classes beyond plain `long` (size_t/int narrowing in the Qt code — the grep
 audit above covers `long` only); and whether the base lines stay legal — they
 name `c999061`, so any other merge before this one makes this PR stale (stale,
 not broken: the next session re-anchors).
 
-**Docs touched:** `SESSION_HANDOFF.md` (header, Docs-synced-through → PR #9,
-base line, ledger rows #7/#9, fast hand-off, product constraints, sandbox
-reality, orientation quotes), `STATUS.md` (N-26/N-30 closed, R-03, N-32/N-33/N-34,
-W-03/W-04/W-30, re-emitted), `COMPILED_AUDIT.md` (Base line, §21 rows N-26/N-30
-and new N-32/N-33/N-34, U-10 text), `WORKLIST.md` (pending lines, N-26 ticks, CI/infra
-bullet, wasm bullet), `README.md` (honesty summary), `docs/ci/README.md` (§1),
-`docs/planning/PLANNING.md` (N-26 notes, prompt line, wasm corrections),
-`web/wasm/README.md`, `working_code/gifscythe/README.md`,
-`.github/workflows/build.yml` and its byte copy `docs/ci/build.yml.proposed`,
-`working_code/gifscythe/scripts/verify_audit.sh` (comment),
+**Docs touched:** `SESSION_HANDOFF.md` (header, Docs-synced-through → PR #10, base line,
+maintenance rule, ledger rows #7/#9/#10, fast hand-off, product constraints, sandbox reality,
+verification table, orientation quotes), `STATUS.md` (N-26/N-30 closed, R-03, N-32/N-33/N-34,
+W-03/W-04/W-30, re-emitted), `COMPILED_AUDIT.md` (Base line, §21 rows N-26/N-30 and new
+N-32/N-33/N-34, U-10 text), `WORKLIST.md` (pending lines, N-26 ticks, CI/infra bullet, wasm
+bullet, build commands, "Do not" list), `README.md` (honesty summary), `docs/ci/README.md` (§1),
+`docs/planning/PLANNING.md` (N-26 notes, prompt line, wasm corrections), `web/wasm/README.md`,
+`working_code/gifscythe/README.md`, `.github/workflows/build.yml` and its byte copy
+`docs/ci/build.yml.proposed`, `working_code/gifscythe/scripts/pr_preflight.sh` (P6),
+`working_code/gifscythe/scripts/verify_audit.sh` (comment), new
+`working_code/gifscythe/tests/test_pr_preflight_p6.py`,
+`working_code/gifscythe/scripts/test_unit_32bit_long.sh`,
+`working_code/gifscythe/scripts/libc_parity/` (`libc_parity.py`, `shim.h`, `wasi_run.mjs`),
 `working_code/gifscythe/src/core/SettingsIO.h`,
 `working_code/gifscythe/tests/test_gifsicle_command.cpp`, this entry.
 

@@ -3,8 +3,8 @@
 **Session:** S34 · **Date:** 2026-10-02
 **Branch:** arena/01a0f7ed-gifscythe
 **Repo re-created 2026-09-22:** the GitHub repo was rebuilt from a zip upload; the old remote's history (S1–S26, PRs #1–#33, shas like `5c93680`) does not exist in this clone — every such sha below is an old-remote record kept for the written history. The new remote: `04a1cd4` (initial) → `60d3df4` (zip upload) → `ce5fd51` (unpack to root) → PR #1 merge `824bf20`, whose tree is the S26 state minus the four root license files (loss = finding **U-97**, restored in S27 with executed proof). The ledger carries a separator: rows #1–#33 are the OLD repo's; the new repo's numbering restarts at #1. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number. This records the merged baseline, not a claim about current CI health.
-**Docs synced through:** PR #9 · branch `arena/01a0eebe-gifscythe` · merged as `c999061`
-*(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. Move this line as part of the sync, never before the writing is done.)*
+**Docs synced through:** PR #10 · branch `arena/01a0f7ed-gifscythe` · merged as: the merge commit of PR #10 (lookup in its ledger row — a PR pre-syncs itself)
+*(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. A PR **pre-syncs itself**: right after `gh pr create` it moves this line to its own number — P6 accepts the number of the branch's own open PR — so the owner can merge from the GitHub UI and continue with nothing left to edit. Move this line only after the writing is done.)*
 Based on `main` commit `c999061` (PR #9's merge, 2026-10-02 — the S33 post-merge sync plus the N-31 fix that makes G11 skip in shallow clones; its first parent `ad8f956` is PR #8's merge, whose own first parent `13d95a7` was the owner's 2026-09-29 direct upload. Re-anchored in S34 because every merge moves main's tip and G10 only accepts the tip or its first parent: an older sha here turns main red on the post-merge run — it did, for the old `13d95a7`, on PR #9's own merge run 36971588492. Old-remote shas inside the historical sections are records this clone cannot resolve) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
@@ -53,6 +53,22 @@ Based on `main` commit `c999061` (PR #9's merge, 2026-10-02 — the S33 post-mer
   the N-30 correction for exactly this reason and carried a wrong register
   row longer than it needed to. Open a PR only when the branch has new
   commits of its own — not a copy of a PR that already merged.
+- **A PR pre-syncs itself; never open a sync-only PR (S34).** Right after `gh pr
+  create`: append the ledger row, move `Docs synced through` to the PR's own
+  number (P6 accepts it) and write the *Merged as* cell as the lookup — see the
+  maintenance rule. A merge from the GitHub UI then leaves nothing to edit. The
+  only thing that can still go stale is a *different* PR merging first (G10 base
+  line, STATUS/log conflicts): stale, not broken — re-anchor in your next PR.
+- **What survives a sandbox restart (owner rule, S34).** `/tmp` is wiped between
+  turns; `build/`, `release/*/gifsicle`, `dist/`, `node_modules/` and `.venv` are
+  rebuilt or excluded from snapshots; git state (HEAD, index, shallow depth) can
+  reset while the files persist. So anything reusable — a script, a harness, a
+  measurement kit — is **committed** (`working_code/gifscythe/scripts/` or
+  `tests/`); `/tmp` is for one-time scratch only (edit scripts, emulation clones,
+  backups). The toolchain venv is disposable by design — its exact pins are in
+  the sandbox section below. S34 moved the N-32 probe (`scripts/libc_parity/`),
+  the 32-bit-`long` unit runner (`scripts/test_unit_32bit_long.sh`) and the P6
+  test out of scratch space after the sandbox wiped the first copies.
 - **S33 was the register-mechanics + doc-machine lane (U-88/P2-21 ✅ DONE,
   U-89/P2-22 ◐ PARTIAL).** `STATUS.md` now has a derived part-3 block (every
   §6 P-id with its full member list — non-U ids like GS-203 included — and a
@@ -208,16 +224,22 @@ this ledger exists to make obvious.
 | #7 | S31 | `arena/01a0e3f4-gifscythe` | never merged (closed 2026-10-02) | Opened 2026-09-28. The post-merge doc sync for #6 (base re-anchor + counts) + **N-26** registered: CI's linux job is flaky (5 of the last 7 main runs failed linux while windows passed; the same tree passed linux on PR run 36354221846, so the merge did not cause it). Still **open** — merging takes the owner's explicit yes. Its base-line naming and duplicated N-26 row need the mechanical re-sync if #8 merges first. *(Row added late by S32.)* |
 | #8 | S32 | `arena/01a0eebe-gifscythe` | `ad8f956` | Opened 2026-09-29. S32: the audit/review close-out lane — **N-25** closed (the rate-limit map is bounded by live traffic: `web/rate_limit.mjs`, whole-map prune, server-bounds 10 → 12 groups, both mutations caught by their own group), **N-27 + N-29** closed (SettingsIO.h: the half-live `-p` pair probe narrow-cast long→unsigned; a disabled dither resurrected itself on reload — 5 assertions RED → green), **N-28** refuted by execution; the review-of-problem documents folded per the S24 §20 pattern (`COMPILED_AUDIT` §21, `docs/planning/PLANNING.md` §6, `docs/archive/` rows 8–9, root review files deleted after incorporation); and the S31 doc drift that misled the owner's planning report repaired. Register **149/9/30/0 = 188**. **S33 pushed to the same PR (`42ba939`)**: U-88/P2-21 ✅ DONE (derived part-3 P-id block + release-bar line + `harness:`/`desktop:` markers + M1/M2/M3 mutation proofs), U-89/P2-22 ◐ PARTIAL (`verify_audit.sh --json` + digest; freeze rule landed; remainder = CI-artifact + register-quoted digest vs U-14's design), §21 disposition drift fixed (N-25 → DONE S32, N-27/N-29 rows added). Register **152/10/28/0 = 190**. Title updated to cover S32+S33.  **Merged 2026-10-02 as `ad8f956`** (owner yes given in-session; windows job red at merge = N-30 provisioner, code refuted as the cause and registered — linux green; PR #7 closed with the G10 anchor analysis rather than merged). |
 | #9 | S33 | `arena/01a0eebe-gifscythe` | `c999061` | Opened 2026-10-02, immediately after merging #8. The post-merge sync (S28 #3→#4 pattern): ledger row #8 filled (`ad8f956`), `COMPILED_AUDIT.md` base re-anchored to `ad8f956` (S26 mechanic), `SESSION_HANDOFF.md` Docs-synced-through moved to PR #8, PR #7 closed with the G10 anchor analysis rather than merged, S33 log merge note. No product code. Gates: check_docs 23/0/1, preflight P1–P6 PASS. **Merged 2026-10-02 (06:01Z) as `c999061`.** Added to the PR after this row was written: **N-31** (G11's non-doc-date rule degenerated in shallow clones and had turned main and this very PR red; fixed by extending G11 with G10's shallow skip, reproduced failing-first in a depth-1 clone) and the S33 count-quote sync. Its own push-to-main run (36971588492) went red exactly as predicted — G10 (this file's base line still named `13d95a7`) and Windows N-30 — and the S34 branch fixes both. |
-| #10 | S34 | `arena/01a0f7ed-gifscythe` | **open** | Opened 2026-10-02, after PR #9 merged (`c999061`) — the first PR from this branch; nothing from #8 or #9 is repeated. **CI un-masked:** the doc gate is its own full-history `docs` job and no longer hides the web suites, oracle, GUI harness and packaging; the Windows GUI build + harness no longer depend on "Build CLI + unit tests"; two inert Windows diagnostics publish findings as annotations. **N-30 fixed** (the settings integer probes used a `long`, 4 bytes on Windows — a code bug, not MinGW; `to_llong` + unit block 37, RED 7 failures on a 32-bit-`long` build → GREEN; the Windows job is green in runs 36967608254 and 36974199294) and **N-26 closed** (the "flaky linux job" was the doc gate: 8 of 8 red mains). **N-32** (the wasm proof bar cannot pass: libc `qsort` and `random()` differ) and **N-34** (`ubuntu-latest` → Ubuntu 26.04 from 2026-10-19, owner call) registered; **N-33** (README honesty summary) fixed; base lines re-anchored to `c999061`; handoff synced through #9; the docs that said an agent cannot push workflows corrected. Register **155/10/28/0 = 193**. Not merged; no merge without owner approval — use a merge commit so `c999061` stays the first parent (G10). |
+| #10 | S34 | `arena/01a0f7ed-gifscythe` | merge commit of PR #10 — lookup: `git log --first-parent --merges --grep='pull request #10 from'` | Opened 2026-10-02, after PR #9 merged (`c999061`) — the first PR from this branch; nothing from #8 or #9 is repeated. **CI un-masked:** the doc gate is its own full-history `docs` job and no longer hides the web suites, oracle, GUI harness and packaging; the Windows GUI build + harness no longer depend on "Build CLI + unit tests"; two inert Windows diagnostics publish findings as annotations. **N-30 fixed** (the settings integer probes used a `long`, 4 bytes on Windows — a code bug, not MinGW; `to_llong` + unit block 37, RED 7 failures on a 32-bit-`long` build → GREEN; the Windows job is green in runs 36967608254 and 36974199294) and **N-26 closed** (the "flaky linux job" was the doc gate: 8 of 8 red mains). **N-32** (the wasm proof bar cannot pass: libc `qsort` and `random()` differ) and **N-34** (`ubuntu-latest` → Ubuntu 26.04 from 2026-10-19, owner call) registered; **N-33** (README honesty summary) fixed; the docs that said an agent cannot push workflows corrected. **Post-merge sync pre-included** (the owner merges from the UI and continues): this row, the header's Docs-synced-through line, and both base lines (`c999061`, the merge's first parent) are written to be true at the merge; P6 now accepts a PR's own open number (`tests/test_pr_preflight_p6.py`: 1 FAIL → 8/8) and the *Merged as* cell is a lookup, so nothing is left to edit afterwards (merge simulated: the docs gate stays 24/0/1, G10 and G11 PASS, also for a merge dated after UTC midnight and for a squash). **Tooling moved out of `/tmp`**: the 32-bit-`long` unit runner (`scripts/test_unit_32bit_long.sh`) and the N-32 probe (`scripts/libc_parity/`) are committed. Register **155/10/28/0 = 193**. Merging takes the owner's explicit yes — as a merge commit (not squash/rebase), so `c999061` stays the first parent (G10). |
 
-**Maintenance rule (one row per PR, three touches):**
-1. At `gh pr create`, append this session's row with the number GitHub returned
-   and `**open**` in the *Merged as* cell. Never guess the number beforehand.
-2. Whoever merges edits that one cell to the merge sha.
-3. The next session moves the header's **`Docs synced through:`** line to the
-   newest merged PR — but only *after* writing up what that PR changed. Step
-   **P6** of `pr_preflight.sh --online` fails until the writing and the line
-   agree, and names every PR that has not been reviewed yet.
+**Maintenance rule (one row per PR; the merge itself leaves nothing to edit — S34):**
+The owner merges from the GitHub UI and continues, so everything a "post-merge sync" PR used to carry
+(#4 after #3, #9 after #8) is written *before* the merge, right after `gh pr create`:
+1. Append this session's row with the number GitHub returned (never guess it beforehand) and, in the
+   same commit, move the header's **`Docs synced through:`** line to that number. The *Merged as* cell
+   holds the lookup `merge commit of PR #N` (`git log --first-parent --merges --grep='pull request #N
+   from'`) instead of `**open**`: the sha does not exist yet and nobody edits the cell afterwards. Both
+   enforced base lines already name the merge's first parent, which G10 accepts after the merge.
+2. **P6** accepts a number above the newest merged PR only when it is the OPEN PR of the branch being
+   checked (it becomes true at the merge, and the PR carries the write-up); any other unmerged number
+   still fails, and a merge the line does not name still fails as BEHIND. Test:
+   `working_code/gifscythe/tests/test_pr_preflight_p6.py`.
+3. A later session MAY replace the lookup with the sha — optional, and never a reason for a PR: **do not
+   open a sync-only PR**; a PR needs commits of its own.
 
 **Why the PR number is the key and the branch only a cross-check:** two branches
 here each carried two PRs — `arena/01a0968e-gifscythe` produced **#16 and #17**,
@@ -756,7 +778,8 @@ count (**G9** compares like with like).
 | `scripts/test_engine.sh` · `scripts/test_package.sh` | ✅ 5/5 · **36/36** |
 | All nine `web/test/*.test.mjs` | ✅ green — server-bounds 10 → **12 groups** (+2 N-25, mutation-tested both directions), command parity 25 fixtures against the rebuilt CLI, numeric-honesty/validate/transport/body-limit/static-hygiene/device-names/request-guard unchanged-green |
 | `scripts/oracle_fuzz.mjs --quick` · `--full` | ✅ **24/24** · **64/64** deterministic cases |
-| `web/wasm/glue_harness.mjs` · the Python unit tests (`working_code/gifscythe/tests`) | ✅ `GLUE-HARNESS: PASS` · **21 tests OK** |
+| `web/wasm/glue_harness.mjs` · the Python unit tests (`working_code/gifscythe/tests`) | ✅ `GLUE-HARNESS: PASS` · **29 tests OK** (21 + the 8 P6 cases added in S34) |
+| `scripts/test_unit_32bit_long.sh` · `scripts/libc_parity/libc_parity.py --check` | ✅ unit suite **396/0** on a 4-byte `long` (RED with the 7 documented failures on the pre-fix `SettingsIO.h`) · `CHECK OK` — the N-32 finding re-asserted (RED when `random()` is left unpinned: 7/9) |
 | `scripts/verify_audit.sh` | ✅ **34 PASS / 0 FAIL / 3 SKIP** (with pip's cmake on PATH; the 3 SKIPs are B = no Qt6, C1-C5 = Actions-only, D3/D4 = clean-Windows hardware) |
 | `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **155/10/28/0 = 193** at S34; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
 | Qt/GUI harness (`test_gui_offscreen`) | ⏳ no Qt6 here (cmake is pip-installable, Qt6 headers are not) — CI is the proof: run 36967608254 ran the linux and the Windows offscreen suites green |
@@ -782,8 +805,9 @@ count (**G9** compares like with like).
   (`arena-ai-coding-agent[bot]`) — it can push `.github/workflows/`**, curl,
   passwordless sudo. **pip works** (pypi.org + files.pythonhosted.org are
   reachable, as are registry.npmjs.org, github.com, api.github.com and
-  codeload.github.com): in a venv, `pip install cmake ninja ziglang
-  check-jsonschema shellcheck-py pillow` gives **cmake 4.4.3 + ninja** (so
+  codeload.github.com): in a venv (disposable — `/tmp` is wiped), `pip install
+  cmake==4.4.3 ninja==1.13.2 ziglang==0.16.0 check-jsonschema==0.38.2
+  shellcheck-py==0.11.0.1 pillow==12.3.0 PyYAML==6.0.3` gives **cmake 4.4.3 + ninja** (so
   `verify_audit.sh` stops skipping its cmake rows), **zig 0.16 as a C/C++
   cross-compiler** (`python -m ziglang c++ -target x86-linux-musl` is a
   32-bit-`long` build — how N-30 was reproduced without Windows; `-target

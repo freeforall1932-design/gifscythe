@@ -65,7 +65,9 @@ build can be held to. gifsicle sorts with libc `qsort` (the median-cut quantizer
 optimizer) and seeds its dither with libc `random()`, and both behave differently on
 glibc (the oracle) than on musl — the libc family of wasi-libc, of the zig/WASI build
 tried in S34, and (by inference) of Emscripten. The script's verdict stays "non-empty
-GIF"; which bar replaces byte parity is an open decision recorded in `STATUS.md` N-32.
+GIF"; which bar replaces byte parity is an open decision recorded in `STATUS.md` N-32. The
+measurement is reproducible: `python3 working_code/gifscythe/scripts/libc_parity/libc_parity.py --check`
+builds the engine with zig for glibc, musl and wasm32-wasi (the last under Node's WASI) and compares.
 
 ## Glue harness (the JS, not the wasm binary)
 
