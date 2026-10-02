@@ -706,7 +706,7 @@ count (**G9** compares like with like).
 
 | Check | Result |
 |---|---|
-| `./build.sh` | ✅ engine `LCDF Gifsicle 1.96` + CLI + **384 checks, 0 failures** (372 before the N-27/N-29 cases) |
+| `./build.sh` | ✅ engine `LCDF Gifsicle 1.96` + CLI + **396 checks, 0 failures** (re-measured S34; 384 before the N-30 width cases, 372 before the N-27/N-29 cases) |
 | `scripts/smoke_cli.sh` | ✅ **63 passed, 0 failed** |
 | `scripts/test_output_verify.sh` | ✅ **25 assertions, 0 failures** |
 | `scripts/test_engine.sh` · `scripts/test_package.sh` | ✅ 5/5 · **36/36** |

@@ -147,8 +147,8 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 |----|-------|-------|---------|-----------------|-------------|
 | W-01 | Project setup: `reference_code/` vs `working_code/` separation | DONE | S1 | split in place; README "What is reference vs. working" states the rule | - |
 | W-02 | GIF engine build + upstream identity verification | DONE | S8 | `verify_audit.sh` A10: `release/0.1.0/gifsicle --version` prints `LCDF Gifsicle 1.96` | - |
-| W-03 | Qt-independent command/settings control layer | DONE | S32 | `src/core/*.h` compile with plain g++ (no Qt); unit suite 384 checks (re-measured S32 after the N-27/N-29 cases; 372 at S23) | - |
-| W-04 | CLI driver + unit tests + integration smoke | DONE | S32 | `./build.sh` 384 checks, 0 failures (re-measured S32); `scripts/smoke_cli.sh` 63/63 (54/54 at S23; grown by U-59/U-81/U-83/N-10/N-15 cases) | - |
+| W-03 | Qt-independent command/settings control layer | DONE | S34 | `src/core/*.h` compile with plain g++ (no Qt); unit suite 396 checks (re-measured S34 after the N-30 width cases; 384 at S32, 372 at S23) | - |
+| W-04 | CLI driver + unit tests + integration smoke | DONE | S34 | `./build.sh` 396 checks, 0 failures (re-measured S34); `scripts/smoke_cli.sh` 63/63 (54/54 at S23; grown by U-59/U-81/U-83/N-10/N-15 cases) | - |
 | W-05 | Qt6 GUI MVP (Batch default, mode combo, async run, queue, DnD) | DONE | S8 | CI run `34471563229` green on linux + windows; NOT compiled in the S8/S9 sandboxes (no Qt6) | - |
 | W-06 | Portable + system-dependent packaging scripts | DONE | S20 | `scripts/test_package.sh` 9/9 negative cases; `verify_audit.sh` D1/D2/D5 ; S20 (OD-17): scripts unchanged — only the Windows package ships now | - |
 | W-07 | Linux GitHub Actions path with Qt6 (test battery) | DONE | S20 | `.github/workflows/build.yml`; main runs #23/#24 green both jobs ; S20 (OD-17): linux upload dropped (windows-only ship); job stays as the automated battery | - |

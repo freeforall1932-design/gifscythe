@@ -4,10 +4,40 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
-## S34 — 2026-10-02: CI un-masked — the doc gate gets its own full-history job, the Windows GUI build and harness stop hiding behind the CLI step, and the handoff base line is re-anchored before the next merge can turn main red
+## S34 — 2026-10-02: CI un-masked — and the first un-masked Windows run named N-30 as a real 32-bit-`long` bug in the settings parser, not toolchain drift; fixed test-first
 
 **Changed:**
 
+- **N-30 named, reproduced and fixed: it was code, not provisioning.** The first
+  CI run of this branch (run 36966494878) executed what 29 Windows runs in a
+  row had skipped. The Windows GUI build and the Windows GUI offscreen harness
+  both ran and **passed**, and the two diagnostics below published what the
+  unreadable log would have: the compiler is `g++ 13.1.0 (MinGW-Builds)` from
+  `tools_mingw1310` — the FIRST choice of the aqt chain, not a gcc-8 fallback —
+  both the CLI and the unit-test compiles exit 0 (the `-lstdc++fs` probe is
+  irrelevant), and the unit exe itself fails: `FAIL: s.position_x ==
+  3000000000u && s.position_y == 5 (line 1284)`. **S33's reading ("toolchain
+  provisioning, not code"; "pin a modern MinGW") was wrong** — the STATUS N-30
+  row, the handoff and the WORKLIST line still carry it and are corrected at
+  merge-prep (see Left).
+  Root cause, reproduced here without Windows (a 32-bit-`long` target — zig
+  `x86-linux-musl`, `sizeof(long) == 4` like Windows' LLP64 — fails the
+  identical assertion at the identical line): `need_int` and `need_ulong_nonneg`
+  classified a value with a `long` probe (`to_long`) before the width-strict
+  parse. `long` is 8 bytes on LP64 and 4 on Windows, so on the only platform we
+  ship, values 2147483648..4294967295 were refused as "not an integer" while
+  `to_uint_strict` and S32's N-27 position probe accept them: the pair went live
+  with `position_x` = 0 (`-p 0,5`). N-27's fix was therefore incomplete on
+  Windows. The comment that justified the old code ("every Windows build" has
+  `long` wider than `int`) was false.
+- **The fix, test-first.** `to_long` became `to_llong` (64-bit on every
+  platform) and the two probes use it; the values still come from the strict
+  parsers, so Linux behaviour is bit-for-bit unchanged. Unit block 37 pins the
+  value AND the reason text (the old tests only counted warnings, which is how a
+  verdict that changed with the platform went unnoticed) for all three
+  verdicts. RED on the 32-bit-`long` build: 7 failures (the original plus 6
+  new); GREEN on that build and on native 64-bit. The false comment is
+  corrected.
 - **Handoff line 8 re-anchored to `ad8f956` (a G10 trap, found before it fired).**
   G10 accepts a doc's base sha only if it is main's tip or the tip's first
   parent. Line 8 named `13d95a7` — legal today (first parent of the PR #8
@@ -16,108 +46,110 @@ Chronological log of decisions and changes. **Newest at the top.**
   gate in a CI-shaped depth-1 push-to-main checkout: FAIL [G10]
   `SESSION_HANDOFF.md names base 13d95a7`; with this one-line change the same
   emulation passes (23 passed / 0 failed / 3 skipped). `COMPILED_AUDIT.md`'s
-  base line is deliberately untouched — that PR already re-anchors it and
-  editing it here would collide. Merge-order rule this exposes: a base line can
-  only name a tip that exists when it is written, so whichever PR merges
-  second must re-anchor to the then-current tip before it merges.
+  base line is deliberately untouched — that PR already re-anchors it. Merge
+  order rule this exposes: a base line can only name a tip that exists when it
+  is written, so whichever PR merges second must re-anchor to the then-current
+  tip before it merges.
 - **The doc gate is its own CI job (`docs`) with full history.** As step 7 of
   the linux job, one red gate skipped the six steps after it — the nine web
   suites, the seeded oracle, the Qt GUI harness, package portable, the
   packaging negatives and the manifest assert (main run 36960880593). The new
   job checks out with `fetch-depth: 0`, runs `./build.sh` (G9b re-measures the
   unit count, G15 needs the hook bootstrap), then the same `check_docs.sh
-  --no-gate-run`; the step keeps its name. Full history also removes the
-  cause of N-31: in a depth-1 checkout G11 compared the log date with the
-  checkout's own date and G10 skipped on every branch and PR run, so main went
-  red the day after each log entry while the same tree was green on its PR.
+  --no-gate-run`; the step keeps its name. Full history also removes the cause
+  of N-31: in a depth-1 checkout G11 compared the log date with the checkout's
+  own date and G10 skipped on every branch and PR run, so main went red the day
+  after each log entry while the same tree was green on its PR.
 - **Windows: the GUI build and its offscreen harness no longer depend on
-  "Build CLI + unit tests".** They run when provisioning (step id
-  `provision`) succeeded and, for the harness, when the GUI build (id
-  `gui_build`) did, via `!cancelled()` conditions. Of the 30 CI runs since
-  2026-09-29, 29 Windows jobs died at "Build CLI + unit tests" and 1 at the Qt
-  install, so the Windows GUI build and harness did not execute once in that
-  window (N-30).
-- **A latent failure in that GUI step fixed.** Its last line
-  `[[ -f build/gifscythe-cli.exe ]] && cp ...` made the step exit 1 whenever
-  the CLI exe was absent (measured: exit 1 in the old form, 0 in the new), which
-  would have defeated the decoupling. It is an `if` now; behaviour is unchanged
-  when the exe exists and the manifest assert still fails on a missing CLI.
-- **Two inert Windows diagnostics for N-30** (a separate commit, droppable).
-  A toolchain-identity step after provisioning publishes which `g++` (path,
-  version, target, every `g++` on PATH) the aqt fallback chain left first as
-  one notice annotation; a failure-only step, run when "Build CLI + unit
-  tests" (now `id: cli_tests`) failed, re-runs the same two compiles with their
-  output captured, probes S33's `-lstdc++fs` hypothesis with one extra compile,
-  and publishes the tail as one error annotation. Both are `continue-on-error`,
-  the original step is untouched, and neither can change a job's result. The
-  point: the log blob is unreadable from the sandboxes, annotations are not, so
-  the next CI run answers "which compiler, and what is the error" without the
-  Actions UI.
+  "Build CLI + unit tests".** They run when provisioning (step id `provision`)
+  succeeded and, for the harness, when the GUI build (id `gui_build`) did, via
+  `!cancelled()` conditions. Of the 30 CI runs since 2026-09-29, 29 Windows jobs
+  died at "Build CLI + unit tests" and 1 at the Qt install, so the Windows GUI
+  build and harness had not executed once in that window. Its last line `[[ -f
+  build/gifscythe-cli.exe ]] && cp ...` made the step exit 1 whenever the CLI
+  exe was absent (measured: exit 1 in the old form, 0 in the new), which would
+  have defeated the decoupling; it is an `if` now.
+- **Two inert Windows diagnostics** (a separate commit, droppable): a
+  toolchain-identity step after provisioning publishes which `g++` (path,
+  version, target, every `g++` on PATH) as one notice annotation; a
+  failure-only step, run when "Build CLI + unit tests" (now `id: cli_tests`)
+  failed, re-runs the same two compiles with their output captured, probes
+  S33's `-lstdc++fs` hypothesis with one extra compile, runs the unit exe if it
+  linked, and publishes the tail as one error annotation. Both are
+  `continue-on-error`, the original step is untouched, and neither can change a
+  job's result. The log blob is unreadable from the sandboxes; annotations are
+  not — which is how the paragraph above was learned from one run.
 
 **Partial / Left on purpose:**
 
+- **N-30's register row, handoff text and WORKLIST line still say "code
+  refuted as the cause" — wrong, to be corrected at merge-prep.** The open
+  doc-sync PR edits the same register block and the adjacent WORKLIST lines;
+  rewriting N-30 now would collide, so it is done on top of that PR's merge. The
+  correct statement: cause = the `long` probes (fixed here), toolchain healthy,
+  the "pin MinGW" next action is dropped. N-26's "failing step cannot be
+  identified" is also out of date — the jobs API names it (Documentation status
+  gate) and the reds reproduce deterministically in CI-shaped depth-1 clones of
+  8d30614 (G10+G11), 2ade969 (G10), 13d95a7 (G10+G11) and ad8f956 (G11).
 - **Not changed: the duplicate push + pull_request runs and `concurrency`.**
   Duplicates are cost and noise, not masking, and `cancel-in-progress` would
   cancel older per-commit runs while this repo cites the run of a specific
-  commit as evidence (N-11, N-16, N-30). That is an owner call, not a session
-  call.
-- **Not changed: the Windows toolchain provisioning.** N-30's root cause is
-  still unread (the job log blob is unreachable from the sandboxes) and
-  pinning a compiler blind would be guessing; the diagnostics-only steps above
-  are there so the next run names it, and the pin comes after that.
-- **N-26 and N-30 rows not edited here.** The open doc-sync PR carries N-31 and
-  edits the same register block; N-26's "the failing step cannot be
-  identified" is out of date — the jobs API names it (Documentation status
-  gate) and the reds reproduce deterministically in CI-shaped depth-1 clones of
-  8d30614 (G10+G11), 2ade969 (G10), 13d95a7 (G10+G11) and ad8f956 (G11). Close
-  it after that PR merges.
+  commit as evidence (N-11, N-16, N-30). That is an owner call.
+- **What the fix does not yet prove on Windows itself:** only the next Windows
+  run does. A 32-bit-`long` unit run is the local stand-in; a CI job running it
+  on Linux (`pip install ziglang`, one compile, one run) would keep this whole
+  class from regressing without a Windows runner — proposed, not added.
 - **Findings from this session still to be registered before this branch's
-  PR** (registering now would collide with the open doc-sync PR's edits to the
-  same register block): the wasm proof standard (a musl-based wasm build is
-  byte-identical to a musl-native build of the same sources but differs from
+  PR** (same collision reason): the wasm proof standard (a musl-based wasm build
+  is byte-identical to a musl-native build of the same sources but differs from
   the glibc-built native oracle, so a byte-parity bar cannot pass;
   prove_wasm.mjs does not enforce byte parity at all), the README honesty
   summary (all three claims stale), and the toolchain notes (pip can supply
   cmake, ninja, zig and shellcheck here; apt is blocked; the PySide6 wheel has
-  no Qt headers).
+  no Qt headers; zig also targets 32-bit-`long` Linux, which is how N-30 was
+  reproduced).
 
 **Verified (executed here):**
 
-- Both workflow copies byte-identical (`cmp`), and the workflow validates
-  against GitHub's workflow schema (`check-jsonschema`, vendored schema; a
-  deliberately broken file is rejected by the same command).
-- Parsed structure: jobs `docs`, `linux`, `windows`, `csharp-spike`; the linux
-  job no longer contains the gate; the Windows conditions reference only step
-  ids that exist.
+- N-30: CI run 36966494878 (annotations read through the check-runs API); the
+  32-bit-`long` reproduction (identical assertion, identical line); RED 7
+  failures → GREEN 0 on that build and on native 64-bit; then `./build.sh`
+  (396 checks, 0 failures), `smoke_cli.sh` 63/63, `test_engine.sh` 5/5,
+  `test_output_verify.sh` 25 assertions, `test_package.sh` 36/36, the oracle
+  `--full` 64/64, all nine web suites (several compare the JS builder against
+  this C++ code), and ASan+UBSan on the unit suite — clean.
+- Both workflow copies byte-identical (`cmp`); the workflow validates against
+  GitHub's workflow schema (`check-jsonschema`, vendored schema; a deliberately
+  broken file is rejected by the same command). Parsed structure: jobs `docs`,
+  `linux`, `windows`, `csharp-spike`; the linux job no longer contains the gate.
+- CI on this branch's first push: `docs` success in about a minute, `linux`
+  success with every step now reachable, `windows` failing only at the unit
+  tests, with its GUI build and harness green.
 - The `[[ ]] && cp` claim above, by running both forms under `set -euo
-  pipefail`.
-- The doc-gate reproduction and the line-8 emulation quoted above.
-- The new `docs` job, emulated step for step in a fresh full-history clone of
-  this branch with cmake on PATH and no Qt (what `ubuntu-latest` looks like):
-  `./build.sh` (384 checks, 0 failures) then `check_docs.sh --no-gate-run` —
-  24 passed, 0 failed, 1 skipped (G6 by design); G9b, G9c, G10, G11, G15 and
-  G18 all pass.
-- The two diagnostic steps: their exact `run:` text was extracted from the
-  workflow YAML and executed locally. Identity step: exit 0, exactly one
-  notice. Failure step with a deliberately broken unit-test source: exit 0
-  (it cannot fail the job), exactly one error annotation of 685 bytes with no
-  raw newline, whose decoded text carries the real g++ error, `[exit 1]` for
-  the broken compile and the `-lstdc++fs` probe's result.
-- A trial merge of the open doc-sync PR into this branch: SESSION_HANDOFF.md
-  and WORKLIST.md merge cleanly; IMPROVEMENT_LOG.md and STATUS.md conflict
-  mechanically (both sides add near the top; adjacent count lines) — resolve by
-  keeping both log entries and re-running `check_docs.sh --emit`.
+  pipefail`; the two diagnostic steps, by extracting their exact `run:` text
+  from the workflow YAML and executing it against a deliberately broken
+  unit-test source (exit 0, exactly one annotation of 685 bytes, no raw
+  newline, decoded text carries the real g++ error).
+- The new `docs` job, emulated step for step in a fresh full-history clone with
+  cmake on PATH and no Qt (what `ubuntu-latest` looks like): 24 passed, 0
+  failed, 1 skipped (G6 by design). The line-8 emulation quoted above. A trial
+  merge of the open doc-sync PR into this branch: SESSION_HANDOFF.md and
+  WORKLIST.md merge cleanly; IMPROVEMENT_LOG.md and STATUS.md conflict
+  mechanically (keep both log entries, re-run `check_docs.sh --emit`).
 
-**Not verifiable here:** the new job and conditions executing on a GitHub
-runner (only a push proves it); the Windows steps' behaviour (no Windows here);
-whether `ubuntu-latest` takes the same G9c branch as a Qt-free sandbox (it
-should: the branch needs cmake AND Qt6 present); whether GitHub accepts a
-~3.5 KB annotation message and Git Bash's `which -a` on the Windows runner; and
-whether the CI token may push a workflow change (the push itself answers it).
+**Not verifiable here:** the fix executing on a Windows runner (the next run
+does); the Windows run executing 380 of the 384 pre-fix checks (platform-
+conditional blocks, not investigated); whether GitHub accepts annotation
+messages larger than the ~700 bytes seen so far (the failure case is capped at
+3.5 KB); and whether the same `long` assumption hides in code paths no test
+reaches — the audit found plain `long` only in the two probes in `src/core` and
+`src/cli`, but the Qt sources were not audited for it.
 
-**Docs touched:** `SESSION_HANDOFF.md` (line 8), `.github/workflows/build.yml`
-and its byte copy `docs/ci/build.yml.proposed`, `docs/ci/README.md` (§1),
-`WORKLIST.md` (CI/infra bullet), `STATUS.md` (W-30 proof cell), this entry.
+**Docs touched:** `SESSION_HANDOFF.md` (line 8, the verification row's count),
+`.github/workflows/build.yml` and its byte copy `docs/ci/build.yml.proposed`,
+`docs/ci/README.md` (§1), `WORKLIST.md` (CI/infra bullet), `STATUS.md` (W-03,
+W-04 and W-30 rows), `working_code/gifscythe/src/core/SettingsIO.h`,
+`working_code/gifscythe/tests/test_gifsicle_command.cpp`, this entry.
 
 ---
 
