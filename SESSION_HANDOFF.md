@@ -735,7 +735,7 @@ only stick if they are in files a new session reads, not in a conversation.
   per-session copies of audit/legal/ci/planning docs; extend the merged file
   (`docs/archive/AUDIT_HISTORY.md` indexes what was folded where).
 
-## Verification status this session (S32)
+## Verification status this session (S34)
 
 Everything marked ✅ was **run in this sandbox**; ⏳ could not be. The S28-era
 table this replaces lives in the PR ledger rows below / `IMPROVEMENT_LOG.md`.
@@ -749,11 +749,12 @@ count (**G9** compares like with like).
 | `scripts/test_output_verify.sh` | ✅ **25 assertions, 0 failures** |
 | `scripts/test_engine.sh` · `scripts/test_package.sh` | ✅ 5/5 · **36/36** |
 | All nine `web/test/*.test.mjs` | ✅ green — server-bounds 10 → **12 groups** (+2 N-25, mutation-tested both directions), command parity 25 fixtures against the rebuilt CLI, numeric-honesty/validate/transport/body-limit/static-hygiene/device-names/request-guard unchanged-green |
-| `scripts/oracle_fuzz.mjs --quick` | ✅ **24/24** deterministic cases |
-| `scripts/verify_audit.sh` | ✅ **31 PASS / 1 FAIL / 5 SKIP** — the 1 FAIL is F1 re-reporting the two expected mid-session stalenesses (the 372→384 quote, G11), both cleared by the S32 docs |
-| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **152/10/28/0 = 190** at S33; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
-| Qt/GUI harness (`test_gui_offscreen`) | ⏳ no cmake, no Qt6 here — the SettingsPanel.cpp review is source-read only |
-| Windows-only rows, wasm rows, CI log blobs | ⏳ no mingw-w64, no wine, no emcc; Actions logs unreachable (N-26 stays undiagnosed) |
+| `scripts/oracle_fuzz.mjs --quick` · `--full` | ✅ **24/24** · **64/64** deterministic cases |
+| `web/wasm/glue_harness.mjs` · the Python unit tests (`working_code/gifscythe/tests`) | ✅ `GLUE-HARNESS: PASS` · **21 tests OK** |
+| `scripts/verify_audit.sh` | ✅ **34 PASS / 0 FAIL / 3 SKIP** (with pip's cmake on PATH; the 3 SKIPs are B = no Qt6, C1-C5 = Actions-only, D3/D4 = clean-Windows hardware) |
+| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **155/10/27/0 = 192** at S34; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
+| Qt/GUI harness (`test_gui_offscreen`) | ⏳ no Qt6 here (cmake is pip-installable, Qt6 headers are not) — CI is the proof: run 36967608254 ran the linux and the Windows offscreen suites green |
+| Windows-only rows, wasm rows, CI log blobs | ⏳ no wine, no emcc, no Windows runner here (zig compiles Windows exes, nothing runs them) — Windows results are read from CI (run 36967608254 for the N-30 fix); a zig wasm32-wasi build of the engine does run under Node's WASI (N-32, no promotion); Actions log blobs are unreachable, but the jobs API and check-run annotations are — N-26 and N-30 were diagnosed that way |
 
 ## Network/toolchain reality of this sandbox (re-check every session)
 

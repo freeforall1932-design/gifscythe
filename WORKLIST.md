@@ -88,9 +88,12 @@ reads them in a file, not in a conversation.
 
 - **N-32** (S34, **OPEN**): the wasm track's documented proof bar (output
   byte-equal to the native oracle) cannot be met by a build with a different
-  libc, and `prove_wasm.mjs` never compares bytes. Needs an owner-visible
-  decision on a bar that can pass; do not chase byte parity with the glibc
-  oracle. Detail and the measurement caveat in the STATUS row.
+  libc, and `prove_wasm.mjs` never compares bytes. Measured: wasm32-wasi ==
+  a musl-native build 9/9, but the glibc oracle only 3/9, because `qsort`
+  orders equal keys differently and `random()` differs (with a stable
+  `qsort` + a fixed `random()` all three builds agree 9/9). Needs an
+  owner-visible decision on a bar that can pass; do not chase byte parity
+  with the glibc oracle. Detail in the STATUS row.
 
 - **N-33** (S34, found and fixed the same session): the README's honesty
   summary was stale in all three claims — rewritten from live state.

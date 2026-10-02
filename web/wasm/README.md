@@ -61,10 +61,11 @@ to 8637 B under `-O3` (GIF89a, 12 images, 60x132, loop forever), and to
 4106 B under `-O3 --resize-fit 30x66` (30x66).
 
 **S34 note (N-32):** a byte comparison with that native oracle is not a bar any wasm
-build can be held to. gifsicle's median-cut quantizer sorts with `qsort`, and the order
-of equal keys differs between glibc (the oracle) and musl (Emscripten's libc, and the
-libc of the zig/WASI build tried in S34). The script's verdict stays "non-empty GIF";
-which bar replaces byte parity is an open decision recorded in `STATUS.md` N-32.
+build can be held to. gifsicle sorts with libc `qsort` (the median-cut quantizer, the
+optimizer) and seeds its dither with libc `random()`, and both behave differently on
+glibc (the oracle) than on musl — the libc family of wasi-libc, of the zig/WASI build
+tried in S34, and (by inference) of Emscripten. The script's verdict stays "non-empty
+GIF"; which bar replaces byte parity is an open decision recorded in `STATUS.md` N-32.
 
 ## Glue harness (the JS, not the wasm binary)
 

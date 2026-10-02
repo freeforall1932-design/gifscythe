@@ -348,9 +348,9 @@ verification approach (compare wasm output byte-for-byte against the native
 source.
 
 *(S34 correction: this bar cannot pass for any build whose libc differs from the oracle's —
-the median-cut quantizer sorts with `qsort`, and the order of equal keys is libc-specific;
-a musl-built wasm matched a musl-native build byte-for-byte and missed the glibc oracle in
-most scratch cases. Tracked as N-32; the owner-visible decision is which bar replaces it.)*
+`qsort` orders equal keys differently and `random()` (the dither seed) differs between glibc
+and musl; a wasm32-wasi build matched a musl-native build in 9 of 9 cases and the glibc
+oracle in 3 of 9. Tracked as N-32; the owner-visible decision is which bar replaces it.)*
 
 #### Option B — adopt an existing pre-built implementation
 

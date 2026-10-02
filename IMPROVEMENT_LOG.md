@@ -135,19 +135,25 @@ Chronological log of decisions and changes. **Newest at the top.**
   (API, checked 2026-10-02), U-59 is DONE end to end, CI evidence by run id.
 - **N-32 registered (OPEN, owner-visible): the wasm track's "byte-for-byte
   against the native oracle" bar cannot be met by a build with a different
-  libc.** Measured in a scratch run this session — NOT committed, re-measure
-  before relying on the counts: gifsicle 1.96 built from the repo's sources
-  with `python -m ziglang cc -target wasm32-wasi` (`config.wasm.h` staged as
-  `config.h`, plus a popen/pclose/umask/mkstemp shim) runs under Node's WASI.
-  Its output is byte-identical to musl-native builds (64- and 32-bit) and
-  differs from the glibc-built oracle in 7 of 9 cases. gifsicle's median-cut
-  quantizer sorts with libc `qsort` (`quantize.c` lines 101–105), whose order of
-  equal keys is libc-specific; a clang+glibc build equals the gcc+glibc one, so
-  the libc — not wasm, not the compiler — is the cause. Emscripten is
-  musl-derived too, so the emcc build the docs wait for would, by inference,
-  miss the oracle the same way. `prove_wasm.mjs` never compared bytes (it only
-  requires a non-empty GIF). PLANNING §6, the wasm README and the WORKLIST carry
-  the correction; which bar replaces byte parity is the owner's decision.
+  libc.** Re-measured at PR-prep on 9 invocations (the logo animation ×4, a
+  seeded many-colour 3-frame GIF ×4, `logo1.gif`) across four builds of the
+  same 13 engine sources: the repo's gcc+glibc oracle, zig clang+glibc, zig
+  clang+musl and zig clang+wasm32-wasi under Node's WASI. gcc+glibc ==
+  clang+glibc in 9/9 (the compiler is irrelevant); musl == wasm in 9/9; but the
+  glibc oracle == musl in only 3/9 — of the 6 differences, 2 decode to
+  identical pixels and 4 to different pixels. **Two libc behaviours explain
+  every difference.** (1) `qsort`'s order of equal keys (`quantize.c` lines
+  101–105 and 158, `optimize.c` line 245): one stable `qsort` injected into every
+  build gives glibc == musl == wasm in 7/9. (2) `random()`: `quantize.c` lines
+  450–452 and 581–583 seed the dither error pattern with `RANDOM()`, which both
+  config headers map to libc `random()`: a stable `qsort` *and* one fixed
+  `random()` give 9/9 across all three. wasi-libc is musl-derived; Emscripten's
+  libc is too, so the emcc build the docs wait for would, by inference, miss the
+  oracle the same way. `prove_wasm.mjs` never compared bytes (it only requires a
+  non-empty GIF). PLANNING §6, the wasm README and the WORKLIST carry the
+  correction; which bar replaces byte parity — a same-libc native oracle, the
+  stable-qsort/fixed-random shim, or pixel equality where no quantizer or dither
+  runs — is the owner's decision.
 
 **Partial / Left on purpose:**
 
@@ -200,13 +206,23 @@ Chronological log of decisions and changes. **Newest at the top.**
   exactly this branch's content and against the previous tip as exactly PR #9's.
 - Live GitHub state used by the docs: releases 0, tags 0, PR #9 merged
   `c999061`, PR #7 closed unmerged, run ids as quoted.
+- N-32's recipe (the scripts are not committed): from `reference_code/gifsicle`,
+  `python -m ziglang cc -O2 -target <x86_64-linux-musl | x86_64-linux-gnu.2.36 |
+  wasm32-wasi> -DHAVE_CONFIG_H -DVERSION='"1.96"' -I<a dir holding
+  config.native.h (config.wasm.h for wasi) as config.h> -Iinclude -Isrc <the 13
+  sources of build_engine.sh> -lm`; for wasi add `-include` a header of static
+  inline `popen`/`pclose`/`umask`/`mkstemp` stubs and run the module under
+  Node's `node:wasi` with the work directory preopened; the "stable" builds add
+  `-include` a header that defines `qsort` as a stable merge sort and `random`
+  as a fixed LCG. Outputs compared by sha256, and by Pillow-decoded RGBA frames
+  (alpha-0 pixels normalised) where the bytes differed.
 
 **Not verifiable here:** the Windows rows that need real hardware (W-18 clean
 machine, W-19 desktop probes — a CI artifact is not a clean-machine run);
 whether GitHub accepts annotation messages larger than the ~700 bytes seen so
-far (the failure case is capped at 3.5 KB); that N-32's numbers hold today (a
-scratch measurement, not committed) and what an emcc build would do (inferred
-from Emscripten's musl-derived libc, unmeasured); semantic integer-width
+far (the failure case is capped at 3.5 KB); what an emcc build would do (inferred
+from Emscripten's musl-derived libc, unmeasured — emcc is unobtainable here), and
+that N-32's measurement scripts are not committed (the recipe is above); semantic integer-width
 classes beyond plain `long` (size_t/int narrowing in the Qt code — the grep
 audit above covers `long` only); and whether the base lines stay legal — they
 name `c999061`, so any other merge before this one makes this PR stale (stale,
