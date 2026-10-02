@@ -123,18 +123,33 @@ jobs:
       # validation rules. Nothing in the C++ suites touches them, so without
       # these two the JS and C++ sides drift silently (audit U-03 proved they
       # do). They need only the CLI built above plus the Node on the runner.
+      # S34: every suite runs even if an earlier one failed, and a failing suite is NAMED. The job log
+      # is unreadable from the agent sessions (Actions log blobs are blocked) and check-run annotations
+      # are not, so the first red of this step - a startup-banner race in server-bounds, one run in
+      # about fifteen - read only "exit code 1" and had to be found by reproducing it locally. The
+      # step still fails if any suite fails.
       - name: Web JS/C++ parity + server regression tests
         run: |
-          set -euo pipefail
-          node web/test/command.test.mjs
-          node web/test/validate.test.mjs
-          node web/test/numeric-honesty.test.mjs
-          node web/test/transport.test.mjs
-          node web/test/body-limit.test.mjs
-          node web/test/static-hygiene.test.mjs
-          node web/test/request-guard.test.mjs
-          node web/test/device-names.test.mjs
-          node web/test/server-bounds.test.mjs
+          set -uo pipefail
+          failed=""
+          for t in command validate numeric-honesty transport body-limit static-hygiene request-guard device-names server-bounds; do
+            if out="$(node "web/test/$t.test.mjs" 2>&1)"; then
+              printf '%s\n' "$out" | tail -n 2
+            else
+              failed="$failed $t"
+              printf '%s\n' "$out"
+              msg="$(printf '%s\n' "$out" | grep -E -A3 --no-group-separator '^(FAIL|Error|AssertionError)|FAILED' | head -n 16 || true)"
+              [ -n "$msg" ] || msg="$(printf '%s\n' "$out" | tail -n 12)"
+              msg="${msg//'%'/'%25'}"
+              msg="${msg//$'\r'/'%0D'}"
+              msg="${msg//$'\n'/'%0A'}"
+              echo "::error title=web suite $t failed::${msg}"
+            fi
+          done
+          if [ -n "$failed" ]; then
+            echo "failed suites:$failed"
+            exit 1
+          fi
 
       - name: Seeded engine-oracle conformance (U-94 / P2-18)
         run: node working_code/gifscythe/scripts/oracle_fuzz.mjs --full
