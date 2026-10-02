@@ -4,7 +4,7 @@
 #
 # Why this exists (N-30, S34). Windows is LLP64: `long` is 32 bits there, and Windows is the
 # only platform we ship. Linux is LP64 (`long` is 64 bits) and is where everything is developed
-# and where CI's fast jobs run. N-30 lived in exactly that gap for 29 CI runs: the settings
+# and where CI's fast jobs run. N-30 lived in exactly that gap for 31 CI runs: the settings
 # parser classified integers with a `long` probe, so 2147483648..4294967295 were refused on
 # Windows and accepted on Linux, and only the Windows unit run could see it - when that job
 # could be read at all. This script builds tests/test_gifsicle_command.cpp for x86-linux-musl
@@ -17,6 +17,9 @@
 #
 # Needs: `zig` on PATH, or python3 with the `ziglang` wheel; a kernel that can execute 32-bit
 # x86 ELF binaries (the usual x86_64 Linux default). Nothing is written into the checkout.
+#
+# CI runs this in the `portability` job (S34, the owner's call: about two minutes, in parallel with the
+# other jobs). Run it by hand after any change to src/core's parsing or to a type's width.
 #
 # Exit: 0 unit suite passed on the 32-bit-long target
 #       1 unit tests failed (or did not compile) on it - that is the N-30 signal
