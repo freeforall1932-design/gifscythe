@@ -4,7 +4,54 @@ on:
   push:
   pull_request:
 
+# S34 (the owner's call): one run per branch and event, and no push run that the pull request already
+# covers.
+#  - concurrency: a newer push to the same branch (or PR) cancels the older run of the same event, so a
+#    quick follow-up commit does not pay for a Windows build nobody will read. A push to main is never
+#    cancelled and never replaces another (its group is the run id): every main commit keeps its proof.
+#  - the `gate` job skips a push run when an open, mergeable PR exists for the branch - the PR's own
+#    pull_request run tests that commit. Before a PR exists, and for a PR with merge conflicts (GitHub
+#    starts no pull_request run for those), the push run still runs: CI on a bare branch is the
+#    feedback loop the agent sessions work in.
+concurrency:
+  group: ${{ github.ref == 'refs/heads/main' && format('main-{0}', github.run_id) || format('build-{0}-{1}', github.event_name, github.head_ref || github.ref) }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Runner images (N-34, the owner's call, S34): ubuntu-24.04 is pinned in every Linux job (gate, docs,
+# linux, portability) instead of ubuntu-latest. GitHub moves that label from Ubuntu 24.04 to 26.04
+# gradually between 2026-10-19 and 2026-11-19 (changelog 2026-09-17); the linux job installs Qt with apt
+# and runs the offscreen GUI harness, so an image change could turn it red with no change in this repo -
+# the N-26 confusion again. To move to 26.04 on purpose: change the four labels together and trial the
+# change on a branch first.
+
 jobs:
+  # Decides whether this run does the work (see the concurrency note above). It never fails the run:
+  # every job below runs when the gate says "run", when it errors, and when it is cancelled-free.
+  gate:
+    name: gate (dedupe push vs PR runs)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      skip: ${{ steps.decide.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: working_code/gifscythe/scripts/ci_gate.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Decide (scripts/ci_gate.sh; table in tests/test_ci_gate.py)
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BRANCH: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+        run: bash working_code/gifscythe/scripts/ci_gate.sh
+
   # The documentation status gate used to be step 7 of the linux job. A red gate
   # skipped everything after it - the web suites, the oracle, the Qt GUI harness
   # and the packaging steps (main run 36960880593: six verification steps skipped
@@ -19,7 +66,9 @@ jobs:
   # after each log entry while the same tree was green on its PR (N-26 / N-31).
   # With history the gate measures what the local pre-push hook measures.
   docs:
-    runs-on: ubuntu-latest
+    needs: gate
+    if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,7 +95,9 @@ jobs:
         run: ./scripts/check_docs.sh --no-gate-run
 
   linux:
-    runs-on: ubuntu-latest
+    needs: gate
+    if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -130,7 +181,59 @@ jobs:
       # linux build/package/assert above stays as the automated test battery
       # for the shared logic (engine, CLI, GUI harness, stager).
 
+  # S34 (the owner's call; N-30 and N-32): the two checks that need neither a Windows box nor emcc,
+  # only zig - a pinned pip wheel that cross-compiles to every target below. A separate job, so it
+  # runs beside the others: about 3.5 runner-minutes (measured with a cold zig cache: the 32-bit
+  # unit suite 2m03s, the wasm bar 1m06s), against about 4 minutes for the windows -> csharp-spike
+  # chain, which is the longest path - so it adds little or no wall-clock time. Any non-zero exit
+  # fails it, including a runner's "SKIPPED" exit 3: a skipped proof must never read as a passed one.
+  portability:
+    name: portability (32-bit long, wasm32 bar)
+    needs: gate
+    if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # A venv: 24.04's system pip refuses to install into the system Python (PEP 668).
+      - name: Install the pinned toolchain (zig, Pillow)
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet ziglang==0.16.0 pillow==12.3.0
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/venv/bin/python" -m ziglang version
+          node --version
+
+      # N-30: Windows is LLP64 (`long` is 4 bytes) and is the only platform we ship, but the fast jobs
+      # run on LP64 Linux. This builds the unit suite for x86-linux-musl, where `long` is 4 bytes, and
+      # runs it: the bug that kept the Windows job red for 31 runs (a `long` integer probe) fails
+      # here, in seconds, on a Linux runner. RED/GREEN evidence: STATUS N-30.
+      - name: Unit suite on a 32-bit-long target (the N-30 class)
+        working-directory: working_code/gifscythe
+        run: ./scripts/test_unit_32bit_long.sh
+
+      # N-32, the owner's decision: the wasm track's bar is a SAME-LIBC native oracle. gifsicle's output
+      # depends on libc qsort tie order and random(), so byte parity with the glibc build cannot pass;
+      # what a wasm port can break is held to a musl-native build of the same sources instead. The
+      # wasm32-wasi build runs under Node's WASI. --keep leaves the musl engine for the next step.
+      - name: wasm32 engine == same-libc native engine, byte for byte (N-32 bar)
+        run: python3 working_code/gifscythe/scripts/libc_parity/libc_parity.py --bar --keep "$RUNNER_TEMP/parity"
+
+      # The Emscripten-side comparison (prove_wasm.mjs --oracle) can only run against a real emcc
+      # build, which nothing here can make; this exercises its comparison logic with a fake module.
+      - name: prove_wasm.mjs --oracle logic (fake module, real native engine)
+        env:
+          GS_TEST_ENGINE: ${{ runner.temp }}/parity/engine_musl
+        run: python3 working_code/gifscythe/tests/test_prove_wasm_oracle.py
+
+      - name: Bar verdict logic (a proof gate must be able to fail)
+        run: python3 working_code/gifscythe/tests/test_libc_parity_bar.py
+
   windows:
+    needs: gate
+    if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
     runs-on: windows-latest
     defaults:
       run:
