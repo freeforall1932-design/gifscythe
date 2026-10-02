@@ -47,12 +47,14 @@ Based on `main` commit `c999061` (PR #9's merge, 2026-10-02 — the S33 post-mer
      (`scripts/ci_gate.sh`) skips a *push* run when an open, mergeable PR exists for the
      branch: the PR's own run tests that commit. A branch without a PR, and a PR with
      merge conflicts (GitHub starts no `pull_request` run for those), still get the push
-     run; skipped jobs are neutral on the PR page. (b) Workflow-level `concurrency`: a
+     run; skipped jobs are neutral on the PR page, and the gate costs ~12 s of wall-clock
+     at the front of every run (4.1 → 4.3 min). (b) Workflow-level `concurrency`: a
      newer push to the same branch or PR cancels the older run of the same event; main is
      never cancelled. **So to cite a specific commit's run as evidence, let it finish
      before pushing again.** (c) A parallel `portability` job needing only zig: the
-     32-bit-`long` unit suite (the N-30 class) and the N-32 wasm bar — about 3.5
-     runner-minutes (cold zig cache), little or no wall-clock time. Decision table: `tests/test_ci_gate.py`.
+     32-bit-`long` unit suite (the N-30 class) and the N-32 wasm bar — 2.0 minutes on
+     Actions (run 36983286343), no wall-clock time (the windows → csharp-spike chain is
+     the ~4-minute longest path). Decision table: `tests/test_ci_gate.py`.
      Offline workflow lint: `node working_code/gifscythe/scripts/lint_workflow.mjs`.
   8. **N-32's bar is decided — a same-libc native oracle (PARTIAL).** The wasm32-wasi
      build must be byte-equal to a musl-native build of the same sources; enforced in CI
@@ -797,7 +799,7 @@ count (**G9** compares like with like).
 | `scripts/test_unit_32bit_long.sh` · `scripts/libc_parity/libc_parity.py --check` | ✅ unit suite **396/0** on a 4-byte `long` (RED with the 7 documented failures on the pre-fix `SettingsIO.h`) · `CHECK OK` — the N-32 finding re-asserted (RED when `random()` is left unpinned: 7/9) · `libc_parity.py --bar` **BAR OK 9/9** (and `--bar --against glibc`, the old bar, FAILS 6 of 9, as it must) |
 | `scripts/verify_audit.sh` | ✅ **34 PASS / 0 FAIL / 3 SKIP** (with pip's cmake on PATH; the 3 SKIPs are B = no Qt6, C1-C5 = Actions-only, D3/D4 = clean-Windows hardware) |
 | `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **156/11/26/0 = 193** at S34; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
-| `.github/workflows/build.yml` (both copies, byte-identical) | ✅ GitHub workflow schema (`check-jsonschema`) and actionlint (`scripts/lint_workflow.mjs`, its wasm build) clean; the dedupe gate's 14-case table passes and three mutants are each killed by their own test; the live behaviour is read back from Actions — run ids in the S34 log entry |
+| `.github/workflows/build.yml` (both copies, byte-identical) | ✅ GitHub workflow schema (`check-jsonschema`) and actionlint (`scripts/lint_workflow.mjs`, its wasm build) clean; the dedupe gate's 14-case table passes and three mutants are each killed by their own test; live on Actions: the push run 36983282655 ran only the gate (`skip=true`, the other five jobs skipped) and the `pull_request` run 36983286343 ran all six jobs green (`portability` 2.0 min: toolchain 8 s, 32-bit unit suite 69 s, wasm bar 38 s) |
 | Qt/GUI harness (`test_gui_offscreen`) | ⏳ no Qt6 here (cmake is pip-installable, Qt6 headers are not) — CI is the proof: run 36967608254 ran the linux and the Windows offscreen suites green |
 | Windows-only rows, wasm rows, CI log blobs | ⏳ no wine, no emcc, no Windows runner here (zig compiles Windows exes, nothing runs them) — Windows results are read from CI (run 36967608254 for the N-30 fix); a zig wasm32-wasi build of the engine does run under Node's WASI (N-32, no promotion); Actions log blobs are unreachable, but the jobs API and check-run annotations are — N-26 and N-30 were diagnosed that way |
 

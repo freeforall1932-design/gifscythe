@@ -211,12 +211,27 @@ Chronological log of decisions and changes. **Newest at the top.**
   cost, written down in `docs/ci/README.md` and the handoff: this repo cites the run of a
   specific commit as evidence (N-11, N-16, N-30), so to keep a commit's run, let it finish
   before pushing again. *The 32-bit runner:* a `portability` job of its own, so it runs
-  beside the others. Measured with a cold zig cache: the unit suite 2m03s, the wasm bar
-  1m06s — about 3.5 runner-minutes, against about 4 minutes for the windows → csharp-spike
-  chain (the longest path), so little or no wall-clock time; more than the "about two
-  minutes" the owner accepted for the runner alone, because the wasm bar rides in the same
-  job. zig 0.16.0 and Pillow come from pinned wheels in a venv (24.04's system pip refuses
-  system installs); any non-zero exit fails it, including a runner's "SKIPPED" exit 3.
+  beside the others. Measured on Actions (run 36983286343): toolchain install 8 s, the
+  32-bit unit suite 69 s, the wasm bar 38 s, the two Python suites under 1 s each — **2.0
+  minutes**, the figure the owner accepted for the runner alone, with the wasm bar riding
+  in the same job at no visible cost. `portability` itself added no wall-clock time (it runs
+  beside the others), but the PR run as a whole went from 4.1 minutes (run 36977644904) to
+  4.3 (run 36983286343): the extra ~12 s is the `gate` job, which now sits in front of every
+  other job (gate 0.1 + windows 2.9 + csharp-spike 1.1). (This sandbox
+  needs about 3 minutes for the same two checks with a cold zig cache — 2m03s and 1m06s —
+  which is why a first guess here said "3.5 runner-minutes"; the runner is the number
+  that matters.) zig 0.16.0 and Pillow come from pinned wheels in a venv (24.04's system
+  pip refuses system installs); any non-zero exit fails it, including a runner's
+  "SKIPPED" exit 3. **A gap found by reading the first run:** steps 6 and 7 (the two
+  Python suites) took 0 s, and with the Actions log blobs unreadable I could not tell ten
+  tests run from ten skipped — and `test_prove_wasm_oracle.py` skips itself when node or the
+  engine is missing, exiting 0. The step now sets `GS_REQUIRE_PROOF=1`, which turns that
+  skip into a failure (checked three ways: normal 10/10; engine missing = a visible skip;
+  engine missing with the variable = exit 1). *Live behaviour of the gate:* on the commit
+  that introduced it, the **push** run (36983282655) executed only the gate — `skip=true`,
+  "PR #10 is open and mergeable" — and its other five jobs were skipped, while the
+  **pull_request** run (36983286343) said `skip=false` and ran all six jobs green; PR #10
+  stayed MERGEABLE/CLEAN with 7 successful and 5 skipped checks and no failure.
   *Tooling:* `scripts/lint_workflow.mjs` (actionlint's wasm build from npm — the binary's host
   is blocked here; `--selftest`). Its first version ran `npm init --prefix`, which writes
   into the CURRENT directory: it dropped a stray `package.json` into the checkout, which
@@ -328,11 +343,14 @@ Chronological log of decisions and changes. **Newest at the top.**
   positive that `lint_workflow.mjs` filters; its `--selftest` passes); both workflow copies
   byte-identical; `shellcheck` clean on `ci_gate.sh` and `test_unit_32bit_long.sh`; the gate's API
   calls against the real repo (the slashed branch name finds PR #10, `mergeable` is `true`, an
-  unknown repo is a detectable error); the portability costs measured with a cold zig cache (unit
-  suite 2m03s, wasm bar 1m06s).
+  unknown repo is a detectable error). On Actions: run 36983286343 — `gate`, `docs`, `linux`,
+  `portability`, `windows`, `csharp-spike` all green on `ubuntu-24.04`/`windows-latest`, every
+  `portability` step `success` (toolchain 8 s, unit suite 69 s, wasm bar 38 s); push run 36983282655 —
+  gate `skip=true`, five jobs skipped.
 
-**Not verifiable here:** whether `ubuntu-26.04` would have passed (no such image here); the gate's
-conflicting-PR branch against a real conflicting PR; an Emscripten build through `prove_wasm.mjs
+**Not verifiable here:** whether `ubuntu-26.04` would have passed (not trialled: a red trial commit on this
+PR's head would put a failing check on a PR the owner may merge, and no other branch may be used); the
+gate's conflicting-PR branch against a real conflicting PR; an Emscripten build through `prove_wasm.mjs
 --oracle`; the Windows rows that need real hardware (W-18 clean
 machine, W-19 desktop probes — a CI artifact is not a clean-machine run);
 whether GitHub accepts annotation messages larger than the ~700 bytes seen so

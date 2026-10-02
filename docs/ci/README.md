@@ -78,7 +78,11 @@ back to enforcing byte-equality with no standing exception.
   `if: !cancelled() && needs.gate.outputs.skip != 'true'`, so even a crashed gate runs
   everything. Workflow-level `concurrency` cancels the older run of the same event on
   the same branch or PR when a newer push arrives; a push to `main` is never
-  cancelled (its group is the run id). **Trade-off:** this repo cites the run of a
+  cancelled (its group is the run id). Seen live (S34): the push run of this PR's branch
+  ran only the gate (`skip=true`, run 36983282655) while the `pull_request` run ran all six
+  jobs (run 36983286343); the PR page lists the skipped jobs as neutral. The gate costs about
+  12 s of wall-clock at the front of every run (4.1 -> 4.3 minutes for the whole PR run:
+  the gate sits in front of every other job). **Trade-off:** this repo cites the run of a
   specific commit as evidence (N-11, N-16, N-30) — to keep a commit's run, let it
   finish before pushing again.
 - **Runner images (N-34, S34).** `ubuntu-24.04` is pinned in all four Linux jobs
@@ -86,16 +90,19 @@ back to enforcing byte-equality with no standing exception.
   and 2026-11-19. To move on purpose, change the four labels in both workflow copies
   and trial the change on a branch first.
 - **`portability` (S34, the owner's calls; N-30, N-32).** The checks that need zig but
-  neither a Windows box nor emcc, in one job beside the others: about 3.5 runner-minutes
-  (measured with a cold zig cache: the 32-bit unit suite 2m03s, the wasm bar 1m06s) against
-  about 4 minutes for the windows -> csharp-spike chain, so little or no wall-clock time.
-  The owner accepted the cost because it helps verify the project. The job holds the unit
-  suite on a 32-bit-`long` target (`scripts/test_unit_32bit_long.sh`, the N-30 class),
-  `scripts/libc_parity/libc_parity.py --bar` (the wasm32-wasi build byte-equal to a
-  musl-native build - N-32's bar) and the
-  two Python suites that pin the bar's logic and `prove_wasm.mjs --oracle`. zig and
-  Pillow are pinned pip wheels in a venv. Any non-zero exit fails the job, including a
-  runner's "SKIPPED" exit 3: a skipped proof must never read as a passed one.
+  neither a Windows box nor emcc, in one job beside the others. Measured on Actions (run
+  36983286343): 2.0 minutes — toolchain 8 s, the 32-bit unit suite 69 s, the wasm bar 38 s —
+  against about 4 minutes for the windows -> csharp-spike chain, so it adds no wall-clock
+  time (the slower sandbox needs about 3 minutes for the same two checks with a cold zig
+  cache). The owner accepted roughly two minutes because it helps verify the project. The
+  job holds the unit suite on a 32-bit-`long` target (`scripts/test_unit_32bit_long.sh`, the
+  N-30 class), `scripts/libc_parity/libc_parity.py --bar` (the wasm32-wasi build byte-equal
+  to a musl-native build - N-32's bar) and the two Python suites that pin the bar's logic and
+  `prove_wasm.mjs --oracle`. zig and Pillow are pinned pip wheels in a venv. Any non-zero
+  exit fails the job, including a runner's "SKIPPED" exit 3, and `GS_REQUIRE_PROOF=1` makes
+  a Python suite that cannot find its prerequisites a failure instead of ten silent skips
+  (the first run of that suite was green in 0 s with no way to tell from outside whether it
+  had run): a skipped proof must never read as a passed one.
 - **Editing the workflow offline (S34).** No actionlint binary is obtainable here (its
   release host is blocked), but `node working_code/gifscythe/scripts/lint_workflow.mjs`
   runs its WebAssembly build from npm (installed on first use into `$TMPDIR`), drops
