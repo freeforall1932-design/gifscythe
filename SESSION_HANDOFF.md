@@ -82,7 +82,7 @@ Based on `main` commit `13d95a7` (the owner's 2026-09-29 direct upload — tree 
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 152 DONE · 10 PARTIAL · 28 OPEN · 0 UNTRIAGED · 189 total (at S32: 149/9/30/0 — historical)
+- **Register:** 152 DONE · 10 PARTIAL · 28 OPEN · 0 UNTRIAGED · 190 total (at S32: 149/9/30/0 — historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
