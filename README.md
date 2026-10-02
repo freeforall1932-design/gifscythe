@@ -14,15 +14,18 @@ deliberately carries no session narrative any more: the S4–S24 history is in
 2026-09-17 consolidation (S24) folded the dated doc snapshots together — see
 `docs/archive/AUDIT_HISTORY.md` for the audit-history index.
 
-**Honesty summary (as of S24, 2026-09-17):** the desktop/CLI/web surfaces are
-CI-verified on linux + windows (main green at `3c67e14`, run 35112077599,
-2026-09-16). What has NEVER been proven: the portable Windows bundle on a real
-clean machine (W-18) and three physical-desktop GUI behaviors (W-19) — Wine and
-the offscreen harness are emulation/CI signals, not Windows proof. One
-registered data-loss row is still open (U-59/P0-7: cancel can truncate a file
-over a previous good output), and the one published Release
-(`snapshot-2026-09-07`) is stale (U-09) and predates the Ms-PL relicence
-(U-95) — treat it as a historical artifact, not a current build.
+**Honesty summary (as of S34, 2026-10-02):** the desktop, CLI and web surfaces are
+exercised by CI on linux + windows (`.github/workflows/build.yml`); on the S34
+branch's run 36967608254 all four jobs were green, including the Windows build,
+unit tests and offscreen GUI harness. What has NEVER been proven: the portable
+Windows bundle on a real clean machine (W-18) and three physical-desktop GUI
+behaviors (W-19) — Wine and the offscreen harness are emulation/CI signals, not
+Windows proof. The one registered data-loss row (U-59/P0-7: a cancel could
+truncate a file over a previous good output) is closed — CLI S28, GUI S30,
+Explode S31. There is no published release: the repo has no GitHub Releases or
+tags yet (the re-cut, P0-4, is still to do), so build from source (Quick start
+below) or take a CI artifact. This paragraph is a dated snapshot; for anything
+time-sensitive read `STATUS.md`.
 
 ## Quick start
 
