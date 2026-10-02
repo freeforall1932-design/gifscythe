@@ -155,6 +155,19 @@ Chronological log of decisions and changes. **Newest at the top.**
   stable-qsort/fixed-random shim, or pixel equality where no quantizer or dither
   runs — is the owner's decision.
 
+- **N-34 registered (OPEN, dated 2026-10-19, owner call): the runner image floats.**
+  The check-run annotations of runs 36967608254 and 36974199294 carry GitHub's
+  notice "The ubuntu-latest label will migrate to Ubuntu 26 beginning October
+  19, 2026" (its 2026-09-17 changelog: a gradual 24.04 → 26.04 move through
+  2026-11-19, with `runs-on: ubuntu-24.04` as the documented pin). The `docs`
+  and `linux` jobs use that label and the linux job installs Qt with apt and
+  runs the offscreen harness — an image change could turn it red with no change
+  in the repo, the N-26 confusion again. The same annotations warn that
+  `actions/checkout`, `upload-artifact`, `download-artifact` and `setup-dotnet`
+  at v4 target Node 20 and are being forced onto Node 24 (passing today).
+  `windows-latest` carried no such notice. Not applied: whether to pin is a
+  policy call (a pin needs a deliberate bump later), like `concurrency`.
+
 **Partial / Left on purpose:**
 
 - **Not changed: the duplicate push + pull_request runs and `concurrency`.**
@@ -170,7 +183,8 @@ Chronological log of decisions and changes. **Newest at the top.**
   decision (it also feeds OD-16 / D-07), and OD-16 blocks shipping the wasm
   track either way.
 - **Left for the owner:** whether the S34 PR is merged (no merge without an
-  explicit yes), and whether to adopt a push/PR de-duplication.
+  explicit yes), whether to adopt a push/PR de-duplication, and — before
+  2026-10-19 — the N-34 pin-or-migrate call.
 
 **Verified (executed here):**
 
@@ -230,9 +244,9 @@ not broken: the next session re-anchors).
 
 **Docs touched:** `SESSION_HANDOFF.md` (header, Docs-synced-through → PR #9,
 base line, ledger rows #7/#9, fast hand-off, product constraints, sandbox
-reality, orientation quotes), `STATUS.md` (N-26/N-30 closed, R-03, N-32/N-33,
+reality, orientation quotes), `STATUS.md` (N-26/N-30 closed, R-03, N-32/N-33/N-34,
 W-03/W-04/W-30, re-emitted), `COMPILED_AUDIT.md` (Base line, §21 rows N-26/N-30
-and new N-32/N-33, U-10 text), `WORKLIST.md` (pending lines, N-26 ticks, CI/infra
+and new N-32/N-33/N-34, U-10 text), `WORKLIST.md` (pending lines, N-26 ticks, CI/infra
 bullet, wasm bullet), `README.md` (honesty summary), `docs/ci/README.md` (§1),
 `docs/planning/PLANNING.md` (N-26 notes, prompt line, wasm corrections),
 `web/wasm/README.md`, `working_code/gifscythe/README.md`,

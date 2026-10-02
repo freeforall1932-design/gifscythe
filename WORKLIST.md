@@ -98,6 +98,15 @@ reads them in a file, not in a conversation.
 - **N-33** (S34, found and fixed the same session): the README's honesty
   summary was stale in all three claims — rewritten from live state.
 
+- **N-34** (S34, **OPEN**, dated): GitHub annotates every run with "The
+  `ubuntu-latest` label will migrate to Ubuntu 26 beginning October 19, 2026"
+  (a gradual 24.04 → 26.04 move through 2026-11-19). The `docs` and `linux`
+  jobs use that label and the linux job installs Qt through apt. **Owner call
+  before 2026-10-19:** pin `runs-on: ubuntu-24.04` in both byte-identical
+  workflow copies (nothing changes today) and migrate on purpose, or let it
+  float and treat a post-10-19 linux red as an image change first. Not applied
+  here — a policy call, like `concurrency`.
+
 **Gate/register freeze (U-89 / P2-22, effective S33).** While the derived
 release bar in `STATUS.md` (open P0/P1 fix-order ids) is above zero: add **no
 new gates and no new registers** — extend `check_docs.sh`'s existing gates and

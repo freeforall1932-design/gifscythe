@@ -39,6 +39,11 @@ Based on `main` commit `c999061` (PR #9's merge, 2026-10-02 — the S33 post-mer
      published as `::notice` / `::error` (10 + 10 per step, 50 per job) — that
      is how N-30 was read, and why the Windows job carries two inert
      diagnostic steps.
+  6. **A dated CI risk is registered (N-34).** GitHub moves `ubuntu-latest` to
+     Ubuntu 26.04 gradually from **2026-10-19**; the `docs` and `linux` jobs use
+     that label. Owner call: pin `ubuntu-24.04` in both workflow copies, or
+     let it float and read a linux red after that date as an image change
+     first. Not applied in S34.
 - **Collisions are not a reason to defer a correction (owner convention,
   S34).** When another open PR touches the same lines, write the correction
   anyway: a PR that goes stale (merge conflicts in `STATUS.md` /
@@ -56,7 +61,7 @@ Based on `main` commit `c999061` (PR #9's merge, 2026-10-02 — the S33 post-mer
   offscreen-only via `; harness:`/`; desktop:` markers), and
   `verify_audit.sh --json` publishes the gate ledger + sha256 digest. All
   derivation was mutation-tested (M1/M2/M3 in the S33 log entry). Register
-  **152/10/28/0** at S33's close (historical — S34 closed N-30 and N-26 and registered N-32/N-33; the live line is "Register:" at the foot of this section).
+  **152/10/28/0** at S33's close (historical — S34 closed N-30 and N-26 and registered N-32/N-33/N-34; the live line is "Register:" at the foot of this section).
   **Lane close-out:** `GifsicleCommand.h` (the named remaining core file)
   read line by line — clean; U-96/U-91 non-Qt halves assessed with exact
   remainders in their §5 rows (Qt-probe-blocked / dotnet-blocked — do NOT
@@ -117,7 +122,7 @@ Based on `main` commit `c999061` (PR #9's merge, 2026-10-02 — the S33 post-mer
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 155 DONE · 10 PARTIAL · 27 OPEN · 0 UNTRIAGED · 192 total (at S32: 149/9/30/0 — historical)
+- **Register:** 155 DONE · 10 PARTIAL · 28 OPEN · 0 UNTRIAGED · 193 total (at S32: 149/9/30/0 — historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -752,7 +757,7 @@ count (**G9** compares like with like).
 | `scripts/oracle_fuzz.mjs --quick` · `--full` | ✅ **24/24** · **64/64** deterministic cases |
 | `web/wasm/glue_harness.mjs` · the Python unit tests (`working_code/gifscythe/tests`) | ✅ `GLUE-HARNESS: PASS` · **21 tests OK** |
 | `scripts/verify_audit.sh` | ✅ **34 PASS / 0 FAIL / 3 SKIP** (with pip's cmake on PATH; the 3 SKIPs are B = no Qt6, C1-C5 = Actions-only, D3/D4 = clean-Windows hardware) |
-| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **155/10/27/0 = 192** at S34; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
+| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **155/10/28/0 = 193** at S34; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
 | Qt/GUI harness (`test_gui_offscreen`) | ⏳ no Qt6 here (cmake is pip-installable, Qt6 headers are not) — CI is the proof: run 36967608254 ran the linux and the Windows offscreen suites green |
 | Windows-only rows, wasm rows, CI log blobs | ⏳ no wine, no emcc, no Windows runner here (zig compiles Windows exes, nothing runs them) — Windows results are read from CI (run 36967608254 for the N-30 fix); a zig wasm32-wasi build of the engine does run under Node's WASI (N-32, no promotion); Actions log blobs are unreachable, but the jobs API and check-run annotations are — N-26 and N-30 were diagnosed that way |
 
@@ -873,7 +878,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 155 DONE · 10 PARTIAL · 27 OPEN · 0
+   its generated counts line (currently: 155 DONE · 10 PARTIAL · 28 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
