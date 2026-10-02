@@ -216,9 +216,40 @@ fix_order_map() {
   '
 }
 
-FIXMAP="$(mktemp)"; TMP_REG="$(mktemp)"
-trap 'rm -f "$FIXMAP" "$TMP_REG" 2>/dev/null' EXIT
+FIXMAP="$(mktemp)"; PMAP="$(mktemp)"; TMP_REG="$(mktemp)"
+trap 'rm -f "$FIXMAP" "$PMAP" "$TMP_REG" 2>/dev/null' EXIT
 fix_order_map > "$FIXMAP"
+
+# U-88 / P2-21: the SAME section 6 table, but P-id -> EVERY member id in its
+# Closes cell (U-/GS-/DS-/W-/N- namespaces alike) - the derived fix-order block
+# (part 3 of STATUS.md) needs the whole membership to derive a state, while
+# fix_order_map above deliberately keeps only U-rows for Next actions. The
+# Closes cell is again located by SHAPE (P1-18's action carries a literal
+# unescaped pipe), and the member-split class lists the dash LAST (the gawk
+# "Invalid range end" portability rule from fix_order_map).
+fix_order_members() {
+  audit_section 6 | awk -F'|' '
+    /^[|][ ]*P[0-9]-[0-9]+[ ]*[|]/ {
+      aid=$2; gsub(/^[ \t*]+|[ \t*]+$/, "", aid)
+      closes_idx = 0
+      for (i = 3; i <= NF; i++) {
+        c = $i; gsub(/[* \t]/, "", c)
+        if (c ~ /^[A-Za-z]+-[0-9]+(,[A-Za-z]+-[0-9]+)*$/) { closes_idx = i; break }
+      }
+      if (!closes_idx) { print aid "\tUNPARSEABLE"; next }
+      n = split($closes_idx, ids, /[^0-9A-Za-z-]+/)
+      out = ""
+      for (i = 1; i <= n; i++)
+        if (ids[i] ~ /^[A-Za-z]+-[0-9]+$/) out = out (out == "" ? "" : ",") ids[i]
+      # Fail loud, never silently drop: a P-id whose Closes cell parses to
+      # nothing must still appear in the derived block (S33: a wrong-cell edit
+      # once made P0-4 vanish from the whole P-block with no trace).
+      if (out == "") out = "UNPARSEABLE"
+      print aid "\t" out
+    }
+  '
+}
+fix_order_members > "$PMAP"
 
 # Newest session + date, derived from the newest IMPROVEMENT_LOG.md entry.
 # Both the emitted header and check L1 hang off this, so a session that forgets
@@ -288,7 +319,24 @@ emit_u_rows() {
 
       # --- proof / blocker ---
       note = after_dash(status)
-      if (length(note) > 150) note = substr(note, 1, 147) "..."
+      # U-89/P2-22 truncation revisit + U-88/P2-21 provenance markers: a proof
+      # cell may carry "; harness: ..." and/or "; desktop: ..." markers (the
+      # harness-vs-desktop provenance the release bar counts). They SURVIVE
+      # truncation - they are data, not prose - and the prose is now cut on a
+      # word boundary instead of the old mid-word 147-char substr.
+      marks = ""
+      mi = index(note, "; harness:")
+      di = index(note, "; desktop:")
+      cut = 0
+      if (mi) cut = mi
+      if (di && (cut == 0 || di < cut)) cut = di
+      if (cut) { marks = trim(substr(note, cut)); note = trim(substr(note, 1, cut - 1)) }
+      if (length(note) > 150) {
+        t = substr(note, 1, 150); sp = 0
+        for (i = length(t); i > 60; i--) if (substr(t, i, 1) == " ") { sp = i; break }
+        note = (sp ? substr(t, 1, sp - 1) : t) "..."
+      }
+      if (marks != "") note = note " " marks
 
       tier = (id in fa) ? fa[id] : ""
       if (st == "DONE") {
@@ -316,16 +364,74 @@ emit_hand_rows() {  # preserve the hand-maintained block verbatim
   ' "$STATUS_MD"
 }
 
+# U-88 / P2-21: the DERIVED fix-order block. One row per P-id from §6, its full
+# member list, and a state derived from the members' own register states:
+# any-OPEN -> OPEN, else any-PARTIAL -> PARTIAL, else DONE. A member named in
+# §6 but absent from the register is surfaced as MISSING in the derivation -
+# that is the P2-16 failure mode (a P-id spanning members nobody can find).
+# Never hand-maintained: G0 diffs the whole file against this emitter.
+# stdin: the generated U-rows + hand rows; $1 = the P-id->members map file.
+emit_p_rows() {
+  local pmap="$1"
+  awk -v pmap="$pmap" '
+    function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    function esc(s)  { gsub(/\\[|]/, "|", s); gsub(/[|]/, "\\|", s); return s }
+    {
+      line = $0; gsub(/\\[|]/, "\001", line)
+      n = split(line, f, "|")
+      if (n < 4) next
+      id = trim(f[2]); gsub(/\*/, "", id)
+      if (id !~ /^[A-Za-z]+-[0-9]+$/) next
+      st = trim(f[4])
+      if (st != "DONE" && st != "PARTIAL" && st != "OPEN" && st != "UNTRIAGED") next
+      state[id] = st
+      proof[id] = trim(f[6])
+    }
+    END {
+      while ((getline line < pmap) > 0) {
+        split(line, p, "\t"); pid = p[1]; nm = p[2]
+        ns = split(nm, m, /,/)
+        derived = "DONE"; miss = ""; openm = ""; partm = ""
+        if (nm == "UNPARSEABLE") {
+          derived = "PARTIAL"
+          how = "§6 Closes cell did not parse to member ids - fix the §6 row"
+          nxt = "repair the §6 row, then re-run check_docs.sh --emit"
+          printf "| %s | %s | %s | %s | %s |\n", pid, "(unparsed)", derived, esc(how), esc(nxt)
+          continue
+        }
+        for (i = 1; i <= ns; i++) {
+          id = m[i]
+          if (!(id in state)) { derived = "PARTIAL"; miss = miss (miss == "" ? "" : ",") id; continue }
+          if (state[id] == "OPEN" || state[id] == "UNTRIAGED") { derived = "OPEN"; openm = openm (openm == "" ? "" : ",") id }
+          else if (state[id] == "PARTIAL") { if (derived != "OPEN") derived = "PARTIAL"; partm = partm (partm == "" ? "" : ",") id }
+        }
+        how = ns " member(s)"
+        if (miss != "") how = how "; MISSING from register: " miss
+        if (partm != "") how = how "; PARTIAL: " partm
+        if (openm != "") how = how "; OPEN: " openm
+        if (miss == "" && partm == "" && openm == "") how = how " - all DONE"
+        nxt = "-"
+        if (derived == "OPEN") nxt = "close the OPEN member(s): " openm
+        else if (derived == "PARTIAL") nxt = (miss != "" ? "register the missing member(s): " miss : "close the PARTIAL member(s): " partm)
+        printf "| %s | %s | %s | %s | %s |\n", pid, esc(nm), derived, esc(how), esc(nxt)
+      }
+      close(pmap)
+    }
+  '
+}
+
 count_state() {  # $1 = state; counts rows across BOTH tables of a register file
   register_rows "$1" | while IFS= read -r r; do printf '%s\n' "$r" | row_fields | sed -n 3p; done \
     | grep -cx "$2"
 }
 
 emit_status_md() {  # $1 = output path
-  local out="$1" hand u_rows all counts
+  local out="$1" hand u_rows p_rows all counts bar
   hand="$(emit_hand_rows)"
   u_rows="$(emit_u_rows)"
   all="$(printf '%s\n%s\n' "$u_rows" "$hand")"
+  # U-88 / P2-21: the derived fix-order block + the release-bar numbers.
+  p_rows="$(printf '%s\n' "$all" | emit_p_rows "$PMAP")"
 
   # Count off the unescaped third data cell, not off a text search - a row whose
   # Item text happens to contain "| DONE |" must not be counted twice.
@@ -333,6 +439,20 @@ emit_status_md() {  # $1 = output path
     | awk -F'|' '/^\|[ ]*[A-Z]+-[0-9]+[ ]*\|/ { s=$4; gsub(/^[ \t]+|[ \t]+$/, "", s); c[s]++; t++ }
                  END { printf "%d %d %d %d %d", c["DONE"], c["PARTIAL"], c["OPEN"], c["UNTRIAGED"], t }')"
   read -r n_done n_part n_open n_untri n_total <<<"$counts"
+
+  # Release bar (derived): open P0/P1 fix-order ids, and DONE rows proven only
+  # offscreen (a "; harness:" marker with no "; desktop:" marker - the U-59
+  # blind spot U-88/GN-16 names). Both counted, never typed.
+  bar="$(printf '%s\n' "$p_rows" "$all" | sed 's/\\|/\x01/g' \
+    | awk -F'|' '
+        /^\|[ ]*P[01]-[0-9]+[ ]*\|/ { s=$4; gsub(/^[ \t]+|[ \t]+$/, "", s); if (s != "DONE") pb++ }
+        /^\|[ ]*[A-Z]+-[0-9]+[ ]*\|/ {
+          s=$4; gsub(/^[ \t]+|[ \t]+$/, "", s)
+          pr=$6; gsub(/\x01/, "|", pr)
+          if (s == "DONE" && pr ~ /; harness:/ && pr !~ /; desktop:/) ho++
+        }
+        END { printf "%d %d", pb, ho }')"
+  read -r n_pbar n_offscr <<<"$bar"
 
   cat > "$out" <<EOF
 # STATUS - the single status register
@@ -367,6 +487,7 @@ hand-fudged roll-up fails the gate.
 **Proof / Blocker** is never blank. **Next action** is \`-\` only for DONE.
 
 **Counts (generated - do not edit by hand):** ${n_done} DONE · ${n_part} PARTIAL · ${n_open} OPEN · ${n_untri} UNTRIAGED · ${n_total} total
+**Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: ${n_pbar} · DONE rows proven offscreen-only (\`harness:\` without \`desktop:\`): ${n_offscr}
 **Last regenerated:** ${LOG_SESSION:-(no log entry)} · ${LOG_DATE:-unknown} · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from \`COMPILED_AUDIT.md\` §5
@@ -385,6 +506,20 @@ preserved verbatim by \`--emit\`. Same schema, same vocabulary, same rules.
 <!-- BEGIN HAND-MAINTAINED - sessions edit this block; --emit preserves it -->
 $(printf '%s\n' "$hand")
 <!-- END HAND-MAINTAINED -->
+
+## Register, part 3 - derived fix-order state (P-ids) - generated, never hand-maintained
+
+One row per fix-order id from \`COMPILED_AUDIT.md\` §6. State is derived from the
+members' own register rows above: **any-OPEN → OPEN, else any-PARTIAL →
+PARTIAL, else DONE**; a member named in §6 but missing from the register is
+called out in the derivation. This is the block that answers *"is Pn-m
+finished?"* without hand-reading (U-88 / P2-21).
+
+<!-- BEGIN GENERATED P-BLOCK - do not edit; run check_docs.sh --emit -->
+| Fix-order id | Members | Derived state | Derivation | Next step |
+|--------------|---------|---------------|------------|-----------|
+${p_rows}
+<!-- END GENERATED P-BLOCK -->
 
 ## How to add a row
 

@@ -4,6 +4,210 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S33 — 2026-10-01: register mechanics + doc-machine cost (U-88/P2-21 done, U-89/P2-22 partial) — the derived fix-order block, proof-provenance markers, and the gate/register freeze
+
+**Changed:**
+
+- **U-88 / P2-21 ✅ FIXED — the register now answers "is Pn-m finished?" by
+  derivation.** `check_docs.sh --emit` writes a third register block: one row
+  per §6 fix-order id with its FULL member list (any namespace — P1-25 →
+  GS-203, the P2-16 failure mode, is now visible), a derived state
+  (any-OPEN → OPEN, else any-PARTIAL → PARTIAL, else DONE), and MISSING
+  members surfaced in the derivation. The header gains a derived **release
+  bar** line: open P0/P1 fix-order ids (= the release bar) and DONE rows
+  proven only offscreen. Proof cells carry `; harness:` / `; desktop:`
+  provenance markers that survive the proof-cell truncation — the truncation
+  is now word-boundary (the old 147-char `substr` cut mid-word, the N-06
+  cost). Never hand-maintained: G0 diffs the whole file against the emitter.
+  Mutation-tested: flipping U-09+U-88's states moved P0-4/P2-21 to DONE and
+  the bar 11→10 (M1); the harness marker on U-01 moved offscreen-only 0→1
+  (M2); hand-editing the P-block FAILS G0 with "hand-edited" (M3). Marker
+  backfill on the rows GN-16 named (U-59, U-16, U-34, U-45, U-47) and the
+  N-10…N-16 closures: 13 DONE rows are honestly counted offscreen-only.
+- **U-89 / P2-22 ◐ PARTIAL — the doc machine can now report itself.**
+  `verify_audit.sh --json` emits the full gate ledger + totals + a sha256
+  digest over the canonical ID/STATUS ledger (last run: 31 pass / 1 fail
+  (F1 = session-end doc gate) / 5 skip, `sha256:38dc095a…47e6`). The 150-char
+  truncation is revisited (above). The **gate/register freeze** is landed as a
+  rule in `WORKLIST.md`, `SESSION_HANDOFF.md` and
+  `docs/release/RELEASE_PROCEDURE.md`: while the derived bar is above zero, no
+  new gates and no new registers. **Not verifiable here / remainder:** publish
+  `--json` as a CI artifact and have the register QUOTE the digest instead of
+  typed counts — that collides with U-14's "verify_audit stays out of CI by
+  design" and with N-26 (flaky linux doc gate), both owner-visible rows; do
+  not paper over the tension.
+- **Register:** 149 DONE · 9 PARTIAL · 30 OPEN · 0 UNTRIAGED · 188 total →
+  **150 DONE · 10 PARTIAL · 29 OPEN · 0 UNTRIAGED · 189 total** (U-88 DONE,
+  U-89 PARTIAL, +N-30 registered below). Derived bar at emit time: 11 open P0/P1 ids · 13
+  offscreen-only rows.
+- **U-95 / P1-45 ✅ DONE — moot by verification (plan item #3 executed).** The
+  same GitHub releases API check that confirmed the defect (S24: the only
+  published Release predates the Ms-PL relicence) now returns **0 releases, 0
+  tags** on the live repo (created 2026-09-22 — the re-creation dropped the
+  old `snapshot-2026-09-07` with it), so the owner release-notes edit has no
+  target left and nothing is published that could misrepresent the licence.
+  The evidence half + the tag-triggered asset-manifest gate P1-45 deferred "at
+  the next cut" are both recorded on P0-4's action so neither is lost (with
+  the U-89 freeze tension named: a NEW gate while the bar > 0 needs a decision
+  at the cut). The derived release bar moved 11 → 10 (P1-45 derives DONE).
+  **M4 (same session):** a corrupted §6 Closes cell now yields a fail-loud
+  `(unparsed) | PARTIAL | repair the §6 row` row instead of a silently
+  vanishing P-id (the bug class caught live when a wrong-cell edit dropped
+  P0-4 from the whole block — fixed by extending the existing emitter, no new
+  gate, within the U-89 freeze).
+- **Found and registered this session (rule 2 / G12): N-30** — Windows CI's
+  MinGW "Build CLI + unit tests" step fails while linux passes (three
+  consecutive runs: `36629967875` @ `a2d002f`, `36885986466` @ `42ba939`,
+  `36886469319` @ `903d1c6`). **Hypothesis resolved same session:** the code
+  is refuted as the cause — main (`13d95a7`) is code-identical to the last
+  green windows tree (`2ade969`) yet windows-red too, and it dies EARLIER, at
+  the "Install Qt6 (aqt) + MinGW toolchain" step itself (exit 254, job
+  `109583917611`), while the PR runs survive install via the aqt fallback
+  chain (tools_mingw1310 → 1120 → 90 → choco) and then fail the build step —
+  consistent with the fallback landing on gcc 8 (tools_mingw90), where
+  `std::filesystem` needs `-lstdc++fs` that the frozen build line does not
+  pass. The identical build command compiles and passes **384/0** here under
+  g++ 12 `-std=c++17 -O2 -static`. Job log blobs are unreachable from this
+  sandbox (TLS EOF to Azure blob storage — the N-26 wall, confirmed at the
+  network level), so the provisioner's exact error must be read in the
+  Actions UI. **Determinism proven** by an empty-commit CI re-trigger
+  (`d6ea8d3`, run `36932180314`): 5 consecutive PR runs fail the identical
+  step in ~2 min — not a transient aqt outage. Remainder: name the error there, then fix the WORKFLOW provision
+  step (both byte-identical copies in one commit — E9/G7/S1) to pin a modern
+  MinGW deterministically instead of the drifting fallback chain. Shares
+  N-26's "CI is our only Windows proof" consequence.
+
+**Left / Not verifiable here:** the lane's remaining planned pieces closed out
+as follows: the N-18 tail's named remaining core file
+(`src/core/GifsicleCommand.h`) **was read line by line — CLEAN** (comments
+match behavior throughout; the register row's tail is now just the
+risk-scanned PENDING files), and the **U-96/U-91 non-Qt halves are assessed
+and recorded** in their §5 rows with exact remainders — U-91's contract + two
+port traps are C#-side and dotnet-blocked (no dotnet here; nothing forced),
+U-96's shared helper + fixture table are pin-blocked on a real Qt
+`completeBaseName` probe (guessing Qt semantics is the U-82/R2 class; not
+forced). Both rows stay OPEN/PARTIAL with those remainders. Qt/Windows
+desktop proof (`test_gui_offscreen`, clean-machine smoke) **not verifiable
+here** — no Qt6, no Windows desktop in this sandbox. The Windows MinGW
+compile of `verify_audit.sh`'s changes is CI's job on push. N-26 (CI linux
+flake) still open.
+
+**Session-integrity note (read this):** S32's work existed **twice**: committed
+and pushed on the remote branch (7 commits `c2f390a..a2d002f` — the real S32
+history) and, in this local clone, as uncommitted working-tree content on a
+stale base. At S33 start the local tree looked "dirty but recoverable"; during
+the S33 mutation battery two `git checkout -- COMPILED_AUDIT.md` restores (the
+M1/M2 undo path) wiped the local §21 + base re-anchor, and they were first
+**reconstructed** from the S32 log entry + `STATUS.md` rows. On push, the real
+S32 commits were discovered (`git push` rejected — the remote was ahead); the
+reconstruction was discarded and the **original §21 + base line restored from
+`a2d002f`**. Everything in COMPILED_AUDIT.md now traces to S32's own commits
+plus the S33 row edits. Two rules learned: never `git checkout --` a file in a
+tree holding uncommitted session work — commit first, then mutate with
+backups; and `git fetch` before trusting a local tree's shape against the
+  session summary. **It recurred twice more this session** (the workspace is
+  re-cloned between turns — git state is NOT preserved, only files): each
+  time, back up the tree, `git reset --hard FETCH_HEAD`, diff, re-graft. Any
+  turn-start with "dirty tree vs unknown base" must begin with that dance
+  BEFORE any commit or mutation.
+
+---
+
+## S32 — 2026-09-29: audit/review close-out lane — N-25, N-27, N-29 fixed, the review documents folded, and the doc drift that misled the owner's planning report repaired
+
+**Changed:**
+
+- **Path decision (recorded, because the inputs disagreed):** the owner's
+  `GIFSCYTHE_PLANNING_REPORT.md` (uploaded to main at `13d95a7`) ordered
+  "finish GUI partial-write safety + the Explode hole" first — that work was
+  already DONE (S28/S30/S31), and the report had been written against the
+  stale WORKLIST/IMPROVEMENT_LOG tails this session deleted. Items 2–7 of the
+  report are owner-, hardware- or Qt-blocked and cannot carry executed proof
+  in this sandbox. So the lane taken was the only one where audit/review
+  tasks remain OPEN *and* provable here: **N-25, N-18's named resume targets,
+  and the review-document handling itself.**
+- **Doc-drift repair (the corruption that produced the stale report):** the
+  WORKLIST S31 block ("open rows, excluded because no fix here could carry
+  executed proof...") and the IMPROVEMENT_LOG S31 "Left"/"Not verifiable
+  here" tails still called N-10..N-17 open — the pre-fix drafts S31 never
+  updated after PR #6 closed them. Corrected in place after the N-23 pattern
+  (inline "Corrected S32" notes); the handoff's "Known hole: N-10" bullet and
+  the stale "what remains before 1.0.0" orientation item rewritten to the
+  real remaining set; N-26 registered (the CI-flake row the open PR #7
+  investigates — duplicated here so one merge carries the full register).
+- **N-25 (fixed).** The rate-limit map only pruned an entry when the same
+  address revisited, so one-off source addresses accumulated forever once
+  the server is exposed past loopback. The limiter is now `web/rate_limit.mjs`
+  (pure module — the HTTP suites cannot vary remoteAddress, which is why the
+  defect was unprovable where it lived) and prunes the whole map on every
+  call. server-bounds 10 → **12 groups**, mutation-tested both directions.
+- **N-27 (fixed, found by the N-18 sweep of SettingsIO.h).** The
+  position-pair validity probe narrow-cast long→unsigned — the GS-206 class
+  alive in the one helper the strict parsers bypassed — so
+  `position_x = 4294967296` probed valid (wrapped to 0) while the real parser
+  refused it and the pair was enabled half-live (`-p 0,5`), exactly what the
+  U-33/U-53 comment promises cannot happen. A quoted `"5"` hit the mirror
+  bug. Fixed: width-strict probe + decode exactly as `set_field` does.
+- **N-29 (fixed, same sweep).** `save_settings` wrote dither OFF + a
+  remembered method as the combined `dither = <m>` line, which loads as
+  dither=TRUE — a deliberately unchecked dither resurrected itself on reload.
+  Off + method now saves as `dither = false` + `dither_method = <m>`.
+- **Review-of-problem documents folded (the S24 §20 pattern, `COMPILED_AUDIT`
+  §21):** the two root "space bunny" review files deleted after incorporation
+  (texts at `8d30614`); the executed verification record moved to
+  `docs/archive/` (kept in full); `AUDIT_HISTORY.md` rows 8–9 added; the
+  owner's planning report folded into `docs/planning/PLANNING.md` §6 with
+  three reconciliations (item 1 already done; list restarts at 2 + gains the
+  audit remainder; its Sources cited a docs/web/WEB_FEASIBILITY.md file that
+  never existed in this repo).
+
+**Partial:** **N-18** — the three named resume targets are read (proof in the
+register); the remaining PENDING files stay risk-scanned only.
+
+**Left:** **N-26** (CI linux flake — needs an Actions-UI look),
+**N-25/N-27/N-29** closed here; the release re-cut (U-09 + U-95, owner action
+first), W-18/W-19 (real hardware), GS-203's GUI half + the Qt/platform rows
+(Qt), the register/docs rows P2-21/P2-22/P3-17/P3-18/P3-19, and owner
+decisions OD-16/OD-18 + the version call. Open PR #7 (doc sync + N-26) is NOT
+merged — that needs the owner's explicit yes; if this PR merges first, close
+PR #7 or drop its duplicated N-26 row on rebase.
+
+**Verified:** all executed in this sandbox (g++ 12.2 + make, node 22, gh):
+`./build.sh` engine `LCDF Gifsicle 1.96` + CLI + **384 checks, 0 failures**
+(372 before the N-27/N-29 cases); `smoke_cli.sh` **63/63**;
+`test_output_verify.sh` 25/0; `test_engine.sh` 5/5; `test_package.sh` 36/36;
+all **nine** web suites green (server-bounds **12 groups**; command parity
+25 fixtures against the rebuilt CLI; numeric-honesty, validate, transport,
+body-limit, static-hygiene, device-names, request-guard);
+`oracle_fuzz.mjs --quick` 24/24; `verify_audit.sh` 31/0/5 (its one FAIL was
+F1 re-reporting the two expected mid-session doc stalenesses — the 372→384
+quote and G11 — both cleared by this entry); `check_docs.sh` and
+`sweep_stale.sh` green after `--emit` (149/9/30/0 = 188).
+Mutation tests: N-25's two mutations each fail exactly their own group;
+N-27/N-29's five assertions run RED against the pre-fix code and green after.
+
+**Not verifiable here:** no cmake/Qt6 in this sandbox, so nothing in
+`src/qtui/` was compiled and `test_gui_offscreen` never ran — the
+SettingsPanel.cpp review is source-read only (its two representation limits
+are documented in the N-29 row, unproven either way). No mingw/wine: the
+Windows halves of the SettingsIO atomic-save path (`_wopen`/`_commit`) are
+unchanged this session but remain CI-proved only. N-26 cannot be diagnosed
+from here (Actions log blobs unreachable — S26/S27/S28 wall). One
+observation to carry: an intermediate server-bounds run under mutation
+load flaked one non-N-25 timing group and re-ran green — the suite's
+timing-sensitive groups are known-flaky under load (cf. N-16's T4 history)
+and that is a reason to distrust single red runs of it, locally or in CI.
+
+**Docs touched:** `STATUS.md` (N-25/N-18 updated, N-27/N-29 added, W-03/W-04
+proofs re-measured), `COMPILED_AUDIT.md` (§21 intake + disposition table,
+base re-anchor), `WORKLIST.md` (S31 block corrected, S32 section),
+`SESSION_HANDOFF.md` (header, drift fixes, fast hand-off, verification table),
+`IMPROVEMENT_LOG.md` (this entry), `docs/planning/PLANNING.md` (§6, the
+folded planning report), `docs/archive/AUDIT_HISTORY.md` (rows 8–9),
+`docs/archive/AUDIT_VERIFICATION_2026-09-27.md` (moved from root).
+
+---
+
 ## S31 — 2026-09-28: verification of the 2026-09-27 external audit, plus the fixes that could carry proof here
 
 **Changed:**
@@ -75,12 +279,17 @@ Chronological log of decisions and changes. **Newest at the top.**
   branch" was false: PR #5 is merged and is the U-94 oracle, and the repo has
   zero open PRs. Bullet and both base lines corrected to `957c143`.
 
-**Partial:** none.
+**Partial:** N-18 — `web/server.mjs` is DEEP and the rest of the PENDING files
+were risk-scanned, not read line by line.
 
-**Left:** the nine open rows N-10..N-18. **N-10** (Explode has no partial guard
-on either surface, so a re-run or cancel truncates the previous frame set) is
-the one worth calling ship-blocking; it needs CMake + Qt6 for both the fix and
-the proof.
+**Left:** *(tail corrected S32, 2026-09-29 — the draft tail of this entry
+predated the session's own closures and contradicted the Changed list above;
+that contradiction is what the owner's planning report item 1 — folded and
+corrected at `docs/planning/PLANNING.md` §6 in S32 — was written against.)* The live remainder at S31 close is **N-18** PARTIAL (resume line by
+line on `src/core/SettingsIO.h`, `src/qtui/SettingsPanel.cpp`,
+`tests/test_gifsicle_command.cpp`), **N-25** (registered, OPEN) and the as-yet
+unregistered CI linux flake (became **N-26**). N-10..N-17 were closed **in**
+this session — see Changed.
 
 **Verified:** all executed in this sandbox.
 - The CLI and the engine turned out to be buildable here after all: `g++
@@ -111,13 +320,13 @@ the proof.
 - `bash -n verify_audit.sh`; `node --check command.mjs`.
 
 **Not verifiable here:** there is still no cmake and no Qt6, so **nothing in
-`src/qtui/` was compiled and the offscreen GUI harness never ran**. That is
-what leaves N-10, N-11, N-12's floor measurement, N-15 and N-16 open: each
-needs a Qt build for both the fix and the proof. N-17 (the `info` parity
-fixture) and N-14 (reading `check_docs.sh` in full) were left open by choice,
-not blocked. U-70/U-71/U-55 are Windows-only and U-72 is a narrow timing race;
-all four were confirmed by reading source only, never by execution. Rows closed
-in this session are closed on Node, bash, gcc and g++ evidence.
+`src/qtui/` was compiled and the offscreen GUI harness never ran in this
+sandbox** — the Qt-side assertions of the closures above (N-10's GUI cancel
+text via T21, N-11's dialog wording, N-12's block-count floors, N-16's T4
+bound) are CI-compiled proof (PR #6 runs), not local execution. U-70/U-71/U-55
+are Windows-only and U-72 is a narrow timing race; all four were confirmed by
+reading source only, never by execution. Rows closed in this session are
+closed on Node, bash, gcc and g++ evidence.
 
 **Correction to the audit, and to my own first pass:** the audit said an empty
 gamma "emits `--gamma=0`". It does not. Pre-fix, the API returned

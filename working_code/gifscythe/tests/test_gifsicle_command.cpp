@@ -526,7 +526,8 @@ int main() {
     CHECK(!warns_for(dm2, "dither"));
   }
 
-  // 21b. threads < -1 is warned (audit DS-09).
+  // 21e. threads < -1 is warned (audit DS-09). (Block number fixed S32 — two
+  //      blocks here both claimed 21b.)
   //
   // This block arrived in PR #28 pinning the builder's behavior at the time —
   // ANY negative fell back to a bare `-j`. S23's P0-2 (DS-06) split "unset"
@@ -1249,6 +1250,69 @@ int main() {
     for (const auto& w : validate(s))
       if (w.field == "mode") found = true;
     CHECK(!found);
+  }
+
+  // 36. N-18 line-by-line sweep of SettingsIO.h (S32): two seams where the
+  //     code contradicts the file's own stated policy (N-27, N-29).
+  {
+    // N-27: the position pair's validity probe and the real parser must agree.
+    // to_ulong_nonneg narrow-casts long -> unsigned (the exact GS-206 bug class
+    // the strict parsers were added to kill), so "4294967296" probed VALID
+    // while to_uint_strict correctly refused it and left position_x at 0 —
+    // has_position went true with a half-live -p 0,5, exactly what the U-33 /
+    // U-53 comment promises cannot happen. The probe also read the RAW value,
+    // so a quoted `"5"` parsed but probed invalid and dropped a good pair.
+    {
+      std::istringstream in("position_x = 4294967296\nposition_y = 5\n");
+      std::vector<LoadWarning> w;
+      Settings s = load_settings(in, &w);
+      CHECK(!s.has_position);
+      CHECK(s.position_x == 0 && s.position_y == 0);
+      CHECK(!w.empty());
+    }
+    {
+      std::istringstream in("position_x = \"5\"\nposition_y = \"6\"\n");
+      std::vector<LoadWarning> w;
+      Settings s = load_settings(in, &w);
+      CHECK(s.has_position);
+      CHECK(s.position_x == 5 && s.position_y == 6);
+    }
+    {
+      std::istringstream in("position_x = 3000000000\nposition_y = 5\n");
+      Settings s = load_settings(in, nullptr);
+      CHECK(s.has_position);
+      CHECK(s.position_x == 3000000000u && s.position_y == 5);
+    }
+  }
+  {
+    // N-29: dither OFF with a remembered method must survive save/load. The
+    // saver wrote the method as the combined `dither = <m>` line, whose load
+    // semantics are dither=true — so a run with dither unchecked resurrected
+    // dither on the next load. Verified red: dither came back 1.
+    Settings s;
+    s.dither = false;
+    s.dither_method = "square";
+    std::ostringstream out;
+    save_settings(out, s);
+    std::istringstream in(out.str());
+    Settings r = load_settings(in, nullptr);
+    CHECK(r.dither == false);
+    CHECK(r.dither_method == "square");
+    // ...and the ON path is unchanged: method wins, flag true.
+    Settings s2;
+    s2.dither = true;
+    s2.dither_method = "ro64";
+    std::ostringstream out2;
+    save_settings(out2, s2);
+    std::istringstream in2(out2.str());
+    Settings r2 = load_settings(in2, nullptr);
+    CHECK(r2.dither == true);
+    CHECK(r2.dither_method == "ro64");
+    // ...and OFF with no method still writes nothing.
+    Settings s3;
+    std::ostringstream out3;
+    save_settings(out3, s3);
+    CHECK(out3.str().find("dither") == std::string::npos);
   }
 
   std::printf("==> %d checks, %d failures\n", checks, failures);

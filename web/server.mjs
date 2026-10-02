@@ -42,6 +42,7 @@ import { realpath } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { buildArgs, shellQuote } from "./command.mjs";
 import { validate } from "./validate.mjs";
+import { createRateLimiter } from "./rate_limit.mjs";
 import { hasGifMagic, snapshotOutput, verifyOutput } from "./output-verify.mjs";
 import { uploadNameError, outputNameKey, requestPath, assertContainedPath } from "./run-paths.mjs";
 
@@ -140,23 +141,17 @@ function releaseEngineSlot() {
   if (next) next();
 }
 
-const requestWindow = new Map();   // address -> [timestamps]
+// N-25: the window lives in web/rate_limit.mjs now — it prunes EVERY stale
+// entry on each call (the old code pruned only the revisited address, so the
+// Map grew without bound with one-off source addresses past loopback), and the
+// pure module is what lets server-bounds.test.mjs prove the bound in-process.
+const rateLimiter = createRateLimiter({ perMin: RATE_LIMIT_PER_MIN });
 
-function rateLimited(addr, now = Date.now()) {
-  if (!RATE_LIMIT_PER_MIN) return false;
-  const hits = (requestWindow.get(addr) || []).filter((t) => now - t < 60_000);
-  if (hits.length >= RATE_LIMIT_PER_MIN) {
-    requestWindow.set(addr, hits);
-    return true;
-  }
-  hits.push(now);
-  requestWindow.set(addr, hits);
-  return false;
-}
+function rateLimited(addr) { return rateLimiter.rateLimited(addr); }
 
 // Test seam: the window has to be resettable, or a rate-limit case would make
 // every later case in the same process a 429.
-export function resetRateLimit() { requestWindow.clear(); }
+export function resetRateLimit() { rateLimiter.reset(); }
 
 const INFO_UNSUPPORTED = "info=true is not supported by the web API; use the CLI for --info text output";
 

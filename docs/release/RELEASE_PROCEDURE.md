@@ -118,6 +118,12 @@ Also verify before packaging:
   change had already landed, with every doc quoting the old gate numbers
   (`STATUS.md` N-01).
 - Engine identity: `release/<ver>/gifsicle --version` → `LCDF Gifsicle 1.96`.
+- **Gate/register freeze (U-89 / P2-22).** While the derived release bar in
+  `STATUS.md` (open P0/P1 fix-order ids) is above zero: add **no new gates and
+  no new registers** — extend `check_docs.sh`'s existing gates and the existing
+  register blocks instead. New findings go in an `UNTRIAGED`/pending row and
+  are committed under **G18** discipline as always. The bar is derived by
+  `check_docs.sh --emit`; the freeze lifts itself when it reads 0.
 
 ## 2. Bump the version (if not a snapshot)
 

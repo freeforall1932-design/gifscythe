@@ -73,9 +73,19 @@ inline bool to_double(const std::string& s, double* out) {
 }
 inline bool to_ulong_nonneg(const std::string& s, unsigned* out) {
   if (!out) return false;
-  long v = 0;
-  if (!to_long(s, &v) || v < 0) return false;
-  *out = static_cast<unsigned>(v);
+  // Parse at the DESTINATION width, like to_int_strict/to_uint_strict below.
+  // This helper used to do `to_long` + `static_cast<unsigned>`, which accepts
+  // any long-sized value and silently wraps it (4294967296 -> 0) — the exact
+  // GS-206 narrowing the strict parsers were added to kill, alive in the one
+  // helper they bypassed (N-27, found by the S31 N-18 sweep).
+  std::string t = trim(s);
+  if (!t.empty() && t.front() == '+') t.erase(t.begin());
+  if (t.empty()) return false;
+  unsigned v = 0;
+  const std::from_chars_result r =
+      std::from_chars(t.data(), t.data() + t.size(), v);
+  if (r.ec != std::errc() || r.ptr != t.data() + t.size()) return false;
+  *out = v;
   return true;
 }
 
@@ -389,12 +399,18 @@ inline Settings load_settings(std::istream& in, std::vector<LoadWarning>* warnin
     if (key.empty()) continue;
     const std::string lk = lower(key);
     unsigned parsed_position = 0;
+    // N-27: probe the EXACT string set_field will parse (trimmed and
+    // unquoted), with the same width-strict parser — the old probe read the
+    // raw value with a narrowing parser, so a quoted `"5"` probed invalid and
+    // an unrepresentable 4294967296 probed valid (half-live pair).
+    std::string probe_val = val;
+    decode_line_value(probe_val);
     if (lk == "position_x") {
       saw_position_x = true;
-      valid_position_x = to_ulong_nonneg(val, &parsed_position);
+      valid_position_x = to_ulong_nonneg(probe_val, &parsed_position);
     } else if (lk == "position_y") {
       saw_position_y = true;
-      valid_position_y = to_ulong_nonneg(val, &parsed_position);
+      valid_position_y = to_ulong_nonneg(probe_val, &parsed_position);
     }
     // Unknown keys stay ignored for the core Settings (forward compatible),
     // but when a caller asks, they are collected here — lowercased key,
@@ -486,8 +502,18 @@ inline void save_settings(std::ostream& out, const Settings& s) {
   // dropping the line would silently change how a saved run executes.
   if (s.threads >= 0) out << "threads = " << s.threads << "\n";
   if (s.color_count >= 0) out << "colors = " << s.color_count << "\n";
-  if (!s.dither_method.empty()) out << "dither = " << encode_line_value(s.dither_method) << "\n";
+  // N-29: dither OFF with a remembered method must not resurrect itself on the
+  // next load. The combined `dither = <m>` line loads as dither=TRUE, so the
+  // saver used to re-enable a deliberately unchecked dither. Off + method is
+  // now written as the two keys the loader already understands, in the order
+  // that round-trips exactly: `dither = false` clears the method,
+  // `dither_method` re-records it without touching the flag.
+  if (!s.dither_method.empty() && s.dither) out << "dither = " << encode_line_value(s.dither_method) << "\n";
   else if (s.dither) out << "dither = true\n";
+  else if (!s.dither_method.empty()) {
+    out << "dither = false\n";
+    out << "dither_method = " << encode_line_value(s.dither_method) << "\n";
+  }
   if (s.lossy >= 0) out << "lossy = " << s.lossy << "\n";
   if (!s.gamma_str.empty()) out << "gamma = " << encode_line_value(s.gamma_str) << "\n";
   else if (s.gamma >= 0) out << "gamma = " << s.gamma << "\n";

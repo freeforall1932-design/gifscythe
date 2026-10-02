@@ -222,3 +222,196 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S24.
    originals live in git history at 3c67e14; do not recreate scattered copies (G17/S2
    class). Keep every gate green; never ask the owner for tokens.
 ```
+
+---
+
+## 6. Planning report — owner upload 2026-09-29 (snapshot S31), reconciled S32
+
+**Provenance.** The owner uploaded `GIFSCYTHE_PLANNING_REPORT.md` to the repo root
+(`13d95a7`, "Add files via upload") carrying its own instruction — *"paste it into
+`docs/planning/` and edit freely."* Folded into this file per that instruction and
+per the S24 consolidation rule (planning content extends this file; no scattered
+root copies — the original text is in git history at `13d95a7`). Read alongside §1
+as the current **direction of record**; nothing here commits the owner to anything.
+
+**S32 reconciliation — three places where the snapshot had already been overtaken
+by the repo it was written from** (it read the stale WORKLIST/IMPROVEMENT_LOG tails
+that S32 corrected):
+
+1. **§6.1 item 1 was DONE before the report was written.** U-59/P0-7 landed end to
+   end — CLI/core S28 (`5bbfb83`), GUI S30 (`4a8e353`), and the Explode hole the
+   report names as "the same failure class" (the external audit's top HIGH) was
+   closed by S31 in PR #6: the CLI now writes frames under a partial prefix and
+   promotes them only after verification (mutation-tested smoke case), and the
+   GUI's cancel honesty is asserted by harness T21. **Do not redo it.** The
+   report's item 1 was written against the "Known hole: N-10 — treat it as open"
+   tail that S32 deleted from `SESSION_HANDOFF.md` / `WORKLIST.md` /
+   `IMPROVEMENT_LOG.md`.
+2. **The ordered list therefore starts at the report's item 2** (release re-cut),
+   and gains the audit remainder the report predates: **N-18**'s remaining
+   line-by-line reads (`src/core/SettingsIO.h`, `src/qtui/SettingsPanel.cpp`,
+   `tests/test_gifsicle_command.cpp`), **N-25** (rate-limit map), **N-26** (CI
+   linux flake — it also threatens the W-18 "real green CI run" precondition).
+3. **Sources corrections:** the report's Sources list cited a
+   docs/web/WEB_FEASIBILITY.md file that does not exist in this repo (that
+   content has lived in §1 since the S24 consolidation), and "the two
+   external-audit files at repo root" are now folded into `COMPILED_AUDIT.md` §21
+   (originals deleted S32, texts at `8d30614`).
+
+### 6.1 EXE track — finish, don't rewrite
+
+**Decision:** stay on C++17 + Qt6. A rewrite (Tauri, or the parked C# shell)
+discards ~250 already-verified tests and CI for a marginal ergonomics gain.
+`OFFLINE_BUILD_REVIEW.md`'s own weighted scoring already settled this
+(C++/Qt6 ≈258 vs Tauri ≈205 vs Electron ≈174) — nothing since has changed
+that math. *(S32: that scoring now lives in §1; the original file is the S24
+consolidation's source 1.)*
+
+**Ordered remaining work** (per the repo's own "what remains before 1.0.0"
+list — do these in order, not in parallel, since later items assume earlier
+ones are done). ~~1. Finish the GUI's partial-write safety (U-59/P0-7)~~ —
+**done, see the reconciliation above; the list starts at 2:**
+
+2. Release re-cut: U-09/P0-4 + the U-95 release-notes edit (owner action first:
+   mark the pre-relicence Release superseded/pre-release, never delete).
+3. Clean-Windows smoke test (W-18) — re-point at a real green CI run (see
+   N-26), then actually run it on real hardware (a CI artifact is not the same
+   as a clean-machine run).
+4. Desktop probes (W-19): kill-engine-mid-run, physical drag-drop,
+   engine-missing GUI state. `DESKTOP_PROBES.md` has the procedures.
+5. GS-203's GUI half, remaining Qt/platform rows.
+6. The register/docs rows: P2-21/U-88, P2-22/U-89, then P3-17/U-91,
+   P3-18/U-96, P3-19/U-90.
+7. The audit remainder: N-18 line-by-line reads, N-25, N-26.
+8. Owner decisions: OD-16 (see §6.3), OD-18, the version-bump call.
+
+**Already done, don't redo:** Qt LGPL notice (U-08, closed S19). U-59/P0-7
+including the Explode hole (S28/S30/S31). C# spike is
+parked (`OD-C7`) — inert but kept CI-running so it doesn't rot; no further
+investment until the list above ships.
+
+### 6.2 Web track — minimal wasm, additive, not a replacement
+
+**Decision:** the existing Node-based `web/` server build stays exactly as
+it is — untouched, still the officially shipped web path — while a
+client-side wasm build is developed *alongside* it as an unproven,
+additive track (`web/wasm/`). Nothing gets deleted until the wasm build is
+actually proven.
+
+Why not just harden the Node server instead: it needs Node installed and a
+manually-started process, which isn't the "no server, double-click and use"
+experience the whole project is going for. Wasm is the only path to that,
+but it has to earn its way to shippable, not be assumed there.
+
+Why not delete the server now and commit fully to wasm: no `.wasm` binary
+has ever actually been produced or run, by any agent, in any session so far
+(see §6.3). Deleting a working, hardened thing to bet on something untested
+is the least stable option on the table, not the boldest one.
+
+### 6.3 The wasm task — build it, or borrow it, but prove it either way
+
+This is the one piece of the whole plan that's still genuinely open. Two
+honest paths; pick one (or run both and compare):
+
+#### Option A — build gifsicle.wasm from scratch (existing scaffold)
+
+The scaffold already exists (`web/wasm/`: `build_wasm.sh`, `config.wasm.h`,
+`glue_harness.mjs`, `prove_wasm.mjs`, `wasm.js`, `index.html`) and reuses
+`web/command.mjs` + `web/validate.mjs` verbatim. What's missing is the
+actual compile: every attempt so far — across at least two separate agent
+sandboxes, mine included — has been blocked at the exact same point:
+Emscripten's toolchain download comes from
+`storage.googleapis.com/webassembly/emscripten-releases-builds/`, and that
+domain is unreachable from every sandbox tried so far. This is an
+environment/network limitation, not a code problem — the gifsicle source is
+straightforward single-process C with no `fork()`, so it should compile
+cleanly once a real toolchain is reachable.
+
+**Task:** on a machine with real, unrestricted internet access (a personal
+machine, or a CI runner without an egress allowlist), run
+`web/wasm/build_wasm.sh`, then `prove_wasm.mjs` against a real file. This
+cannot be done from inside the kind of sandboxed agent environment this
+project has been built in so far — it needs to be someone's actual machine,
+once.
+
+**Byte parity note:** this path preserves the project's existing
+verification approach (compare wasm output byte-for-byte against the native
+1.96 oracle already captured), since it's compiling the exact same vendored
+source.
+
+#### Option B — adopt an existing pre-built implementation
+
+Gifsicle has already been compiled to WebAssembly by other open-source
+projects, and at least one installs cleanly in a network-restricted sandbox
+(tested directly in the session that wrote the report):
+
+| Package | Target | Notes |
+|---|---|---|
+| [`gifsicle-wasm-browser`](https://github.com/renzhezhilu/gifsicle-wasm-browser) (npm) | Browser | Single ~336KB bundled file, no separate `.wasm` fetch, `gifsicle.run({input, command})` API accepting real CLI-style argv. **Installed successfully via `npm install` in that sandbox** — the GCS wall does not block npm. Restores **gifsicle 1.92** behavior — not the project's vendored 1.96, so it will not byte-match the existing oracle; a new correctness baseline would be needed. Could not fully execute it in a plain Node test there (it appears to assume real browser Worker semantics) — untested past install. |
+| [`@wasm-codecs/gifsicle`](https://www.npmjs.com/package/@wasm-codecs/gifsicle) (npm) | Node.js only | Clean `encode(buffer, options)` API, MIT license, part of the `cyrilwanner/wasm-codecs` monorepo. No browser build yet per its own README — would need porting for a client-side page. |
+| [`gifsicle-bin`](https://pypi.org/project/gifsicle-bin/) (PyPI) | Python wheel + WASM/JS | Explicitly built for "frontend developers... without needing a backend." Worth a closer look if Option A stays blocked. |
+
+**Task:** if Option A stays blocked for longer than the owner is willing to wait,
+spike `gifsicle-wasm-browser` in a real browser (not Node) against the same
+`logo.gif` oracle used elsewhere in the project, and decide whether a
+1.92-vs-1.96 behavioral diff is acceptable for a first shippable web build.
+
+**Licensing note — applies to both options equally:** adopting someone
+else's compiled binary does not change the OD-16 question at all. It's
+still GPLv2 engine code running in-process alongside Ms-PL first-party
+code; the origin of the `.wasm` file is irrelevant to that analysis. Don't
+let "we didn't compile it ourselves" read as "so the license question
+doesn't apply here."
+
+#### Automatic crash/failure diagnostics (applies to whichever option ships)
+
+Requested explicitly: when someone finally runs this with real internet
+access, a crash or failure should be self-diagnosing, not something that
+needs a live debugging session to explain. Concretely:
+
+- Wrap wasm module instantiation and every `run()` call in try/catch.
+  Never let a failure surface as a silent no-op or a generic "something
+  went wrong."
+- Capture and log, on any failure: the exact error/exception, the wasm
+  module's own stdout/stderr (Emscripten exposes this via `print`/
+  `printErr` callbacks — route both into the log, don't drop them), the
+  exact command/argv that was attempted, and the environment (Node version
+  or browser user-agent).
+- Write that log somewhere durable and visible — a downloadable `.log`
+  file, or an on-page "show error details" panel — not just the console.
+- Fail loud at load time too: if the `.wasm` file itself fails to fetch or
+  instantiate, say so immediately and specifically, rather than letting the
+  first symptom be a confusing downstream error from code that assumed the
+  module loaded.
+- Treat this the same way the rest of the project treats "tests that can't
+  fail" (the external audit's Priority 6) — a diagnostic path that can't
+  actually produce a log on a real failure isn't done.
+
+### 6.4 Open decisions this report doesn't make for the owner
+
+- **OD-16** (`docs/legal/README.md` §3–4): may `web/wasm/` ship with the
+  GPLv2 engine in-process alongside Ms-PL code? Currently answered
+  "(a) no, until counsel actually answers" — that's a real, load-bearing
+  answer, not a placeholder. Needs an actual owner/counsel decision before
+  either wasm option above is shippable, regardless of which one is built.
+- **OD-18** and the version-bump call — unresolved, not urgent relative to
+  the list in §6.1.
+- **Option A vs Option B** (§6.3) — genuinely the owner's call; this report
+  lays out the tradeoff rather than picking one, since "less work now" and
+  "less work overall" point in different directions here.
+
+### 6.5 Sources (as written at S31, corrected S32)
+
+Repo docs referenced: `README.md`, `PROJECT_VISION.md`, `STATUS.md`,
+`WORKLIST.md`, `SESSION_HANDOFF.md`, `docs/planning/OWNER_DECISIONS.md`,
+`docs/planning/PLANNING.md`, `docs/legal/README.md`,
+`web/WEB_PLAN_TEMPLATE.md`, `.github/workflows/build.yml`, and the two
+   external-audit files at repo root ("space bunny review", independent
+   read-only review via the public GitHub API — since folded into
+   `COMPILED_AUDIT.md` §21; originals deleted S32). *(S32: the original text
+   also cited a docs/web/WEB_FEASIBILITY.md file, which does not exist in this
+   repo — the feasibility direction has lived in §1 since the S24
+   consolidation. Mention without backticks on purpose: it is a non-path.)*
+
+External packages referenced: `gifsicle-wasm-browser`, `@wasm-codecs/
+gifsicle`, `gifsicle-bin` (links in §6.3).

@@ -57,8 +57,76 @@ reads them in a file, not in a conversation.
 
 ## Found this session — pending lines (rule 2)
 
+- **N-30** (S33): Windows CI red while linux passes — **code refuted as the
+  cause** (main `13d95a7` is code-identical to the last green windows tree
+  `2ade969` yet red, dying at the aqt/MinGW install step itself, exit 254;
+  PR runs fail later at the build step after the fallback chain provisions a
+  toolchain — consistent with tools_mingw90 = gcc 8 needing `-lstdc++fs`).
+  Deterministic (5 PR runs + a re-trigger, identical step, ~2 min profile).
+  Exact CI flags pass locally 384/0. Read the provisioner error in the
+  Actions UI (blob wall here), then fix the workflow provision step in both
+  byte-identical copies together (E9/G7/S1).
+
+**Gate/register freeze (U-89 / P2-22, effective S33).** While the derived
+release bar in `STATUS.md` (open P0/P1 fix-order ids) is above zero: add **no
+new gates and no new registers** — extend `check_docs.sh`'s existing gates and
+the existing register blocks instead; anything newly discovered goes in an
+`UNTRIAGED`/pending row per rule 2 and is committed under **G18** discipline as
+usual. The freeze lifts itself when the derived bar reads 0 (no hand-editing:
+`check_docs.sh --emit` owns the number).
+
 Every new finding gets a matching line here. Nothing is `UNTRIAGED` right now:
 the S24 intake was triaged in the same session (each row carries its §6 id).
+
+### S33 (2026-10-01) — register mechanics + doc-machine cost (the provable lane)
+
+**U-88/P2-21 DONE** and **U-89/P2-22 PARTIAL** — the derived fix-order block
+(P-id members from §6 incl. non-U ids; state any-OPEN→OPEN / any-PARTIAL→
+PARTIAL / else DONE; MISSING members surfaced), the derived release-bar line
+(open P0/P1 + offscreen-only DONE rows), `; harness:`/`; desktop:` proof
+markers that survive word-boundary truncation, `verify_audit.sh --json` +
+sha256 digest, and the gate/register freeze rule (above). Mutation-tested
+(M1 state derivation + bar move, M2 counter move, M3 hand-edit → G0 red).
+Register 149/9/30/0 → **150/10/29/0 = 189** (+N-30, found and registered
+same session). Detail in `IMPROVEMENT_LOG.md`'s S33
+entry. **Lane close-out (same session):** `src/core/GifsicleCommand.h` (the
+named remaining core file) read line by line — **clean**; U-96/U-91 non-Qt
+halves **assessed** with exact remainders recorded in their §5 rows
+(Qt-probe-blocked / dotnet-blocked — not forced). N-18's tail is now just the
+risk-scanned PENDING files; U-89's remainder (CI-artifact publication +
+register quoting the digest; U-14 tension to surface, not paper over) is the
+lane's one carried-open item.
+
+### S32 (2026-09-29) — audit/review close-out lane
+
+Path call of record: the owner's planning report item 1 was stale (already
+done at S28/S30/S31) and its items 2–7 are owner/hardware/Qt-blocked, so this
+session took the only lane where audit/review tasks were still OPEN and
+provable in this sandbox. Full detail in `IMPROVEMENT_LOG.md`'s S32 entry.
+
+- [x] **N-25** — rate-limit map unbounded growth. **DONE** — limiter extracted
+      to `web/rate_limit.mjs`, whole-map prune per call, server-bounds
+      10 → 12 groups, mutation-tested both directions.
+- [x] **N-27** *(found this session, N-18 sweep of SettingsIO.h)* — the
+      position-pair probe narrow-cast long→unsigned (GS-206 class alive in the
+      bypassed helper): `position_x = 4294967296` probed valid, the real parser
+      refused, and the pair went live half-formed (`-p 0,5`). **DONE** —
+      width-strict probe + decoded value, 4 assertions RED→green.
+- [x] **N-28** *(suspicion this session, REFUTED by execution — the id is kept
+      so the numbering reads continuously)*: "to_double accepts nan/inf and
+      gamma junk reaches the engine" — libstdc++ rejects nan/inf (warns "not a
+      number"), and `validate()` already warns "gamma=nan: must be srgb, oklab
+      or a number" with `--strict` refusing. No code change.
+- [x] **N-29** *(found this session, same sweep)* — dither OFF + remembered
+      method saved as `dither = <m>` (loads as dither=TRUE): a deliberately
+      unchecked dither resurrected itself on reload. **DONE** — the off+method
+      state now saves as `dither = false` + `dither_method = <m>`.
+- [x] **Doc drift repaired** — the S31 tails that still called N-10..N-17
+      open (and misled the owner's planning report) corrected in place; review
+      documents folded (`COMPILED_AUDIT` §21, `docs/planning/PLANNING.md` §6,
+      `docs/archive/` rows 8–9).
+- [ ] **N-26 (OPEN)** — CI linux flake; needs an Actions-UI look (PR #7 has
+      the investigation so far).
 
 ### S31 (2026-09-28) — verification of the 2026-09-27 external audit
 
@@ -66,7 +134,7 @@ The external audit was re-checked line by line against a real checkout. Its
 target tree and this HEAD differ only by the two review files, so every claim
 was checkable; **20 of 22 checkable claims held**, one mechanism was wrong (and
 worse than reported), and one supporting claim was refuted. Full write-up:
-`AUDIT_VERIFICATION_2026-09-27.md`.
+`docs/archive/AUDIT_VERIFICATION_2026-09-27.md` (moved from the root S32).
 
 **Fixed this session (DONE rows, each with a mutation-tested proof):**
 
@@ -82,23 +150,42 @@ worse than reported), and one supporting claim was refuted. Full write-up:
 - [x] **N-22** — two code comments that state the opposite of the code.
 - [x] **N-23** — the handoff bullet that pointed U-59/P0-7 at the wrong PR.
 
-**Open rows, excluded from this session because no fix here could carry
-executed proof (no cmake, no Qt6, no engine binary in this sandbox):**
+**Corrected S32 (2026-09-29):** the block that used to sit here ("Open rows,
+excluded from this session because no fix here could carry executed proof")
+was a *pre-fix draft* that S31 never updated after PR #6 closed those rows —
+and the engine was buildable after all. That stale list is what
+`docs/planning/PLANNING.md` §6.1's original item 1 was written against. Live state is
+`STATUS.md`; the closures, with proof, ticked here to match:
 
-- [ ] **N-10 (HIGH, data loss)** — Explode has no partial guard on either
-      surface; a re-run or cancel truncates the previous frame set in place.
-      Needs CMake + Qt6 to fix and prove. **This is the one item worth calling
-      ship-blocking.**
-- [ ] **N-11 (MEDIUM, data loss)** — a *verified* partial is deleted when
-      promotion fails, and by a cancel that lands after engine exit.
-- [x] **N-12 (HIGH, gate integrity)** — **DONE.** B1-B20 now parses the harness's
+- [x] **N-10 (HIGH, data loss)** — DONE: CLI two-phase frame write, promote
+      only after verify (no-output CWD case included), mutation-tested smoke
+      case; GUI cancel honesty asserted by harness T21 (CI-compiled).
+- [x] **N-11 (MEDIUM, data loss)** — DONE: a verified partial is KEPT on
+      promote failure (its path is named) and on cancel-after-exit ("Run had
+      already finished - result kept.").
+- [x] **N-12 (HIGH, gate integrity)** — DONE: B1-B20 parses the harness's
       block lines and check count instead of trusting the final banner.
-- [ ] **N-13** — gate E7 checks a Markdown literal, not behaviour.
-- [ ] **N-14** — `DOC_GATE_CHECKS` is a hand-maintained constant.
-- [ ] **N-15** — the CLI snapshots the target but verifies the partial.
-- [ ] **N-16** — harness T4 asserts a bound tighter than the code's own budget.
-- [ ] **N-17** — no `info` fixture in the parity suite.
-- [ ] **N-18** — 39 files the external audit never opened are still unaudited.
+- [x] **N-13** — DONE: E7 renamed E7-doc (doc literal; harness T11 is the
+      behavioural check it now names).
+- [x] **N-14** — DONE: `DOC_GATE_CHECKS` is derived from the gate block and
+      published on a `GATE_TOTALS` line.
+- [x] **N-15** — DONE: the CLI snapshots the partial, exactly as the GUI does.
+- [x] **N-16** — DONE: T4's bound matches the code's 5000 ms budget, and the
+      message names the right function.
+- [x] **N-17** — DONE: `info` parity fixture added, mutation-tested both ways.
+
+Still open from the audit intake (state lives in `STATUS.md`):
+
+- [ ] **N-18 (PARTIAL)** — 39 files the external audit never opened. The
+      three named resume targets are now read (S32: `SettingsIO.h` found
+      N-27/N-29; `SettingsPanel.cpp` data paths clean; `test_gifsicle_command.cpp`
+      vacuity-scanned). The rest stay risk-scanned only — read on touch.
+- [x] **N-25 (DONE S32)** — `requestWindow` bounded by live traffic now
+      (see the S32 section above).
+- [ ] **N-26 (OPEN)** — CI's linux job is flaky (5 of the last 7 main runs
+      failed linux while windows passed) and this repo uses CI as the proof
+      lane for anything the sandboxes cannot compile. Registered from the
+      open PR #7 investigation; needs an Actions-UI look to name the step.
 
 - [x] **U-97** (found AND fixed in S27 — rule 2's strong form): the 2026-09-22
       zip re-creation of the GitHub repo lost the root license set
@@ -128,9 +215,14 @@ executed proof (no cmake, no Qt6, no engine binary in this sandbox):**
             is the conf parser's `not an integer` + `--strict` rc=3), explicit
             zero pinned as parity, empty-vs-zero pinned over HTTP (transport
             72 → 79 cases).
-      - [ ] **U-95** → **P1-45** — the published Release predates the Ms-PL
+      - [x] **U-95** → **P1-45** — the published Release predates the Ms-PL
             relicence: owner release-notes edit (mark superseded/pre-release,
             never delete), then the P0-4 re-cut + tag-triggered asset gate.
+            **DONE (S33)** — moot by verification: the same releases API check
+            that confirmed the defect (S24) now returns 0 releases on the live
+            repo (created 2026-09-22; the re-creation dropped the old
+            snapshot with it) — nothing to mark. The re-cut + deferred
+            tag-triggered asset gate are recorded on P0-4.
       - [x] **U-81** → **P1-46** — explode frame verification ignores the
             stream-output/--info exemptions the ordinary verifier documents;
             `output = -` explode downgrades an honest run to rc=1.
@@ -142,10 +234,12 @@ executed proof (no cmake, no Qt6, no engine binary in this sandbox):**
       - [x] **U-93** → **P2-20** — web transport bounds: capped stderr echo,
             output envelope, favicon 404.
             **DONE (S28)** — `GS_MAX_STDERR` cap with a disclosed truncation marker, `/favicon.ico` 204 + data-URI icon, `/run` output envelope documented (server-bounds 10/10).
-      - [ ] **U-88** → **P2-21** — register mechanics: derived P-id state +
+      - [x] **U-88** → **P2-21** — register mechanics: derived P-id state +
             harness:/desktop: proof markers + derived release-bar counters.
+            **DONE (S33)** — derived part-3 P-id block + release-bar line in `STATUS.md`, word-boundary truncation that keeps markers, M1/M2/M3 mutation proofs.
       - [ ] **U-89** → **P2-22** — doc-machine cost: --json/digest instead of
             hand-typed counts, truncation revisit, gate freeze until P0/P1 empty.
+            **PARTIAL (S33)** — `verify_audit.sh --json` + sha256 digest done, truncation revisited, freeze rule landed; remainder: CI-artifact + register quotes the digest (U-14 tension, owner-visible).
       - [x] **U-85** → **P3-13** — PORT validation (named error + exit 2, not
             a raw RangeError stack).
             **DONE (S28)** — PORT validated once: named reason + usage line + exit 2, no RangeError stack (4 server-bounds cases).

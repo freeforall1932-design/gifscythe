@@ -22,6 +22,8 @@ overlapping snapshots alive.
 | 5 | docs/audit/FIX_PICK_2026-09-10.md | 2026-09-10 · `a55a68d` | Self-marked SUPERSEDED: the reasoning that picked U-01 (+U-03) as the first fix, the U-19 correction, and the S8 sandbox-capability table | The pick was executed → file 6; U-19 correction → §5 row (☑ CORRECTED S8) |
 | 6 | docs/audit/REMEDIATION_2026-09-10.md | 2026-09-10 (S8) | S8's remediation record: 31 of 52 findings closed with executed before/after evidence + the mutation-test record; dated gate numbers (23/0/5-era) kept as S8 measured them | Per-finding proofs condensed into the §5 rows' Proof cells (S8 markers); the mutation-test discipline became the standing §19 rule |
 | 7 | docs/audit/EXTERNAL_REVIEW_INTAKE_2026-09-12.md | 2026-09-12 · re-checked at `2d51347` (S14 intake) | The 18-finding external intake in the reviewers' own words: Max/GPT-class A.1…A.10 (`GS-201…GS-210`) + DeepSeek B.1…B.8 (`DS-06…DS-13`, renamed from its N-series to avoid collision), each with evidence, proposed fix, verification limits, and the §8 status-truth corrections log | Compiled intake record → §13 (row table + evidence locations + re-checks); register rows → `STATUS.md` part 2 under the reviewers' ids; triaged into §6 in S15 (`OD-01 = a`) |
+| 8 | `space bunny review 2026-09-27.md` + `incomplete space bunny review.txt` (root uploads at `8d30614`) | 2026-09-27 · against `957c143` | The 2026-09-27 external audit (1,052 lines, run with NO checkout — every file read through the GitHub raw endpoint; 22 of 62 in-scope files DEEP, 39 PENDING, and it said so) plus the earlier truncated attempt | Verified claim-by-claim in S31 (20 of 22 confirmed) → disposition table + corrections in `COMPILED_AUDIT.md` §21; register rows **N-10…N-26**; full verification record kept at `AUDIT_VERIFICATION_2026-09-27.md` (row 9). **Originals deleted S32**; texts in git history at `8d30614` |
+| 9 | `AUDIT_VERIFICATION_2026-09-27.md` (root, written by S31) | 2026-09-28 · re-checked at `13d95a7` | This repo's own executed verification of row 8's audit: the method (identical-trees proof), claim-by-claim results, the two corrections (gamma TypeError is worse than the audit's `--gamma=0` story; the "five DONE rows" supporting claim refuted), and the bottom-line trust call | **KEPT, moved (not deleted) S32** to `docs/archive/AUDIT_VERIFICATION_2026-09-27.md` — it is executed evidence, not an external snapshot. Its actionable content is summarized in `COMPILED_AUDIT.md` §21 |
 
 ## Citation map for the intake labels
 
@@ -44,3 +46,9 @@ labels refer to file 7's sections: **A.1…A.10 = GS-201…GS-210** (Max/GPT-cla
    incorporated the same way — see `COMPILED_AUDIT.md` §20 for that intake and
    its per-finding disposition; their originals are also in git history at
    `3c67e14`.
+5. **The 2026-09-27 set (row 8's two files)** is finding-complete the same way:
+   every claim was dispositioned in `COMPILED_AUDIT.md` §21 and registered as
+   N-10…N-26 before deletion; the executed verification (row 9) is kept in full.
+   Originals at `8d30614`. The owner's planning report from the same upload was
+   not an audit snapshot — it lives on, folded and corrected, at
+   `docs/planning/PLANNING.md` §6.
