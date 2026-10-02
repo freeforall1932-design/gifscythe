@@ -4,7 +4,7 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
-## S34 — 2026-10-02: CI un-masked — and the first un-masked Windows run named N-30 as a real 32-bit-`long` bug in the settings parser, not toolchain drift; fixed test-first
+## S34 — 2026-10-02: CI un-masked — N-30 was a real 32-bit-`long` bug (fixed test-first, proven on Windows CI), N-26's "flaky linux job" was the doc gate, and agent sessions can push workflows
 
 **Changed:**
 
@@ -17,9 +17,10 @@ Chronological log of decisions and changes. **Newest at the top.**
   both the CLI and the unit-test compiles exit 0 (the `-lstdc++fs` probe is
   irrelevant), and the unit exe itself fails: `FAIL: s.position_x ==
   3000000000u && s.position_y == 5 (line 1284)`. **S33's reading ("toolchain
-  provisioning, not code"; "pin a modern MinGW") was wrong** — the STATUS N-30
-  row, the handoff and the WORKLIST line still carry it and are corrected at
-  merge-prep (see Left).
+  provisioning, not code"; "pin a modern MinGW") was wrong** — the STATUS row,
+  the COMPILED_AUDIT §21 row, the WORKLIST line and the handoff carried it until
+  the docs commits of this PR corrected them. The other session does not need
+  to pin MinGW.
   Root cause, reproduced here without Windows (a 32-bit-`long` target — zig
   `x86-linux-musl`, `sizeof(long) == 4` like Windows' LLP64 — fails the
   identical assertion at the identical line): `need_int` and `need_ulong_nonneg`
@@ -28,8 +29,12 @@ Chronological log of decisions and changes. **Newest at the top.**
   ship, values 2147483648..4294967295 were refused as "not an integer" while
   `to_uint_strict` and S32's N-27 position probe accept them: the pair went live
   with `position_x` = 0 (`-p 0,5`). N-27's fix was therefore incomplete on
-  Windows. The comment that justified the old code ("every Windows build" has
-  `long` wider than `int`) was false.
+  Windows. The probes predate S32 (they arrived with the 2026-09-22 unpack); the
+  N-27 case (`position_x = 3000000000`) was the first test with a LEGAL value
+  above 2^31 (the older cases used `4294967296`, refused on every platform and
+  only counted as warnings), which is why the Windows red starts with that
+  commit. The comment that justified the old code ("every
+  Windows build" has `long` wider than `int`) was false.
 - **The fix, test-first.** `to_long` became `to_llong` (64-bit on every
   platform) and the two probes use it; the values still come from the strict
   parsers, so Linux behaviour is bit-for-bit unchanged. Unit block 37 pins the
@@ -38,18 +43,51 @@ Chronological log of decisions and changes. **Newest at the top.**
   verdicts. RED on the 32-bit-`long` build: 7 failures (the original plus 6
   new); GREEN on that build and on native 64-bit. The false comment is
   corrected.
-- **Handoff line 8 re-anchored to `ad8f956` (a G10 trap, found before it fired).**
-  G10 accepts a doc's base sha only if it is main's tip or the tip's first
-  parent. Line 8 named `13d95a7` — legal today (first parent of the PR #8
-  merge) and illegal the moment the next merge moves the tip. Measured by
-  building the would-be merge of the open doc-sync PR locally and running the
-  gate in a CI-shaped depth-1 push-to-main checkout: FAIL [G10]
-  `SESSION_HANDOFF.md names base 13d95a7`; with this one-line change the same
-  emulation passes (23 passed / 0 failed / 3 skipped). `COMPILED_AUDIT.md`'s
-  base line is deliberately untouched — that PR already re-anchors it. Merge
-  order rule this exposes: a base line can only name a tip that exists when it
-  is written, so whichever PR merges second must re-anchor to the then-current
-  tip before it merges.
+- **Proven on Windows itself.** Run 36967608254 (`c79a2cd`): `windows` is green
+  end to end — Build CLI + unit tests, native E2E smoke, GUI build, GUI offscreen
+  harness, packaging, manifest assertion, artifact upload — and `docs`, `linux`
+  and `csharp-spike` are green too (every step reachable). Live tally of the 33
+  CI runs that reached a Windows job between 2026-09-29 and 2026-10-02: 31
+  failed at "Build CLI + unit tests", 1 at the Qt install (`13d95a7`, exit 254 —
+  that step passed in every later run and was never reproduced, so it reads as a
+  transient provisioning failure), and 1 passed: this one. The 380-vs-384 count
+  seen on Windows before the fix is explained, not a defect: the test file's one
+  `#ifndef _WIN32` block (unit block 28, signal exit codes) holds exactly 4
+  checks. A grep of `src/` (core, cli, qtui) and `tests/` for plain `long`, the
+  `strto*`/`sto*`/`toLong` families, `LONG_MAX`-style limits and `%l*` formats
+  finds nothing else width-sensitive — the only plain `long` uses cast
+  `GetLastError()` for `%lu`.
+- **The G10 base-line trap fired, and is closed.** G10 accepts a doc's base sha
+  only if it is main's tip or the tip's first parent. This branch's first
+  commit re-anchored the handoff's base line from `13d95a7` to `ad8f956` after
+  measuring that the would-be merge of the then-open doc-sync PR (#9) turned a
+  depth-1 push-to-main checkout red at G10. PR #9 then merged first
+  (`c999061`, 2026-10-02 06:01Z) without that line, and its push-to-main run
+  (36971588492) went red exactly there — reproduced here in a depth-1 checkout
+  of `c999061`: FAIL [G10] `SESSION_HANDOFF.md names base 13d95a7, unknown to
+  this clone (expected origin/main = c999061 or merge first parent =
+  ad8f956)` — plus Windows N-30. This branch merged `c999061` (mechanical
+  conflicts only: both log entries kept, STATUS re-emitted) and re-anchored both
+  enforced base lines (the handoff's and COMPILED_AUDIT's) to `c999061`, the
+  first parent of whatever merge commit lands next. The merge-order rule this
+  demonstrates: a base line can only name a tip that exists when it is written,
+  so whichever PR merges second re-anchors to the then-current tip — and a PR
+  the other merge left stale is stale, not broken (owner convention, now in the
+  handoff).
+- **N-26 closed: the "flaky linux job" was the doc gate.** The jobs API names the
+  failing step even though the log blob is unreadable: all 8 red main runs since
+  2026-09-22 (`824bf20`, `e06b5db`, `42306bb`, `8d30614`, `2ade969`, `13d95a7`,
+  `ad8f956`, `c999061`) failed linux at the *same* step, "Documentation status
+  gate"; the two green mains (`7c035fd`, `957c143`) are the commits where the
+  docs agreed with the tree. The verdict depended on the checkout depth and the
+  UTC date (depth-1: G10 skipped on branch and PR runs yet enforced on
+  push-to-main; G11 compared the log with the checkout's own date), so one tree
+  was green on its PR run and red on main; and as step 7 of the linux job a red
+  gate also skipped the web suites, oracle, GUI harness and packaging, which
+  read as a broken job. Reproduced deterministically in CI-shaped depth-1
+  clones: `8d30614` (G10+G11), `2ade969` (G10), `13d95a7` (G10+G11), `ad8f956`
+  (G11), `c999061` (G10; G11 now skips). Fixed by N-31 (S33), the full-history
+  `docs` job and the gate leaving the linux job (next two bullets).
 - **The doc gate is its own CI job (`docs`) with full history.** As step 7 of
   the linux job, one red gate skipped the six steps after it — the nine web
   suites, the seeded oracle, the Qt GUI harness, package portable, the
@@ -63,13 +101,14 @@ Chronological log of decisions and changes. **Newest at the top.**
 - **Windows: the GUI build and its offscreen harness no longer depend on
   "Build CLI + unit tests".** They run when provisioning (step id `provision`)
   succeeded and, for the harness, when the GUI build (id `gui_build`) did, via
-  `!cancelled()` conditions. Of the 30 CI runs since 2026-09-29, 29 Windows jobs
-  died at "Build CLI + unit tests" and 1 at the Qt install, so the Windows GUI
-  build and harness had not executed once in that window. Its last line `[[ -f
-  build/gifscythe-cli.exe ]] && cp ...` made the step exit 1 whenever the CLI
-  exe was absent (measured: exit 1 in the old form, 0 in the new), which would
-  have defeated the decoupling; it is an `if` now.
-- **Two inert Windows diagnostics** (a separate commit, droppable): a
+  `!cancelled()` conditions. Of the 30 CI runs between 2026-09-29 and this
+  branch's first push, 29 Windows jobs died at "Build CLI + unit tests" and 1 at
+  the Qt install, so the Windows GUI build and harness had not executed once in
+  that window. Its last line `[[ -f build/gifscythe-cli.exe ]] && cp ...` made
+  the step exit 1 whenever the CLI exe was absent (measured: exit 1 in the old
+  form, 0 in the new), which would have defeated the decoupling; it is an `if`
+  now.
+- **Two inert Windows diagnostics** (a separate commit, droppable — kept): a
   toolchain-identity step after provisioning publishes which `g++` (path,
   version, target, every `g++` on PATH) as one notice annotation; a
   failure-only step, run when "Build CLI + unit tests" (now `id: cli_tests`)
@@ -78,36 +117,54 @@ Chronological log of decisions and changes. **Newest at the top.**
   linked, and publishes the tail as one error annotation. Both are
   `continue-on-error`, the original step is untouched, and neither can change a
   job's result. The log blob is unreadable from the sandboxes; annotations are
-  not — which is how the paragraph above was learned from one run.
+  not — which is how the N-30 paragraph above was learned from one run.
+- **An agent session CAN push `.github/workflows/` (owner-confirmed, executed
+  here).** This branch's first push carried two workflow commits (`9bc155f`,
+  `7e0feca`), was accepted, and Actions ran them. The prose that still said
+  otherwise is corrected: the handoff (fast hand-off, product constraints and
+  sandbox bullets), `docs/ci/README.md` §1, the `working_code` README (its "E9
+  still SKIPs ... awaits a workflows-scoped token" clause was an S9–S23 state),
+  COMPILED_AUDIT's U-10 text, the STATUS R-03 row, PLANNING's copy-paste
+  prompt, and a comment above gate E9 in `verify_audit.sh` (comment lines only;
+  `review_change.sh` R1 reports no verdict or matcher line moved). The
+  `docs/ci/build.yml.proposed` copy stays — E9/G7/S1 enforce byte equality — as
+  the recipe for a token GitHub does reject.
+- **N-33: the README's honesty summary was stale in all three claims** (main
+  green at an unresolvable old-remote sha; U-59 an open data-loss row; a stale
+  Release published). Rewritten from live state: releases and tags are both 0
+  (API, checked 2026-10-02), U-59 is DONE end to end, CI evidence by run id.
+- **N-32 registered (OPEN, owner-visible): the wasm track's "byte-for-byte
+  against the native oracle" bar cannot be met by a build with a different
+  libc.** Measured in a scratch run this session — NOT committed, re-measure
+  before relying on the counts: gifsicle 1.96 built from the repo's sources
+  with `python -m ziglang cc -target wasm32-wasi` (`config.wasm.h` staged as
+  `config.h`, plus a popen/pclose/umask/mkstemp shim) runs under Node's WASI.
+  Its output is byte-identical to musl-native builds (64- and 32-bit) and
+  differs from the glibc-built oracle in 7 of 9 cases. gifsicle's median-cut
+  quantizer sorts with libc `qsort` (`quantize.c` lines 101–105), whose order of
+  equal keys is libc-specific; a clang+glibc build equals the gcc+glibc one, so
+  the libc — not wasm, not the compiler — is the cause. Emscripten is
+  musl-derived too, so the emcc build the docs wait for would, by inference,
+  miss the oracle the same way. `prove_wasm.mjs` never compared bytes (it only
+  requires a non-empty GIF). PLANNING §6, the wasm README and the WORKLIST carry
+  the correction; which bar replaces byte parity is the owner's decision.
 
 **Partial / Left on purpose:**
 
-- **N-30's register row, handoff text and WORKLIST line still say "code
-  refuted as the cause" — wrong, to be corrected at merge-prep.** The open
-  doc-sync PR edits the same register block and the adjacent WORKLIST lines;
-  rewriting N-30 now would collide, so it is done on top of that PR's merge. The
-  correct statement: cause = the `long` probes (fixed here), toolchain healthy,
-  the "pin MinGW" next action is dropped. N-26's "failing step cannot be
-  identified" is also out of date — the jobs API names it (Documentation status
-  gate) and the reds reproduce deterministically in CI-shaped depth-1 clones of
-  8d30614 (G10+G11), 2ade969 (G10), 13d95a7 (G10+G11) and ad8f956 (G11).
 - **Not changed: the duplicate push + pull_request runs and `concurrency`.**
   Duplicates are cost and noise, not masking, and `cancel-in-progress` would
   cancel older per-commit runs while this repo cites the run of a specific
   commit as evidence (N-11, N-16, N-30). That is an owner call.
-- **What the fix does not yet prove on Windows itself:** only the next Windows
-  run does. A 32-bit-`long` unit run is the local stand-in; a CI job running it
-  on Linux (`pip install ziglang`, one compile, one run) would keep this whole
-  class from regressing without a Windows runner — proposed, not added.
-- **Findings from this session still to be registered before this branch's
-  PR** (same collision reason): the wasm proof standard (a musl-based wasm build
-  is byte-identical to a musl-native build of the same sources but differs from
-  the glibc-built native oracle, so a byte-parity bar cannot pass;
-  prove_wasm.mjs does not enforce byte parity at all), the README honesty
-  summary (all three claims stale), and the toolchain notes (pip can supply
-  cmake, ninja, zig and shellcheck here; apt is blocked; the PySide6 wheel has
-  no Qt headers; zig also targets 32-bit-`long` Linux, which is how N-30 was
-  reproduced).
+- **Proposed, not added:** a Linux CI step running the unit suite on a
+  32-bit-`long` target (`pip install ziglang`, one compile, one run) would keep
+  the N-30 class from regressing without waiting for Windows. It is optional
+  now that Windows CI runs the suite again; not registered (a proposal, not a
+  defect).
+- **N-32 stays OPEN on purpose:** choosing the replacement proof bar is an owner
+  decision (it also feeds OD-16 / D-07), and OD-16 blocks shipping the wasm
+  track either way.
+- **Left for the owner:** whether the S34 PR is merged (no merge without an
+  explicit yes), and whether to adopt a push/PR de-duplication.
 
 **Verified (executed here):**
 
@@ -118,37 +175,54 @@ Chronological log of decisions and changes. **Newest at the top.**
   `test_output_verify.sh` 25 assertions, `test_package.sh` 36/36, the oracle
   `--full` 64/64, all nine web suites (several compare the JS builder against
   this C++ code), and ASan+UBSan on the unit suite — clean.
+- The CI proof for the fix: run 36967608254's job and step list read back from
+  the Actions API (every step of `docs`, `linux`, `windows`, `csharp-spike`
+  `success`; only the failure-only diagnose step `skipped`).
+- N-26: the failing step of every main push run since 2026-09-22 read from the
+  jobs API (8 red, all at the doc gate; 2 green), and a depth-1 push-to-main
+  emulation of `c999061` — the exact G10 line quoted above.
 - Both workflow copies byte-identical (`cmp`); the workflow validates against
-  GitHub's workflow schema (`check-jsonschema`, vendored schema; a deliberately
-  broken file is rejected by the same command). Parsed structure: jobs `docs`,
-  `linux`, `windows`, `csharp-spike`; the linux job no longer contains the gate.
-- CI on this branch's first push: `docs` success in about a minute, `linux`
-  success with every step now reachable, `windows` failing only at the unit
-  tests, with its GUI build and harness green.
+  GitHub's workflow schema (`check-jsonschema --builtin-schema
+  vendor.github-workflows`; a deliberately broken file is rejected by the same
+  command). Parsed structure: jobs `docs`, `linux`, `windows`, `csharp-spike`;
+  the linux job no longer contains the gate.
 - The `[[ ]] && cp` claim above, by running both forms under `set -euo
   pipefail`; the two diagnostic steps, by extracting their exact `run:` text
   from the workflow YAML and executing it against a deliberately broken
   unit-test source (exit 0, exactly one annotation of 685 bytes, no raw
   newline, decoded text carries the real g++ error).
-- The new `docs` job, emulated step for step in a fresh full-history clone with
+- The `docs` job, emulated step for step in a fresh full-history clone with
   cmake on PATH and no Qt (what `ubuntu-latest` looks like): 24 passed, 0
-  failed, 1 skipped (G6 by design). The line-8 emulation quoted above. A trial
-  merge of the open doc-sync PR into this branch: SESSION_HANDOFF.md and
-  WORKLIST.md merge cleanly; IMPROVEMENT_LOG.md and STATUS.md conflict
-  mechanically (keep both log entries, re-run `check_docs.sh --emit`).
+  failed, 1 skipped (G6 by design) — and green in CI itself (run 36967608254,
+  `docs` success).
+- The merge of `c999061` into this branch: only `IMPROVEMENT_LOG.md` and
+  `STATUS.md` conflicted (mechanical); the merge result diffs against main as
+  exactly this branch's content and against the previous tip as exactly PR #9's.
+- Live GitHub state used by the docs: releases 0, tags 0, PR #9 merged
+  `c999061`, PR #7 closed unmerged, run ids as quoted.
 
-**Not verifiable here:** the fix executing on a Windows runner (the next run
-does); the Windows run executing 380 of the 384 pre-fix checks (platform-
-conditional blocks, not investigated); whether GitHub accepts annotation
-messages larger than the ~700 bytes seen so far (the failure case is capped at
-3.5 KB); and whether the same `long` assumption hides in code paths no test
-reaches — the audit found plain `long` only in the two probes in `src/core` and
-`src/cli`, but the Qt sources were not audited for it.
+**Not verifiable here:** the Windows rows that need real hardware (W-18 clean
+machine, W-19 desktop probes — a CI artifact is not a clean-machine run);
+whether GitHub accepts annotation messages larger than the ~700 bytes seen so
+far (the failure case is capped at 3.5 KB); that N-32's numbers hold today (a
+scratch measurement, not committed) and what an emcc build would do (inferred
+from Emscripten's musl-derived libc, unmeasured); semantic integer-width
+classes beyond plain `long` (size_t/int narrowing in the Qt code — the grep
+audit above covers `long` only); and whether the base lines stay legal — they
+name `c999061`, so any other merge before this one makes this PR stale (stale,
+not broken: the next session re-anchors).
 
-**Docs touched:** `SESSION_HANDOFF.md` (line 8, the verification row's count),
+**Docs touched:** `SESSION_HANDOFF.md` (header, Docs-synced-through → PR #9,
+base line, ledger rows #7/#9, fast hand-off, product constraints, sandbox
+reality, orientation quotes), `STATUS.md` (N-26/N-30 closed, R-03, N-32/N-33,
+W-03/W-04/W-30, re-emitted), `COMPILED_AUDIT.md` (Base line, §21 rows N-26/N-30
+and new N-32/N-33, U-10 text), `WORKLIST.md` (pending lines, N-26 ticks, CI/infra
+bullet, wasm bullet), `README.md` (honesty summary), `docs/ci/README.md` (§1),
+`docs/planning/PLANNING.md` (N-26 notes, prompt line, wasm corrections),
+`web/wasm/README.md`, `working_code/gifscythe/README.md`,
 `.github/workflows/build.yml` and its byte copy `docs/ci/build.yml.proposed`,
-`docs/ci/README.md` (§1), `WORKLIST.md` (CI/infra bullet), `STATUS.md` (W-03,
-W-04 and W-30 rows), `working_code/gifscythe/src/core/SettingsIO.h`,
+`working_code/gifscythe/scripts/verify_audit.sh` (comment),
+`working_code/gifscythe/src/core/SettingsIO.h`,
 `working_code/gifscythe/tests/test_gifsicle_command.cpp`, this entry.
 
 ---
