@@ -4,7 +4,7 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
-## S33 — 2026-10-01: register mechanics + doc-machine cost (U-88/P2-21 done, U-89/P2-22 partial) — the derived fix-order block, proof-provenance markers, and the gate/register freeze
+## S33 — 2026-10-02: register mechanics + doc-machine cost (started 2026-10-01 local; the UTC date rolled mid-session and G11 compares UTC-stamped commits — the entry is dated to the session's close day) (U-88/P2-21 done, U-89/P2-22 partial) — the derived fix-order block, proof-provenance markers, and the gate/register freeze
 
 **Changed:**
 
@@ -110,6 +110,15 @@ backups; and `git fetch` before trusting a local tree's shape against the
   time, back up the tree, `git reset --hard FETCH_HEAD`, diff, re-graft. Any
   turn-start with "dirty tree vs unknown base" must begin with that dance
   BEFORE any commit or mutation.
+
+**Merged (owner yes, 2026-10-02):** PR #8 merged as `ad8f956` (merge commit —
+the S26 mechanic kept; windows job red at merge = N-30 provisioner, code
+refuted as the cause and registered; linux green). PR #7 **closed** with the
+G10 anchor analysis rather than merged (its `2ade969` re-anchor would have
+kept main red at G10 the moment it merged; its N-26 row rides on main via
+#8). This note + the base re-anchor to `ad8f956` + ledger row #8's
+`Merged as` cell + the handoff's Docs-synced-through line are the post-merge
+sync (the S28 #3→#4 pattern), shipping as the follow-up PR.
 
 ---
 
