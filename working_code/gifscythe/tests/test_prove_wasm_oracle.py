@@ -14,7 +14,9 @@ that shells out to a real native gifsicle, exactly as web/wasm/glue_harness.mjs 
 The fake proves the SCRIPT, never the wasm binary.
 
 Needs node and a native gifsicle (./build.sh, or GS_TEST_ENGINE). Without either, every test is skipped
-with that reason printed - a skip is not a pass.
+with that reason printed - a skip is not a pass. CI sets GS_REQUIRE_PROOF=1, which turns that skip into a
+FAILURE: the first CI run of this test was green in 0 s with no way to tell from outside whether ten tests
+had run or ten had been skipped, which is exactly how a proof rots.
 """
 import os
 from pathlib import Path
@@ -27,6 +29,7 @@ GS = Path(__file__).resolve().parents[1]
 REPO = GS.parents[1]
 PROVE = Path(os.environ.get("PROVE_UNDER_TEST", REPO / "web" / "wasm" / "prove_wasm.mjs")).resolve()
 NODE = shutil.which("node")
+REQUIRED = os.environ.get("GS_REQUIRE_PROOF") == "1"  # CI sets it: a skipped proof must never read as a passed one
 
 
 def find_engine():
@@ -77,11 +80,16 @@ module.exports = async function createGifsicle(opts) {
 """
 
 
-@unittest.skipUnless(NODE, "node is not installed - prove_wasm.mjs cannot run, nothing was tested")
-@unittest.skipUnless(ENGINE, "no native gifsicle (run ./build.sh or set GS_TEST_ENGINE) - nothing was tested")
 class ProveWasmOracleTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        missing = [what for what, ok in (("node", NODE), ("a native gifsicle (run ./build.sh or set GS_TEST_ENGINE)", ENGINE))
+                   if not ok]
+        if missing:
+            msg = f"{' and '.join(missing)} not found - prove_wasm.mjs cannot run, nothing was tested"
+            if REQUIRED:
+                raise AssertionError(msg + " (GS_REQUIRE_PROOF=1 makes that a failure, not a skip)")
+            raise unittest.SkipTest(msg)
         cls.temp = tempfile.TemporaryDirectory(prefix="gifscythe-prove-")
         cls.fake = Path(cls.temp.name) / "fake_gifsicle.js"
         cls.fake.write_text(FAKE_MODULE, encoding="utf-8")

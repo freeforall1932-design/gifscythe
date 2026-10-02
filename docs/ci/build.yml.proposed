@@ -183,10 +183,11 @@ jobs:
 
   # S34 (the owner's call; N-30 and N-32): the two checks that need neither a Windows box nor emcc,
   # only zig - a pinned pip wheel that cross-compiles to every target below. A separate job, so it
-  # runs beside the others: about 3.5 runner-minutes (measured with a cold zig cache: the 32-bit
-  # unit suite 2m03s, the wasm bar 1m06s), against about 4 minutes for the windows -> csharp-spike
-  # chain, which is the longest path - so it adds little or no wall-clock time. Any non-zero exit
-  # fails it, including a runner's "SKIPPED" exit 3: a skipped proof must never read as a passed one.
+  # runs beside the others: about 2 runner-minutes on Actions (run 36983286343: toolchain 8 s, the
+  # 32-bit unit suite 69 s, the wasm bar 38 s), against about 4 minutes for the windows ->
+  # csharp-spike chain, which is the longest path - so it adds no wall-clock time. Any non-zero
+  # exit fails it, including a runner's "SKIPPED" exit 3 (and GS_REQUIRE_PROOF=1 below turns a
+  # skipped Python suite into a failure): a skipped proof must never read as a passed one.
   portability:
     name: portability (32-bit long, wasm32 bar)
     needs: gate
@@ -226,6 +227,7 @@ jobs:
       - name: prove_wasm.mjs --oracle logic (fake module, real native engine)
         env:
           GS_TEST_ENGINE: ${{ runner.temp }}/parity/engine_musl
+          GS_REQUIRE_PROOF: "1"   # a missing engine must fail this step, not skip ten tests and stay green
         run: python3 working_code/gifscythe/tests/test_prove_wasm_oracle.py
 
       - name: Bar verdict logic (a proof gate must be able to fail)
