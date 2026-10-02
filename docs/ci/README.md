@@ -64,6 +64,10 @@ back to enforcing byte-equality with no standing exception.
   annotation. Check-run annotations are the one channel of a failed run the
   agent sandboxes can read (`gh api repos/<repo>/check-runs/<job id>/annotations`);
   GitHub caps them at 10 errors and 10 warnings per step and 50 per job.
+  The linux job's web-suite step does the same (S34, N-35): every suite runs even if an
+  earlier one failed, and a failing suite is named by an annotation carrying its `FAIL` lines
+  and the three lines after each. Its first red (run 36985082450) said only "exit code 1"
+  and was a startup-banner race in a test helper, found by reproducing it locally.
   These steps are what named N-30 — a 32-bit-`long` bug in the settings
   parser, not the toolchain, so the `-lstdc++fs` probe turned out to be a
   spare. Both stay (inert, `continue-on-error`) for the next red Windows run.
@@ -80,9 +84,9 @@ back to enforcing byte-equality with no standing exception.
   the same branch or PR when a newer push arrives; a push to `main` is never
   cancelled (its group is the run id). Seen live (S34): the push run of this PR's branch
   ran only the gate (`skip=true`, run 36983282655) while the `pull_request` run ran all six
-  jobs (run 36983286343); the PR page lists the skipped jobs as neutral. The gate costs about
-  12 s of wall-clock at the front of every run (4.1 -> 4.3 minutes for the whole PR run:
-  the gate sits in front of every other job). `cancel-in-progress` was seen working (S34):
+  jobs (run 36983286343); the PR page lists the skipped jobs as neutral. The gate job (about
+  6 s) sits in front of every other job; the whole PR run took 4.3, 4.1 and 4.4 minutes in
+  three runs against 4.1 before, i.e. inside the noise. `cancel-in-progress` was seen working (S34):
   two commits pushed about a minute apart cancelled the first commit's `pull_request` run
   (36984484547: every job `cancelled`); the cancel took about a minute and a half to take
   effect after the second push, and the newer run waited as `pending` until then. The first
@@ -97,7 +101,7 @@ back to enforcing byte-equality with no standing exception.
 - **`portability` (S34, the owner's calls; N-30, N-32).** The checks that need zig but
   neither a Windows box nor emcc, in one job beside the others. Measured on Actions:
   2.0 minutes (run 36983286343: toolchain 8 s, the 32-bit unit suite 69 s, the wasm bar 38 s)
-  and 2.4 on the next run (36983984989: 9 s, 87 s, 44 s) — against about 4 minutes for the windows -> csharp-spike chain, so it adds no wall-clock
+  and 2.4 and 2.5 on the next two (36983984989: 9 s, 87 s, 44 s; 36985082450) — against about 4 minutes for the windows -> csharp-spike chain, so it adds no wall-clock
   time (the slower sandbox needs about 3 minutes for the same two checks with a cold zig
   cache). The owner accepted roughly two minutes because it helps verify the project. The
   job holds the unit suite on a 32-bit-`long` target (`scripts/test_unit_32bit_long.sh`, the

@@ -213,11 +213,12 @@ Chronological log of decisions and changes. **Newest at the top.**
   before pushing again. *The 32-bit runner:* a `portability` job of its own, so it runs
   beside the others. Measured on Actions (run 36983286343): toolchain install 8 s, the
   32-bit unit suite 69 s, the wasm bar 38 s, the two Python suites under 1 s each — **2.0
-  minutes** (2.4 on the next run, 36983984989: 9 s, 87 s, 44 s), the figure the owner accepted for the runner alone, with the wasm bar riding
+  minutes** (2.4 and 2.5 on the next two runs — 36983984989: 9 s, 87 s, 44 s; 36985082450), the figure the owner accepted for the runner alone, with the wasm bar riding
   in the same job at no visible cost. `portability` itself added no wall-clock time (it runs
-  beside the others), but the PR run as a whole went from 4.1 minutes (run 36977644904) to
-  4.3 (run 36983286343): the extra ~12 s is the `gate` job, which now sits in front of every
-  other job (gate 0.1 + windows 2.9 + csharp-spike 1.1). (This sandbox
+  beside the others), and the `gate` job (about 6 s) now sits in front of every other job, but the PR run
+  as a whole took 4.3, 4.1 and 4.4 minutes in three runs (36983286343, 36983984989, 36985082450)
+  against 4.1 before (36977644904) — inside the noise; the critical path is still gate 0.1 +
+  windows 2.9 + csharp-spike 1.1. (This sandbox
   needs about 3 minutes for the same two checks with a cold zig cache — 2m03s and 1m06s —
   which is why a first guess here said "3.5 runner-minutes"; the runner is the number
   that matters.) zig 0.16.0 and Pillow come from pinned wheels in a venv (24.04's system
@@ -243,6 +244,29 @@ Chronological log of decisions and changes. **Newest at the top.**
   into the CURRENT directory: it dropped a stray `package.json` into the checkout, which
   showed up in G18's list of uncommitted files and was fixed to install with `cwd` inside
   the scratch dir (verified from the repo root).
+
+- **N-35: the PR's own final CI run went red, and it was a flaky TEST, not the change.** Run
+  36985082450 (head `94494ac`, a docs-only commit) failed the `linux` job at "Web JS/C++ parity +
+  server regression tests" after 13 s — the other five jobs were green and the identical code had
+  passed four times. The annotation said only "Process completed with exit code 1" (log blobs are
+  unreadable here), so the failing suite had to be found by reproducing: the nine suites were run in
+  a loop and `server-bounds.test.mjs` failed 1 run in 15, always at U-66 ("startup line did not
+  choose the pin: Gifscythe web server on http://127.0.0.1:35463"). **Cause: a race in the test
+  helper, not in the server.** The server prints its startup banner as separate writes — the
+  listening line, a loopback note, and `Engine [source]: path` last — and `startServer()` declared
+  the child up when the log held the FIRST line; U-66 then read the log at once, so when the Engine
+  line had not crossed the pipe yet it failed. *Fix, test-first:* wait for the last banner line,
+  complete; `startServer` takes an optional `serverPath`; a new group points it at a stand-in server
+  that prints the listening line and the rest 300 ms later — the flake made deterministic: **5 of 5
+  runs red with the old readiness rule, green with the fix**; and 45 of 45 sequential runs of the
+  fixed file clean (at the old 6.7% rate that has a 4% chance). The other suites wait for readiness
+  with an HTTP request and make round trips before they read the log, so they are not exposed the
+  same way. *The step now names its failures:* each suite runs even if an earlier one failed, and a
+  failing suite publishes an annotation with its `FAIL` lines and the three after each (the Windows
+  N-30 trick again). The exact step text was extracted from the workflow and run against stub
+  suites: all pass → exit 0, no annotation; one fails → exit 1, one annotation with `%` and CR
+  encoded, the other eight still run; shellcheck clean; the first version dropped the indented
+  detail line after `FAIL`, which is the useful one, and was corrected before it was pushed.
 
 - **The post-merge sync is pre-included, and P6 now allows it.** The owner merges from the
   GitHub UI and continues, so a "post-merge sync" PR (#4 after #3, #9 after #8: the ledger's
@@ -339,6 +363,9 @@ Chronological log of decisions and changes. **Newest at the top.**
   0 failed, 1 skipped, G10 and G11 PASS in both shapes. A rebase-merge is the one shape it
   does not survive (the tip's parent would no longer be `c999061`); the owner has merged with
   merge commits so far and the PR body asks for one.
+- N-35: `server-bounds` loop (1 failure in 15 sequential runs before; 45 of 45 clean after the fix); the
+  deterministic regression group RED 5/5 against the old readiness rule and GREEN with the fix; the nine web
+  suites green; the extracted step text against stub suites (3 cases) and shellcheck.
 - The Python tests: `unittest discover` over `working_code/gifscythe/tests` — 61 tests OK (the
   earlier 21, plus 8 P6, 14 `ci_gate`, 10 `prove_wasm --oracle` and 8 `--bar` logic).
 - The four implemented decisions, offline: `libc_parity.py --bar` GREEN 9/9 and `--bar --against
@@ -388,7 +415,7 @@ bullet, build commands, "Do not" list), `README.md` (honesty summary), `docs/ci/
 `working_code/gifscythe/scripts/ci_gate.sh`, `lint_workflow.mjs`, `libc_parity/libc_parity.py` (`--bar`,
 `--build-oracle`), `web/wasm/prove_wasm.mjs` (`--oracle`, `--module`), new
 `working_code/gifscythe/tests/test_ci_gate.py`, `test_libc_parity_bar.py`, `test_prove_wasm_oracle.py`,
-this entry.
+`web/test/server-bounds.test.mjs` (N-35), this entry.
 
 ---
 

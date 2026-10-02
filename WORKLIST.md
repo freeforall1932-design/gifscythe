@@ -113,6 +113,14 @@ reads them in a file, not in a conversation.
   byte-identical workflow copies. Moving to 26.04 is now a deliberate edit of the four
   labels, trialled on a branch first.
 
+- **N-35** (S34, found and fixed the same session): CI's `linux` job went red once on a
+  docs-only commit (run 36985082450) at the web-suite step, annotation "exit code 1". Root
+  cause: a race in the **test helper** — `server-bounds.test.mjs`'s `startServer` declared the
+  server up on the first startup-banner line and U-66 read the log before the `Engine [...]`
+  line arrived (1 failure in 15 locally). Fixed test-first (wait for the last banner line; a
+  deterministic regression group, RED 5/5 on the old rule; 45/45 clean after) and the step now
+  names a failing suite as an annotation, so the next red names itself. Detail in the STATUS row.
+
 - **CI run shape** (S34, the owner's calls — not findings, so no register row): a `gate`
   job skips a *push* run when an open, mergeable PR exists for the branch (the PR's own
   run tests that commit), plus workflow-level `concurrency` (a newer push to the same

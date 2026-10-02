@@ -47,14 +47,14 @@ Based on `main` commit `c999061` (PR #9's merge, 2026-10-02 — the S33 post-mer
      (`scripts/ci_gate.sh`) skips a *push* run when an open, mergeable PR exists for the
      branch: the PR's own run tests that commit. A branch without a PR, and a PR with
      merge conflicts (GitHub starts no `pull_request` run for those), still get the push
-     run; skipped jobs are neutral on the PR page, and the gate costs ~12 s of wall-clock
-     at the front of every run (4.1 → 4.3 min). (b) Workflow-level `concurrency`: a
+     run; skipped jobs are neutral on the PR page, and the gate job (~6 s) sits in front
+     of every other job — the PR run took 4.1–4.4 min in four runs against 4.1 before, inside the noise. (b) Workflow-level `concurrency`: a
      newer push to the same branch or PR cancels the older run of the same event; main is
      never cancelled (seen live: the older run took ~1.5 min to wind down, and the newer
      run waited `pending` meanwhile). **So to cite a specific commit's run as evidence,
      let it finish before pushing again.** (c) A parallel `portability` job needing only zig: the
-     32-bit-`long` unit suite (the N-30 class) and the N-32 wasm bar — 2.0–2.4 minutes on
-     Actions (runs 36983286343, 36983984989), no wall-clock time (the windows → csharp-spike chain is
+     32-bit-`long` unit suite (the N-30 class) and the N-32 wasm bar — 2.0–2.5 minutes on
+     Actions (runs 36983286343, 36983984989, 36985082450), no wall-clock time (the windows → csharp-spike chain is
      the ~4-minute longest path). Decision table: `tests/test_ci_gate.py`.
      Offline workflow lint: `node working_code/gifscythe/scripts/lint_workflow.mjs`.
   8. **N-32's bar is decided — a same-libc native oracle (PARTIAL).** The wasm32-wasi
@@ -62,6 +62,16 @@ Based on `main` commit `c999061` (PR #9's merge, 2026-10-02 — the S33 post-mer
      by `libc_parity.py --bar` and in `prove_wasm.mjs --oracle`. What is left is an
      Emscripten build run through it (emcc is unobtainable here); the STATUS row has the
      exact commands for whoever has emcc. Do not chase byte parity with the glibc oracle.
+  9. **A flaky web test was found and fixed (N-35).** The PR's own last CI run went red at
+     the `linux` job's web-suite step with only "exit code 1". Cause: `startServer()` in
+     `web/test/server-bounds.test.mjs` treated the server's FIRST banner line as "up" and U-66
+     read the log before the `Engine [...]` line had arrived (1 in 15 runs). Fixed, with a
+     deterministic regression group. **That step now names a failing suite** as a
+     `::error` annotation (read it with `gh api repos/<owner>/<repo>/check-runs/<job id>/annotations`)
+     and runs every suite even after a failure — the same trick as the Windows diagnostics:
+     a red you cannot read from here must publish its own name. Do not run `server-bounds`
+     in parallel with itself: U-66 makes a `release/current` symlink in the checkout.
+
 - **Collisions are not a reason to defer a correction (owner convention,
   S34).** When another open PR touches the same lines, write the correction
   anyway: a PR that goes stale (merge conflicts in `STATUS.md` /
@@ -156,7 +166,7 @@ Based on `main` commit `c999061` (PR #9's merge, 2026-10-02 — the S33 post-mer
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 156 DONE · 11 PARTIAL · 26 OPEN · 0 UNTRIAGED · 193 total (at S32: 149/9/30/0 — historical)
+- **Register:** 157 DONE · 11 PARTIAL · 26 OPEN · 0 UNTRIAGED · 194 total (at S32: 149/9/30/0 — historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -242,7 +252,7 @@ this ledger exists to make obvious.
 | #7 | S31 | `arena/01a0e3f4-gifscythe` | never merged (closed 2026-10-02) | Opened 2026-09-28. The post-merge doc sync for #6 (base re-anchor + counts) + **N-26** registered: CI's linux job is flaky (5 of the last 7 main runs failed linux while windows passed; the same tree passed linux on PR run 36354221846, so the merge did not cause it). Still **open** — merging takes the owner's explicit yes. Its base-line naming and duplicated N-26 row need the mechanical re-sync if #8 merges first. *(Row added late by S32.)* |
 | #8 | S32 | `arena/01a0eebe-gifscythe` | `ad8f956` | Opened 2026-09-29. S32: the audit/review close-out lane — **N-25** closed (the rate-limit map is bounded by live traffic: `web/rate_limit.mjs`, whole-map prune, server-bounds 10 → 12 groups, both mutations caught by their own group), **N-27 + N-29** closed (SettingsIO.h: the half-live `-p` pair probe narrow-cast long→unsigned; a disabled dither resurrected itself on reload — 5 assertions RED → green), **N-28** refuted by execution; the review-of-problem documents folded per the S24 §20 pattern (`COMPILED_AUDIT` §21, `docs/planning/PLANNING.md` §6, `docs/archive/` rows 8–9, root review files deleted after incorporation); and the S31 doc drift that misled the owner's planning report repaired. Register **149/9/30/0 = 188**. **S33 pushed to the same PR (`42ba939`)**: U-88/P2-21 ✅ DONE (derived part-3 P-id block + release-bar line + `harness:`/`desktop:` markers + M1/M2/M3 mutation proofs), U-89/P2-22 ◐ PARTIAL (`verify_audit.sh --json` + digest; freeze rule landed; remainder = CI-artifact + register-quoted digest vs U-14's design), §21 disposition drift fixed (N-25 → DONE S32, N-27/N-29 rows added). Register **152/10/28/0 = 190**. Title updated to cover S32+S33.  **Merged 2026-10-02 as `ad8f956`** (owner yes given in-session; windows job red at merge = N-30 provisioner, code refuted as the cause and registered — linux green; PR #7 closed with the G10 anchor analysis rather than merged). |
 | #9 | S33 | `arena/01a0eebe-gifscythe` | `c999061` | Opened 2026-10-02, immediately after merging #8. The post-merge sync (S28 #3→#4 pattern): ledger row #8 filled (`ad8f956`), `COMPILED_AUDIT.md` base re-anchored to `ad8f956` (S26 mechanic), `SESSION_HANDOFF.md` Docs-synced-through moved to PR #8, PR #7 closed with the G10 anchor analysis rather than merged, S33 log merge note. No product code. Gates: check_docs 23/0/1, preflight P1–P6 PASS. **Merged 2026-10-02 (06:01Z) as `c999061`.** Added to the PR after this row was written: **N-31** (G11's non-doc-date rule degenerated in shallow clones and had turned main and this very PR red; fixed by extending G11 with G10's shallow skip, reproduced failing-first in a depth-1 clone) and the S33 count-quote sync. Its own push-to-main run (36971588492) went red exactly as predicted — G10 (this file's base line still named `13d95a7`) and Windows N-30 — and the S34 branch fixes both. |
-| #10 | S34 | `arena/01a0f7ed-gifscythe` | merge commit of PR #10 — lookup: `git log --first-parent --merges --grep='pull request #10 from'` | Opened 2026-10-02, after PR #9 merged (`c999061`) — the first PR from this branch; nothing from #8 or #9 is repeated. **CI un-masked:** the doc gate is its own full-history `docs` job and no longer hides the web suites, oracle, GUI harness and packaging; the Windows GUI build + harness no longer depend on "Build CLI + unit tests"; two inert Windows diagnostics publish findings as annotations. **N-30 fixed** (the settings integer probes used a `long`, 4 bytes on Windows — a code bug, not MinGW; `to_llong` + unit block 37, RED 7 failures on a 32-bit-`long` build → GREEN; the Windows job is green in runs 36967608254 and 36974199294) and **N-26 closed** (the "flaky linux job" was the doc gate: 8 of 8 red mains). **N-32** (the wasm proof bar cannot pass: libc `qsort` and `random()` differ) and **N-34** (`ubuntu-latest` → Ubuntu 26.04 from 2026-10-19) registered and then **decided and implemented at the owner's call** — N-34 pinned to `ubuntu-24.04` (DONE); N-32's bar is a same-libc native oracle, enforced by `libc_parity.py --bar` and `prove_wasm.mjs --oracle` (PARTIAL: no emcc build has run through it); a `gate` job de-duplicates push vs PR runs and workflow `concurrency` cancels superseded runs; a parallel `portability` CI job runs the 32-bit-`long` unit suite and the wasm bar (tests `test_ci_gate.py` 14, `test_prove_wasm_oracle.py` 10, `test_libc_parity_bar.py` 8; `scripts/lint_workflow.mjs`); **N-33** (README honesty summary) fixed; the docs that said an agent cannot push workflows corrected. **Post-merge sync pre-included** (the owner merges from the UI and continues): this row, the header's Docs-synced-through line, and both base lines (`c999061`, the merge's first parent) are written to be true at the merge; P6 now accepts a PR's own open number (`tests/test_pr_preflight_p6.py`: 1 FAIL → 8/8) and the *Merged as* cell is a lookup, so nothing is left to edit afterwards (merge simulated: the docs gate stays 24/0/1, G10 and G11 PASS, also for a merge dated after UTC midnight and for a squash). **Tooling moved out of `/tmp`**: the 32-bit-`long` unit runner (`scripts/test_unit_32bit_long.sh`) and the N-32 probe (`scripts/libc_parity/`) are committed. Register **156/11/26/0 = 193**. Merging takes the owner's explicit yes — as a merge commit (not squash/rebase), so `c999061` stays the first parent (G10). |
+| #10 | S34 | `arena/01a0f7ed-gifscythe` | merge commit of PR #10 — lookup: `git log --first-parent --merges --grep='pull request #10 from'` | Opened 2026-10-02, after PR #9 merged (`c999061`) — the first PR from this branch; nothing from #8 or #9 is repeated. **CI un-masked:** the doc gate is its own full-history `docs` job and no longer hides the web suites, oracle, GUI harness and packaging; the Windows GUI build + harness no longer depend on "Build CLI + unit tests"; two inert Windows diagnostics publish findings as annotations. **N-30 fixed** (the settings integer probes used a `long`, 4 bytes on Windows — a code bug, not MinGW; `to_llong` + unit block 37, RED 7 failures on a 32-bit-`long` build → GREEN; the Windows job is green in runs 36967608254 and 36974199294) and **N-26 closed** (the "flaky linux job" was the doc gate: 8 of 8 red mains). **N-32** (the wasm proof bar cannot pass: libc `qsort` and `random()` differ) and **N-34** (`ubuntu-latest` → Ubuntu 26.04 from 2026-10-19) registered and then **decided and implemented at the owner's call** — N-34 pinned to `ubuntu-24.04` (DONE); N-32's bar is a same-libc native oracle, enforced by `libc_parity.py --bar` and `prove_wasm.mjs --oracle` (PARTIAL: no emcc build has run through it); a `gate` job de-duplicates push vs PR runs and workflow `concurrency` cancels superseded runs; a parallel `portability` CI job runs the 32-bit-`long` unit suite and the wasm bar (tests `test_ci_gate.py` 14, `test_prove_wasm_oracle.py` 10, `test_libc_parity_bar.py` 8; `scripts/lint_workflow.mjs`); **N-33** (README honesty summary) fixed; **N-35** found by the PR's own final CI run and fixed the same session (the `linux` job's web-suite step went red once on a docs-only commit: a startup-banner race in `server-bounds.test.mjs`'s `startServer`, 1 failure in 15 locally, 45/45 clean after the fix, plus a deterministic regression group; the step now also names a failing suite as an annotation); the docs that said an agent cannot push workflows corrected. **Post-merge sync pre-included** (the owner merges from the UI and continues): this row, the header's Docs-synced-through line, and both base lines (`c999061`, the merge's first parent) are written to be true at the merge; P6 now accepts a PR's own open number (`tests/test_pr_preflight_p6.py`: 1 FAIL → 8/8) and the *Merged as* cell is a lookup, so nothing is left to edit afterwards (merge simulated: the docs gate stays 24/0/1, G10 and G11 PASS, also for a merge dated after UTC midnight and for a squash). **Tooling moved out of `/tmp`**: the 32-bit-`long` unit runner (`scripts/test_unit_32bit_long.sh`) and the N-32 probe (`scripts/libc_parity/`) are committed. Register **157/11/26/0 = 194**. Merging takes the owner's explicit yes — as a merge commit (not squash/rebase), so `c999061` stays the first parent (G10). |
 
 **Maintenance rule (one row per PR; the merge itself leaves nothing to edit — S34):**
 The owner merges from the GitHub UI and continues, so everything a "post-merge sync" PR used to carry
@@ -794,12 +804,12 @@ count (**G9** compares like with like).
 | `scripts/smoke_cli.sh` | ✅ **63 passed, 0 failed** |
 | `scripts/test_output_verify.sh` | ✅ **25 assertions, 0 failures** |
 | `scripts/test_engine.sh` · `scripts/test_package.sh` | ✅ 5/5 · **36/36** |
-| All nine `web/test/*.test.mjs` | ✅ green — server-bounds 10 → **12 groups** (+2 N-25, mutation-tested both directions), command parity 25 fixtures against the rebuilt CLI, numeric-honesty/validate/transport/body-limit/static-hygiene/device-names/request-guard unchanged-green |
+| All nine `web/test/*.test.mjs` | ✅ green — server-bounds 10 → **13 groups** (+2 N-25 in S32, mutation-tested both directions; +1 in S34 for the N-35 startup-banner race, RED 5/5 on the old rule; 45 of 45 sequential runs clean after the fix), command parity 25 fixtures against the rebuilt CLI, numeric-honesty/validate/transport/body-limit/static-hygiene/device-names/request-guard unchanged-green |
 | `scripts/oracle_fuzz.mjs --quick` · `--full` | ✅ **24/24** · **64/64** deterministic cases |
 | `web/wasm/glue_harness.mjs` · the Python unit tests (`working_code/gifscythe/tests`) | ✅ `GLUE-HARNESS: PASS` · **61 tests OK** (21, plus 8 P6, 14 `ci_gate`, 10 `prove_wasm --oracle`, 8 `--bar` logic — all added in S34) |
 | `scripts/test_unit_32bit_long.sh` · `scripts/libc_parity/libc_parity.py --check` | ✅ unit suite **396/0** on a 4-byte `long` (RED with the 7 documented failures on the pre-fix `SettingsIO.h`) · `CHECK OK` — the N-32 finding re-asserted (RED when `random()` is left unpinned: 7/9) · `libc_parity.py --bar` **BAR OK 9/9** (and `--bar --against glibc`, the old bar, FAILS 6 of 9, as it must) |
 | `scripts/verify_audit.sh` | ✅ **34 PASS / 0 FAIL / 3 SKIP** (with pip's cmake on PATH; the 3 SKIPs are B = no Qt6, C1-C5 = Actions-only, D3/D4 = clean-Windows hardware) |
-| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **156/11/26/0 = 193** at S34; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
+| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **157/11/26/0 = 194** at S34; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
 | `.github/workflows/build.yml` (both copies, byte-identical) | ✅ GitHub workflow schema (`check-jsonschema`) and actionlint (`scripts/lint_workflow.mjs`, its wasm build) clean; the dedupe gate's 14-case table passes and three mutants are each killed by their own test; live on Actions: the push run 36983282655 ran only the gate (`skip=true`, the other five jobs skipped) and the `pull_request` run 36983286343 ran all six jobs green (`portability` 2.0 min: toolchain 8 s, 32-bit unit suite 69 s, wasm bar 38 s) |
 | Qt/GUI harness (`test_gui_offscreen`) | ⏳ no Qt6 here (cmake is pip-installable, Qt6 headers are not) — CI is the proof: run 36967608254 ran the linux and the Windows offscreen suites green |
 | Windows-only rows, wasm rows, CI log blobs | ⏳ no wine, no emcc, no Windows runner here (zig compiles Windows exes, nothing runs them) — Windows results are read from CI (run 36967608254 for the N-30 fix); a zig wasm32-wasi build of the engine does run under Node's WASI (N-32, no promotion); Actions log blobs are unreachable, but the jobs API and check-run annotations are — N-26 and N-30 were diagnosed that way |
@@ -848,6 +858,18 @@ count (**G9** compares like with like).
   --prune origin`, compare the tree with the branch tip, `git reset --mixed
   origin/<branch>` if identical, `scripts/bootstrap_hooks.sh`, then rebuild
   the venv and `./build.sh`.
+
+* **The GitHub token is short-lived — push early in a long turn (S34, observed).** The Arena
+  GitHub App token in `GH_TOKEN`/`GITHUB_TOKEN` stopped working about an hour after the turn began:
+  the last good push was at 08:37 UTC (turn start 07:43), and at 08:58 `gh` answered `Bad credentials
+  (HTTP 401)` — as did plain `curl` to `api.github.com`, which the sandbox proxies with that same
+  token, so not even a public read works. Nothing can refresh it from inside the turn. A turn that
+  runs longer than about 45 minutes must therefore push whatever is finished before then, because
+  commits made after the expiry stay local until the owner reconnects GitHub in Arena (S34's N-35
+  fix was stranded this way, one commit, and the PR head on GitHub showed a red check meanwhile).
+  Keep the fallback copy outside the repo but inside the persisted workspace —
+  `git format-patch origin/<branch>..HEAD -o /home/user/unpushed_<session>/` — and a ready PR body
+  at `/home/user/pr_body_<session>.md`; `/tmp` is wiped.
 
 * **S32 sandbox (previous):** node v22.22.3, **g++ 12.2 + make**,
   python3 3.11, git 2.39, **gh 2.23 authenticated**, curl, mawk (no gawk).
@@ -926,7 +948,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 156 DONE · 11 PARTIAL · 26 OPEN · 0
+   its generated counts line (currently: 157 DONE · 11 PARTIAL · 26 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
