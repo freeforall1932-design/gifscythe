@@ -19,8 +19,11 @@ root `reference_code/` (read-only).
   on 2026-09-10 (S7)**: §6.A all green, §6.B green via the offscreen GUI
   harness (**324 checks, T1–T20**, measured in the S11 sandbox; 306 in S10),
   §6.E all green; `verify_audit.sh` → **30 PASS / 0 FAIL / 3 SKIP, exit 0**
-  after S22 added the missing web regressions (**W4/W5**). E9 still SKIPs while
-  the CI workflow change awaits a `workflows`-scoped token; F1/F2 are the S9
+  after S22 added the missing web regressions (**W4/W5**). E9 skipped in that run
+  because the CI workflow change then awaited a `workflows`-scoped token — a
+  blocker that is gone: since S24 E9 enforces byte-equality of the two workflow
+  copies with no standing exception, and an agent session can push
+  `.github/workflows/` (S18; re-verified S34). F1/F2 are the S9
   documentation gate; C9 is the S11 source-tree-purity gate.
 - **Windows path proven under Wine + CI**: engine exe (`1.96 (Windows)`), CLI
   E2E with `C:\` paths + spaces, static-linked exes, honest exit codes; main

@@ -31,11 +31,20 @@ back to enforcing byte-equality with no standing exception.
   the gate measures what the local pre-push hook measures. `--no-gate-run`
   skips G6 (the other jobs already build and run the suites; re-running
   `verify_audit.sh` inside the gate would double the work).
-- **Workflows-scope pushes work:** the token blocker recorded in S9 was lifted
-  in S18 (scope granted, verified by the pushed `build.yml` change in
-  `161e862`; PR #28 pushed workflow edits too). A push touching
-  `.github/workflows/` still needs a token with that permission — the doc copy
-  exists so the recipe survives even when a given token lacks it.
+- **Agent sessions can push `.github/workflows/` (verified S34).** The token
+  blocker recorded in S9 was lifted in S18 (scope granted, verified by the
+  pushed `build.yml` change in `161e862`; PR #28 pushed workflow edits too —
+  old-remote shas, kept as the written record), and S34 re-verified it on the
+  re-created remote with the Arena agent's own GitHub App token: the branch's
+  first push carried two workflow commits (`9bc155f`, `7e0feca`), was
+  accepted, and Actions ran them (run 36966494878). So do **not** stage a CI
+  fix as a proposal waiting for "a workflows-scoped token": edit
+  `.github/workflows/build.yml` and `docs/ci/build.yml.proposed` in the same
+  commit and push. The doc copy stays — gates E9/G7/S1 enforce byte equality —
+  as the recipe that survives for a token that *is* rejected: if GitHub ever
+  rejects a workflow push, quote the rejection text, then take the
+  pending-marker route (recreate `PENDING_WORKFLOW_CHANGE.md` in the same
+  commit, delete it in the commit that applies the change).
 - **What the workflow runs:** linux + windows + docs jobs — engine build,
   static-linked CLI/tests, GUI (CMake; Ninja+MinGW on Windows), native E2E
   smokes, the offscreen GUI harness, the Windows unit-test exe
@@ -54,6 +63,9 @@ back to enforcing byte-equality with no standing exception.
   annotation. Check-run annotations are the one channel of a failed run the
   agent sandboxes can read (`gh api repos/<repo>/check-runs/<job id>/annotations`);
   GitHub caps them at 10 errors and 10 warnings per step and 50 per job.
+  These steps are what named N-30 — a 32-bit-`long` bug in the settings
+  parser, not the toolchain, so the `-lstdc++fs` probe turned out to be a
+  spare. Both stay (inert, `continue-on-error`) for the next red Windows run.
 - **Gate places:** the gates run in three places — `.githooks/pre-push`
   (bootstrap once per clone: `scripts/bootstrap_hooks.sh`; `build.sh` does it),
   the CI `docs` job, and `scripts/pr_preflight.sh` at PR create **and** merge.

@@ -276,8 +276,10 @@ else bad "E5" "windows engine config suspect"; fi
 
 # F-10/U-39: the proposed-workflow copy is hand-maintained next to the live one
 # and has already drifted once, so drift is a FAIL instead of a surprise.
-# One declared exception: the CI bot token has no `workflows` scope, so a change
-# to .github/ cannot always be pushed (docs/ci/README.md "Apply manually").
+# One declared exception, for a token GitHub actually rejects: without the
+# `workflows` scope a token cannot push .github/ (the S9 situation; the scope was
+# granted in S18 and an agent session's workflow push was verified again in S34,
+# so today this route is a fallback, not the norm - docs/ci/README.md section 1).
 # In that state the copies differ ON PURPOSE, and docs/ci/PENDING_WORKFLOW_CHANGE.md
 # records what is waiting and how to apply it. Declared drift is a SKIP; any
 # other drift is still a FAIL. Delete the marker once the change is applied.
