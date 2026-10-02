@@ -213,7 +213,7 @@ Chronological log of decisions and changes. **Newest at the top.**
   before pushing again. *The 32-bit runner:* a `portability` job of its own, so it runs
   beside the others. Measured on Actions (run 36983286343): toolchain install 8 s, the
   32-bit unit suite 69 s, the wasm bar 38 s, the two Python suites under 1 s each — **2.0
-  minutes**, the figure the owner accepted for the runner alone, with the wasm bar riding
+  minutes** (2.4 on the next run, 36983984989: 9 s, 87 s, 44 s), the figure the owner accepted for the runner alone, with the wasm bar riding
   in the same job at no visible cost. `portability` itself added no wall-clock time (it runs
   beside the others), but the PR run as a whole went from 4.1 minutes (run 36977644904) to
   4.3 (run 36983286343): the extra ~12 s is the `gate` job, which now sits in front of every
