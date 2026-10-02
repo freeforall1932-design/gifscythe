@@ -57,6 +57,13 @@ reads them in a file, not in a conversation.
 
 ## Found this session — pending lines (rule 2)
 
+- **N-31** (S33, found by the post-merge sync CI red): G11's non-doc-date
+  measurement degenerates in a shallow clone (depth-1 tip appears to add
+  every file → the log is compared against the checkout date → daily
+  false red). **Fixed same session** — G11 now skips honestly in shallow
+  clones (G10's precedent) and still enforces on full history; reproduced
+  failing-first in a local depth-1 clone.
+
 - **N-30** (S33): Windows CI red while linux passes — **code refuted as the
   cause** (main `13d95a7` is code-identical to the last green windows tree
   `2ade969` yet red, dying at the aqt/MinGW install step itself, exit 254;

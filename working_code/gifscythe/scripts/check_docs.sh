@@ -1080,6 +1080,14 @@ fi
 # ---------------------------------------------------------------------------
 if [[ -z "$LOG_DATE" ]]; then
   bad "G11" "IMPROVEMENT_LOG.md newest entry has no (YYYY-MM-DD) date to compare"
+elif [[ "$(git rev-parse --is-shallow-repository 2>/dev/null)" == "true" ]]; then
+  # N-31 (S33): in a depth-1 CI checkout the tip commit appears to ADD every
+  # file - including non-doc ones it never touched - so this measurement
+  # degenerates to "the checkout's date" and fails every day after the newest
+  # log entry was written (it turned main + the sync PR red exactly that way).
+  # Same class as G10's shallow skip: enforce on full history (local + the
+  # pre-push hook), skip honestly in shallow clones.
+  skip "G11" "shallow clone - the tip's date is not a meaningful non-doc measurement here (N-31); the date rule is enforced on full-history clones only"
 else
   nondoc_date="$(git log -1 --format=%ad --date=short -- \
       $(git ls-files | grep -v '\.md$' | tr '\n' ' ') 2>/dev/null)"
