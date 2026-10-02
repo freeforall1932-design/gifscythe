@@ -112,7 +112,8 @@ working_code/gifscythe/
             + PreviewPanel (before/after) + DropListWidget (Qt6 GUI)
   scripts/  build_engine.sh, test_engine.sh, smoke_cli.sh, verify_audit.sh,
             test_unit_32bit_long.sh (unit suite on a 4-byte long, via zig),
-            libc_parity/ (N-32 probe: glibc/musl/wasm output parity),
+            libc_parity/ (N-32: --bar = the wasm proof bar, --check = the probe),
+            ci_gate.sh (push-vs-PR dedupe decision), lint_workflow.mjs (actionlint),
             package_*.sh
   release/  portable output per version
   tests/    unit tests + test_gui_offscreen.cpp (Qt6 offscreen harness)

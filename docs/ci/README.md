@@ -45,7 +45,8 @@ back to enforcing byte-equality with no standing exception.
   rejects a workflow push, quote the rejection text, then take the
   pending-marker route (recreate `PENDING_WORKFLOW_CHANGE.md` in the same
   commit, delete it in the commit that applies the change).
-- **What the workflow runs:** linux + windows + docs jobs — engine build,
+- **What the workflow runs:** the `gate`, `docs`, `linux`, `portability`, `windows` and
+  `csharp-spike` jobs — engine build,
   static-linked CLI/tests, GUI (CMake; Ninja+MinGW on Windows), native E2E
   smokes, the offscreen GUI harness, the Windows unit-test exe
   (`build/test_gifsicle_command.exe` — relevant to `U-71`/`U-94`-class rows:
@@ -66,6 +67,42 @@ back to enforcing byte-equality with no standing exception.
   These steps are what named N-30 — a 32-bit-`long` bug in the settings
   parser, not the toolchain, so the `-lstdc++fs` probe turned out to be a
   spare. Both stay (inert, `continue-on-error`) for the next red Windows run.
+- **Run shape (S34, the owner's calls).** The workflow still triggers on `push` (every
+  branch) and `pull_request`, but a push to a branch with an open, *mergeable* PR no
+  longer repeats the PR's run: the `gate` job (`scripts/ci_gate.sh`; decision table
+  `tests/test_ci_gate.py`) answers `skip=true` and the other jobs are skipped, which
+  is neutral on the PR page. It answers `skip=false` — the push runs — for `main`,
+  tags, a branch with no PR yet, a PR with merge conflicts (GitHub starts no
+  `pull_request` run for those, so the push is its only CI) and for every doubt (API
+  error, `mergeable` still `null` after 8 polls). The jobs carry
+  `if: !cancelled() && needs.gate.outputs.skip != 'true'`, so even a crashed gate runs
+  everything. Workflow-level `concurrency` cancels the older run of the same event on
+  the same branch or PR when a newer push arrives; a push to `main` is never
+  cancelled (its group is the run id). **Trade-off:** this repo cites the run of a
+  specific commit as evidence (N-11, N-16, N-30) — to keep a commit's run, let it
+  finish before pushing again.
+- **Runner images (N-34, S34).** `ubuntu-24.04` is pinned in all four Linux jobs
+  instead of `ubuntu-latest`, which GitHub moves to Ubuntu 26.04 between 2026-10-19
+  and 2026-11-19. To move on purpose, change the four labels in both workflow copies
+  and trial the change on a branch first.
+- **`portability` (S34, the owner's calls; N-30, N-32).** The checks that need zig but
+  neither a Windows box nor emcc, in one job beside the others: about 3.5 runner-minutes
+  (measured with a cold zig cache: the 32-bit unit suite 2m03s, the wasm bar 1m06s) against
+  about 4 minutes for the windows -> csharp-spike chain, so little or no wall-clock time.
+  The owner accepted the cost because it helps verify the project. The job holds the unit
+  suite on a 32-bit-`long` target (`scripts/test_unit_32bit_long.sh`, the N-30 class),
+  `scripts/libc_parity/libc_parity.py --bar` (the wasm32-wasi build byte-equal to a
+  musl-native build - N-32's bar) and the
+  two Python suites that pin the bar's logic and `prove_wasm.mjs --oracle`. zig and
+  Pillow are pinned pip wheels in a venv. Any non-zero exit fails the job, including a
+  runner's "SKIPPED" exit 3: a skipped proof must never read as a passed one.
+- **Editing the workflow offline (S34).** No actionlint binary is obtainable here (its
+  release host is blocked), but `node working_code/gifscythe/scripts/lint_workflow.mjs`
+  runs its WebAssembly build from npm (installed on first use into `$TMPDIR`), drops
+  the one known false positive (that build's label list predates `ubuntu-24.04`) and
+  has a `--selftest`. With `check-jsonschema --builtin-schema vendor.github-workflows
+  .github/workflows/build.yml` it catches structural mistakes before a push-and-wait
+  cycle.
 - **Gate places:** the gates run in three places — `.githooks/pre-push`
   (bootstrap once per clone: `scripts/bootstrap_hooks.sh`; `build.sh` does it),
   the CI `docs` job, and `scripts/pr_preflight.sh` at PR create **and** merge.

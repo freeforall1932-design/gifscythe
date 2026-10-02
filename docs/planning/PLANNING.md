@@ -350,7 +350,7 @@ source.
 *(S34 correction: this bar cannot pass for any build whose libc differs from the oracle's —
 `qsort` orders equal keys differently and `random()` (the dither seed) differs between glibc
 and musl; a wasm32-wasi build matched a musl-native build in 9 of 9 cases and the glibc
-oracle in 3 of 9 (re-run: `scripts/libc_parity/libc_parity.py --check`). Tracked as N-32; the owner-visible decision is which bar replaces it.)*
+oracle in 3 of 9 (re-run: `scripts/libc_parity/libc_parity.py --check`). Tracked as N-32 and DECIDED in S34: the bar is a **same-libc native oracle** — the wasm32-wasi build must equal a musl-native build of the same sources byte for byte (`libc_parity.py --bar`, run in CI: 9/9; `--bar --against glibc`, the old bar, fails 6 of 9), and `prove_wasm.mjs --oracle` holds an emcc build to the same bar once someone can build one.)*
 
 #### Option B — adopt an existing pre-built implementation
 

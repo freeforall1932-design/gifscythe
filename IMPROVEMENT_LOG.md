@@ -4,13 +4,13 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
-## S34 — 2026-10-02: CI un-masked — N-30 was a real 32-bit-`long` bug (fixed test-first, proven on Windows CI), N-26's "flaky linux job" was the doc gate, and agent sessions can push workflows
+## S34 — 2026-10-02: CI un-masked — N-30 was a real 32-bit-`long` bug (fixed test-first, proven on Windows CI), N-26's "flaky linux job" was the doc gate, and agent sessions can push workflows; then the owner's four open decisions implemented (runner pin, push/PR de-duplication, a 32-bit CI job, the wasm proof bar)
 
 **Changed:**
 
 - **N-30 named, reproduced and fixed: it was code, not provisioning.** The first
-  CI run of this branch (run 36966494878) executed what 29 Windows runs in a
-  row had skipped. The Windows GUI build and the Windows GUI offscreen harness
+  CI run of this branch (run 36966494878) executed what 31 failing Windows runs in a
+  row had never reached. The Windows GUI build and the Windows GUI offscreen harness
   both ran and **passed**, and the two diagnostics below published what the
   unreadable log would have: the compiler is `g++ 13.1.0 (MinGW-Builds)` from
   `tools_mingw1310` — the FIRST choice of the aqt chain, not a gcc-8 fallback —
@@ -133,8 +133,8 @@ Chronological log of decisions and changes. **Newest at the top.**
   green at an unresolvable old-remote sha; U-59 an open data-loss row; a stale
   Release published). Rewritten from live state: releases and tags are both 0
   (API, checked 2026-10-02), U-59 is DONE end to end, CI evidence by run id.
-- **N-32 registered (OPEN, owner-visible): the wasm track's "byte-for-byte
-  against the native oracle" bar cannot be met by a build with a different
+- **N-32 registered, then decided and implemented (PARTIAL): the wasm track's "byte-for-byte
+  against the native oracle" bar could not be met by a build with a different
   libc.** Re-measured at PR-prep on 9 invocations (the logo animation ×4, a
   seeded many-colour 3-frame GIF ×4, `logo1.gif`) across four builds of the
   same 13 engine sources: the repo's gcc+glibc oracle, zig clang+glibc, zig
@@ -151,12 +151,32 @@ Chronological log of decisions and changes. **Newest at the top.**
   libc is too, so the emcc build the docs wait for would, by inference, miss the
   oracle the same way. `prove_wasm.mjs` never compared bytes (it only requires a
   non-empty GIF). PLANNING §6, the wasm README and the WORKLIST carry the
-  correction; which bar replaces byte parity — a same-libc native oracle, the
-  stable-qsort/fixed-random shim, or pixel equality where no quantizer or dither
-  runs — is the owner's decision. The probe is committed:
-  `scripts/libc_parity/libc_parity.py --check`.
+  correction. The probe is committed: `scripts/libc_parity/libc_parity.py --check`.
+  **Then the owner delegated the choice ("implement it if it's possible"), and the bar is
+  option (a): a same-libc native oracle.** The wasm32-wasi build must be byte-equal to a
+  musl-native build of the same sources. That isolates what a wasm port can break (32-bit
+  `long` and pointers, libm, alignment, stack) from the two libc behaviours no port controls.
+  *Implemented:* `libc_parity.py --bar` (builds only the two engines — 66 s from a cold zig
+  cache, 9 s warm — runs the 9 cases, exit 0/1; a build that produces no GIF fails, because
+  two empty results are not "equal"; a missing zig, node or Pillow is exit 3, never a smaller
+  proof that passes), `--build-oracle DIR`, and `prove_wasm.mjs --oracle PATH` / `--module PATH`
+  (byte-equal or exit 1 with the first differing offset; without `--oracle` it now says it
+  compared nothing). Measured: `--bar` **9/9**, and `--bar --against glibc` — the bar the
+  docs used to state — **fails 6 of 9**, which is the evidence that the bar has teeth.
+  *Rejected, with the reason:* the stable-`qsort` + fixed-`random()` shim in every build (9/9
+  in the probe), because the SHIPPED Windows engine is built from the read-only upstream
+  `win32cfg.h`, which our config headers do not reach — a shim would prove that Linux and
+  wasm agree while leaving the product itself outside the claim; and pixel equality,
+  because 4 of the 6 glibc/musl differences decode to different pixels. *Still missing (why
+  PARTIAL):* an Emscripten build run through `prove_wasm.mjs --oracle` — emcc is unobtainable
+  here, and OD-16 blocks shipping the track regardless. Tests, RED first and
+  mutation-checked: `test_prove_wasm_oracle.py` (10 cases, a fake emcc-shaped module over a
+  real native engine; RED 10/10 on the old script; a mutant with the byte comparison
+  disabled is caught by exactly the corruption case) and `test_libc_parity_bar.py` (8
+  cases of the verdict logic; removing the must-be-a-GIF guard fails exactly the 2
+  vacuous-pass cases).
 
-- **N-34 registered (OPEN, dated 2026-10-19, owner call): the runner image floats.**
+- **N-34 registered, then pinned (DONE): the runner image floated.**
   The check-run annotations of runs 36967608254 and 36974199294 carry GitHub's
   notice "The ubuntu-latest label will migrate to Ubuntu 26 beginning October
   19, 2026" (its 2026-09-17 changelog: a gradual 24.04 → 26.04 move through
@@ -166,8 +186,42 @@ Chronological log of decisions and changes. **Newest at the top.**
   in the repo, the N-26 confusion again. The same annotations warn that
   `actions/checkout`, `upload-artifact`, `download-artifact` and `setup-dotnet`
   at v4 target Node 20 and are being forced onto Node 24 (passing today).
-  `windows-latest` carried no such notice. Not applied: whether to pin is a
-  policy call (a pin needs a deliberate bump later), like `concurrency`.
+  `windows-latest` carried no such notice. **Applied at the owner's call:**
+  `runs-on: ubuntu-24.04` in all four Linux jobs (the two named here plus the two new
+  ones, `gate` and `portability`) of both byte-identical workflow copies. Behaviour on
+  today's image is unchanged, and a move to 26.04 is now a deliberate edit of the four
+  labels, trialled on a branch first.
+
+- **CI run shape: push-vs-PR de-duplication, `concurrency` and a 32-bit CI job (the owner's
+  calls).** *De-duplication.* The workflow triggers on `push` and `pull_request`, so a push
+  to a branch with an open PR ran every job twice (8 checks per commit on the PR page).
+  Dropping the `push` trigger would also end CI on a branch with no PR yet — the loop the
+  agent sessions work in (run 36966494878 named N-30 before PR #10 existed) — so the push
+  run stays and a `gate` job skips it exactly when the PR's own run covers the commit.
+  `scripts/ci_gate.sh` answers `skip=true` only for a push to a non-main branch with an
+  open PR that GitHub reports *mergeable* (a PR with merge conflicts gets no
+  `pull_request` run, so the push is its only CI). Every doubt — API error, `gh` missing,
+  `mergeable` still `null` after 8 polls — answers `skip=false`, and every job carries
+  `if: !cancelled() && needs.gate.outputs.skip != 'true'`, so a crashed gate still runs
+  everything (a duplicate costs minutes, a missing run costs the proof). Decision table:
+  `tests/test_ci_gate.py`, 14 cases with a fake `gh`; three mutants — "skip whenever a PR
+  exists", "main counts as a branch", "an API error means skip" — are each killed by
+  their own tests. *`concurrency`:* a newer push to the same branch or PR cancels the older
+  run of the same event; a push to main is never cancelled (its group is the run id). The
+  cost, written down in `docs/ci/README.md` and the handoff: this repo cites the run of a
+  specific commit as evidence (N-11, N-16, N-30), so to keep a commit's run, let it finish
+  before pushing again. *The 32-bit runner:* a `portability` job of its own, so it runs
+  beside the others. Measured with a cold zig cache: the unit suite 2m03s, the wasm bar
+  1m06s — about 3.5 runner-minutes, against about 4 minutes for the windows → csharp-spike
+  chain (the longest path), so little or no wall-clock time; more than the "about two
+  minutes" the owner accepted for the runner alone, because the wasm bar rides in the same
+  job. zig 0.16.0 and Pillow come from pinned wheels in a venv (24.04's system pip refuses
+  system installs); any non-zero exit fails it, including a runner's "SKIPPED" exit 3.
+  *Tooling:* `scripts/lint_workflow.mjs` (actionlint's wasm build from npm — the binary's host
+  is blocked here; `--selftest`). Its first version ran `npm init --prefix`, which writes
+  into the CURRENT directory: it dropped a stray `package.json` into the checkout, which
+  showed up in G18's list of uncommitted files and was fixed to install with `cwd` inside
+  the scratch dir (verified from the repo root).
 
 - **The post-merge sync is pre-included, and P6 now allows it.** The owner merges from the
   GitHub UI and continues, so a "post-merge sync" PR (#4 after #3, #9 after #8: the ledger's
@@ -201,21 +255,20 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 **Partial / Left on purpose:**
 
-- **Not changed: the duplicate push + pull_request runs and `concurrency`.**
-  Duplicates are cost and noise, not masking, and `cancel-in-progress` would
-  cancel older per-commit runs while this repo cites the run of a specific
-  commit as evidence (N-11, N-16, N-30). That is an owner call.
-- **Proposed, not added:** a Linux CI step that calls
-  `scripts/test_unit_32bit_long.sh` (`pip install ziglang` plus a cold libc++ build for
-  the target — about two more minutes per run) would keep the N-30 class from
-  regressing without waiting for Windows. The runner is committed; whether it earns a
-  CI step is an owner call. Not registered (a proposal, not a defect).
-- **N-32 stays OPEN on purpose:** choosing the replacement proof bar is an owner
-  decision (it also feeds OD-16 / D-07), and OD-16 blocks shipping the wasm
+- **Decided and done this session, so no longer left:** the duplicate push + pull_request
+  runs and `concurrency`, the 32-bit CI job, N-34's pin and N-32's bar (bullets above).
+  What remains of them:
+- **N-32 stays PARTIAL on purpose:** nothing here can build an Emscripten module, so
+  `prove_wasm.mjs --oracle` has only run against a fake one. OD-16 blocks shipping the wasm
   track either way.
-- **Left for the owner:** whether the S34 PR is merged (no merge without an
-  explicit yes), whether to adopt a push/PR de-duplication, and — before
-  2026-10-19 — the N-34 pin-or-migrate call.
+- **Not exercised live:** the gate's conflicting-PR branch (`mergeable=false`) — it is
+  covered by the offline decision table only; firing it for real needs a PR with merge
+  conflicts, which is not worth manufacturing.
+- **Not tried:** a trial of `ubuntu-26.04` — nothing here can run that image. The pin makes
+  that a deliberate, branch-tested step instead of a surprise.
+- **Left for the owner:** whether the S34 PR is merged (no merge without an explicit yes),
+  as a merge commit. The four decisions that were open at the start of this turn (N-34 pin,
+  N-32 bar, run de-duplication, the 32-bit CI job) are all made and implemented.
 
 **Verified (executed here):**
 
@@ -265,10 +318,22 @@ Chronological log of decisions and changes. **Newest at the top.**
   0 failed, 1 skipped, G10 and G11 PASS in both shapes. A rebase-merge is the one shape it
   does not survive (the tip's parent would no longer be `c999061`); the owner has merged with
   merge commits so far and the PR body asks for one.
-- The Python tests: `unittest discover` over `working_code/gifscythe/tests` — 29 tests OK (the
-  earlier 21 plus the 8 P6 cases).
+- The Python tests: `unittest discover` over `working_code/gifscythe/tests` — 61 tests OK (the
+  earlier 21, plus 8 P6, 14 `ci_gate`, 10 `prove_wasm --oracle` and 8 `--bar` logic).
+- The four implemented decisions, offline: `libc_parity.py --bar` GREEN 9/9 and `--bar --against
+  glibc` RED 6 of 9 (exit 1); `test_prove_wasm_oracle.py` RED 10/10 on the old script, GREEN 10/10,
+  the byte-comparison mutant caught by exactly its test; `test_libc_parity_bar.py` 8/8 and the guard
+  mutant caught by exactly its 2 tests; `test_ci_gate.py` 14/14 and its three mutants each killed;
+  the workflow against GitHub's schema and actionlint (4 findings, all the known stale-label false
+  positive that `lint_workflow.mjs` filters; its `--selftest` passes); both workflow copies
+  byte-identical; `shellcheck` clean on `ci_gate.sh` and `test_unit_32bit_long.sh`; the gate's API
+  calls against the real repo (the slashed branch name finds PR #10, `mergeable` is `true`, an
+  unknown repo is a detectable error); the portability costs measured with a cold zig cache (unit
+  suite 2m03s, wasm bar 1m06s).
 
-**Not verifiable here:** the Windows rows that need real hardware (W-18 clean
+**Not verifiable here:** whether `ubuntu-26.04` would have passed (no such image here); the gate's
+conflicting-PR branch against a real conflicting PR; an Emscripten build through `prove_wasm.mjs
+--oracle`; the Windows rows that need real hardware (W-18 clean
 machine, W-19 desktop probes — a CI artifact is not a clean-machine run);
 whether GitHub accepts annotation messages larger than the ~700 bytes seen so
 far (the failure case is capped at 3.5 KB); what an emcc build would do (inferred
@@ -294,7 +359,11 @@ bullet, build commands, "Do not" list), `README.md` (honesty summary), `docs/ci/
 `working_code/gifscythe/scripts/test_unit_32bit_long.sh`,
 `working_code/gifscythe/scripts/libc_parity/` (`libc_parity.py`, `shim.h`, `wasi_run.mjs`),
 `working_code/gifscythe/src/core/SettingsIO.h`,
-`working_code/gifscythe/tests/test_gifsicle_command.cpp`, this entry.
+`working_code/gifscythe/tests/test_gifsicle_command.cpp`, and — for the owner's four decisions —
+`working_code/gifscythe/scripts/ci_gate.sh`, `lint_workflow.mjs`, `libc_parity/libc_parity.py` (`--bar`,
+`--build-oracle`), `web/wasm/prove_wasm.mjs` (`--oracle`, `--module`), new
+`working_code/gifscythe/tests/test_ci_gate.py`, `test_libc_parity_bar.py`, `test_prove_wasm_oracle.py`,
+this entry.
 
 ---
 

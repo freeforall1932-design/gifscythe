@@ -37,7 +37,7 @@ Prerequisite: Emscripten (`emcc` on `PATH`).
 
 ```bash
 web/wasm/build_wasm.sh            # -> dist/gifsicle.js + dist/gifsicle.wasm
-node web/wasm/prove_wasm.mjs      # byte proof on logo.gif (below)
+node web/wasm/prove_wasm.mjs      # proof on logo.gif; add --oracle PATH for the byte bar (below)
 ```
 
 `build_wasm.sh` stages `config.wasm.h` as `config.h` in a temp include
@@ -53,21 +53,34 @@ output dir — every build ships it. Notices: §Third-party notices below
 loads the same module factory the page uses, runs `-O3` through the
 virtual FS, and prints input bytes, output bytes, the output GIF magic,
 and `--info`. It exits non-zero unless the module produced a non-empty
-GIF itself.
+GIF itself — and, since S34, says plainly that it compared nothing unless
+`--oracle PATH` is given (below).
 
 Native oracle for comparison (measured S19 with the repo-built 1.96 —
 a reference number, not this script's verdict): `logo.gif` 8703 B goes
 to 8637 B under `-O3` (GIF89a, 12 images, 60x132, loop forever), and to
 4106 B under `-O3 --resize-fit 30x66` (30x66).
 
-**S34 note (N-32):** a byte comparison with that native oracle is not a bar any wasm
-build can be held to. gifsicle sorts with libc `qsort` (the median-cut quantizer, the
-optimizer) and seeds its dither with libc `random()`, and both behave differently on
-glibc (the oracle) than on musl — the libc family of wasi-libc, of the zig/WASI build
-tried in S34, and (by inference) of Emscripten. The script's verdict stays "non-empty
-GIF"; which bar replaces byte parity is an open decision recorded in `STATUS.md` N-32. The
-measurement is reproducible: `python3 working_code/gifscythe/scripts/libc_parity/libc_parity.py --check`
-builds the engine with zig for glibc, musl and wasm32-wasi (the last under Node's WASI) and compares.
+**The bar (S34, N-32 — decided).** A byte comparison with the *glibc* native oracle is not a
+bar any wasm build can be held to: gifsicle sorts with libc `qsort` (the median-cut quantizer,
+the optimizer) and seeds its dither with libc `random()`, and both behave differently on glibc
+than on musl — the libc family of wasi-libc, of the zig/WASI build, and (by inference) of
+Emscripten. The bar is therefore a **same-libc native oracle**: the wasm build must be
+byte-equal to a *native* build of the same sources against musl.
+
+- **Enforced in CI today, for a zig-built wasm32-wasi engine** (no emcc needed): the
+  `portability` job runs `python3 working_code/gifscythe/scripts/libc_parity/libc_parity.py
+  --bar` — 9 invocations, byte for byte, under Node's WASI. `--bar --against glibc` (the old
+  bar) fails 6 of 9, which is the proof that the bar has teeth.
+- **For the Emscripten build** (whoever has `emcc`):
+  `python3 working_code/gifscythe/scripts/libc_parity/libc_parity.py --build-oracle /tmp/gs-oracle`
+  then `node web/wasm/prove_wasm.mjs --oracle /tmp/gs-oracle/gifsicle-musl`. It runs the same
+  `-O3` natively and exits non-zero unless the outputs are byte-equal, naming the first differing
+  offset. **That run has never happened** — no Emscripten module exists, so N-32 is PARTIAL;
+  the comparison logic itself is covered by `tests/test_prove_wasm_oracle.py` with a fake module.
+
+The measurement behind the decision is reproducible: `libc_parity.py --check` builds the engine
+with zig for glibc, musl and wasm32-wasi (the last under Node's WASI) and compares.
 
 ## Glue harness (the JS, not the wasm binary)
 

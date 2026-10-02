@@ -77,8 +77,9 @@ reads them in a file, not in a conversation.
   step green). **Do not pin MinGW or touch the provision step on N-30's
   account.** The check that would have caught it is committed:
   `scripts/test_unit_32bit_long.sh` (unit suite on a 4-byte-`long` target via
-  zig). Wiring it into CI (about 2 more minutes per run) is an optional owner
-  call, not a defect, so not registered.
+  zig). **Wired into CI (S34, the owner's call: two extra minutes is acceptable when it
+  helps verify the project):** the `portability` job runs it beside the other jobs, so it
+  adds no wall-clock time.
 
 - **N-26** (S31 registered, **S34 closed — DONE**): not a flake. All 8 red
   main runs since 2026-09-22 failed linux at the *same* step, "Documentation
@@ -87,27 +88,37 @@ reads them in a file, not in a conversation.
   by N-31 (S33) + the full-history `docs` job and the gate leaving the linux
   job (S34); run 36967608254 has every job green. Evidence in the STATUS row.
 
-- **N-32** (S34, **OPEN**): the wasm track's documented proof bar (output
-  byte-equal to the native oracle) cannot be met by a build with a different
-  libc, and `prove_wasm.mjs` never compares bytes. Measured: wasm32-wasi ==
-  a musl-native build 9/9, but the glibc oracle only 3/9, because `qsort`
-  orders equal keys differently and `random()` differs (with a stable
-  `qsort` + a fixed `random()` all three builds agree 9/9). Needs an
-  owner-visible decision on a bar that can pass; do not chase byte parity
-  with the glibc oracle. The measurement kit is committed — re-run it with
-  `scripts/libc_parity/libc_parity.py --check`. Detail in the STATUS row.
+- **N-32** (S34, **PARTIAL**): the wasm track's documented proof bar (output
+  byte-equal to the native oracle) could not be met by a build with a different libc, and
+  `prove_wasm.mjs` never compared bytes. **Decided and implemented S34 (the owner delegated
+  the call): the bar is a same-libc native oracle** — wasm32-wasi must be byte-equal to a
+  musl-native build of the same sources. Enforced in CI (the `portability` job runs
+  `scripts/libc_parity/libc_parity.py --bar`: 9/9; `--bar --against glibc`, the old bar,
+  fails 6 of 9) and in `prove_wasm.mjs --oracle` (tests: `test_prove_wasm_oracle.py`,
+  `test_libc_parity_bar.py`, both mutation-checked). Rejected: a stable-`qsort` + fixed
+  `random()` shim in every build (the shipped Windows engine is built from the read-only
+  upstream `win32cfg.h`, which our config headers do not reach) and pixel equality (4 of
+  the 6 differences are different pixels). **Still missing:** an Emscripten build run
+  through `prove_wasm.mjs --oracle` — emcc is unobtainable here, and OD-16 blocks
+  shipping the track either way. Do not chase byte parity with the glibc oracle. Detail
+  in the STATUS row.
 
 - **N-33** (S34, found and fixed the same session): the README's honesty
   summary was stale in all three claims — rewritten from live state.
 
-- **N-34** (S34, **OPEN**, dated): GitHub annotates every run with "The
-  `ubuntu-latest` label will migrate to Ubuntu 26 beginning October 19, 2026"
-  (a gradual 24.04 → 26.04 move through 2026-11-19). The `docs` and `linux`
-  jobs use that label and the linux job installs Qt through apt. **Owner call
-  before 2026-10-19:** pin `runs-on: ubuntu-24.04` in both byte-identical
-  workflow copies (nothing changes today) and migrate on purpose, or let it
-  float and treat a post-10-19 linux red as an image change first. Not applied
-  here — a policy call, like `concurrency`.
+- **N-34** (S34, **DONE**): GitHub annotated every run with "The `ubuntu-latest`
+  label will migrate to Ubuntu 26 beginning October 19, 2026" (a gradual 24.04 → 26.04
+  move through 2026-11-19), and the `linux` job installs Qt through apt. **Pinned
+  (the owner's call, S34):** `runs-on: ubuntu-24.04` in all four Linux jobs of both
+  byte-identical workflow copies. Moving to 26.04 is now a deliberate edit of the four
+  labels, trialled on a branch first.
+
+- **CI run shape** (S34, the owner's calls — not findings, so no register row): a `gate`
+  job skips a *push* run when an open, mergeable PR exists for the branch (the PR's own
+  run tests that commit), plus workflow-level `concurrency` (a newer push to the same
+  branch or PR cancels the older run of the same event; main is never cancelled).
+  Trade-off: **to cite a specific commit's run as evidence, let it finish before pushing
+  again.** Details: `docs/ci/README.md` §1; table: `tests/test_ci_gate.py`.
 
 **Gate/register freeze (U-89 / P2-22, effective S33).** While the derived
 release bar in `STATUS.md` (open P0/P1 fix-order ids) is above zero: add **no
@@ -383,8 +394,8 @@ deliberately not started until GIF 1.0.0 ships.
 - Optional: logging framework, i18n, dark mode, system tray.
 - **Web client-side wasm** (`web/wasm/`, D-07): scaffolded S19, unbuilt, and
   NOT SHIPPABLE until `OD-16` (in-process licence — `docs/legal/README.md` §3)
-  + a real emcc proof (the bar itself is open: byte parity with the glibc
-  oracle cannot pass — N-32). The Node server stays the shipped web path.
+  + a real emcc proof (the bar is a same-libc native oracle, decided S34 — N-32;
+  no emcc build has been run through it). The Node server stays the shipped web path.
   History of the option analysis: `web/README.md` §History.
 - **Language migration (only if a trigger fires):** Rust + Tauri spike —
   `docs/planning/PLANNING.md` §1 triggers.
@@ -402,7 +413,12 @@ cd working_code/gifscythe
 ./scripts/test_package.sh  # packaging negative suite
 ./scripts/test_unit_32bit_long.sh   # unit suite on a 4-byte long (N-30 class); needs zig: pip install ziglang
 python3 tests/test_pr_preflight_p6.py   # P6 (docs-synced-through) regression, isolated temp repo + fake gh
-python3 scripts/libc_parity/libc_parity.py --check   # N-32 probe: glibc vs musl vs wasm output parity
+python3 tests/test_ci_gate.py           # the push-vs-PR dedupe gate's decision table (fake gh)
+python3 tests/test_libc_parity_bar.py   # the wasm bar's verdict logic (no zig needed)
+python3 tests/test_prove_wasm_oracle.py # prove_wasm.mjs --oracle with a fake module (needs node + a built engine)
+python3 scripts/libc_parity/libc_parity.py --bar   # N-32 bar: wasm32-wasi == musl-native, byte for byte (zig + node + Pillow)
+python3 scripts/libc_parity/libc_parity.py --check # N-32 finding: glibc vs musl vs wasm output parity
+node scripts/lint_workflow.mjs          # actionlint (wasm build from npm) over .github/workflows
 ./scripts/check_docs.sh    # documentation gate — must be green before any PR
 ./scripts/check_docs.sh --emit   # regenerate STATUS.md from the repo
 ./scripts/verify_audit.sh  # whole COMPILED_AUDIT §6 suite + the doc gate (F1/F2)
