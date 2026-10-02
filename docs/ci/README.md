@@ -90,9 +90,9 @@ back to enforcing byte-equality with no standing exception.
   and 2026-11-19. To move on purpose, change the four labels in both workflow copies
   and trial the change on a branch first.
 - **`portability` (S34, the owner's calls; N-30, N-32).** The checks that need zig but
-  neither a Windows box nor emcc, in one job beside the others. Measured on Actions (run
-  36983286343): 2.0 minutes — toolchain 8 s, the 32-bit unit suite 69 s, the wasm bar 38 s —
-  against about 4 minutes for the windows -> csharp-spike chain, so it adds no wall-clock
+  neither a Windows box nor emcc, in one job beside the others. Measured on Actions:
+  2.0 minutes (run 36983286343: toolchain 8 s, the 32-bit unit suite 69 s, the wasm bar 38 s)
+  and 2.4 on the next run (36983984989: 9 s, 87 s, 44 s) — against about 4 minutes for the windows -> csharp-spike chain, so it adds no wall-clock
   time (the slower sandbox needs about 3 minutes for the same two checks with a cold zig
   cache). The owner accepted roughly two minutes because it helps verify the project. The
   job holds the unit suite on a 32-bit-`long` target (`scripts/test_unit_32bit_long.sh`, the

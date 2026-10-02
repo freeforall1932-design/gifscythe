@@ -52,8 +52,8 @@ Based on `main` commit `c999061` (PR #9's merge, 2026-10-02 — the S33 post-mer
      newer push to the same branch or PR cancels the older run of the same event; main is
      never cancelled. **So to cite a specific commit's run as evidence, let it finish
      before pushing again.** (c) A parallel `portability` job needing only zig: the
-     32-bit-`long` unit suite (the N-30 class) and the N-32 wasm bar — 2.0 minutes on
-     Actions (run 36983286343), no wall-clock time (the windows → csharp-spike chain is
+     32-bit-`long` unit suite (the N-30 class) and the N-32 wasm bar — 2.0–2.4 minutes on
+     Actions (runs 36983286343, 36983984989), no wall-clock time (the windows → csharp-spike chain is
      the ~4-minute longest path). Decision table: `tests/test_ci_gate.py`.
      Offline workflow lint: `node working_code/gifscythe/scripts/lint_workflow.mjs`.
   8. **N-32's bar is decided — a same-libc native oracle (PARTIAL).** The wasm32-wasi
