@@ -26,11 +26,25 @@ What it showed at S34 (zig 0.16.0, node 22, Pillow 12; re-run before relying on 
     musl   == wasm                                 9/9
     --stable: glibc == musl == wasm                9/9   (qsort tie order + random() explain it all)
 
+THE BAR (S34, the owner's N-32 decision: a same-libc native oracle).  --bar is the proof that replaces
+"byte-equal to the glibc oracle": the wasm32-wasi build must equal a NATIVE build of the same sources against
+the same libc family (musl) byte for byte, on every case. That isolates what a wasm port can actually break
+(32-bit long and pointers, libm, alignment, stack) from the two libc behaviours no port controls. It builds
+only those two engines (66 s from a cold zig cache, 9 s warm), needs zig + node + Pillow (a missing one is exit 3 - never a silently
+smaller proof) and fails if a build produces no GIF (two empty outputs would otherwise "match").
+CI runs it in the `portability` job. `--against glibc` is the bar the docs used to state: it is expected to
+FAIL (6 of 9 differ), which is the reason it was replaced and shows the bar has teeth.
+`--build-oracle DIR` writes the musl-native engine to DIR/gifsicle-musl for web/wasm/prove_wasm.mjs --oracle
+(the Emscripten build, run by whoever has emcc).
+
 Usage:  python3 working_code/gifscythe/scripts/libc_parity/libc_parity.py [--stable] [--check] [--keep DIR]
-Needs:  zig on PATH or `pip install ziglang`; node >= 20; ./build.sh for the oracle; Pillow optional.
-        Nothing is written into the checkout; builds go to a temp dir (or --keep DIR).
-Exit:   0 measured (and, with --check, the finding still holds) / 1 --check failed: N-32's text needs
-        revisiting / 2 a build failed / 3 SKIPPED: no zig (printed, never silent)
+        python3 .../libc_parity.py --bar [--against musl|glibc] [--keep DIR]
+        python3 .../libc_parity.py --build-oracle DIR
+Needs:  zig on PATH or `pip install ziglang`; node >= 20; ./build.sh for the oracle; Pillow optional
+        (required by --bar). Nothing is written into the checkout; builds go to a temp dir (or --keep DIR).
+Exit:   0 measured (and, with --check, the finding still holds; with --bar, the bar passed) / 1 --check
+        failed: N-32's text needs revisiting, or --bar failed / 2 a build failed / 3 SKIPPED: a tool is
+        missing (printed, never silent)
 """
 import argparse
 import hashlib
@@ -170,11 +184,84 @@ def find_oracle():
     return found[0] if found else None
 
 
+def is_gif(path):
+    return bool(path) and path.read_bytes()[:4] == b"GIF8"
+
+
+def bar_main(a, zig, objs, version):
+    """N-32's chosen bar: wasm32-wasi == a same-libc native build, byte for byte, on every case."""
+    missing = []
+    if not shutil.which("node"):
+        missing.append("node")
+    try:
+        import PIL  # noqa: F401
+    except ImportError:
+        missing.append("Pillow (pip install pillow)")
+    if missing:
+        print(f"SKIP: --bar needs {' and '.join(missing)} - the wasm proof bar did NOT run")
+        return 3
+    against = a.against
+    work = Path(a.keep) if a.keep else Path(tempfile.mkdtemp(prefix="gs-wasm-bar-"))
+    work.mkdir(parents=True, exist_ok=True)
+    try:
+        make_inputs(work)
+        variants = [v for v in VARIANTS if v[0] in (against, "wasm")]
+        builds = {}
+        for name, target, flavour, libs in variants:
+            print(f"==> building {name} ({target}) ...", flush=True)
+            builds[name] = build(zig, work, name, target, flavour, libs, False, objs, version)
+        outs = {tag: [run_case(exe, tag, i, c[1], c[2], work) for i, c in enumerate(CASES)]
+                for tag, exe in builds.items()}
+        print(f"\n{'case':28} {against:13} {'wasm':13} same")
+        failures = []
+        for i, c in enumerate(CASES):
+            x, y = outs[against][i], outs["wasm"][i]
+            same = is_gif(x) and is_gif(y) and x.read_bytes() == y.read_bytes()
+            print(f"{c[0]:28} {digest(x):13} {digest(y):13} {'yes' if same else 'NO'}")
+            if not same:
+                why = "no GIF produced" if not (is_gif(x) and is_gif(y)) else "bytes differ"
+                failures.append(f"{c[0]} ({why})")
+        n = len(CASES)
+        if failures:
+            print(f"\nBAR FAILED: wasm32-wasi != {against}-native on {len(failures)} of {n} invocations:\n  "
+                  + "\n  ".join(failures))
+            return 1
+        print(f"\nBAR OK: wasm32-wasi == {against}-native, byte for byte, on {n}/{n} invocations")
+        return 0
+    finally:
+        if not a.keep:
+            shutil.rmtree(work, ignore_errors=True)
+
+
+def build_oracle_main(a, zig, objs, version):
+    """Write the same-libc (musl) native engine to DIR/gifsicle-musl for prove_wasm.mjs --oracle."""
+    out_dir = Path(a.build_oracle)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    name, target, flavour, libs = next(v for v in VARIANTS if v[0] == "musl")
+    scratch = Path(tempfile.mkdtemp(prefix="gs-oracle-"))
+    try:
+        print(f"==> building the same-libc oracle ({target}) ...", flush=True)
+        built = build(zig, scratch, name, target, flavour, libs, False, objs, version)
+        dest = out_dir / "gifsicle-musl"
+        shutil.copy2(built, dest)
+        dest.chmod(0o755)
+        print(f"oracle: {dest}")
+        return 0
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--stable", action="store_true", help="also build with a stable qsort + fixed random()")
     ap.add_argument("--check", action="store_true", help="assert the N-32 finding still holds (implies --stable)")
     ap.add_argument("--keep", metavar="DIR", help="build into DIR and keep it (default: a temp dir, removed)")
+    ap.add_argument("--bar", action="store_true",
+                    help="enforce the wasm proof bar (N-32): wasm32-wasi == a same-libc native build, byte for byte")
+    ap.add_argument("--against", choices=("musl", "glibc"), default="musl",
+                    help="with --bar: the native build the wasm build is held to (default musl; glibc is expected to FAIL)")
+    ap.add_argument("--build-oracle", metavar="DIR",
+                    help="write the musl-native engine to DIR/gifsicle-musl (the oracle for prove_wasm.mjs --oracle) and exit")
     a = ap.parse_args()
     a.stable = a.stable or a.check
 
@@ -183,6 +270,10 @@ def main():
         print("SKIP: no zig (pip install ziglang) - the libc-parity measurement did NOT happen")
         return 3
     objs, version = engine_facts()
+    if a.build_oracle:
+        return build_oracle_main(a, zig, objs, version)
+    if a.bar:
+        return bar_main(a, zig, objs, version)
     have_node = shutil.which("node") is not None
     if not have_node:
         print("note: no node - the wasm column is skipped")
