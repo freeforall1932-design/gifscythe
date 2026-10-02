@@ -160,6 +160,29 @@ jobs:
           echo "QT_BIN=$QT_BIN" >> "$GITHUB_ENV"
           echo "$QT_BIN" >> "$GITHUB_PATH"
 
+      # Diagnostics only (S34, N-30): which compiler did the aqt fallback chain
+      # (tools_mingw1310 -> 1120 -> 90 -> choco) actually leave first on PATH? The
+      # job log is unreadable from the agent sandboxes, but check-run annotations
+      # are, so the answer is also published as one notice. Never fails the job.
+      - name: Toolchain identity (diagnostic only, never fails the job)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          set +e
+          gxx="$(command -v g++)"
+          ver="$(g++ --version 2>&1 | head -n 1)"
+          tgt="$(g++ -dumpmachine 2>&1 | head -n 1)"
+          cm="$(command -v cmake >/dev/null 2>&1 && cmake --version 2>&1 | head -n 1 || echo 'cmake not on PATH')"
+          nj="$(command -v ninja >/dev/null 2>&1 && ninja --version 2>&1 | head -n 1 || echo 'not on PATH')"
+          all="$(which -a g++ 2>/dev/null | head -n 5 | tr '\n' ';')"
+          echo "g++    : ${gxx:-<none on PATH>} :: ${ver}"
+          echo "target : ${tgt}"
+          echo "cmake  : ${cm}"
+          echo "ninja  : ${nj}"
+          echo "every g++ on PATH (first five): ${all}"
+          echo "aqt tools:"; ls -1 "$RUNNER_TEMP/qt/Tools" 2>&1 | head -n 20
+          echo "::notice title=Windows toolchain identity (N-30)::g++=${gxx:-none} | ${ver} | target ${tgt} | ${cm} | ninja ${nj} | on PATH: ${all}"
+
       - name: Build Windows engine (win32cfg.h)
         working-directory: working_code/gifscythe
         run: |
@@ -181,6 +204,7 @@ jobs:
           ls -la release/*/gifsicle.exe
 
       - name: Build CLI + unit tests
+        id: cli_tests
         working-directory: working_code/gifscythe
         run: |
           set -euo pipefail
@@ -202,6 +226,43 @@ jobs:
           g++ -std=c++17 -O2 -static -I src -o build/gifscythe-cli.exe src/cli/main.cpp
           g++ -std=c++17 -O2 -static -I src -o build/test_gifsicle_command.exe tests/test_gifsicle_command.cpp
           ./build/test_gifsicle_command.exe
+
+      # Diagnostics only (S34, N-30). Runs ONLY when the step above failed: re-runs
+      # the same two compiles (and the unit exe if it linked) with their output
+      # captured, probes S33's `-lstdc++fs` hypothesis, and publishes the tail as
+      # an error annotation - the one channel of a failed run the agent sandboxes
+      # can read. Original step untouched; this one never changes the job's result.
+      - name: Diagnose CLI/unit-test build failure (diagnostic only)
+        if: ${{ !cancelled() && steps.cli_tests.outcome == 'failure' }}
+        continue-on-error: true
+        working-directory: working_code/gifscythe
+        run: |
+          set +e
+          out=build/diag_compile.log
+          mkdir -p build
+          echo "g++ $(g++ -dumpfullversion 2>&1 | head -n 1) ($(g++ -dumpmachine 2>&1 | head -n 1))" > "$out"
+          run_logged() {
+            echo "\$ $*" >> "$out"
+            "$@" >> "$out" 2>&1
+            rc=$?
+            echo "[exit $rc]" >> "$out"
+            return $rc
+          }
+          run_logged g++ -std=c++17 -O2 -static -I src -o build/diag_cli.exe src/cli/main.cpp
+          run_logged g++ -std=c++17 -O2 -static -I src -o build/diag_unit.exe tests/test_gifsicle_command.cpp
+          if [[ -f build/diag_unit.exe ]]; then
+            echo "\$ run unit tests (last 25 lines)" >> "$out"
+            ./build/diag_unit.exe 2>&1 | tail -n 25 >> "$out"
+            echo "[exit ${PIPESTATUS[0]}]" >> "$out"
+          fi
+          echo "[probe: same CLI compile with -lstdc++fs appended]" >> "$out"
+          run_logged g++ -std=c++17 -O2 -static -I src -o build/diag_cli_fs.exe src/cli/main.cpp -lstdc++fs
+          cat "$out"
+          msg="$(tail -c 3500 "$out")"
+          msg="${msg//'%'/'%25'}"
+          msg="${msg//$'\r'/'%0D'}"
+          msg="${msg//$'\n'/'%0A'}"
+          echo "::error title=CLI/unit-test build diagnostics (N-30)::${msg}"
 
       - name: Windows engine + CLI E2E smoke (native)
         working-directory: working_code/gifscythe

@@ -42,6 +42,17 @@ Chronological log of decisions and changes. **Newest at the top.**
   the CLI exe was absent (measured: exit 1 in the old form, 0 in the new), which
   would have defeated the decoupling. It is an `if` now; behaviour is unchanged
   when the exe exists and the manifest assert still fails on a missing CLI.
+- **Two inert Windows diagnostics for N-30** (a separate commit, droppable).
+  A toolchain-identity step after provisioning publishes which `g++` (path,
+  version, target, every `g++` on PATH) the aqt fallback chain left first as
+  one notice annotation; a failure-only step, run when "Build CLI + unit
+  tests" (now `id: cli_tests`) failed, re-runs the same two compiles with their
+  output captured, probes S33's `-lstdc++fs` hypothesis with one extra compile,
+  and publishes the tail as one error annotation. Both are `continue-on-error`,
+  the original step is untouched, and neither can change a job's result. The
+  point: the log blob is unreadable from the sandboxes, annotations are not, so
+  the next CI run answers "which compiler, and what is the error" without the
+  Actions UI.
 
 **Partial / Left on purpose:**
 
@@ -52,7 +63,8 @@ Chronological log of decisions and changes. **Newest at the top.**
   call.
 - **Not changed: the Windows toolchain provisioning.** N-30's root cause is
   still unread (the job log blob is unreachable from the sandboxes) and
-  pinning a compiler blind would be guessing; a diagnostics-only step follows.
+  pinning a compiler blind would be guessing; the diagnostics-only steps above
+  are there so the next run names it, and the pin comes after that.
 - **N-26 and N-30 rows not edited here.** The open doc-sync PR carries N-31 and
   edits the same register block; N-26's "the failing step cannot be
   identified" is out of date — the jobs API names it (Documentation status
@@ -80,12 +92,28 @@ Chronological log of decisions and changes. **Newest at the top.**
 - The `[[ ]] && cp` claim above, by running both forms under `set -euo
   pipefail`.
 - The doc-gate reproduction and the line-8 emulation quoted above.
+- The new `docs` job, emulated step for step in a fresh full-history clone of
+  this branch with cmake on PATH and no Qt (what `ubuntu-latest` looks like):
+  `./build.sh` (384 checks, 0 failures) then `check_docs.sh --no-gate-run` —
+  24 passed, 0 failed, 1 skipped (G6 by design); G9b, G9c, G10, G11, G15 and
+  G18 all pass.
+- The two diagnostic steps: their exact `run:` text was extracted from the
+  workflow YAML and executed locally. Identity step: exit 0, exactly one
+  notice. Failure step with a deliberately broken unit-test source: exit 0
+  (it cannot fail the job), exactly one error annotation of 685 bytes with no
+  raw newline, whose decoded text carries the real g++ error, `[exit 1]` for
+  the broken compile and the `-lstdc++fs` probe's result.
+- A trial merge of the open doc-sync PR into this branch: SESSION_HANDOFF.md
+  and WORKLIST.md merge cleanly; IMPROVEMENT_LOG.md and STATUS.md conflict
+  mechanically (both sides add near the top; adjacent count lines) — resolve by
+  keeping both log entries and re-running `check_docs.sh --emit`.
 
 **Not verifiable here:** the new job and conditions executing on a GitHub
 runner (only a push proves it); the Windows steps' behaviour (no Windows here);
 whether `ubuntu-latest` takes the same G9c branch as a Qt-free sandbox (it
-should: the branch needs cmake AND Qt6 present); and whether the CI token may
-push a workflow change (the push itself answers it).
+should: the branch needs cmake AND Qt6 present); whether GitHub accepts a
+~3.5 KB annotation message and Git Bash's `which -a` on the Windows runner; and
+whether the CI token may push a workflow change (the push itself answers it).
 
 **Docs touched:** `SESSION_HANDOFF.md` (line 8), `.github/workflows/build.yml`
 and its byte copy `docs/ci/build.yml.proposed`, `docs/ci/README.md` (§1),

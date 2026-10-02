@@ -47,6 +47,13 @@ back to enforcing byte-equality with no standing exception.
   track, still CI-run), and the doc gate (its own `docs` job). The Windows GUI
   build and its offscreen harness (S34) run even when the CLI/unit-test step
   before them failed; they only need the Qt provisioning step to have worked.
+  Two diagnostics-only Windows steps (S34, N-30) publish what a failed run's
+  unreadable log would show: a toolchain-identity notice after provisioning,
+  and — only when the CLI/unit-test step failed — a re-run of the same two
+  compiles with a `-lstdc++fs` probe whose tail is published as an error
+  annotation. Check-run annotations are the one channel of a failed run the
+  agent sandboxes can read (`gh api repos/<repo>/check-runs/<job id>/annotations`);
+  GitHub caps them at 10 errors and 10 warnings per step and 50 per job.
 - **Gate places:** the gates run in three places — `.githooks/pre-push`
   (bootstrap once per clone: `scripts/bootstrap_hooks.sh`; `build.sh` does it),
   the CI `docs` job, and `scripts/pr_preflight.sh` at PR create **and** merge.
