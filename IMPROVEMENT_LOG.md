@@ -4,6 +4,95 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S34 — 2026-10-02: CI un-masked — the doc gate gets its own full-history job, the Windows GUI build and harness stop hiding behind the CLI step, and the handoff base line is re-anchored before the next merge can turn main red
+
+**Changed:**
+
+- **Handoff line 8 re-anchored to `ad8f956` (a G10 trap, found before it fired).**
+  G10 accepts a doc's base sha only if it is main's tip or the tip's first
+  parent. Line 8 named `13d95a7` — legal today (first parent of the PR #8
+  merge) and illegal the moment the next merge moves the tip. Measured by
+  building the would-be merge of the open doc-sync PR locally and running the
+  gate in a CI-shaped depth-1 push-to-main checkout: FAIL [G10]
+  `SESSION_HANDOFF.md names base 13d95a7`; with this one-line change the same
+  emulation passes (23 passed / 0 failed / 3 skipped). `COMPILED_AUDIT.md`'s
+  base line is deliberately untouched — that PR already re-anchors it and
+  editing it here would collide. Merge-order rule this exposes: a base line can
+  only name a tip that exists when it is written, so whichever PR merges
+  second must re-anchor to the then-current tip before it merges.
+- **The doc gate is its own CI job (`docs`) with full history.** As step 7 of
+  the linux job, one red gate skipped the six steps after it — the nine web
+  suites, the seeded oracle, the Qt GUI harness, package portable, the
+  packaging negatives and the manifest assert (main run 36960880593). The new
+  job checks out with `fetch-depth: 0`, runs `./build.sh` (G9b re-measures the
+  unit count, G15 needs the hook bootstrap), then the same `check_docs.sh
+  --no-gate-run`; the step keeps its name. Full history also removes the
+  cause of N-31: in a depth-1 checkout G11 compared the log date with the
+  checkout's own date and G10 skipped on every branch and PR run, so main went
+  red the day after each log entry while the same tree was green on its PR.
+- **Windows: the GUI build and its offscreen harness no longer depend on
+  "Build CLI + unit tests".** They run when provisioning (step id
+  `provision`) succeeded and, for the harness, when the GUI build (id
+  `gui_build`) did, via `!cancelled()` conditions. Of the 30 CI runs since
+  2026-09-29, 29 Windows jobs died at "Build CLI + unit tests" and 1 at the Qt
+  install, so the Windows GUI build and harness did not execute once in that
+  window (N-30).
+- **A latent failure in that GUI step fixed.** Its last line
+  `[[ -f build/gifscythe-cli.exe ]] && cp ...` made the step exit 1 whenever
+  the CLI exe was absent (measured: exit 1 in the old form, 0 in the new), which
+  would have defeated the decoupling. It is an `if` now; behaviour is unchanged
+  when the exe exists and the manifest assert still fails on a missing CLI.
+
+**Partial / Left on purpose:**
+
+- **Not changed: the duplicate push + pull_request runs and `concurrency`.**
+  Duplicates are cost and noise, not masking, and `cancel-in-progress` would
+  cancel older per-commit runs while this repo cites the run of a specific
+  commit as evidence (N-11, N-16, N-30). That is an owner call, not a session
+  call.
+- **Not changed: the Windows toolchain provisioning.** N-30's root cause is
+  still unread (the job log blob is unreachable from the sandboxes) and
+  pinning a compiler blind would be guessing; a diagnostics-only step follows.
+- **N-26 and N-30 rows not edited here.** The open doc-sync PR carries N-31 and
+  edits the same register block; N-26's "the failing step cannot be
+  identified" is out of date — the jobs API names it (Documentation status
+  gate) and the reds reproduce deterministically in CI-shaped depth-1 clones of
+  8d30614 (G10+G11), 2ade969 (G10), 13d95a7 (G10+G11) and ad8f956 (G11). Close
+  it after that PR merges.
+- **Findings from this session still to be registered before this branch's
+  PR** (registering now would collide with the open doc-sync PR's edits to the
+  same register block): the wasm proof standard (a musl-based wasm build is
+  byte-identical to a musl-native build of the same sources but differs from
+  the glibc-built native oracle, so a byte-parity bar cannot pass;
+  prove_wasm.mjs does not enforce byte parity at all), the README honesty
+  summary (all three claims stale), and the toolchain notes (pip can supply
+  cmake, ninja, zig and shellcheck here; apt is blocked; the PySide6 wheel has
+  no Qt headers).
+
+**Verified (executed here):**
+
+- Both workflow copies byte-identical (`cmp`), and the workflow validates
+  against GitHub's workflow schema (`check-jsonschema`, vendored schema; a
+  deliberately broken file is rejected by the same command).
+- Parsed structure: jobs `docs`, `linux`, `windows`, `csharp-spike`; the linux
+  job no longer contains the gate; the Windows conditions reference only step
+  ids that exist.
+- The `[[ ]] && cp` claim above, by running both forms under `set -euo
+  pipefail`.
+- The doc-gate reproduction and the line-8 emulation quoted above.
+
+**Not verifiable here:** the new job and conditions executing on a GitHub
+runner (only a push proves it); the Windows steps' behaviour (no Windows here);
+whether `ubuntu-latest` takes the same G9c branch as a Qt-free sandbox (it
+should: the branch needs cmake AND Qt6 present); and whether the CI token may
+push a workflow change (the push itself answers it).
+
+**Docs touched:** `SESSION_HANDOFF.md` (line 8), `.github/workflows/build.yml`
+and its byte copy `docs/ci/build.yml.proposed`, `docs/ci/README.md` (§1),
+`WORKLIST.md` (CI/infra bullet), `STATUS.md` (W-30 proof cell), this entry.
+
+---
+
 ## S33 — 2026-10-01: register mechanics + doc-machine cost (U-88/P2-21 done, U-89/P2-22 partial) — the derived fix-order block, proof-provenance markers, and the gate/register freeze
 
 **Changed:**
