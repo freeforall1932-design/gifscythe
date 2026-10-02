@@ -16,18 +16,27 @@ back to enforcing byte-equality with no standing exception.
   in the same commit, per the marker's own delete-rule. Edit both files in the
   same commit from now on; `verify_audit.sh` **E9** / `check_docs.sh` **G7**
   FAIL any undeclared drift.
-- **The documentation status gate is live in CI** (linux job step
+- **The documentation status gate is live in CI as its own `docs` job** (step
   "Documentation status gate (STATUS.md register)": `scripts/check_docs.sh
-  --no-gate-run`). Applied by the maintainer (`190d030` era; confirmed S14),
-  which is why register rows W-30/R-03/GS-208 closed in S24. `--no-gate-run`
-  skips G6 (the linux job already builds and runs the web suites; re-running
-  `verify_audit.sh` inside the gate would double the job).
+  --no-gate-run`, run after `./build.sh` so G9b can re-measure the unit count
+  and G15 sees the hook bootstrap). Applied by the maintainer (`190d030` era;
+  confirmed S14), which is why register rows W-30/R-03/GS-208 closed in S24.
+  **S34 moved it out of the linux job.** As step 7 there, one doc failure
+  skipped the web suites, the oracle, the Qt GUI harness and the packaging
+  steps (main run `36960880593`), so CI could not tell stale docs from broken
+  code. The job checks out **full history** (`fetch-depth: 0`): a depth-1
+  checkout made G11 compare the log with the checkout's own date and made G10
+  skip on every branch and PR run (N-26 / N-31), so main went red the day
+  after each log entry while the same tree was green on its PR. With history
+  the gate measures what the local pre-push hook measures. `--no-gate-run`
+  skips G6 (the other jobs already build and run the suites; re-running
+  `verify_audit.sh` inside the gate would double the work).
 - **Workflows-scope pushes work:** the token blocker recorded in S9 was lifted
   in S18 (scope granted, verified by the pushed `build.yml` change in
   `161e862`; PR #28 pushed workflow edits too). A push touching
   `.github/workflows/` still needs a token with that permission — the doc copy
   exists so the recipe survives even when a given token lacks it.
-- **What the workflow runs:** linux + windows jobs — engine build,
+- **What the workflow runs:** linux + windows + docs jobs — engine build,
   static-linked CLI/tests, GUI (CMake; Ninja+MinGW on Windows), native E2E
   smokes, the offscreen GUI harness, the Windows unit-test exe
   (`build/test_gifsicle_command.exe` — relevant to `U-71`/`U-94`-class rows:
@@ -35,10 +44,12 @@ back to enforcing byte-equality with no standing exception.
   web suites, packaging + manifest assertion (Windows ships; linux is the test
   battery since S20/OD-17), artifact upload (`gifscythe-windows`, 14-day
   retention; binaries are banked on Releases), the csharp-spike job (parked
-  track, still CI-run), and the doc gate.
+  track, still CI-run), and the doc gate (its own `docs` job). The Windows GUI
+  build and its offscreen harness (S34) run even when the CLI/unit-test step
+  before them failed; they only need the Qt provisioning step to have worked.
 - **Gate places:** the gates run in three places — `.githooks/pre-push`
   (bootstrap once per clone: `scripts/bootstrap_hooks.sh`; `build.sh` does it),
-  the linux CI job, and `scripts/pr_preflight.sh` at PR create **and** merge.
+  the CI `docs` job, and `scripts/pr_preflight.sh` at PR create **and** merge.
   **`scripts/review_change.sh`** is the separate diff reviewer (R1 edited check
   logic, R2 matchers that match nothing — how G10 stayed dead for five PRs —
   R3 prose counts vs live measurement, R4 lost executable bits, R5 obliged doc

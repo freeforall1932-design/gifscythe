@@ -260,7 +260,8 @@ Still open from the audit intake (state lives in `STATUS.md`):
             animated, video endpoints) as gated rows + the PROJECT_VISION
             amendment proposal; no code until the owner adopts the words.
 - [x] **CI/infra (S14 → resolved S24):** the documentation status gate is LIVE
-      in the CI linux job (maintainer-applied); the last declared drift was the
+      in CI (maintainer-applied; **S34: now its own `docs` job**, see
+      `docs/ci/README.md` §1); the last declared drift was the
       proposed copy lagging the maintainer's live cygpath fix, so S24 re-synced
       `docs/ci/build.yml.proposed` to the live line and deleted the pending
       marker in one commit — E9/G7/S1 enforce byte-equality again, and
