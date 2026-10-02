@@ -50,8 +50,9 @@ Based on `main` commit `c999061` (PR #9's merge, 2026-10-02 — the S33 post-mer
      run; skipped jobs are neutral on the PR page, and the gate costs ~12 s of wall-clock
      at the front of every run (4.1 → 4.3 min). (b) Workflow-level `concurrency`: a
      newer push to the same branch or PR cancels the older run of the same event; main is
-     never cancelled. **So to cite a specific commit's run as evidence, let it finish
-     before pushing again.** (c) A parallel `portability` job needing only zig: the
+     never cancelled (seen live: the older run took ~1.5 min to wind down, and the newer
+     run waited `pending` meanwhile). **So to cite a specific commit's run as evidence,
+     let it finish before pushing again.** (c) A parallel `portability` job needing only zig: the
      32-bit-`long` unit suite (the N-30 class) and the N-32 wasm bar — 2.0–2.4 minutes on
      Actions (runs 36983286343, 36983984989), no wall-clock time (the windows → csharp-spike chain is
      the ~4-minute longest path). Decision table: `tests/test_ci_gate.py`.

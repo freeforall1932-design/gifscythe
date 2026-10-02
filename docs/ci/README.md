@@ -82,7 +82,12 @@ back to enforcing byte-equality with no standing exception.
   ran only the gate (`skip=true`, run 36983282655) while the `pull_request` run ran all six
   jobs (run 36983286343); the PR page lists the skipped jobs as neutral. The gate costs about
   12 s of wall-clock at the front of every run (4.1 -> 4.3 minutes for the whole PR run:
-  the gate sits in front of every other job). **Trade-off:** this repo cites the run of a
+  the gate sits in front of every other job). `cancel-in-progress` was seen working (S34):
+  two commits pushed about a minute apart cancelled the first commit's `pull_request` run
+  (36984484547: every job `cancelled`); the cancel took about a minute and a half to take
+  effect after the second push, and the newer run waited as `pending` until then. The first
+  commit's *push* run had already finished (the gate skips it in seconds), so there was
+  nothing to cancel there. **Trade-off:** this repo cites the run of a
   specific commit as evidence (N-11, N-16, N-30) — to keep a commit's run, let it
   finish before pushing again.
 - **Runner images (N-34, S34).** `ubuntu-24.04` is pinned in all four Linux jobs

@@ -118,7 +118,8 @@ reads them in a file, not in a conversation.
   run tests that commit), plus workflow-level `concurrency` (a newer push to the same
   branch or PR cancels the older run of the same event; main is never cancelled).
   Trade-off: **to cite a specific commit's run as evidence, let it finish before pushing
-  again.** Details: `docs/ci/README.md` §1; table: `tests/test_ci_gate.py`.
+  again** (seen live: the cancelled run took ~1.5 min to wind down, and the newer run
+  waited `pending` meanwhile). Details: `docs/ci/README.md` §1; table: `tests/test_ci_gate.py`.
 
 **Gate/register freeze (U-89 / P2-22, effective S33).** While the derived
 release bar in `STATUS.md` (open P0/P1 fix-order ids) is above zero: add **no

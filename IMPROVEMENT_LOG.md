@@ -231,7 +231,13 @@ Chronological log of decisions and changes. **Newest at the top.**
   that introduced it, the **push** run (36983282655) executed only the gate — `skip=true`,
   "PR #10 is open and mergeable" — and its other five jobs were skipped, while the
   **pull_request** run (36983286343) said `skip=false` and ran all six jobs green; PR #10
-  stayed MERGEABLE/CLEAN with 7 successful and 5 skipped checks and no failure.
+  stayed MERGEABLE/CLEAN with 7 successful and 5 skipped checks and no failure. *`concurrency` seen
+  working:* the next two commits were pushed back to back (`b817353`, then `f74b173`). The first
+  commit's push run had already finished (the gate skips it in seconds), but its `pull_request`
+  run (36984484547) was cancelled — every job `cancelled` — and the second commit's run waited
+  as `pending` until the cancel took effect, about a minute and a half after the second push.
+  So a quick follow-up push also *delays* the next run by that lag, besides costing the first
+  run's evidence.
   *Tooling:* `scripts/lint_workflow.mjs` (actionlint's wasm build from npm — the binary's host
   is blocked here; `--selftest`). Its first version ran `npm init --prefix`, which writes
   into the CURRENT directory: it dropped a stray `package.json` into the checkout, which
@@ -346,7 +352,8 @@ Chronological log of decisions and changes. **Newest at the top.**
   unknown repo is a detectable error). On Actions: run 36983286343 — `gate`, `docs`, `linux`,
   `portability`, `windows`, `csharp-spike` all green on `ubuntu-24.04`/`windows-latest`, every
   `portability` step `success` (toolchain 8 s, unit suite 69 s, wasm bar 38 s); push run 36983282655 —
-  gate `skip=true`, five jobs skipped.
+  gate `skip=true`, five jobs skipped; `cancel-in-progress` observed live (run 36984484547 cancelled by
+  the next push; main's never-cancel group is the one part not exercised).
 
 **Not verifiable here:** whether `ubuntu-26.04` would have passed (not trialled: a red trial commit on this
 PR's head would put a failing check on a PR the owner may merge, and no other branch may be used); the
