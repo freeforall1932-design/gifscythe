@@ -1,7 +1,7 @@
 // prove_wasm.mjs — prove the wasm engine on a real file.
 //
 // Usage: node web/wasm/prove_wasm.mjs [input.gif] [--oracle <native gifsicle>] [--module <gifsicle.js>]
-//   (default input:  reference_code/gifsicle/logo.gif)
+//   (default input:  the upstream logo.gif, rebuilt from tests/fixtures/logo.gif.b64 - the repo holds no images)
 //   (default module: web/wasm/dist/gifsicle.js, the build_wasm.sh output)
 //
 // Loads the module in Node (the same MODULARIZE factory the page uses), runs
@@ -33,6 +33,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { fixturePath } from "../../working_code/gifscythe/scripts/fixtures.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, "..", "..");
@@ -70,7 +71,8 @@ let modulePath = null;
   }
 }
 const distJs = modulePath || join(here, "dist", "gifsicle.js");
-const inputPath = resolve(positional || join(repo, "reference_code", "gifsicle", "logo.gif"));
+// No binary files in the repo (N-36): the default input is the upstream logo.gif rebuilt from text.
+const inputPath = resolve(positional || fixturePath("logo.gif"));
 
 let inputBytes;
 try {

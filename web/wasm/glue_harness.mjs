@@ -5,13 +5,14 @@
 // and the invalid-settings refusal path.
 // This tests the JS glue, NOT the wasm binary: no emcc output is involved,
 // so it runs anywhere node does. Requirements: node >= 18, a built engine
-// (run working_code/gifscythe/build.sh first), the logo.gif upstream fixture.
+// (run working_code/gifscythe/build.sh first), the logo.gif upstream fixture (rebuilt from text, N-36).
 // Exit 0 + GLUE-HARNESS: PASS on success, 1 on failure, 2 on missing engine.
 import { readFileSync, writeFileSync, mkdtempSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { fixturePath } from "../../working_code/gifscythe/scripts/fixtures.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // U-80: parse VERSION.md like the shell suites do; never pin the version dir.
@@ -21,7 +22,8 @@ const PRODUCT_VERSION =
   (VERSION_MD.match(/Current version:[^\n]*?(\d+\.\d+\.\d+)/) || [])[1] || "0.1.0";
 const ENGINE = path.resolve(
   HERE, `../../working_code/gifscythe/release/${PRODUCT_VERSION}/gifsicle`);
-const LOGO = path.resolve(HERE, "../../reference_code/gifsicle/logo.gif");
+// The repo holds no binary files (N-36): the upstream test image is rebuilt from tests/fixtures/logo.gif.b64.
+const LOGO = fixturePath("logo.gif");
 
 if (!existsSync(ENGINE)) {
   console.error(`glue_harness: engine not found at ${ENGINE}`);

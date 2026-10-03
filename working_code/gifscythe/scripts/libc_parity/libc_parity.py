@@ -47,6 +47,7 @@ Exit:   0 measured (and, with --check, the finding still holds; with --bar, the 
         missing (printed, never silent)
 """
 import argparse
+import base64
 import hashlib
 import os
 import random
@@ -123,8 +124,15 @@ def build(zig, work, name, target, flavour, libs, stable, objs, version):
 
 def make_inputs(work):
     """Copy the two real inputs; generate the seeded many-colour one when Pillow is available."""
+    # The repo holds no binary files (N-36): the upstream test images are decoded from tests/fixtures/*.b64
+    # and checked against SHA256SUMS, so every case runs on the byte-identical upstream input.
+    sums = {n: h for h, n in (l.split() for l in (GS / "tests/fixtures/SHA256SUMS").read_text().splitlines() if l.strip())}
     for name in ("logo.gif", "logo1.gif"):
-        shutil.copy2(ENGINE / name, work / name)
+        data = base64.b64decode((GS / "tests/fixtures" / f"{name}.b64").read_text())
+        if hashlib.sha256(data).hexdigest() != sums[name]:
+            print(f"ERROR: tests/fixtures/{name}.b64 decodes to the wrong bytes", file=sys.stderr)
+            sys.exit(2)
+        (work / name).write_bytes(data)
     try:
         from PIL import Image
     except ImportError:

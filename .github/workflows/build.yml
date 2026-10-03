@@ -161,7 +161,8 @@ jobs:
           set -euo pipefail
           cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON
           cmake --build build-cmake -j2
-          QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
+          # The repo holds no image files (N-36): GS_TEST_REF_DIR is the harness's own hook for where logo.gif lives.
+          GS_TEST_REF_DIR="$(./scripts/fixtures.sh)" QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
 
       - name: Package portable
         working-directory: working_code/gifscythe
@@ -394,8 +395,10 @@ jobs:
           win_temp=$(cygpath -m "$RUNNER_TEMP" 2>/dev/null || echo "${RUNNER_TEMP//\//}")
           smoke="$win_temp/gs-smoke"
           mkdir -p "$smoke/my vacation"
-          cp ../../reference_code/gifsicle/logo.gif "$smoke/in.gif"
-          cp ../../reference_code/gifsicle/logo1.gif "$smoke/my vacation/b.gif"
+          # The repo holds no image files (N-36): the upstream test images are rebuilt from text.
+          fix="$(./scripts/fixtures.sh)"
+          cp "$fix/logo.gif" "$smoke/in.gif"
+          cp "$fix/logo1.gif" "$smoke/my vacation/b.gif"
           printf 'mode = auto\noptimize = 3\ninput = %s/in.gif\noutput = %s/out.gif\n' \
             "$smoke" "$smoke" > "$smoke/one.conf"
           printf 'mode = auto\noptimize = 2\ninput = %s/my vacation/b.gif\noutput = %s/my vacation/b_opt.gif\n' \
@@ -473,7 +476,8 @@ jobs:
           # app-dir first removes any relocated-Qt path doubt).
           mkdir -p build-win/platforms
           cp "$QT_BIN/../plugins/platforms/qoffscreen.dll" build-win/platforms/ || true
-          QT_QPA_PLATFORM=offscreen ./build-win/test_gui_offscreen.exe
+          # The repo holds no image files (N-36): GS_TEST_REF_DIR is the harness's own hook for where logo.gif lives.
+          GS_TEST_REF_DIR="$(cygpath -m "$(./scripts/fixtures.sh)")" QT_QPA_PLATFORM=offscreen ./build-win/test_gui_offscreen.exe
 
       - name: Package portable (Windows)
         working-directory: working_code/gifscythe
@@ -544,9 +548,11 @@ jobs:
           [[ -x "$exe" ]] || { echo "FAIL: spike exe missing: $exe" >&2; exit 1; }
           work="$RUNNER_TEMP/spike"
           rm -rf "$work"; mkdir -p "$work/plain" "$work/vacación" "$work/日本語"
-          cp reference_code/gifsicle/logo.gif "$work/plain/in.gif"
-          cp reference_code/gifsicle/logo1.gif "$work/vacación/résumé final.gif"
-          cp reference_code/gifsicle/logo1.gif "$work/日本語/入力.gif"
+          # The repo holds no image files (N-36): the upstream test images are rebuilt from text.
+          fix="$(bash working_code/gifscythe/scripts/fixtures.sh)"
+          cp "$fix/logo.gif" "$work/plain/in.gif"
+          cp "$fix/logo1.gif" "$work/vacación/résumé final.gif"
+          cp "$fix/logo1.gif" "$work/日本語/入力.gif"
           printf 'not a gif\n' > "$work/plain/bad.gif"
           echo "SPIKE_ENGINE=$PWD/$engine" >> "$GITHUB_ENV"
           echo "SPIKE_EXE=$PWD/$exe" >> "$GITHUB_ENV"
@@ -679,7 +685,7 @@ jobs:
           set -euo pipefail
           work="$RUNNER_TEMP/spike-published"
           rm -rf "$work"; mkdir -p "$work"
-          cp reference_code/gifsicle/logo.gif "$work/in.gif"
+          cp "$(bash working_code/gifscythe/scripts/fixtures.sh)/logo.gif" "$work/in.gif"
           engine=$(find spike-deps -name 'gifsicle.exe' -print -quit)
           [[ -n "$engine" && -s "$engine" ]] || { echo "FAIL: engine not in artifact" >&2; exit 1; }
           csharp/spike/publish/gifscythe-spike.exe \

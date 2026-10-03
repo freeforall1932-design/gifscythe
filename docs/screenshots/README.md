@@ -1,5 +1,10 @@
 # UI screenshots (pre-release 0.1.0, session S10 refresh)
 
+> **The PNGs described below are no longer in the repository.** The owner removed every image file in commit
+> `fe4f0a7` (2026-10-02); the repo is binary-free by design (register row N-36), so the three shots are not
+> shown in the root README any more. This file is kept for the **re-shoot recipe**: any Qt machine can
+> reproduce them, and a regenerated shot should live outside git (or be linked from outside it).
+
 Rendered offscreen (`QT_QPA_PLATFORM=offscreen`) on Linux/Qt 6.4.2 (Debian
 bookworm) from the real `MainWindow` with `logo.gif` + `logo1.gif` queued,
 lossy=30 and colors=128 set in the Actions tab, and the debounced async preview

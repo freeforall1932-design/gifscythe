@@ -13,6 +13,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildArgs, saveSettingsLines, toString } from "../../../web/command.mjs";
 import { validate } from "../../../web/validate.mjs";
+import { fixturePath } from "./fixtures.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "../../..");
@@ -21,7 +22,8 @@ const versionText = readFileSync(join(product, "VERSION.md"), "utf8");
 const version = versionText.match(/Current version:.*?(\d+\.\d+\.\d+)/)?.[1] ?? "0.1.0";
 const cli = join(product, "build/gifscythe-cli");
 const engine = join(product, "release", version, "gifsicle");
-const fixture = join(root, "reference_code/gifsicle/logo.gif");
+// The repo holds no binary files (N-36): the upstream test image is rebuilt from tests/fixtures/logo.gif.b64.
+const fixture = fixturePath("logo.gif");
 const matrixFile = join(product, "tests/oracle_fuzz_matrix.json");
 const seed = 0x47534631; // "GSF1", fixed so a failure is replayable.
 

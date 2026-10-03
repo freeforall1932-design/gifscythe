@@ -43,11 +43,12 @@ cd working_code/gifscythe
 Web app (self-hosted product alternative): `node web/server.mjs 8000` from the
 repo root, then open http://localhost:8000 — see `web/README.md`.
 
-## Screenshots (S10 refresh, offscreen Qt 6.4.2 — see docs/screenshots/README.md)
+## Screenshots
 
-| Input tab — queue, reorder, before/after preview | Actions tab — full control surface | Output tab — template, batch folder, summary |
-|---|---|---|
-| ![Input tab](docs/screenshots/shot_input_tab.png) | ![Actions tab](docs/screenshots/shot_actions_tab.png) | ![Output tab](docs/screenshots/shot_output_tab.png) |
+The repository holds **no image files** (the owner removed them all in `fe4f0a7`, 2026-10-02), so the three
+UI screenshots that used to be shown here are gone. They can be regenerated on any Qt machine from the recipe
+in `docs/screenshots/README.md` (offscreen `MainWindow`, one `grab()` per tab). The two upstream test images
+the suites need are kept as text and rebuilt on demand (`working_code/gifscythe/scripts/fixtures.sh`).
 
 ## Repo layout (post-S24 consolidation: one file per topic)
 

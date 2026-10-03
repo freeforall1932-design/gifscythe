@@ -53,18 +53,21 @@ if [[ "$rc" -ne 0 ]] && grep -q "ERROR: engine not found" <<<"$err"; then
   ok "A2" "missing engine -> rc=$rc + honest stderr"
 else bad "A2" "missing engine rc=$rc stderr: $err"; fi
 
+# The repo holds no binary files (N-36): the upstream test images are rebuilt from tests/fixtures/*.b64.
+FIXDIR="$("$self/scripts/fixtures.sh")" || { echo "FAIL: cannot materialise the test fixtures" >&2; exit 1; }
+
 # ---------- A3: CWD independence ----------
 work="$(mktemp -d)"; cat > "$work/one.conf" <<EOF
 mode = auto
 optimize = 3
-input = $self/../../reference_code/gifsicle/logo.gif
+input = $FIXDIR/logo.gif
 output = $work/out_abs.gif
 EOF
 (cd /tmp && "$self/build/gifscythe-cli" "$work/one.conf" --run --engine "$ENGINE" >/dev/null 2>&1); rc=$?
 if [[ "$rc" -eq 0 && -s "$work/out_abs.gif" ]]; then ok "A3" "run from /tmp with absolute paths"; else bad "A3" "CWD independence (rc=$rc)"; fi
 
 # ---------- A4: spaces ----------
-mkdir -p "$work/my vacation"; cp ../../reference_code/gifsicle/logo.gif "$work/my vacation/in.gif"
+mkdir -p "$work/my vacation"; cp "$FIXDIR/logo.gif" "$work/my vacation/in.gif"
 cat > "$work/space.conf" <<EOF
 mode = auto
 optimize = 2

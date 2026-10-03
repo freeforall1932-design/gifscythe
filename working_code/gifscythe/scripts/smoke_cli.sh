@@ -17,8 +17,10 @@ VERSION="$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' "$self/VERSION.md
   | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
 VERSION="${VERSION:-0.1.0}"
 ENGINE="$self/release/$VERSION/gifsicle"
-SRC_GIF="$repo/reference_code/gifsicle/logo.gif"
-SRC_GIF1="$repo/reference_code/gifsicle/logo1.gif"
+# The repo holds no binary files (N-36): the upstream test images are rebuilt from tests/fixtures/*.b64.
+FIXDIR="$("$self/scripts/fixtures.sh")" || { echo "FAIL: cannot materialise the test fixtures" >&2; exit 1; }
+SRC_GIF="$FIXDIR/logo.gif"
+SRC_GIF1="$FIXDIR/logo1.gif"
 
 PASS=0
 FAIL=0
