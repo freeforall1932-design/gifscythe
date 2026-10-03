@@ -4,7 +4,7 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
-## S34 — 2026-10-02: CI un-masked — N-30 was a real 32-bit-`long` bug (fixed test-first, proven on Windows CI), N-26's "flaky linux job" was the doc gate, and agent sessions can push workflows; then the owner's four open decisions implemented (runner pin, push/PR de-duplication, a 32-bit CI job, the wasm proof bar)
+## S34 — 2026-10-03 (started 2026-10-02 UTC; the UTC date rolled during the session and G11 compares UTC-stamped commits, so the entry is dated to the close day, as S33's was): CI un-masked — N-30 was a real 32-bit-`long` bug (fixed test-first, proven on Windows CI), N-26's "flaky linux job" was the doc gate, and agent sessions can push workflows; then the owner's four open decisions implemented (runner pin, push/PR de-duplication, a 32-bit CI job, the wasm proof bar)
 
 **Changed:**
 
@@ -274,8 +274,8 @@ Chronological log of decisions and changes. **Newest at the top.**
   P6 forced one by refusing a handoff line that names a PR before it merges. Checked, not
   assumed: a simulated merge of this PR into main (a real merge commit dated 2026-10-03 01:00
   UTC, the worst case for G11, and separately a squash) leaves the `docs` job's gate at 24
-  passed / 0 failed / 1 skipped with G10 and G11 PASS — the base lines already name `c999061`,
-  the merge's first parent. What could not be written before the merge now can: **P6 accepts a
+  passed / 0 failed / 1 skipped with G10 and G11 PASS — the base lines then named `c999061`,
+  the merge's first parent (they now name `fe4f0a7`: see the N-36 bullet). What could not be written before the merge now can: **P6 accepts a
   number above the newest merged PR when it is the branch's own OPEN PR** (any other unmerged
   number still fails; a merge the line does not name still fails as BEHIND), the handoff line
   names PR #10, and the ledger's *Merged as* cell holds a lookup instead of `**open**` — the sha
@@ -394,8 +394,9 @@ rebase-merge of this PR (G10 would fail after it; merge commit and squash are ve
 semantic integer-width
 classes beyond plain `long` (size_t/int narrowing in the Qt code — the grep
 audit above covers `long` only); and whether the base lines stay legal — they
-name `c999061`, so any other merge before this one makes this PR stale (stale,
-not broken: the next session re-anchors).
+name `fe4f0a7`, main's tip when they were written, so any other commit on main before this
+one merges makes this PR stale (stale, not broken: the next session re-anchors; it already
+happened once, with the owner's direct commit).
 
 **Docs touched:** `SESSION_HANDOFF.md` (header, Docs-synced-through → PR #10, base line,
 maintenance rule, ledger rows #7/#9/#10, fast hand-off, product constraints, sandbox reality,
