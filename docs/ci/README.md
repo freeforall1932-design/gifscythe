@@ -112,6 +112,12 @@ back to enforcing byte-equality with no standing exception.
   a Python suite that cannot find its prerequisites a failure instead of ten silent skips
   (the first run of that suite was green in 0 s with no way to tell from outside whether it
   had run): a skipped proof must never read as a passed one.
+- **No image files in the repo — test images are text (S34, N-36).** The owner removed every image in
+  `fe4f0a7`. The two upstream test images the suites need are base64 under
+  `working_code/gifscythe/tests/fixtures/` (sha256 in `SHA256SUMS`) and are decoded on demand into
+  `build/fixtures/`: `scripts/fixtures.sh` for bash (the Windows E2E smoke, the C# spike and the
+  GUI-harness steps call it), `scripts/fixtures.mjs` for Node. The Qt harness is pointed at the result
+  with its own `GS_TEST_REF_DIR` hook. Do not re-add a `.gif`/`.png`; add a text fixture.
 - **Before asking for a merge: `scripts/sim_postmerge.sh` (S34).** It builds the commit GitHub would
   create on top of the current `origin/main` — `--style merge|squash|rebase`, `--date` the UTC day
   of the merge — in a scratch full-history clone and runs the `docs` job's steps on it. A PR's own

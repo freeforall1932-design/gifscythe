@@ -282,8 +282,21 @@ Chronological log of decisions and changes. **Newest at the top.**
   (run 37081923220). Measured by simulating the merge and running the suites on the merged tree:
   the nine web suites and the 32-bit unit runner pass; `test_engine.sh`, `smoke_cli.sh`,
   `oracle_fuzz.mjs` (and so the pre-push hook), `glue_harness.mjs` and `libc_parity.py --bar` fail on
-  the missing file. That is the owner's call, not mine to undo silently — registered as N-36 (OPEN)
-  with four options. *How it was found:* the first command of the turn was a live check of
+  the missing file. That was the owner's call, not mine to undo silently — registered as N-36 with four options
+  and asked; **the owner skipped the question and repeated "anything to add before merging?", so I
+  took the option that respects what they did: keep the repo binary-free.** The two upstream test
+  images became base64 text (`tests/fixtures/*.b64` + `SHA256SUMS`), decoded on demand into the
+  gitignored `build/fixtures/` by `scripts/fixtures.sh` / `fixtures.mjs` — byte-identical (`cmp`
+  against the originals before they went, sha256 checked on every decode), so every expectation
+  holds. Every consumer was repointed (smoke, test_engine, verify_audit, oracle, glue harness,
+  prove_wasm, libc_parity, `build.sh`, `examples/animation.conf`) and, in both workflow copies, the
+  Windows E2E smoke, the C# spike and both GUI-harness steps (through the harness's own
+  `GS_TEST_REF_DIR` hook, so no Qt code changed). Main was merged into the branch first (no
+  conflicts) so everything was tested on the tree that will exist after the merge: test_engine
+  5/5, smoke 63/63, oracle quick 24 and full 64, glue harness, the wasm bar 9/9, the prove_wasm
+  suite 10/10, G8 and G10 green. The Windows/C#/Qt steps are proven only by CI. **Reversible:** if
+  the images were meant to come back, restoring them is one `git checkout`, and nothing else
+  changes. *How it was found:* the first command of the turn was a live check of
   `origin/main`, and `scripts/sim_postmerge.sh` (new, committed — it had been rebuilt in `/tmp` twice
   and lost) built the commit GitHub would create and ran the CI docs job on it: **G10 and G8 red,
   before the merge instead of after it.** The same tool measured the merge shapes: merge commit —
@@ -291,7 +304,9 @@ Chronological log of decisions and changes. **Newest at the top.**
   date** (squash on 10-10 against a 10-03 entry: red; the earlier "squash verified" claim held only
   for a same-day merge); **rebase — impossible for this PR** (replaying its commits without their
   merge commits conflicts, so GitHub would not offer it). **Recommendation to the owner: "Create a
-  merge commit".**
+  merge commit".** (Turn 7 also found that the sandbox is recycled *during a long pause* —
+  `ask_user` — not only between turns: `/tmp`, the venv and the git state were gone when the answer
+  came back, while the working tree survived.)
 
 - **The post-merge sync is pre-included, and P6 now allows it.** The owner merges from the
   GitHub UI and continues, so a "post-merge sync" PR (#4 after #3, #9 after #8: the ledger's
