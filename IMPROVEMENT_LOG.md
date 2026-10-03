@@ -268,6 +268,31 @@ Chronological log of decisions and changes. **Newest at the top.**
   encoded, the other eight still run; shellcheck clean; the first version dropped the indented
   detail line after `FAIL`, which is the useful one, and was corrected before it was pushed.
 
+- **N-36: the owner pushed straight to `main` while this PR waited, and it changed what "ready to
+  merge" means.** Turn 7 opened with `main` at `fe4f0a7`, not `c999061`: the owner's web commit
+  "Deleted shot_actions_tab.png" (2026-10-02 11:32 UTC) had removed **every image file in the
+  repo** — three docs screenshots and the four gifsicle test GIFs (`logo.gif`, `logo1.gif`, in
+  `reference_code/gifsicle` and `reference_code/gifsicle-nested-1.96`). Nothing binary is tracked on
+  `main` any more, so it reads as deliberate. Two separate consequences. **(1) The pre-synced base
+  lines went stale** — they named `c999061`, which a merge of this PR would no longer have as its
+  first parent: re-anchored to `fe4f0a7`, legal both now (the tip) and after the merge (its first
+  parent). **(2) The GIFs are test fixtures.** `main`'s own CI went red on them (run 37001595158,
+  `linux` at "Engine pipeline tests"), and the PR's run (which tests the merge with the current
+  `main`) is red on `docs` (G8: `web/wasm/README.md` names `logo.gif`), `linux` and `portability`
+  (run 37081923220). Measured by simulating the merge and running the suites on the merged tree:
+  the nine web suites and the 32-bit unit runner pass; `test_engine.sh`, `smoke_cli.sh`,
+  `oracle_fuzz.mjs` (and so the pre-push hook), `glue_harness.mjs` and `libc_parity.py --bar` fail on
+  the missing file. That is the owner's call, not mine to undo silently — registered as N-36 (OPEN)
+  with four options. *How it was found:* the first command of the turn was a live check of
+  `origin/main`, and `scripts/sim_postmerge.sh` (new, committed — it had been rebuilt in `/tmp` twice
+  and lost) built the commit GitHub would create and ran the CI docs job on it: **G10 and G8 red,
+  before the merge instead of after it.** The same tool measured the merge shapes: merge commit —
+  G10/G11 pass on any day; **squash — G11 fails when merged on a later UTC day than the log entry's
+  date** (squash on 10-10 against a 10-03 entry: red; the earlier "squash verified" claim held only
+  for a same-day merge); **rebase — impossible for this PR** (replaying its commits without their
+  merge commits conflicts, so GitHub would not offer it). **Recommendation to the owner: "Create a
+  merge commit".**
+
 - **The post-merge sync is pre-included, and P6 now allows it.** The owner merges from the
   GitHub UI and continues, so a "post-merge sync" PR (#4 after #3, #9 after #8: the ledger's
   merge sha, the base re-anchor, Docs-synced-through, a merge note) is pure churn — and the old

@@ -112,6 +112,15 @@ back to enforcing byte-equality with no standing exception.
   a Python suite that cannot find its prerequisites a failure instead of ten silent skips
   (the first run of that suite was green in 0 s with no way to tell from outside whether it
   had run): a skipped proof must never read as a passed one.
+- **Before asking for a merge: `scripts/sim_postmerge.sh` (S34).** It builds the commit GitHub would
+  create on top of the current `origin/main` — `--style merge|squash|rebase`, `--date` the UTC day
+  of the merge — in a scratch full-history clone and runs the `docs` job's steps on it. A PR's own
+  green run cannot show what main's push run will say, because G10 (the base lines against main's
+  tip and its first parent) and G11 (the log date against the newest non-doc commit) depend on the
+  shape and the day of the merge. It caught, in S34, a main that had moved under the pre-synced PR
+  (G10 and G8 red before the merge, not after), and measured that a merge commit passes on any
+  day, a squash fails G11 when merged on a later UTC day than the log entry's date, and a rebase
+  conflicts for a branch that holds merge commits.
 - **Editing the workflow offline (S34).** No actionlint binary is obtainable here (its
   release host is blocked), but `node working_code/gifscythe/scripts/lint_workflow.mjs`
   runs its WebAssembly build from npm (installed on first use into `$TMPDIR`), drops

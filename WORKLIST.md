@@ -121,6 +121,15 @@ reads them in a file, not in a conversation.
   deterministic regression group, RED 5/5 on the old rule; 45/45 clean after) and the step now
   names a failing suite as an annotation, so the next red names itself. Detail in the STATUS row.
 
+- **N-36** (S34, **OPEN**, owner decision asked): the owner's direct commit to `main`
+  (`fe4f0a7`, "Deleted shot_actions_tab.png") removed every image file — the 3 docs
+  screenshots and the 4 gifsicle test GIFs. The GIFs are test fixtures (engine tests,
+  smoke, oracle and so the pre-push hook, glue harness, the libc probe and the new
+  `portability` job, the Windows E2E smoke, the C# spike), so main's CI is red on it and a
+  merge of PR #10 stays red until it is decided: keep the repo binary-free (text/base64
+  fixtures, byte-identical), restore the 4 GIFs, restore everything, or leave it. G10 is
+  fixed separately (base lines re-anchored to `fe4f0a7`). Detail in the STATUS row.
+
 - **CI run shape** (S34, the owner's calls — not findings, so no register row): a `gate`
   job skips a *push* run when an open, mergeable PR exists for the branch (the PR's own
   run tests that commit), plus workflow-level `concurrency` (a newer push to the same
@@ -428,6 +437,7 @@ python3 tests/test_prove_wasm_oracle.py # prove_wasm.mjs --oracle with a fake mo
 python3 scripts/libc_parity/libc_parity.py --bar   # N-32 bar: wasm32-wasi == musl-native, byte for byte (zig + node + Pillow)
 python3 scripts/libc_parity/libc_parity.py --check # N-32 finding: glibc vs musl vs wasm output parity
 node scripts/lint_workflow.mjs          # actionlint (wasm build from npm) over .github/workflows
+./scripts/sim_postmerge.sh [--style squash] [--date "YYYY-MM-DD HH:MM"]   # will main's docs job pass after this merges?
 ./scripts/check_docs.sh    # documentation gate — must be green before any PR
 ./scripts/check_docs.sh --emit   # regenerate STATUS.md from the repo
 ./scripts/verify_audit.sh  # whole COMPILED_AUDIT §6 suite + the doc gate (F1/F2)
