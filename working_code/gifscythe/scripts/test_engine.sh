@@ -17,7 +17,9 @@ ENGINE="$REPO_ROOT/working_code/gifscythe/release/$VERSION/gifsicle"
 if [[ ! -x "$ENGINE" && -x "$ENGINE.exe" ]]; then
   ENGINE="$ENGINE.exe"
 fi
-SRC_GIF="$REPO_ROOT/reference_code/gifsicle/logo.gif"
+# The repo holds no binary files (N-36): the upstream test image is rebuilt from tests/fixtures/*.b64.
+FIXDIR="$("$REPO_ROOT/working_code/gifscythe/scripts/fixtures.sh")" || { echo "FAIL: cannot materialise the test fixtures" >&2; exit 1; }
+SRC_GIF="$FIXDIR/logo.gif"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 

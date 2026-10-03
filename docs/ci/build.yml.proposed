@@ -4,9 +4,100 @@ on:
   push:
   pull_request:
 
+# S34 (the owner's call): one run per branch and event, and no push run that the pull request already
+# covers.
+#  - concurrency: a newer push to the same branch (or PR) cancels the older run of the same event, so a
+#    quick follow-up commit does not pay for a Windows build nobody will read. A push to main is never
+#    cancelled and never replaces another (its group is the run id): every main commit keeps its proof.
+#  - the `gate` job skips a push run when an open, mergeable PR exists for the branch - the PR's own
+#    pull_request run tests that commit. Before a PR exists, and for a PR with merge conflicts (GitHub
+#    starts no pull_request run for those), the push run still runs: CI on a bare branch is the
+#    feedback loop the agent sessions work in.
+concurrency:
+  group: ${{ github.ref == 'refs/heads/main' && format('main-{0}', github.run_id) || format('build-{0}-{1}', github.event_name, github.head_ref || github.ref) }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Runner images (N-34, the owner's call, S34): ubuntu-24.04 is pinned in every Linux job (gate, docs,
+# linux, portability) instead of ubuntu-latest. GitHub moves that label from Ubuntu 24.04 to 26.04
+# gradually between 2026-10-19 and 2026-11-19 (changelog 2026-09-17); the linux job installs Qt with apt
+# and runs the offscreen GUI harness, so an image change could turn it red with no change in this repo -
+# the N-26 confusion again. To move to 26.04 on purpose: change the four labels together and trial the
+# change on a branch first.
+
 jobs:
+  # Decides whether this run does the work (see the concurrency note above). It never fails the run:
+  # every job below runs when the gate says "run", when it errors, and when it is cancelled-free.
+  gate:
+    name: gate (dedupe push vs PR runs)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      skip: ${{ steps.decide.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: working_code/gifscythe/scripts/ci_gate.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Decide (scripts/ci_gate.sh; table in tests/test_ci_gate.py)
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BRANCH: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+        run: bash working_code/gifscythe/scripts/ci_gate.sh
+
+  # The documentation status gate used to be step 7 of the linux job. A red gate
+  # skipped everything after it - the web suites, the oracle, the Qt GUI harness
+  # and the packaging steps (main run 36960880593: six verification steps skipped
+  # by one failed date comparison) - so CI could not tell "the docs are stale"
+  # from "the code is broken". It is its own job now: a doc failure is named as
+  # such and masks nothing, and it reports in about a minute instead of after the
+  # whole linux build.
+  #
+  # Full history on purpose (fetch-depth: 0). A depth-1 checkout made G11 compare
+  # the log date with the CHECKOUT's own date (the tip looks like it adds every
+  # file) and made G10 skip on every branch and PR run, so main went red the day
+  # after each log entry while the same tree was green on its PR (N-26 / N-31).
+  # With history the gate measures what the local pre-push hook measures.
+  docs:
+    needs: gate
+    if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The gate re-measures the unit-suite RUNTIME count (G9b needs the built
+      # binary) and G15 needs the git-hook bootstrap that build.sh performs. No
+      # Qt here: without Qt6 the gate takes its stricter branch in which harness
+      # counts must be labelled as past measurements (G9c) - the same branch a
+      # developer sandbox takes.
+      - name: Build engine, CLI and unit tests (the gate re-measures them)
+        working-directory: working_code/gifscythe
+        run: ./build.sh
+
+      # The docs are the context the next session starts from, so a stale
+      # STATUS.md is corrupted input rather than a cosmetic problem. This gate
+      # regenerates the status register from the repo and diffs it against the
+      # committed one, so a hand-fudged roll-up cannot pass. --no-gate-run keeps
+      # it from re-running verify_audit.sh, whose build/package/web steps the
+      # linux and windows jobs already run (the same reason the whole of
+      # verify_audit.sh is deliberately not a CI step).
+      - name: Documentation status gate (STATUS.md register)
+        working-directory: working_code/gifscythe
+        run: ./scripts/check_docs.sh --no-gate-run
+
   linux:
-    runs-on: ubuntu-latest
+    needs: gate
+    if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -25,33 +116,40 @@ jobs:
         working-directory: working_code/gifscythe
         run: ./scripts/smoke_cli.sh
 
-      # The docs are the context the next session starts from, so a stale
-      # STATUS.md is corrupted input rather than a cosmetic problem. This gate
-      # regenerates the status register from the repo and diffs it against the
-      # committed one, so a hand-fudged roll-up cannot pass. --no-gate-run keeps
-      # it from re-running verify_audit.sh, whose build/package/web steps this
-      # job already runs (the same reason the whole of verify_audit.sh is
-      # deliberately not a CI step).
-      - name: Documentation status gate (STATUS.md register)
-        working-directory: working_code/gifscythe
-        run: ./scripts/check_docs.sh --no-gate-run
+      # The documentation status gate is the separate `docs` job above (S34): as
+      # a step here, one doc failure skipped every verification step below it.
 
       # The web/ demo ships a SECOND copy of the command builder and the
       # validation rules. Nothing in the C++ suites touches them, so without
       # these two the JS and C++ sides drift silently (audit U-03 proved they
       # do). They need only the CLI built above plus the Node on the runner.
+      # S34: every suite runs even if an earlier one failed, and a failing suite is NAMED. The job log
+      # is unreadable from the agent sessions (Actions log blobs are blocked) and check-run annotations
+      # are not, so the first red of this step - a startup-banner race in server-bounds, one run in
+      # about fifteen - read only "exit code 1" and had to be found by reproducing it locally. The
+      # step still fails if any suite fails.
       - name: Web JS/C++ parity + server regression tests
         run: |
-          set -euo pipefail
-          node web/test/command.test.mjs
-          node web/test/validate.test.mjs
-          node web/test/numeric-honesty.test.mjs
-          node web/test/transport.test.mjs
-          node web/test/body-limit.test.mjs
-          node web/test/static-hygiene.test.mjs
-          node web/test/request-guard.test.mjs
-          node web/test/device-names.test.mjs
-          node web/test/server-bounds.test.mjs
+          set -uo pipefail
+          failed=""
+          for t in command validate numeric-honesty transport body-limit static-hygiene request-guard device-names server-bounds; do
+            if out="$(node "web/test/$t.test.mjs" 2>&1)"; then
+              printf '%s\n' "$out" | tail -n 2
+            else
+              failed="$failed $t"
+              printf '%s\n' "$out"
+              msg="$(printf '%s\n' "$out" | grep -E -A3 --no-group-separator '^(FAIL|Error|AssertionError)|FAILED' | head -n 16 || true)"
+              [ -n "$msg" ] || msg="$(printf '%s\n' "$out" | tail -n 12)"
+              msg="${msg//'%'/'%25'}"
+              msg="${msg//$'\r'/'%0D'}"
+              msg="${msg//$'\n'/'%0A'}"
+              echo "::error title=web suite $t failed::${msg}"
+            fi
+          done
+          if [ -n "$failed" ]; then
+            echo "failed suites:$failed"
+            exit 1
+          fi
 
       - name: Seeded engine-oracle conformance (U-94 / P2-18)
         run: node working_code/gifscythe/scripts/oracle_fuzz.mjs --full
@@ -63,7 +161,8 @@ jobs:
           set -euo pipefail
           cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON
           cmake --build build-cmake -j2
-          QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
+          # The repo holds no image files (N-36): GS_TEST_REF_DIR is the harness's own hook for where logo.gif lives.
+          GS_TEST_REF_DIR="$(./scripts/fixtures.sh)" QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
 
       - name: Package portable
         working-directory: working_code/gifscythe
@@ -98,7 +197,67 @@ jobs:
       # linux build/package/assert above stays as the automated test battery
       # for the shared logic (engine, CLI, GUI harness, stager).
 
+  # S34 (the owner's call; N-30 and N-32): the two checks that need neither a Windows box nor emcc,
+  # only zig - a pinned pip wheel that cross-compiles to every target below. A separate job, so it
+  # runs beside the others: about 2 runner-minutes on Actions (run 36983286343: toolchain 8 s, the
+  # 32-bit unit suite 69 s, the wasm bar 38 s), against about 4 minutes for the windows ->
+  # csharp-spike chain, which is the longest path - so it adds no wall-clock time. Any non-zero
+  # exit fails it, including a runner's "SKIPPED" exit 3 (and GS_REQUIRE_PROOF=1 below turns a
+  # skipped Python suite into a failure): a skipped proof must never read as a passed one.
+  portability:
+    name: portability (32-bit long, wasm32 bar)
+    needs: gate
+    if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # A venv: 24.04's system pip refuses to install into the system Python (PEP 668).
+      - name: Install the pinned toolchain (zig, Pillow)
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet ziglang==0.16.0 pillow==12.3.0
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/venv/bin/python" -m ziglang version
+          node --version
+
+      # N-30: Windows is LLP64 (`long` is 4 bytes) and is the only platform we ship, but the fast jobs
+      # run on LP64 Linux. This builds the unit suite for x86-linux-musl, where `long` is 4 bytes, and
+      # runs it: the bug that kept the Windows job red for 31 runs (a `long` integer probe) fails
+      # here, in seconds, on a Linux runner. RED/GREEN evidence: STATUS N-30.
+      - name: Unit suite on a 32-bit-long target (the N-30 class)
+        working-directory: working_code/gifscythe
+        run: ./scripts/test_unit_32bit_long.sh
+
+      # N-32, the owner's decision: the wasm track's bar is a SAME-LIBC native oracle. gifsicle's output
+      # depends on libc qsort tie order and random(), so byte parity with the glibc build cannot pass;
+      # what a wasm port can break is held to a musl-native build of the same sources instead. The
+      # wasm32-wasi build runs under Node's WASI. --keep leaves the musl engine for the next step.
+      - name: wasm32 engine == same-libc native engine, byte for byte (N-32 bar)
+        run: python3 working_code/gifscythe/scripts/libc_parity/libc_parity.py --bar --keep "$RUNNER_TEMP/parity"
+
+      # The Emscripten-side comparison (prove_wasm.mjs --oracle) can only run against a real emcc
+      # build, which nothing here can make; this exercises its comparison logic with a fake module.
+      - name: prove_wasm.mjs --oracle logic (fake module, real native engine)
+        env:
+          GS_TEST_ENGINE: ${{ runner.temp }}/parity/engine_musl
+          GS_REQUIRE_PROOF: "1"   # a missing engine must fail this step, not skip ten tests and stay green
+        run: python3 working_code/gifscythe/tests/test_prove_wasm_oracle.py
+
+      - name: Bar verdict logic (a proof gate must be able to fail)
+        run: python3 working_code/gifscythe/tests/test_libc_parity_bar.py
+
+      # N-36: the repo holds no image files; the test images are text rebuilt by fixtures.sh. The first CI run of
+      # that change failed on Windows (a CRLF checkout: GNU base64 -d rejects a CR) in steps whose logs nothing here
+      # can read, so this suite reproduces a CRLF checkout offline and the Windows steps prove the real thing.
+      - name: Text fixtures rebuild byte-identical images, from LF and from CRLF (N-36)
+        run: python3 working_code/gifscythe/tests/test_fixtures.py
+
   windows:
+    needs: gate
+    if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
     runs-on: windows-latest
     defaults:
       run:
@@ -107,6 +266,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Qt6 (aqt) + MinGW toolchain
+        id: provision
         run: |
           set -euo pipefail
           pip install aqtinstall
@@ -126,6 +286,29 @@ jobs:
           echo "QT_PREFIX=$(dirname "$QT_BIN")" >> "$GITHUB_ENV"
           echo "QT_BIN=$QT_BIN" >> "$GITHUB_ENV"
           echo "$QT_BIN" >> "$GITHUB_PATH"
+
+      # Diagnostics only (S34, N-30): which compiler did the aqt fallback chain
+      # (tools_mingw1310 -> 1120 -> 90 -> choco) actually leave first on PATH? The
+      # job log is unreadable from the agent sandboxes, but check-run annotations
+      # are, so the answer is also published as one notice. Never fails the job.
+      - name: Toolchain identity (diagnostic only, never fails the job)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          set +e
+          gxx="$(command -v g++)"
+          ver="$(g++ --version 2>&1 | head -n 1)"
+          tgt="$(g++ -dumpmachine 2>&1 | head -n 1)"
+          cm="$(command -v cmake >/dev/null 2>&1 && cmake --version 2>&1 | head -n 1 || echo 'cmake not on PATH')"
+          nj="$(command -v ninja >/dev/null 2>&1 && ninja --version 2>&1 | head -n 1 || echo 'not on PATH')"
+          all="$(which -a g++ 2>/dev/null | head -n 5 | tr '\n' ';')"
+          echo "g++    : ${gxx:-<none on PATH>} :: ${ver}"
+          echo "target : ${tgt}"
+          echo "cmake  : ${cm}"
+          echo "ninja  : ${nj}"
+          echo "every g++ on PATH (first five): ${all}"
+          echo "aqt tools:"; ls -1 "$RUNNER_TEMP/qt/Tools" 2>&1 | head -n 20
+          echo "::notice title=Windows toolchain identity (N-30)::g++=${gxx:-none} | ${ver} | target ${tgt} | ${cm} | ninja ${nj} | on PATH: ${all}"
 
       - name: Build Windows engine (win32cfg.h)
         working-directory: working_code/gifscythe
@@ -148,6 +331,7 @@ jobs:
           ls -la release/*/gifsicle.exe
 
       - name: Build CLI + unit tests
+        id: cli_tests
         working-directory: working_code/gifscythe
         run: |
           set -euo pipefail
@@ -170,6 +354,43 @@ jobs:
           g++ -std=c++17 -O2 -static -I src -o build/test_gifsicle_command.exe tests/test_gifsicle_command.cpp
           ./build/test_gifsicle_command.exe
 
+      # Diagnostics only (S34, N-30). Runs ONLY when the step above failed: re-runs
+      # the same two compiles (and the unit exe if it linked) with their output
+      # captured, probes S33's `-lstdc++fs` hypothesis, and publishes the tail as
+      # an error annotation - the one channel of a failed run the agent sandboxes
+      # can read. Original step untouched; this one never changes the job's result.
+      - name: Diagnose CLI/unit-test build failure (diagnostic only)
+        if: ${{ !cancelled() && steps.cli_tests.outcome == 'failure' }}
+        continue-on-error: true
+        working-directory: working_code/gifscythe
+        run: |
+          set +e
+          out=build/diag_compile.log
+          mkdir -p build
+          echo "g++ $(g++ -dumpfullversion 2>&1 | head -n 1) ($(g++ -dumpmachine 2>&1 | head -n 1))" > "$out"
+          run_logged() {
+            echo "\$ $*" >> "$out"
+            "$@" >> "$out" 2>&1
+            rc=$?
+            echo "[exit $rc]" >> "$out"
+            return $rc
+          }
+          run_logged g++ -std=c++17 -O2 -static -I src -o build/diag_cli.exe src/cli/main.cpp
+          run_logged g++ -std=c++17 -O2 -static -I src -o build/diag_unit.exe tests/test_gifsicle_command.cpp
+          if [[ -f build/diag_unit.exe ]]; then
+            echo "\$ run unit tests (last 25 lines)" >> "$out"
+            ./build/diag_unit.exe 2>&1 | tail -n 25 >> "$out"
+            echo "[exit ${PIPESTATUS[0]}]" >> "$out"
+          fi
+          echo "[probe: same CLI compile with -lstdc++fs appended]" >> "$out"
+          run_logged g++ -std=c++17 -O2 -static -I src -o build/diag_cli_fs.exe src/cli/main.cpp -lstdc++fs
+          cat "$out"
+          msg="$(tail -c 3500 "$out")"
+          msg="${msg//'%'/'%25'}"
+          msg="${msg//$'\r'/'%0D'}"
+          msg="${msg//$'\n'/'%0A'}"
+          echo "::error title=CLI/unit-test build diagnostics (N-30)::${msg}"
+
       - name: Windows engine + CLI E2E smoke (native)
         working-directory: working_code/gifscythe
         run: |
@@ -180,8 +401,10 @@ jobs:
           win_temp=$(cygpath -m "$RUNNER_TEMP" 2>/dev/null || echo "${RUNNER_TEMP//\//}")
           smoke="$win_temp/gs-smoke"
           mkdir -p "$smoke/my vacation"
-          cp ../../reference_code/gifsicle/logo.gif "$smoke/in.gif"
-          cp ../../reference_code/gifsicle/logo1.gif "$smoke/my vacation/b.gif"
+          # The repo holds no image files (N-36): the upstream test images are rebuilt from text.
+          fix="$(./scripts/fixtures.sh)"
+          cp "$fix/logo.gif" "$smoke/in.gif"
+          cp "$fix/logo1.gif" "$smoke/my vacation/b.gif"
           printf 'mode = auto\noptimize = 3\ninput = %s/in.gif\noutput = %s/out.gif\n' \
             "$smoke" "$smoke" > "$smoke/one.conf"
           printf 'mode = auto\noptimize = 2\ninput = %s/my vacation/b.gif\noutput = %s/my vacation/b_opt.gif\n' \
@@ -197,7 +420,15 @@ jobs:
           fi
           echo "Windows E2E smoke OK"
 
+      # S34: independent of "Build CLI + unit tests". This CMake build compiles its
+      # own copy of the CLI and tests, and the offscreen harness after it needs
+      # only the engine from the step before - gating both on that step's success
+      # hid the whole Windows GUI build and harness behind a CLI/unit-test red
+      # for days (N-30). They still need the provisioning step: with no Qt
+      # toolchain there is nothing to build.
       - name: Build GUI (CMake) + windeployqt
+        id: gui_build
+        if: ${{ !cancelled() && steps.provision.outcome == 'success' }}
         working-directory: working_code/gifscythe
         run: |
           set -euo pipefail
@@ -231,10 +462,16 @@ jobs:
           if [[ -f "release/$version/gifsicle.exe" ]]; then
             cp "release/$version/gifsicle.exe" "$(dirname "$GUI_EXE")/"
           fi
-          # Also stage CLI next to GUI
-          [[ -f build/gifscythe-cli.exe ]] && cp build/gifscythe-cli.exe "$(dirname "$GUI_EXE")/"
+          # Also stage CLI next to GUI. An `if`, not `[[ ]] && cp`: as the last
+          # command of the script a missing CLI made the && list exit 1 and failed
+          # the whole GUI step for a reason unrelated to the GUI (the packaging
+          # manifest assert further down still fails on a missing CLI).
+          if [[ -f build/gifscythe-cli.exe ]]; then
+            cp build/gifscythe-cli.exe "$(dirname "$GUI_EXE")/"
+          fi
 
       - name: GUI offscreen tests (Windows)
+        if: ${{ !cancelled() && steps.gui_build.outcome == 'success' }}
         timeout-minutes: 12
         working-directory: working_code/gifscythe
         run: |
@@ -245,7 +482,8 @@ jobs:
           # app-dir first removes any relocated-Qt path doubt).
           mkdir -p build-win/platforms
           cp "$QT_BIN/../plugins/platforms/qoffscreen.dll" build-win/platforms/ || true
-          QT_QPA_PLATFORM=offscreen ./build-win/test_gui_offscreen.exe
+          # The repo holds no image files (N-36): GS_TEST_REF_DIR is the harness's own hook for where logo.gif lives.
+          GS_TEST_REF_DIR="$(cygpath -m "$(./scripts/fixtures.sh)")" QT_QPA_PLATFORM=offscreen ./build-win/test_gui_offscreen.exe
 
       - name: Package portable (Windows)
         working-directory: working_code/gifscythe
@@ -316,9 +554,11 @@ jobs:
           [[ -x "$exe" ]] || { echo "FAIL: spike exe missing: $exe" >&2; exit 1; }
           work="$RUNNER_TEMP/spike"
           rm -rf "$work"; mkdir -p "$work/plain" "$work/vacación" "$work/日本語"
-          cp reference_code/gifsicle/logo.gif "$work/plain/in.gif"
-          cp reference_code/gifsicle/logo1.gif "$work/vacación/résumé final.gif"
-          cp reference_code/gifsicle/logo1.gif "$work/日本語/入力.gif"
+          # The repo holds no image files (N-36): the upstream test images are rebuilt from text.
+          fix="$(bash working_code/gifscythe/scripts/fixtures.sh)"
+          cp "$fix/logo.gif" "$work/plain/in.gif"
+          cp "$fix/logo1.gif" "$work/vacación/résumé final.gif"
+          cp "$fix/logo1.gif" "$work/日本語/入力.gif"
           printf 'not a gif\n' > "$work/plain/bad.gif"
           echo "SPIKE_ENGINE=$PWD/$engine" >> "$GITHUB_ENV"
           echo "SPIKE_EXE=$PWD/$exe" >> "$GITHUB_ENV"
@@ -451,7 +691,7 @@ jobs:
           set -euo pipefail
           work="$RUNNER_TEMP/spike-published"
           rm -rf "$work"; mkdir -p "$work"
-          cp reference_code/gifsicle/logo.gif "$work/in.gif"
+          cp "$(bash working_code/gifscythe/scripts/fixtures.sh)/logo.gif" "$work/in.gif"
           engine=$(find spike-deps -name 'gifsicle.exe' -print -quit)
           [[ -n "$engine" && -s "$engine" ]] || { echo "FAIL: engine not in artifact" >&2; exit 1; }
           csharp/spike/publish/gifscythe-spike.exe \

@@ -14,15 +14,18 @@ deliberately carries no session narrative any more: the S4–S24 history is in
 2026-09-17 consolidation (S24) folded the dated doc snapshots together — see
 `docs/archive/AUDIT_HISTORY.md` for the audit-history index.
 
-**Honesty summary (as of S24, 2026-09-17):** the desktop/CLI/web surfaces are
-CI-verified on linux + windows (main green at `3c67e14`, run 35112077599,
-2026-09-16). What has NEVER been proven: the portable Windows bundle on a real
-clean machine (W-18) and three physical-desktop GUI behaviors (W-19) — Wine and
-the offscreen harness are emulation/CI signals, not Windows proof. One
-registered data-loss row is still open (U-59/P0-7: cancel can truncate a file
-over a previous good output), and the one published Release
-(`snapshot-2026-09-07`) is stale (U-09) and predates the Ms-PL relicence
-(U-95) — treat it as a historical artifact, not a current build.
+**Honesty summary (as of S34, 2026-10-02):** the desktop, CLI and web surfaces are
+exercised by CI on linux + windows (`.github/workflows/build.yml`); on the S34
+branch's run 36967608254 all four jobs were green, including the Windows build,
+unit tests and offscreen GUI harness. What has NEVER been proven: the portable
+Windows bundle on a real clean machine (W-18) and three physical-desktop GUI
+behaviors (W-19) — Wine and the offscreen harness are emulation/CI signals, not
+Windows proof. The one registered data-loss row (U-59/P0-7: a cancel could
+truncate a file over a previous good output) is closed — CLI S28, GUI S30,
+Explode S31. There is no published release: the repo has no GitHub Releases or
+tags yet (the re-cut, P0-4, is still to do), so build from source (Quick start
+below) or take a CI artifact. This paragraph is a dated snapshot; for anything
+time-sensitive read `STATUS.md`.
 
 ## Quick start
 
@@ -40,11 +43,12 @@ cd working_code/gifscythe
 Web app (self-hosted product alternative): `node web/server.mjs 8000` from the
 repo root, then open http://localhost:8000 — see `web/README.md`.
 
-## Screenshots (S10 refresh, offscreen Qt 6.4.2 — see docs/screenshots/README.md)
+## Screenshots
 
-| Input tab — queue, reorder, before/after preview | Actions tab — full control surface | Output tab — template, batch folder, summary |
-|---|---|---|
-| ![Input tab](docs/screenshots/shot_input_tab.png) | ![Actions tab](docs/screenshots/shot_actions_tab.png) | ![Output tab](docs/screenshots/shot_output_tab.png) |
+The repository holds **no image files** (the owner removed them all in `fe4f0a7`, 2026-10-02), so the three
+UI screenshots that used to be shown here are gone. They can be regenerated on any Qt machine from the recipe
+in `docs/screenshots/README.md` (offscreen `MainWindow`, one `grab()` per tab). The two upstream test images
+the suites need are kept as text and rebuilt on demand (`working_code/gifscythe/scripts/fixtures.sh`).
 
 ## Repo layout (post-S24 consolidation: one file per topic)
 

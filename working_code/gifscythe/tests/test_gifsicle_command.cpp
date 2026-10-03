@@ -1315,6 +1315,61 @@ int main() {
     CHECK(out3.str().find("dither") == std::string::npos);
   }
 
+  // 37. N-30 root cause (S34): the integer probes must not depend on sizeof(long).
+  //     `need_int` / `need_ulong_nonneg` classified a value with a `long` probe
+  //     before the width-strict parse. On LP64 (Linux) long is 64 bits; on Windows
+  //     (LLP64) and on any ILP32 host it is 32, so the probe called
+  //     2147483648..4294967295 "not an integer" while to_uint_strict and S32's
+  //     position probe accept them: `position_x = 3000000000` left x at 0 with the
+  //     pair live (`-p 0,5`) - on the only platform that ships. Every assertion
+  //     here holds at every width; the Windows CI job and a 32-bit-long local
+  //     build (zig -target x86-linux-musl) are what make them bite. The reason
+  //     TEXT is asserted on purpose: the old tests counted warnings, which is why
+  //     a verdict that changed with the platform went unnoticed.
+  {
+    auto load1 = [](const char* text, std::string* reason, const char* key) {
+      std::vector<LoadWarning> w;
+      std::istringstream is(text);
+      Settings s = load_settings(is, &w);
+      if (reason) {
+        reason->clear();
+        for (const auto& x : w) {
+          if (x.key == key) { *reason = x.reason; break; }
+        }
+      }
+      return s;
+    };
+    std::string why;
+    {   // unsigned controls: values above INT_MAX up to UINT_MAX are legal everywhere
+      Settings s = load1("crop_w = 3000000000\n", &why, "crop_w");
+      CHECK(s.crop_w == 3000000000u);
+      CHECK(why.empty());
+    }
+    {
+      Settings s = load1("resize_w = 4294967295\n", &why, "resize_w");
+      CHECK(s.resize_w == 4294967295u);
+      CHECK(why.empty());
+    }
+    {   // one past UINT_MAX: out of range, and SAID so (not "not an integer")
+      Settings s = load1("crop_w = 4294967296\n", &why, "crop_w");
+      CHECK(s.crop_w == 0u);
+      CHECK(why.find("outside the range") != std::string::npos);
+    }
+    {   // int controls: beyond INT_MAX is out of range at every width
+      Settings s = load1("threads = 3000000000\n", &why, "threads");
+      CHECK(s.threads == GS_THREADS_UNSET);
+      CHECK(why.find("outside the range") != std::string::npos);
+    }
+    {   // the other two verdicts keep their words at every width
+      Settings s = load1("crop_w = -5\n", &why, "crop_w");
+      CHECK(s.crop_w == 0u);
+      CHECK(why == "negative value rejected");
+      Settings u = load1("crop_w = abc\n", &why, "crop_w");
+      CHECK(u.crop_w == 0u);
+      CHECK(why == "not an integer");
+    }
+  }
+
   std::printf("==> %d checks, %d failures\n", checks, failures);
   if (failures == 0) {
     std::printf("ALL TESTS PASSED\n");

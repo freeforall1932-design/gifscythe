@@ -16,18 +16,37 @@ back to enforcing byte-equality with no standing exception.
   in the same commit, per the marker's own delete-rule. Edit both files in the
   same commit from now on; `verify_audit.sh` **E9** / `check_docs.sh` **G7**
   FAIL any undeclared drift.
-- **The documentation status gate is live in CI** (linux job step
+- **The documentation status gate is live in CI as its own `docs` job** (step
   "Documentation status gate (STATUS.md register)": `scripts/check_docs.sh
-  --no-gate-run`). Applied by the maintainer (`190d030` era; confirmed S14),
-  which is why register rows W-30/R-03/GS-208 closed in S24. `--no-gate-run`
-  skips G6 (the linux job already builds and runs the web suites; re-running
-  `verify_audit.sh` inside the gate would double the job).
-- **Workflows-scope pushes work:** the token blocker recorded in S9 was lifted
-  in S18 (scope granted, verified by the pushed `build.yml` change in
-  `161e862`; PR #28 pushed workflow edits too). A push touching
-  `.github/workflows/` still needs a token with that permission — the doc copy
-  exists so the recipe survives even when a given token lacks it.
-- **What the workflow runs:** linux + windows jobs — engine build,
+  --no-gate-run`, run after `./build.sh` so G9b can re-measure the unit count
+  and G15 sees the hook bootstrap). Applied by the maintainer (`190d030` era;
+  confirmed S14), which is why register rows W-30/R-03/GS-208 closed in S24.
+  **S34 moved it out of the linux job.** As step 7 there, one doc failure
+  skipped the web suites, the oracle, the Qt GUI harness and the packaging
+  steps (main run `36960880593`), so CI could not tell stale docs from broken
+  code. The job checks out **full history** (`fetch-depth: 0`): a depth-1
+  checkout made G11 compare the log with the checkout's own date and made G10
+  skip on every branch and PR run (N-26 / N-31), so main went red the day
+  after each log entry while the same tree was green on its PR. With history
+  the gate measures what the local pre-push hook measures. `--no-gate-run`
+  skips G6 (the other jobs already build and run the suites; re-running
+  `verify_audit.sh` inside the gate would double the work).
+- **Agent sessions can push `.github/workflows/` (verified S34).** The token
+  blocker recorded in S9 was lifted in S18 (scope granted, verified by the
+  pushed `build.yml` change in `161e862`; PR #28 pushed workflow edits too —
+  old-remote shas, kept as the written record), and S34 re-verified it on the
+  re-created remote with the Arena agent's own GitHub App token: the branch's
+  first push carried two workflow commits (`9bc155f`, `7e0feca`), was
+  accepted, and Actions ran them (run 36966494878). So do **not** stage a CI
+  fix as a proposal waiting for "a workflows-scoped token": edit
+  `.github/workflows/build.yml` and `docs/ci/build.yml.proposed` in the same
+  commit and push. The doc copy stays — gates E9/G7/S1 enforce byte equality —
+  as the recipe that survives for a token that *is* rejected: if GitHub ever
+  rejects a workflow push, quote the rejection text, then take the
+  pending-marker route (recreate `PENDING_WORKFLOW_CHANGE.md` in the same
+  commit, delete it in the commit that applies the change).
+- **What the workflow runs:** the `gate`, `docs`, `linux`, `portability`, `windows` and
+  `csharp-spike` jobs — engine build,
   static-linked CLI/tests, GUI (CMake; Ninja+MinGW on Windows), native E2E
   smokes, the offscreen GUI harness, the Windows unit-test exe
   (`build/test_gifsicle_command.exe` — relevant to `U-71`/`U-94`-class rows:
@@ -35,10 +54,92 @@ back to enforcing byte-equality with no standing exception.
   web suites, packaging + manifest assertion (Windows ships; linux is the test
   battery since S20/OD-17), artifact upload (`gifscythe-windows`, 14-day
   retention; binaries are banked on Releases), the csharp-spike job (parked
-  track, still CI-run), and the doc gate.
+  track, still CI-run), and the doc gate (its own `docs` job). The Windows GUI
+  build and its offscreen harness (S34) run even when the CLI/unit-test step
+  before them failed; they only need the Qt provisioning step to have worked.
+  Two diagnostics-only Windows steps (S34, N-30) publish what a failed run's
+  unreadable log would show: a toolchain-identity notice after provisioning,
+  and — only when the CLI/unit-test step failed — a re-run of the same two
+  compiles with a `-lstdc++fs` probe whose tail is published as an error
+  annotation. Check-run annotations are the one channel of a failed run the
+  agent sandboxes can read (`gh api repos/<repo>/check-runs/<job id>/annotations`);
+  GitHub caps them at 10 errors and 10 warnings per step and 50 per job.
+  The linux job's web-suite step does the same (S34, N-35): every suite runs even if an
+  earlier one failed, and a failing suite is named by an annotation carrying its `FAIL` lines
+  and the three lines after each. Its first red (run 36985082450) said only "exit code 1"
+  and was a startup-banner race in a test helper, found by reproducing it locally.
+  These steps are what named N-30 — a 32-bit-`long` bug in the settings
+  parser, not the toolchain, so the `-lstdc++fs` probe turned out to be a
+  spare. Both stay (inert, `continue-on-error`) for the next red Windows run.
+- **Run shape (S34, the owner's calls).** The workflow still triggers on `push` (every
+  branch) and `pull_request`, but a push to a branch with an open, *mergeable* PR no
+  longer repeats the PR's run: the `gate` job (`scripts/ci_gate.sh`; decision table
+  `tests/test_ci_gate.py`) answers `skip=true` and the other jobs are skipped, which
+  is neutral on the PR page. It answers `skip=false` — the push runs — for `main`,
+  tags, a branch with no PR yet, a PR with merge conflicts (GitHub starts no
+  `pull_request` run for those, so the push is its only CI) and for every doubt (API
+  error, `mergeable` still `null` after 8 polls). The jobs carry
+  `if: !cancelled() && needs.gate.outputs.skip != 'true'`, so even a crashed gate runs
+  everything. Workflow-level `concurrency` cancels the older run of the same event on
+  the same branch or PR when a newer push arrives; a push to `main` is never
+  cancelled (its group is the run id). Seen live (S34): the push run of this PR's branch
+  ran only the gate (`skip=true`, run 36983282655) while the `pull_request` run ran all six
+  jobs (run 36983286343); the PR page lists the skipped jobs as neutral. The gate job (about
+  6 s) sits in front of every other job; the whole PR run took 4.3, 4.1 and 4.4 minutes in
+  three runs against 4.1 before, i.e. inside the noise. `cancel-in-progress` was seen working (S34):
+  two commits pushed about a minute apart cancelled the first commit's `pull_request` run
+  (36984484547: every job `cancelled`); the cancel took about a minute and a half to take
+  effect after the second push, and the newer run waited as `pending` until then. The first
+  commit's *push* run had already finished (the gate skips it in seconds), so there was
+  nothing to cancel there. **Trade-off:** this repo cites the run of a
+  specific commit as evidence (N-11, N-16, N-30) — to keep a commit's run, let it
+  finish before pushing again.
+- **Runner images (N-34, S34).** `ubuntu-24.04` is pinned in all four Linux jobs
+  instead of `ubuntu-latest`, which GitHub moves to Ubuntu 26.04 between 2026-10-19
+  and 2026-11-19. To move on purpose, change the four labels in both workflow copies
+  and trial the change on a branch first.
+- **`portability` (S34, the owner's calls; N-30, N-32).** The checks that need zig but
+  neither a Windows box nor emcc, in one job beside the others. Measured on Actions:
+  2.0 minutes (run 36983286343: toolchain 8 s, the 32-bit unit suite 69 s, the wasm bar 38 s)
+  and 2.4 and 2.5 on the next two (36983984989: 9 s, 87 s, 44 s; 36985082450) — against about 4 minutes for the windows -> csharp-spike chain, so it adds no wall-clock
+  time (the slower sandbox needs about 3 minutes for the same two checks with a cold zig
+  cache). The owner accepted roughly two minutes because it helps verify the project. The
+  job holds the unit suite on a 32-bit-`long` target (`scripts/test_unit_32bit_long.sh`, the
+  N-30 class), `scripts/libc_parity/libc_parity.py --bar` (the wasm32-wasi build byte-equal
+  to a musl-native build - N-32's bar) and the two Python suites that pin the bar's logic and
+  `prove_wasm.mjs --oracle`. zig and Pillow are pinned pip wheels in a venv. Any non-zero
+  exit fails the job, including a runner's "SKIPPED" exit 3, and `GS_REQUIRE_PROOF=1` makes
+  a Python suite that cannot find its prerequisites a failure instead of ten silent skips
+  (the first run of that suite was green in 0 s with no way to tell from outside whether it
+  had run): a skipped proof must never read as a passed one.
+- **No image files in the repo — test images are text (S34, N-36).** The owner removed every image in
+  `fe4f0a7`. The two upstream test images the suites need are base64 under
+  `working_code/gifscythe/tests/fixtures/` (sha256 in `SHA256SUMS`) and are decoded on demand into
+  `build/fixtures/`: `scripts/fixtures.sh` for bash (the Windows E2E smoke, the C# spike and the
+  GUI-harness steps call it), `scripts/fixtures.mjs` for Node. The Qt harness is pointed at the result
+  with its own `GS_TEST_REF_DIR` hook. Do not re-add a `.gif`/`.png`; add a text fixture.
+- **Before asking for a merge: `scripts/sim_postmerge.sh` (S34).** It builds the commit GitHub would
+  create on top of the current `origin/main` — `--style merge|squash|rebase`, `--date` the UTC day
+  of the merge — in a scratch full-history clone and runs the `docs` job's steps on it. A PR's own
+  green run cannot show what main's push run will say, because G10 (the base lines against main's
+  tip and its first parent) and G11 (the log date against the newest non-doc commit) depend on the
+  shape and the day of the merge. It caught, in S34, a main that had moved under the pre-synced PR
+  (G10 and G8 red before the merge, not after), and measured that a merge commit passes on any
+  day, a squash fails G11 when merged on a later UTC day than the log entry's date, and a rebase
+  conflicts for a branch that holds merge commits.
+- **Editing the workflow offline (S34).** No actionlint binary is obtainable here (its
+  release host is blocked), but `node working_code/gifscythe/scripts/lint_workflow.mjs`
+  runs its WebAssembly build from npm (installed on first use into `$TMPDIR`), drops
+  the one known false positive (that build's label list predates `ubuntu-24.04`) and
+  has a `--selftest`. With `check-jsonschema --builtin-schema vendor.github-workflows
+  .github/workflows/build.yml` it catches structural mistakes before a push-and-wait
+  cycle.
 - **Gate places:** the gates run in three places — `.githooks/pre-push`
   (bootstrap once per clone: `scripts/bootstrap_hooks.sh`; `build.sh` does it),
-  the linux CI job, and `scripts/pr_preflight.sh` at PR create **and** merge.
+  the CI `docs` job, and `scripts/pr_preflight.sh` at PR create **and** merge.
+  Step **P6** of the preflight lets a PR pre-sync itself (S34): the handoff's
+  "Docs synced through" line may name the branch's own open PR, so a merge from the
+  GitHub UI leaves nothing to edit afterwards.
   **`scripts/review_change.sh`** is the separate diff reviewer (R1 edited check
   logic, R2 matchers that match nothing — how G10 stayed dead for five PRs —
   R3 prose counts vs live measurement, R4 lost executable bits, R5 obliged doc

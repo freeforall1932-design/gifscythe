@@ -220,7 +220,9 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S24.
    PR without an explicit yes. Docs consolidation (S24): the dated snapshots and the four
    external review files are folded into COMPILED_AUDIT.md / docs/archive/AUDIT_HISTORY.md -
    originals live in git history at 3c67e14; do not recreate scattered copies (G17/S2
-   class). Keep every gate green; never ask the owner for tokens.
+   class). Keep every gate green; never ask the owner for tokens. CI workflow edits ARE pushable by
+   an agent session (verified S34): edit .github/workflows/build.yml and its byte copy
+   docs/ci/build.yml.proposed in one commit and push - do not park them as proposals.
 ```
 
 ---
@@ -251,7 +253,8 @@ that S32 corrected):
    and gains the audit remainder the report predates: **N-18**'s remaining
    line-by-line reads (`src/core/SettingsIO.h`, `src/qtui/SettingsPanel.cpp`,
    `tests/test_gifsicle_command.cpp`), **N-25** (rate-limit map), **N-26** (CI
-   linux flake — it also threatens the W-18 "real green CI run" precondition).
+   linux flake — it also threatens the W-18 "real green CI run" precondition; **S34: closed** —
+   it was the doc gate, not a flake, and a fully green CI run now exists).
 3. **Sources corrections:** the report's Sources list cited a
    docs/web/WEB_FEASIBILITY.md file that does not exist in this repo (that
    content has lived in §1 since the S24 consolidation), and "the two
@@ -275,14 +278,14 @@ ones are done). ~~1. Finish the GUI's partial-write safety (U-59/P0-7)~~ —
 2. Release re-cut: U-09/P0-4 + the U-95 release-notes edit (owner action first:
    mark the pre-relicence Release superseded/pre-release, never delete).
 3. Clean-Windows smoke test (W-18) — re-point at a real green CI run (see
-   N-26), then actually run it on real hardware (a CI artifact is not the same
+   N-26 — closed S34; run 36967608254 is a fully green run), then actually run it on real hardware (a CI artifact is not the same
    as a clean-machine run).
 4. Desktop probes (W-19): kill-engine-mid-run, physical drag-drop,
    engine-missing GUI state. `DESKTOP_PROBES.md` has the procedures.
 5. GS-203's GUI half, remaining Qt/platform rows.
 6. The register/docs rows: P2-21/U-88, P2-22/U-89, then P3-17/U-91,
    P3-18/U-96, P3-19/U-90.
-7. The audit remainder: N-18 line-by-line reads, N-25, N-26.
+7. The audit remainder: N-18 line-by-line reads (N-25 and N-26 are closed).
 8. Owner decisions: OD-16 (see §6.3), OD-18, the version-bump call.
 
 **Already done, don't redo:** Qt LGPL notice (U-08, closed S19). U-59/P0-7
@@ -334,10 +337,20 @@ cannot be done from inside the kind of sandboxed agent environment this
 project has been built in so far — it needs to be someone's actual machine,
 once.
 
+*(S34 correction: the compile itself is not blocked by the sandbox after all —
+`python -m ziglang cc -target wasm32-wasi` built the engine from the repo's sources and
+the result ran under Node's WASI in an agent sandbox. That is not the emcc build and
+promotes nothing; see N-32.)*
+
 **Byte parity note:** this path preserves the project's existing
 verification approach (compare wasm output byte-for-byte against the native
 1.96 oracle already captured), since it's compiling the exact same vendored
 source.
+
+*(S34 correction: this bar cannot pass for any build whose libc differs from the oracle's —
+`qsort` orders equal keys differently and `random()` (the dither seed) differs between glibc
+and musl; a wasm32-wasi build matched a musl-native build in 9 of 9 cases and the glibc
+oracle in 3 of 9 (re-run: `scripts/libc_parity/libc_parity.py --check`). Tracked as N-32 and DECIDED in S34: the bar is a **same-libc native oracle** — the wasm32-wasi build must equal a musl-native build of the same sources byte for byte (`libc_parity.py --bar`, run in CI: 9/9; `--bar --against glibc`, the old bar, fails 6 of 9), and `prove_wasm.mjs --oracle` holds an emcc build to the same bar once someone can build one.)*
 
 #### Option B — adopt an existing pre-built implementation
 

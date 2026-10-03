@@ -174,6 +174,10 @@ else
   echo "   GUI not requested (pass --all or --gui to build it)."
 fi
 
+# The repo holds no image files (N-36): rebuild the upstream test images from their text form so the example
+# config and every suite find them (build/fixtures/). Not fatal - the suites call fixtures.sh themselves.
+"$self/scripts/fixtures.sh" >/dev/null 2>&1 || echo "   note: could not materialise build/fixtures (see scripts/fixtures.sh)"
+
 echo ""
 echo "==> Build complete (v$version)."
 echo "   Engine:  $self/release/$version/gifsicle"

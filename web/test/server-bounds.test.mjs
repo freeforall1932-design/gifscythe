@@ -19,7 +19,10 @@
 //   6. N-25 (S32): the rate-limit WINDOW is bounded by live traffic — driven
 //      in-process against web/rate_limit.mjs, because the HTTP cases cannot
 //      vary remoteAddress (everything arrives from loopback) and the defect
-//      only appears with many distinct source addresses.
+//      only appears with many distinct source addresses;
+//   7. S34: the startServer() helper itself returns only once the WHOLE startup
+//      banner is in the log (a race in the helper made U-66 flake: ~1 run in 15
+//      here, and one red CI run).
 //
 // Run: node web/test/server-bounds.test.mjs   (after ./build.sh, which builds the
 // real engine the non-slow cases use)
@@ -62,9 +65,16 @@ function freePort() {
   });
 }
 
-async function startServer(env, logOf = () => "") {
+// The server writes its startup banner as separate lines - the listening line, a loopback note, and
+// `Engine [source]: path` LAST (always printed: a path, or ERROR: ...). Declaring it up on the FIRST line let
+// U-66 read the log before the Engine line had crossed the pipe: "startup line did not choose the pin:
+// Gifscythe web server on http://127.0.0.1:35463", about 1 run in 15 here and one red CI run (S34). Wait for
+// the last line, complete (its newline has arrived).
+const BANNER_DONE = /^Engine \[[^\]\n]*\]: .*\n/m;
+
+async function startServer(env, logOf = () => "", serverPath = SERVER) {
   const port = await freePort();
-  const child = spawn(process.execPath, [SERVER, String(port)], {
+  const child = spawn(process.execPath, [serverPath, String(port)], {
     env: { ...process.env, ...env },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -75,7 +85,7 @@ async function startServer(env, logOf = () => "") {
     once(child, "listening").then(() => "listening"),
     new Promise((res) => {
       const iv = setInterval(() => {
-        if (log.includes("web server on")) { clearInterval(iv); res("log"); }
+        if (BANNER_DONE.test(log)) { clearInterval(iv); res("log"); }
       }, 25);
       child.once("exit", () => { clearInterval(iv); res("exited"); });
       setTimeout(() => { clearInterval(iv); res("timeout"); }, 8000);
@@ -252,6 +262,37 @@ try {
     } catch (err) { p.push(`threw ${err.message}`); }
     finally { if (madePin) await rm(pin, { force: true }); }
     if (madePin) t("U-66 web server prefers release/current over the newest numeric dir", p);
+  }
+
+  // ---- 5c: the helper itself (S34). A stand-in server prints the listening line, then the rest of the banner
+  // 300 ms later - what a split pipe read looks like when the parent is quick. A helper that declares the server
+  // up on the first line returns with an incomplete log; this is the flake, made deterministic.
+  {
+    const dir = await mkdtemp(join(tmpdir(), "gs-banner-"));
+    const fake = join(dir, "slow-banner-server.mjs");
+    await writeFile(fake, [
+      'console.log("Gifscythe web server on http://127.0.0.1:" + process.argv[2]);',
+      "setTimeout(() => {",
+      '  console.log("  (loopback only - set GS_WEB_HOST=0.0.0.0 to expose it on the network)");',
+      '  console.log("Engine [release/current]: /fake/gifsicle");',
+      "}, 300);",
+      "setInterval(() => {}, 1000);",
+      "",
+    ].join("\n"));
+    const p = [];
+    let started = null;
+    try {
+      started = await startServer({}, undefined, fake);
+      const log = started.logOf();
+      if (!/Engine \[release\/current\]: \/fake\/gifsicle\n/.test(log)) {
+        p.push(`startServer returned with an incomplete banner: ${JSON.stringify(log)}`);
+      }
+    } catch (err) { p.push(`threw ${err.message}`); }
+    finally {
+      if (started) await stop(started.child);
+      await rm(dir, { recursive: true, force: true });
+    }
+    t("U-66 startServer returns only once the whole startup banner is in the log (staggered-banner race)", p);
   }
 
   // ---- 5: the cap applies to /run too (it is the same engine resource) ----

@@ -50,10 +50,18 @@ inline std::string trim(const std::string& s) {
 }
 
 // Safe parsers: return false on failure and leave *out unchanged.
-inline bool to_long(const std::string& s, long* out) {
+// 64 bits wide on EVERY supported platform, on purpose. This used to be `long`,
+// which is 8 bytes on LP64 (Linux) but 4 on LLP64 (Windows) and on any ILP32
+// host, so a classification probe written with it gave a different verdict per
+// platform (N-30: on the only platform we ship, `position_x = 3000000000` was
+// called "not an integer" and refused, while to_uint_strict and the position-pair
+// probe accept it, so the pair went live half-formed). Use this only to ask "is
+// it an integer at all, and which sign"; take the VALUE from the width-strict
+// parsers below, which parse straight into the destination type.
+inline bool to_llong(const std::string& s, long long* out) {
   if (!out) return false;
   std::istringstream i(trim(s));
-  long v = 0;
+  long long v = 0;
   if (!(i >> v)) return false;
   // Reject trailing garbage ("40xyz").
   char extra = 0;
@@ -92,8 +100,8 @@ inline bool to_ulong_nonneg(const std::string& s, unsigned* out) {
 // Parse DIRECTLY into the destination width (audit GS-206 / fix-order P1-28).
 //
 // Every integer control used to go through `to_long` + `static_cast<int>`. On
-// any host where long is wider than int — which is every Windows build, and
-// every LP64 one — that narrowing was unchecked, so `loopcount = 4294967296`
+// any host where long is wider than int — every LP64 one (Linux, macOS), NOT
+// Windows, where long is 32 bits like int (N-30) — that narrowing was unchecked, so `loopcount = 4294967296`
 // became 0 ("forever") and `threads = 4294967297` became 1. std::from_chars
 // into the destination type instead reports std::errc::result_out_of_range, so
 // the caller can warn and LEAVE THE FIELD ALONE, which is what every other
@@ -237,8 +245,8 @@ inline bool set_field(Settings& s, const std::string& key, const std::string& va
   // documented warning contract quote it — and a second, distinct message
   // covers a value that looks legal but is unrepresentable at this width.
   auto need_int = [&](int* dest) -> bool {
-    long probe = 0;
-    if (!to_long(v, &probe)) { warn("not an integer"); return false; }
+    long long probe = 0;
+    if (!to_llong(v, &probe)) { warn("not an integer"); return false; }
     int tmp = 0;
     if (!to_int_strict(v, &tmp)) {
       warn("outside the range this build can hold in an int; left unchanged");
@@ -257,8 +265,8 @@ inline bool set_field(Settings& s, const std::string& key, const std::string& va
     return true;
   };
   auto need_ulong_nonneg = [&](unsigned* dest) -> bool {
-    long probe = 0;
-    if (!to_long(v, &probe)) { warn("not an integer"); return false; }
+    long long probe = 0;
+    if (!to_llong(v, &probe)) { warn("not an integer"); return false; }
     if (probe < 0) { warn("negative value rejected"); return false; }
     unsigned tmp = 0;
     if (!to_uint_strict(v, &tmp)) {

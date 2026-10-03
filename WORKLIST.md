@@ -64,15 +64,81 @@ reads them in a file, not in a conversation.
   clones (G10's precedent) and still enforces on full history; reproduced
   failing-first in a local depth-1 clone.
 
-- **N-30** (S33): Windows CI red while linux passes — **code refuted as the
-  cause** (main `13d95a7` is code-identical to the last green windows tree
-  `2ade969` yet red, dying at the aqt/MinGW install step itself, exit 254;
-  PR runs fail later at the build step after the fallback chain provisions a
-  toolchain — consistent with tools_mingw90 = gcc 8 needing `-lstdc++fs`).
-  Deterministic (5 PR runs + a re-trigger, identical step, ~2 min profile).
-  Exact CI flags pass locally 384/0. Read the provisioner error in the
-  Actions UI (blob wall here), then fix the workflow provision step in both
-  byte-identical copies together (E9/G7/S1).
+- **N-30** (S33 registered, **S34 closed — DONE**): Windows CI red while linux
+  passed. S33 read it as toolchain provisioning ("code refuted as the cause",
+  "pin a modern MinGW") — that was **wrong**. The first un-masked Windows run
+  (S34, run 36966494878) showed g++ 13.1.0 from `tools_mingw1310` (the aqt
+  chain's *first* choice), both compiles succeeding, and the unit exe itself
+  failing: the integer probes in `SettingsIO.h` classified values with a
+  `long` (4 bytes on Windows), so 2147483648..4294967295 were refused there
+  while Linux accepted them (N-27 was incomplete on Windows). Fixed test-first
+  (`to_llong` + unit block 37; RED 7 failures on a 32-bit-`long` build, GREEN
+  on both widths) and proven by Windows CI (run 36967608254, every Windows
+  step green). **Do not pin MinGW or touch the provision step on N-30's
+  account.** The check that would have caught it is committed:
+  `scripts/test_unit_32bit_long.sh` (unit suite on a 4-byte-`long` target via
+  zig). **Wired into CI (S34, the owner's call: two extra minutes is acceptable when it
+  helps verify the project):** the `portability` job runs it beside the other jobs, so it
+  adds no wall-clock time.
+
+- **N-26** (S31 registered, **S34 closed — DONE**): not a flake. All 8 red
+  main runs since 2026-09-22 failed linux at the *same* step, "Documentation
+  status gate" — G10/G11 verdicts that depended on the checkout depth and the
+  UTC date (reproduced deterministically in CI-shaped depth-1 clones). Fixed
+  by N-31 (S33) + the full-history `docs` job and the gate leaving the linux
+  job (S34); run 36967608254 has every job green. Evidence in the STATUS row.
+
+- **N-32** (S34, **PARTIAL**): the wasm track's documented proof bar (output
+  byte-equal to the native oracle) could not be met by a build with a different libc, and
+  `prove_wasm.mjs` never compared bytes. **Decided and implemented S34 (the owner delegated
+  the call): the bar is a same-libc native oracle** — wasm32-wasi must be byte-equal to a
+  musl-native build of the same sources. Enforced in CI (the `portability` job runs
+  `scripts/libc_parity/libc_parity.py --bar`: 9/9; `--bar --against glibc`, the old bar,
+  fails 6 of 9) and in `prove_wasm.mjs --oracle` (tests: `test_prove_wasm_oracle.py`,
+  `test_libc_parity_bar.py`, both mutation-checked). Rejected: a stable-`qsort` + fixed
+  `random()` shim in every build (the shipped Windows engine is built from the read-only
+  upstream `win32cfg.h`, which our config headers do not reach) and pixel equality (4 of
+  the 6 differences are different pixels). **Still missing:** an Emscripten build run
+  through `prove_wasm.mjs --oracle` — emcc is unobtainable here, and OD-16 blocks
+  shipping the track either way. Do not chase byte parity with the glibc oracle. Detail
+  in the STATUS row.
+
+- **N-33** (S34, found and fixed the same session): the README's honesty
+  summary was stale in all three claims — rewritten from live state.
+
+- **N-34** (S34, **DONE**): GitHub annotated every run with "The `ubuntu-latest`
+  label will migrate to Ubuntu 26 beginning October 19, 2026" (a gradual 24.04 → 26.04
+  move through 2026-11-19), and the `linux` job installs Qt through apt. **Pinned
+  (the owner's call, S34):** `runs-on: ubuntu-24.04` in all four Linux jobs of both
+  byte-identical workflow copies. Moving to 26.04 is now a deliberate edit of the four
+  labels, trialled on a branch first.
+
+- **N-35** (S34, found and fixed the same session): CI's `linux` job went red once on a
+  docs-only commit (run 36985082450) at the web-suite step, annotation "exit code 1". Root
+  cause: a race in the **test helper** — `server-bounds.test.mjs`'s `startServer` declared the
+  server up on the first startup-banner line and U-66 read the log before the `Engine [...]`
+  line arrived (1 failure in 15 locally). Fixed test-first (wait for the last banner line; a
+  deterministic regression group, RED 5/5 on the old rule; 45/45 clean after) and the step now
+  names a failing suite as an annotation, so the next red names itself. Detail in the STATUS row.
+
+- **N-36** (S34, **DONE**): the owner's direct commit to `main` (`fe4f0a7`, "Deleted
+  shot_actions_tab.png") removed every image file — the 3 docs screenshots and the 4 gifsicle
+  test GIFs — and the GIFs are test fixtures (engine tests, smoke, oracle and so the pre-push
+  hook, glue harness, libc probe, Windows E2E smoke, C# spike, Qt harness), so `main`'s CI went
+  red. The owner skipped the question asked, so the option that respects the deletion was taken:
+  **the repo stays binary-free** — the two upstream test images are base64 text under
+  `working_code/gifscythe/tests/fixtures/` (sha256 in `SHA256SUMS`), decoded on demand into
+  `build/fixtures/` by `scripts/fixtures.sh` / `fixtures.mjs`, byte-identical, every consumer and
+  CI step repointed. **Do not re-add images or `reference_code/gifsicle/*.gif`**; add a text
+  fixture instead. The Windows/C#/Qt steps are proven only by CI. Detail in the STATUS row.
+
+- **CI run shape** (S34, the owner's calls — not findings, so no register row): a `gate`
+  job skips a *push* run when an open, mergeable PR exists for the branch (the PR's own
+  run tests that commit), plus workflow-level `concurrency` (a newer push to the same
+  branch or PR cancels the older run of the same event; main is never cancelled).
+  Trade-off: **to cite a specific commit's run as evidence, let it finish before pushing
+  again** (seen live: the cancelled run took ~1.5 min to wind down, and the newer run
+  waited `pending` meanwhile). Details: `docs/ci/README.md` §1; table: `tests/test_ci_gate.py`.
 
 **Gate/register freeze (U-89 / P2-22, effective S33).** While the derived
 release bar in `STATUS.md` (open P0/P1 fix-order ids) is above zero: add **no
@@ -132,8 +198,8 @@ provable in this sandbox. Full detail in `IMPROVEMENT_LOG.md`'s S32 entry.
       open (and misled the owner's planning report) corrected in place; review
       documents folded (`COMPILED_AUDIT` §21, `docs/planning/PLANNING.md` §6,
       `docs/archive/` rows 8–9).
-- [ ] **N-26 (OPEN)** — CI linux flake; needs an Actions-UI look (PR #7 has
-      the investigation so far).
+- [x] **N-26 (DONE S34)** — not a flake: the doc-gate step failed every red main
+      run, deterministically (see the pending-lines section above).
 
 ### S31 (2026-09-28) — verification of the 2026-09-27 external audit
 
@@ -189,10 +255,10 @@ Still open from the audit intake (state lives in `STATUS.md`):
       vacuity-scanned). The rest stay risk-scanned only — read on touch.
 - [x] **N-25 (DONE S32)** — `requestWindow` bounded by live traffic now
       (see the S32 section above).
-- [ ] **N-26 (OPEN)** — CI's linux job is flaky (5 of the last 7 main runs
-      failed linux while windows passed) and this repo uses CI as the proof
-      lane for anything the sandboxes cannot compile. Registered from the
-      open PR #7 investigation; needs an Actions-UI look to name the step.
+- [x] **N-26 (DONE S34)** — registered as "CI's linux job is flaky" (5 of the last 7
+      main runs failed linux while windows passed); the jobs API names the step —
+      the doc gate, every time — and the cause is G10/G11 under depth-1 checkouts.
+      Fixed S33/S34 (N-31 + the full-history `docs` job); run 36967608254 is green.
 
 - [x] **U-97** (found AND fixed in S27 — rule 2's strong form): the 2026-09-22
       zip re-creation of the GitHub repo lost the root license set
@@ -267,7 +333,8 @@ Still open from the audit intake (state lives in `STATUS.md`):
             animated, video endpoints) as gated rows + the PROJECT_VISION
             amendment proposal; no code until the owner adopts the words.
 - [x] **CI/infra (S14 → resolved S24):** the documentation status gate is LIVE
-      in the CI linux job (maintainer-applied); the last declared drift was the
+      in CI (maintainer-applied; **S34: now its own `docs` job**, see
+      `docs/ci/README.md` §1); the last declared drift was the
       proposed copy lagging the maintainer's live cygpath fix, so S24 re-synced
       `docs/ci/build.yml.proposed` to the live line and deleted the pending
       marker in one commit — E9/G7/S1 enforce byte-equality again, and
@@ -347,7 +414,8 @@ deliberately not started until GIF 1.0.0 ships.
 - Optional: logging framework, i18n, dark mode, system tray.
 - **Web client-side wasm** (`web/wasm/`, D-07): scaffolded S19, unbuilt, and
   NOT SHIPPABLE until `OD-16` (in-process licence — `docs/legal/README.md` §3)
-  + a real emcc byte proof. The Node server stays the shipped web path.
+  + a real emcc proof (the bar is a same-libc native oracle, decided S34 — N-32;
+  no emcc build has been run through it). The Node server stays the shipped web path.
   History of the option analysis: `web/README.md` §History.
 - **Language migration (only if a trigger fires):** Rust + Tauri spike —
   `docs/planning/PLANNING.md` §1 triggers.
@@ -363,6 +431,16 @@ cd working_code/gifscythe
 ./scripts/test_engine.sh
 ./scripts/smoke_cli.sh
 ./scripts/test_package.sh  # packaging negative suite
+./scripts/test_unit_32bit_long.sh   # unit suite on a 4-byte long (N-30 class); needs zig: pip install ziglang
+python3 tests/test_pr_preflight_p6.py   # P6 (docs-synced-through) regression, isolated temp repo + fake gh
+python3 tests/test_ci_gate.py           # the push-vs-PR dedupe gate's decision table (fake gh)
+python3 tests/test_libc_parity_bar.py   # the wasm bar's verdict logic (no zig needed)
+python3 tests/test_prove_wasm_oracle.py # prove_wasm.mjs --oracle with a fake module (needs node + a built engine)
+python3 scripts/libc_parity/libc_parity.py --bar   # N-32 bar: wasm32-wasi == musl-native, byte for byte (zig + node + Pillow)
+python3 scripts/libc_parity/libc_parity.py --check # N-32 finding: glibc vs musl vs wasm output parity
+node scripts/lint_workflow.mjs          # actionlint (wasm build from npm) over .github/workflows
+./scripts/fixtures.sh                # rebuild the upstream test images (text -> build/fixtures/); build.sh does it
+./scripts/sim_postmerge.sh [--style squash] [--date "YYYY-MM-DD HH:MM"]   # will main's docs job pass after this merges?
 ./scripts/check_docs.sh    # documentation gate — must be green before any PR
 ./scripts/check_docs.sh --emit   # regenerate STATUS.md from the repo
 ./scripts/verify_audit.sh  # whole COMPILED_AUDIT §6 suite + the doc gate (F1/F2)
@@ -397,6 +475,11 @@ node web/server.mjs 8000              # from the repo root; binds 127.0.0.1
 - Link gifsicle into the GUI binary (keep subprocess for GPL v2-only vs Ms-PL).
 - Edit `reference_code/` (read-only; the manifest is the one exception).
 - Hand-edit the generated block in `STATUS.md` — run `check_docs.sh --emit`.
+- Leave reusable tooling only in `/tmp` (wiped between turns; `build/`, `dist/`, `.venv` are not
+  snapshotted either): commit it under `scripts/` or `tests/`, or write down the exact recipe.
+  `/tmp` is for one-time scratch.
+- Open a PR that only copies the previous PR's facts (a "post-merge sync"): a PR pre-syncs
+  itself after `gh pr create` (see the handoff's maintenance rule).
 - Push, open or merge a PR with a red `check_docs.sh`, or bypass the pre-push
   hook with `--no-verify`.
 - Reintroduce the removed `scripts/build_gifsicle.sh` shim.

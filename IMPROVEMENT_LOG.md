@@ -4,6 +4,477 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S34 — 2026-10-03 (started 2026-10-02 UTC; the UTC date rolled during the session and G11 compares UTC-stamped commits, so the entry is dated to the close day, as S33's was): CI un-masked — N-30 was a real 32-bit-`long` bug (fixed test-first, proven on Windows CI), N-26's "flaky linux job" was the doc gate, and agent sessions can push workflows; then the owner's four open decisions implemented (runner pin, push/PR de-duplication, a 32-bit CI job, the wasm proof bar)
+
+**Changed:**
+
+- **N-30 named, reproduced and fixed: it was code, not provisioning.** The first
+  CI run of this branch (run 36966494878) executed what 31 failing Windows runs in a
+  row had never reached. The Windows GUI build and the Windows GUI offscreen harness
+  both ran and **passed**, and the two diagnostics below published what the
+  unreadable log would have: the compiler is `g++ 13.1.0 (MinGW-Builds)` from
+  `tools_mingw1310` — the FIRST choice of the aqt chain, not a gcc-8 fallback —
+  both the CLI and the unit-test compiles exit 0 (the `-lstdc++fs` probe is
+  irrelevant), and the unit exe itself fails: `FAIL: s.position_x ==
+  3000000000u && s.position_y == 5 (line 1284)`. **S33's reading ("toolchain
+  provisioning, not code"; "pin a modern MinGW") was wrong** — the STATUS row,
+  the COMPILED_AUDIT §21 row, the WORKLIST line and the handoff carried it until
+  the docs commits of this PR corrected them. The other session does not need
+  to pin MinGW.
+  Root cause, reproduced here without Windows (a 32-bit-`long` target — zig
+  `x86-linux-musl`, `sizeof(long) == 4` like Windows' LLP64 — fails the
+  identical assertion at the identical line): `need_int` and `need_ulong_nonneg`
+  classified a value with a `long` probe (`to_long`) before the width-strict
+  parse. `long` is 8 bytes on LP64 and 4 on Windows, so on the only platform we
+  ship, values 2147483648..4294967295 were refused as "not an integer" while
+  `to_uint_strict` and S32's N-27 position probe accept them: the pair went live
+  with `position_x` = 0 (`-p 0,5`). N-27's fix was therefore incomplete on
+  Windows. The probes predate S32 (they arrived with the 2026-09-22 unpack); the
+  N-27 case (`position_x = 3000000000`) was the first test with a LEGAL value
+  above 2^31 (the older cases used `4294967296`, refused on every platform and
+  only counted as warnings), which is why the Windows red starts with that
+  commit. The comment that justified the old code ("every
+  Windows build" has `long` wider than `int`) was false.
+- **The fix, test-first.** `to_long` became `to_llong` (64-bit on every
+  platform) and the two probes use it; the values still come from the strict
+  parsers, so Linux behaviour is bit-for-bit unchanged. Unit block 37 pins the
+  value AND the reason text (the old tests only counted warnings, which is how a
+  verdict that changed with the platform went unnoticed) for all three
+  verdicts. RED on the 32-bit-`long` build: 7 failures (the original plus 6
+  new); GREEN on that build and on native 64-bit. The false comment is
+  corrected.
+- **Proven on Windows itself.** Run 36967608254 (`c79a2cd`): `windows` is green
+  end to end — Build CLI + unit tests, native E2E smoke, GUI build, GUI offscreen
+  harness, packaging, manifest assertion, artifact upload — and `docs`, `linux`
+  and `csharp-spike` are green too (every step reachable). Live tally of the 33
+  CI runs that reached a Windows job between 2026-09-29 and 2026-10-02: 31
+  failed at "Build CLI + unit tests", 1 at the Qt install (`13d95a7`, exit 254 —
+  that step passed in every later run and was never reproduced, so it reads as a
+  transient provisioning failure), and 1 passed: this one. The 380-vs-384 count
+  seen on Windows before the fix is explained, not a defect: the test file's one
+  `#ifndef _WIN32` block (unit block 28, signal exit codes) holds exactly 4
+  checks. A grep of `src/` (core, cli, qtui) and `tests/` for plain `long`, the
+  `strto*`/`sto*`/`toLong` families, `LONG_MAX`-style limits and `%l*` formats
+  finds nothing else width-sensitive — the only plain `long` uses cast
+  `GetLastError()` for `%lu`.
+- **The G10 base-line trap fired, and is closed.** G10 accepts a doc's base sha
+  only if it is main's tip or the tip's first parent. This branch's first
+  commit re-anchored the handoff's base line from `13d95a7` to `ad8f956` after
+  measuring that the would-be merge of the then-open doc-sync PR (#9) turned a
+  depth-1 push-to-main checkout red at G10. PR #9 then merged first
+  (`c999061`, 2026-10-02 06:01Z) without that line, and its push-to-main run
+  (36971588492) went red exactly there — reproduced here in a depth-1 checkout
+  of `c999061`: FAIL [G10] `SESSION_HANDOFF.md names base 13d95a7, unknown to
+  this clone (expected origin/main = c999061 or merge first parent =
+  ad8f956)` — plus Windows N-30. This branch merged `c999061` (mechanical
+  conflicts only: both log entries kept, STATUS re-emitted) and re-anchored both
+  enforced base lines (the handoff's and COMPILED_AUDIT's) to `c999061`, the
+  first parent of whatever merge commit lands next. The merge-order rule this
+  demonstrates: a base line can only name a tip that exists when it is written,
+  so whichever PR merges second re-anchors to the then-current tip — and a PR
+  the other merge left stale is stale, not broken (owner convention, now in the
+  handoff).
+- **N-26 closed: the "flaky linux job" was the doc gate.** The jobs API names the
+  failing step even though the log blob is unreadable: all 8 red main runs since
+  2026-09-22 (`824bf20`, `e06b5db`, `42306bb`, `8d30614`, `2ade969`, `13d95a7`,
+  `ad8f956`, `c999061`) failed linux at the *same* step, "Documentation status
+  gate"; the two green mains (`7c035fd`, `957c143`) are the commits where the
+  docs agreed with the tree. The verdict depended on the checkout depth and the
+  UTC date (depth-1: G10 skipped on branch and PR runs yet enforced on
+  push-to-main; G11 compared the log with the checkout's own date), so one tree
+  was green on its PR run and red on main; and as step 7 of the linux job a red
+  gate also skipped the web suites, oracle, GUI harness and packaging, which
+  read as a broken job. Reproduced deterministically in CI-shaped depth-1
+  clones: `8d30614` (G10+G11), `2ade969` (G10), `13d95a7` (G10+G11), `ad8f956`
+  (G11), `c999061` (G10; G11 now skips). Fixed by N-31 (S33), the full-history
+  `docs` job and the gate leaving the linux job (next two bullets).
+- **The doc gate is its own CI job (`docs`) with full history.** As step 7 of
+  the linux job, one red gate skipped the six steps after it — the nine web
+  suites, the seeded oracle, the Qt GUI harness, package portable, the
+  packaging negatives and the manifest assert (main run 36960880593). The new
+  job checks out with `fetch-depth: 0`, runs `./build.sh` (G9b re-measures the
+  unit count, G15 needs the hook bootstrap), then the same `check_docs.sh
+  --no-gate-run`; the step keeps its name. Full history also removes the cause
+  of N-31: in a depth-1 checkout G11 compared the log date with the checkout's
+  own date and G10 skipped on every branch and PR run, so main went red the day
+  after each log entry while the same tree was green on its PR.
+- **Windows: the GUI build and its offscreen harness no longer depend on
+  "Build CLI + unit tests".** They run when provisioning (step id `provision`)
+  succeeded and, for the harness, when the GUI build (id `gui_build`) did, via
+  `!cancelled()` conditions. Of the 30 CI runs between 2026-09-29 and this
+  branch's first push, 29 Windows jobs died at "Build CLI + unit tests" and 1 at
+  the Qt install, so the Windows GUI build and harness had not executed once in
+  that window. Its last line `[[ -f build/gifscythe-cli.exe ]] && cp ...` made
+  the step exit 1 whenever the CLI exe was absent (measured: exit 1 in the old
+  form, 0 in the new), which would have defeated the decoupling; it is an `if`
+  now.
+- **Two inert Windows diagnostics** (a separate commit, droppable — kept): a
+  toolchain-identity step after provisioning publishes which `g++` (path,
+  version, target, every `g++` on PATH) as one notice annotation; a
+  failure-only step, run when "Build CLI + unit tests" (now `id: cli_tests`)
+  failed, re-runs the same two compiles with their output captured, probes
+  S33's `-lstdc++fs` hypothesis with one extra compile, runs the unit exe if it
+  linked, and publishes the tail as one error annotation. Both are
+  `continue-on-error`, the original step is untouched, and neither can change a
+  job's result. The log blob is unreadable from the sandboxes; annotations are
+  not — which is how the N-30 paragraph above was learned from one run.
+- **An agent session CAN push `.github/workflows/` (owner-confirmed, executed
+  here).** This branch's first push carried two workflow commits (`9bc155f`,
+  `7e0feca`), was accepted, and Actions ran them. The prose that still said
+  otherwise is corrected: the handoff (fast hand-off, product constraints and
+  sandbox bullets), `docs/ci/README.md` §1, the `working_code` README (its "E9
+  still SKIPs ... awaits a workflows-scoped token" clause was an S9–S23 state),
+  COMPILED_AUDIT's U-10 text, the STATUS R-03 row, PLANNING's copy-paste
+  prompt, and a comment above gate E9 in `verify_audit.sh` (comment lines only;
+  `review_change.sh` R1 reports no verdict or matcher line moved). The
+  `docs/ci/build.yml.proposed` copy stays — E9/G7/S1 enforce byte equality — as
+  the recipe for a token GitHub does reject.
+- **N-33: the README's honesty summary was stale in all three claims** (main
+  green at an unresolvable old-remote sha; U-59 an open data-loss row; a stale
+  Release published). Rewritten from live state: releases and tags are both 0
+  (API, checked 2026-10-02), U-59 is DONE end to end, CI evidence by run id.
+- **N-32 registered, then decided and implemented (PARTIAL): the wasm track's "byte-for-byte
+  against the native oracle" bar could not be met by a build with a different
+  libc.** Re-measured at PR-prep on 9 invocations (the logo animation ×4, a
+  seeded many-colour 3-frame GIF ×4, `logo1.gif`) across four builds of the
+  same 13 engine sources: the repo's gcc+glibc oracle, zig clang+glibc, zig
+  clang+musl and zig clang+wasm32-wasi under Node's WASI. gcc+glibc ==
+  clang+glibc in 9/9 (the compiler is irrelevant); musl == wasm in 9/9; but the
+  glibc oracle == musl in only 3/9 — of the 6 differences, 2 decode to
+  identical pixels and 4 to different pixels. **Two libc behaviours explain
+  every difference.** (1) `qsort`'s order of equal keys (`quantize.c` lines
+  101–105 and 158, `optimize.c` line 245): one stable `qsort` injected into every
+  build gives glibc == musl == wasm in 7/9. (2) `random()`: `quantize.c` lines
+  450–452 and 581–583 seed the dither error pattern with `RANDOM()`, which both
+  config headers map to libc `random()`: a stable `qsort` *and* one fixed
+  `random()` give 9/9 across all three. wasi-libc is musl-derived; Emscripten's
+  libc is too, so the emcc build the docs wait for would, by inference, miss the
+  oracle the same way. `prove_wasm.mjs` never compared bytes (it only requires a
+  non-empty GIF). PLANNING §6, the wasm README and the WORKLIST carry the
+  correction. The probe is committed: `scripts/libc_parity/libc_parity.py --check`.
+  **Then the owner delegated the choice ("implement it if it's possible"), and the bar is
+  option (a): a same-libc native oracle.** The wasm32-wasi build must be byte-equal to a
+  musl-native build of the same sources. That isolates what a wasm port can break (32-bit
+  `long` and pointers, libm, alignment, stack) from the two libc behaviours no port controls.
+  *Implemented:* `libc_parity.py --bar` (builds only the two engines — 66 s from a cold zig
+  cache, 9 s warm — runs the 9 cases, exit 0/1; a build that produces no GIF fails, because
+  two empty results are not "equal"; a missing zig, node or Pillow is exit 3, never a smaller
+  proof that passes), `--build-oracle DIR`, and `prove_wasm.mjs --oracle PATH` / `--module PATH`
+  (byte-equal or exit 1 with the first differing offset; without `--oracle` it now says it
+  compared nothing). Measured: `--bar` **9/9**, and `--bar --against glibc` — the bar the
+  docs used to state — **fails 6 of 9**, which is the evidence that the bar has teeth.
+  *Rejected, with the reason:* the stable-`qsort` + fixed-`random()` shim in every build (9/9
+  in the probe), because the SHIPPED Windows engine is built from the read-only upstream
+  `win32cfg.h`, which our config headers do not reach — a shim would prove that Linux and
+  wasm agree while leaving the product itself outside the claim; and pixel equality,
+  because 4 of the 6 glibc/musl differences decode to different pixels. *Still missing (why
+  PARTIAL):* an Emscripten build run through `prove_wasm.mjs --oracle` — emcc is unobtainable
+  here, and OD-16 blocks shipping the track regardless. Tests, RED first and
+  mutation-checked: `test_prove_wasm_oracle.py` (10 cases, a fake emcc-shaped module over a
+  real native engine; RED 10/10 on the old script; a mutant with the byte comparison
+  disabled is caught by exactly the corruption case) and `test_libc_parity_bar.py` (8
+  cases of the verdict logic; removing the must-be-a-GIF guard fails exactly the 2
+  vacuous-pass cases).
+
+- **N-34 registered, then pinned (DONE): the runner image floated.**
+  The check-run annotations of runs 36967608254 and 36974199294 carry GitHub's
+  notice "The ubuntu-latest label will migrate to Ubuntu 26 beginning October
+  19, 2026" (its 2026-09-17 changelog: a gradual 24.04 → 26.04 move through
+  2026-11-19, with `runs-on: ubuntu-24.04` as the documented pin). The `docs`
+  and `linux` jobs use that label and the linux job installs Qt with apt and
+  runs the offscreen harness — an image change could turn it red with no change
+  in the repo, the N-26 confusion again. The same annotations warn that
+  `actions/checkout`, `upload-artifact`, `download-artifact` and `setup-dotnet`
+  at v4 target Node 20 and are being forced onto Node 24 (passing today).
+  `windows-latest` carried no such notice. **Applied at the owner's call:**
+  `runs-on: ubuntu-24.04` in all four Linux jobs (the two named here plus the two new
+  ones, `gate` and `portability`) of both byte-identical workflow copies. Behaviour on
+  today's image is unchanged, and a move to 26.04 is now a deliberate edit of the four
+  labels, trialled on a branch first.
+
+- **CI run shape: push-vs-PR de-duplication, `concurrency` and a 32-bit CI job (the owner's
+  calls).** *De-duplication.* The workflow triggers on `push` and `pull_request`, so a push
+  to a branch with an open PR ran every job twice (8 checks per commit on the PR page).
+  Dropping the `push` trigger would also end CI on a branch with no PR yet — the loop the
+  agent sessions work in (run 36966494878 named N-30 before PR #10 existed) — so the push
+  run stays and a `gate` job skips it exactly when the PR's own run covers the commit.
+  `scripts/ci_gate.sh` answers `skip=true` only for a push to a non-main branch with an
+  open PR that GitHub reports *mergeable* (a PR with merge conflicts gets no
+  `pull_request` run, so the push is its only CI). Every doubt — API error, `gh` missing,
+  `mergeable` still `null` after 8 polls — answers `skip=false`, and every job carries
+  `if: !cancelled() && needs.gate.outputs.skip != 'true'`, so a crashed gate still runs
+  everything (a duplicate costs minutes, a missing run costs the proof). Decision table:
+  `tests/test_ci_gate.py`, 14 cases with a fake `gh`; three mutants — "skip whenever a PR
+  exists", "main counts as a branch", "an API error means skip" — are each killed by
+  their own tests. *`concurrency`:* a newer push to the same branch or PR cancels the older
+  run of the same event; a push to main is never cancelled (its group is the run id). The
+  cost, written down in `docs/ci/README.md` and the handoff: this repo cites the run of a
+  specific commit as evidence (N-11, N-16, N-30), so to keep a commit's run, let it finish
+  before pushing again. *The 32-bit runner:* a `portability` job of its own, so it runs
+  beside the others. Measured on Actions (run 36983286343): toolchain install 8 s, the
+  32-bit unit suite 69 s, the wasm bar 38 s, the two Python suites under 1 s each — **2.0
+  minutes** (2.4 and 2.5 on the next two runs — 36983984989: 9 s, 87 s, 44 s; 36985082450), the figure the owner accepted for the runner alone, with the wasm bar riding
+  in the same job at no visible cost. `portability` itself added no wall-clock time (it runs
+  beside the others), and the `gate` job (about 6 s) now sits in front of every other job, but the PR run
+  as a whole took 4.3, 4.1 and 4.4 minutes in three runs (36983286343, 36983984989, 36985082450)
+  against 4.1 before (36977644904) — inside the noise; the critical path is still gate 0.1 +
+  windows 2.9 + csharp-spike 1.1. (This sandbox
+  needs about 3 minutes for the same two checks with a cold zig cache — 2m03s and 1m06s —
+  which is why a first guess here said "3.5 runner-minutes"; the runner is the number
+  that matters.) zig 0.16.0 and Pillow come from pinned wheels in a venv (24.04's system
+  pip refuses system installs); any non-zero exit fails it, including a runner's
+  "SKIPPED" exit 3. **A gap found by reading the first run:** steps 6 and 7 (the two
+  Python suites) took 0 s, and with the Actions log blobs unreadable I could not tell ten
+  tests run from ten skipped — and `test_prove_wasm_oracle.py` skips itself when node or the
+  engine is missing, exiting 0. The step now sets `GS_REQUIRE_PROOF=1`, which turns that
+  skip into a failure (checked three ways: normal 10/10; engine missing = a visible skip;
+  engine missing with the variable = exit 1). *Live behaviour of the gate:* on the commit
+  that introduced it, the **push** run (36983282655) executed only the gate — `skip=true`,
+  "PR #10 is open and mergeable" — and its other five jobs were skipped, while the
+  **pull_request** run (36983286343) said `skip=false` and ran all six jobs green; PR #10
+  stayed MERGEABLE/CLEAN with 7 successful and 5 skipped checks and no failure. *`concurrency` seen
+  working:* the next two commits were pushed back to back (`b817353`, then `f74b173`). The first
+  commit's push run had already finished (the gate skips it in seconds), but its `pull_request`
+  run (36984484547) was cancelled — every job `cancelled` — and the second commit's run waited
+  as `pending` until the cancel took effect, about a minute and a half after the second push.
+  So a quick follow-up push also *delays* the next run by that lag, besides costing the first
+  run's evidence.
+  *Tooling:* `scripts/lint_workflow.mjs` (actionlint's wasm build from npm — the binary's host
+  is blocked here; `--selftest`). Its first version ran `npm init --prefix`, which writes
+  into the CURRENT directory: it dropped a stray `package.json` into the checkout, which
+  showed up in G18's list of uncommitted files and was fixed to install with `cwd` inside
+  the scratch dir (verified from the repo root).
+
+- **N-35: the PR's own final CI run went red, and it was a flaky TEST, not the change.** Run
+  36985082450 (head `94494ac`, a docs-only commit) failed the `linux` job at "Web JS/C++ parity +
+  server regression tests" after 13 s — the other five jobs were green and the identical code had
+  passed four times. The annotation said only "Process completed with exit code 1" (log blobs are
+  unreadable here), so the failing suite had to be found by reproducing: the nine suites were run in
+  a loop and `server-bounds.test.mjs` failed 1 run in 15, always at U-66 ("startup line did not
+  choose the pin: Gifscythe web server on http://127.0.0.1:35463"). **Cause: a race in the test
+  helper, not in the server.** The server prints its startup banner as separate writes — the
+  listening line, a loopback note, and `Engine [source]: path` last — and `startServer()` declared
+  the child up when the log held the FIRST line; U-66 then read the log at once, so when the Engine
+  line had not crossed the pipe yet it failed. *Fix, test-first:* wait for the last banner line,
+  complete; `startServer` takes an optional `serverPath`; a new group points it at a stand-in server
+  that prints the listening line and the rest 300 ms later — the flake made deterministic: **5 of 5
+  runs red with the old readiness rule, green with the fix**; and 45 of 45 sequential runs of the
+  fixed file clean (at the old 6.7% rate that has a 4% chance). The other suites wait for readiness
+  with an HTTP request and make round trips before they read the log, so they are not exposed the
+  same way. *The step now names its failures:* each suite runs even if an earlier one failed, and a
+  failing suite publishes an annotation with its `FAIL` lines and the three after each (the Windows
+  N-30 trick again). The exact step text was extracted from the workflow and run against stub
+  suites: all pass → exit 0, no annotation; one fails → exit 1, one annotation with `%` and CR
+  encoded, the other eight still run; shellcheck clean; the first version dropped the indented
+  detail line after `FAIL`, which is the useful one, and was corrected before it was pushed.
+
+- **N-36: the owner pushed straight to `main` while this PR waited, and it changed what "ready to
+  merge" means.** Turn 7 opened with `main` at `fe4f0a7`, not `c999061`: the owner's web commit
+  "Deleted shot_actions_tab.png" (2026-10-02 11:32 UTC) had removed **every image file in the
+  repo** — three docs screenshots and the four gifsicle test GIFs (`logo.gif`, `logo1.gif`, in
+  `reference_code/gifsicle` and `reference_code/gifsicle-nested-1.96`). Nothing binary is tracked on
+  `main` any more, so it reads as deliberate. Two separate consequences. **(1) The pre-synced base
+  lines went stale** — they named `c999061`, which a merge of this PR would no longer have as its
+  first parent: re-anchored to `fe4f0a7`, legal both now (the tip) and after the merge (its first
+  parent). **(2) The GIFs are test fixtures.** `main`'s own CI went red on them (run 37001595158,
+  `linux` at "Engine pipeline tests"), and the PR's run (which tests the merge with the current
+  `main`) is red on `docs` (G8: `web/wasm/README.md` names `logo.gif`), `linux` and `portability`
+  (run 37081923220). Measured by simulating the merge and running the suites on the merged tree:
+  the nine web suites and the 32-bit unit runner pass; `test_engine.sh`, `smoke_cli.sh`,
+  `oracle_fuzz.mjs` (and so the pre-push hook), `glue_harness.mjs` and `libc_parity.py --bar` fail on
+  the missing file. That was the owner's call, not mine to undo silently — registered as N-36 with four options
+  and asked; **the owner skipped the question and repeated "anything to add before merging?", so I
+  took the option that respects what they did: keep the repo binary-free.** The two upstream test
+  images became base64 text (`tests/fixtures/*.b64` + `SHA256SUMS`), decoded on demand into the
+  gitignored `build/fixtures/` by `scripts/fixtures.sh` / `fixtures.mjs` — byte-identical (`cmp`
+  against the originals before they went, sha256 checked on every decode), so every expectation
+  holds. Every consumer was repointed (smoke, test_engine, verify_audit, oracle, glue harness,
+  prove_wasm, libc_parity, `build.sh`, `examples/animation.conf`) and, in both workflow copies, the
+  Windows E2E smoke, the C# spike and both GUI-harness steps (through the harness's own
+  `GS_TEST_REF_DIR` hook, so no Qt code changed). Main was merged into the branch first (no
+  conflicts) so everything was tested on the tree that will exist after the merge: test_engine
+  5/5, smoke 63/63, oracle quick 24 and full 64, glue harness, the wasm bar 9/9, the prove_wasm
+  suite 10/10, G8 and G10 green. The first CI run of it (37084921570) passed `docs`, `linux` — the engine
+  tests, smoke, oracle, web suites and the **Qt GUI harness** on the GIF-less tree — and `portability`, and
+  failed `windows` in exactly the two steps that call `fixtures.sh`. **Cause, found by reasoning from the
+  repo's own `.gitattributes` and reproduced offline (the Actions log is unreadable):** Git for Windows
+  checks text out as CRLF unless `.gitattributes` pins LF — it did for `*.sh`, `*.c`, `*.yml`, `*.md` but
+  not for the new `.b64` and `SHA256SUMS` — GNU `base64 -d` rejects a CR ("invalid input") and `read -r`
+  keeps the CR in the file name. Fixed in two places (the attribute, and `fixtures.sh` stripping CR) and
+  pinned by `tests/test_fixtures.py`: a CRLF copy of the fixtures, RED against the first version (exit 2,
+  "cannot decode"), GREEN 5/5 now; it also runs in the `portability` job. That fix is proven: the next run, 37085302508 (head `33bea55`), is green on all six
+  jobs — `windows` (E2E smoke, GUI harness, packaging) and `csharp-spike` included — on a tree with no
+  image files, merged with the owner's current `main`. **Reversible:** if
+  the images were meant to come back, restoring them is one `git checkout`, and nothing else
+  changes. *How it was found:* the first command of the turn was a live check of
+  `origin/main`, and `scripts/sim_postmerge.sh` (new, committed — it had been rebuilt in `/tmp` twice
+  and lost) built the commit GitHub would create and ran the CI docs job on it: **G10 and G8 red,
+  before the merge instead of after it.** The same tool measured the merge shapes: merge commit —
+  G10/G11 pass on any day; **squash — G11 fails when merged on a later UTC day than the log entry's
+  date** (squash on 10-10 against a 10-03 entry: red; the earlier "squash verified" claim held only
+  for a same-day merge); **rebase — impossible for this PR** (replaying its commits without their
+  merge commits conflicts, so GitHub would not offer it). **Recommendation to the owner: "Create a
+  merge commit".** (Turn 7 also found that the sandbox is recycled *during a long pause* —
+  `ask_user` — not only between turns: `/tmp`, the venv and the git state were gone when the answer
+  came back, while the working tree survived.)
+
+- **The post-merge sync is pre-included, and P6 now allows it.** The owner merges from the
+  GitHub UI and continues, so a "post-merge sync" PR (#4 after #3, #9 after #8: the ledger's
+  merge sha, the base re-anchor, Docs-synced-through, a merge note) is pure churn — and the old
+  P6 forced one by refusing a handoff line that names a PR before it merges. Checked, not
+  assumed: a simulated merge of this PR into main (a real merge commit dated 2026-10-03 01:00
+  UTC, the worst case for G11, and separately a squash) leaves the `docs` job's gate at 24
+  passed / 0 failed / 1 skipped with G10 and G11 PASS — the base lines then named `c999061`,
+  the merge's first parent (they now name `fe4f0a7`: see the N-36 bullet). What could not be written before the merge now can: **P6 accepts a
+  number above the newest merged PR when it is the branch's own OPEN PR** (any other unmerged
+  number still fails; a merge the line does not name still fails as BEHIND), the handoff line
+  names PR #10, and the ledger's *Merged as* cell holds a lookup instead of `**open**` — the sha
+  does not exist yet and nobody edits the cell later. `tests/test_pr_preflight_p6.py` runs the
+  real script in an isolated repo with a fake `gh`: against the old script 7 pass and 1 FAILS
+  (the own-open-PR case, with exactly the message a pre-synced PR gets), against the new one
+  8/8; the jq filter was also checked against the real `gh`. `review_change.sh` R1 cannot see
+  this edit (it matches `ok`/`bad`/`skip` ids and `grep -o` matchers, not echoed verdicts), so
+  the test is the evidence. It is not wired into `verify_audit.sh`: the freeze allows extending
+  gates, not adding an F5.
+- **Tooling that lived only in `/tmp` is now committed (owner remark: scratch space is wiped,
+  reusable work does not belong there).** After the sandbox reset the N-32 measurement kit and
+  the 32-bit-`long` harness behind N-30 were gone. In the repo now:
+  `scripts/test_unit_32bit_long.sh` (zig `x86-linux-musl`; it asserts `sizeof(long) == 4` before
+  trusting the run and exits 3 with a printed SKIP when it cannot run — never silently; GREEN
+  396/0, and RED with the 7 documented failures on the pre-fix `SettingsIO.h`) and
+  `scripts/libc_parity/` (`libc_parity.py`, `shim.h`, `wasi_run.mjs`; `--check` re-asserts N-32's
+  claims and flips to FAILED, 7/9, when `random()` is left unpinned). One-time scratch (edit
+  scripts, the merge-simulation clones, tree backups, the tool venv) stays in `/tmp` on purpose;
+  the venv's exact pins are in the handoff's sandbox section, and the handoff now carries the
+  rule.
+
+**Partial / Left on purpose:**
+
+- **Decided and done this session, so no longer left:** the duplicate push + pull_request
+  runs and `concurrency`, the 32-bit CI job, N-34's pin and N-32's bar (bullets above).
+  What remains of them:
+- **N-32 stays PARTIAL on purpose:** nothing here can build an Emscripten module, so
+  `prove_wasm.mjs --oracle` has only run against a fake one. OD-16 blocks shipping the wasm
+  track either way.
+- **Not exercised live:** the gate's conflicting-PR branch (`mergeable=false`) — it is
+  covered by the offline decision table only; firing it for real needs a PR with merge
+  conflicts, which is not worth manufacturing.
+- **Not tried:** a trial of `ubuntu-26.04` — nothing here can run that image. The pin makes
+  that a deliberate, branch-tested step instead of a surprise.
+- **Left for the owner:** whether the S34 PR is merged (no merge without an explicit yes),
+  as a merge commit. The four decisions that were open at the start of this turn (N-34 pin,
+  N-32 bar, run de-duplication, the 32-bit CI job) are all made and implemented.
+
+**Verified (executed here):**
+
+- N-30: CI run 36966494878 (annotations read through the check-runs API); the
+  32-bit-`long` reproduction (identical assertion, identical line); RED 7
+  failures → GREEN 0 on that build and on native 64-bit; then `./build.sh`
+  (396 checks, 0 failures), `smoke_cli.sh` 63/63, `test_engine.sh` 5/5,
+  `test_output_verify.sh` 25 assertions, `test_package.sh` 36/36, the oracle
+  `--full` 64/64, all nine web suites (several compare the JS builder against
+  this C++ code), and ASan+UBSan on the unit suite — clean.
+- The CI proof for the fix: run 36967608254's job and step list read back from
+  the Actions API (every step of `docs`, `linux`, `windows`, `csharp-spike`
+  `success`; only the failure-only diagnose step `skipped`).
+- N-26: the failing step of every main push run since 2026-09-22 read from the
+  jobs API (8 red, all at the doc gate; 2 green), and a depth-1 push-to-main
+  emulation of `c999061` — the exact G10 line quoted above.
+- Both workflow copies byte-identical (`cmp`); the workflow validates against
+  GitHub's workflow schema (`check-jsonschema --builtin-schema
+  vendor.github-workflows`; a deliberately broken file is rejected by the same
+  command). Parsed structure: jobs `docs`, `linux`, `windows`, `csharp-spike`;
+  the linux job no longer contains the gate.
+- The `[[ ]] && cp` claim above, by running both forms under `set -euo
+  pipefail`; the two diagnostic steps, by extracting their exact `run:` text
+  from the workflow YAML and executing it against a deliberately broken
+  unit-test source (exit 0, exactly one annotation of 685 bytes, no raw
+  newline, decoded text carries the real g++ error).
+- The `docs` job, emulated step for step in a fresh full-history clone with
+  cmake on PATH and no Qt (what `ubuntu-latest` looks like): 24 passed, 0
+  failed, 1 skipped (G6 by design) — and green in CI itself (run 36967608254,
+  `docs` success).
+- The merge of `c999061` into this branch: only `IMPROVEMENT_LOG.md` and
+  `STATUS.md` conflicted (mechanical); the merge result diffs against main as
+  exactly this branch's content and against the previous tip as exactly PR #9's.
+- Live GitHub state used by the docs: releases 0, tags 0, PR #9 merged
+  `c999061`, PR #7 closed unmerged, run ids as quoted.
+- N-32: `python3 working_code/gifscythe/scripts/libc_parity/libc_parity.py --check` from its
+  committed location — `CHECK OK` (oracle == glibc 9/9, glibc == musl 3/9, musl == wasm 9/9,
+  stable libc 9/9), output hashes identical to the earlier scratch run; mutation: with `random()`
+  left unpinned in `shim.h` it exits 1 and reports 7/9.
+- The 32-bit-`long` runner: exit 0 on this tree (396/0); exit 1 on a scratch copy holding the
+  pre-fix `SettingsIO.h` (the 7 documented failures, including the real Windows CI line
+  `position_x == 3000000000u ... line 1284`); exit 3 with a printed SKIP when no zig is on
+  PATH; exit 2 when pointed at a 64-bit target; shellcheck clean.
+- The post-merge simulation: this PR merged into `c999061` in a scratch clone as a real merge
+  commit dated 2026-10-03 01:00 UTC (and, separately, as a squash), `./build.sh`, then the
+  `docs` job's gate with `origin/main` set to the merge as GitHub would leave it: 24 passed,
+  0 failed, 1 skipped, G10 and G11 PASS in both shapes. A rebase-merge is the one shape it
+  does not survive (the tip's parent would no longer be `c999061`); the owner has merged with
+  merge commits so far and the PR body asks for one.
+- N-36 (the final head `33bea55`): Actions run 37085302508 — `gate`, `docs`, `linux`, `portability`, `windows`,
+  `csharp-spike` all green on the tree that will exist after the merge; `scripts/sim_postmerge.sh`: the docs gate
+  GREEN after a merge commit dated 2026-10-03 and 2026-10-10 and after a same-day squash (a squash on a later
+  day still fails G11 — merge commit is the safe shape); locally on that tree: test_engine 5/5, smoke 63/63,
+  oracle 24 + 64, glue harness, wasm bar 9/9, `test_fixtures.py` 5/5 (RED against the first fixtures.sh).
+- N-35: `server-bounds` loop (1 failure in 15 sequential runs before; 45 of 45 clean after the fix); the
+  deterministic regression group RED 5/5 against the old readiness rule and GREEN with the fix; the nine web
+  suites green; the extracted step text against stub suites (3 cases) and shellcheck.
+- The Python tests: `unittest discover` over `working_code/gifscythe/tests` — 61 tests OK (the
+  earlier 21, plus 8 P6, 14 `ci_gate`, 10 `prove_wasm --oracle` and 8 `--bar` logic).
+- The four implemented decisions, offline: `libc_parity.py --bar` GREEN 9/9 and `--bar --against
+  glibc` RED 6 of 9 (exit 1); `test_prove_wasm_oracle.py` RED 10/10 on the old script, GREEN 10/10,
+  the byte-comparison mutant caught by exactly its test; `test_libc_parity_bar.py` 8/8 and the guard
+  mutant caught by exactly its 2 tests; `test_ci_gate.py` 14/14 and its three mutants each killed;
+  the workflow against GitHub's schema and actionlint (4 findings, all the known stale-label false
+  positive that `lint_workflow.mjs` filters; its `--selftest` passes); both workflow copies
+  byte-identical; `shellcheck` clean on `ci_gate.sh` and `test_unit_32bit_long.sh`; the gate's API
+  calls against the real repo (the slashed branch name finds PR #10, `mergeable` is `true`, an
+  unknown repo is a detectable error). On Actions: run 36983286343 — `gate`, `docs`, `linux`,
+  `portability`, `windows`, `csharp-spike` all green on `ubuntu-24.04`/`windows-latest`, every
+  `portability` step `success` (toolchain 8 s, unit suite 69 s, wasm bar 38 s); push run 36983282655 —
+  gate `skip=true`, five jobs skipped; `cancel-in-progress` observed live (run 36984484547 cancelled by
+  the next push; main's never-cancel group is the one part not exercised).
+
+**Not verifiable here:** whether `ubuntu-26.04` would have passed (not trialled: a red trial commit on this
+PR's head would put a failing check on a PR the owner may merge, and no other branch may be used); the
+gate's conflicting-PR branch against a real conflicting PR; an Emscripten build through `prove_wasm.mjs
+--oracle`; the Windows rows that need real hardware (W-18 clean
+machine, W-19 desktop probes — a CI artifact is not a clean-machine run);
+whether GitHub accepts annotation messages larger than the ~700 bytes seen so
+far (the failure case is capped at 3.5 KB); what an emcc build would do (inferred
+from Emscripten's musl-derived libc, unmeasured — emcc is unobtainable here); a
+rebase-merge of this PR (G10 would fail after it; merge commit and squash are verified);
+semantic integer-width
+classes beyond plain `long` (size_t/int narrowing in the Qt code — the grep
+audit above covers `long` only); and whether the base lines stay legal — they
+name `fe4f0a7`, main's tip when they were written, so any other commit on main before this
+one merges makes this PR stale (stale, not broken: the next session re-anchors; it already
+happened once, with the owner's direct commit).
+
+**Docs touched:** `SESSION_HANDOFF.md` (header, Docs-synced-through → PR #10, base line,
+maintenance rule, ledger rows #7/#9/#10, fast hand-off, product constraints, sandbox reality,
+verification table, orientation quotes), `STATUS.md` (N-26/N-30 closed, R-03, N-32/N-33/N-34,
+W-03/W-04/W-30, re-emitted), `COMPILED_AUDIT.md` (Base line, §21 rows N-26/N-30 and new
+N-32/N-33/N-34, U-10 text), `WORKLIST.md` (pending lines, N-26 ticks, CI/infra bullet, wasm
+bullet, build commands, "Do not" list), `README.md` (honesty summary), `docs/ci/README.md` (§1),
+`docs/planning/PLANNING.md` (N-26 notes, prompt line, wasm corrections), `web/wasm/README.md`,
+`working_code/gifscythe/README.md`, `.github/workflows/build.yml` and its byte copy
+`docs/ci/build.yml.proposed`, `working_code/gifscythe/scripts/pr_preflight.sh` (P6),
+`working_code/gifscythe/scripts/verify_audit.sh` (comment), new
+`working_code/gifscythe/tests/test_pr_preflight_p6.py`,
+`working_code/gifscythe/scripts/test_unit_32bit_long.sh`,
+`working_code/gifscythe/scripts/libc_parity/` (`libc_parity.py`, `shim.h`, `wasi_run.mjs`),
+`working_code/gifscythe/src/core/SettingsIO.h`,
+`working_code/gifscythe/tests/test_gifsicle_command.cpp`, and — for the owner's four decisions —
+`working_code/gifscythe/scripts/ci_gate.sh`, `lint_workflow.mjs`, `libc_parity/libc_parity.py` (`--bar`,
+`--build-oracle`), `web/wasm/prove_wasm.mjs` (`--oracle`, `--module`), new
+`working_code/gifscythe/tests/test_ci_gate.py`, `test_libc_parity_bar.py`, `test_prove_wasm_oracle.py`,
+`web/test/server-bounds.test.mjs` (N-35), this entry.
+
+---
+
 ## S33 — 2026-10-02: register mechanics + doc-machine cost (started 2026-10-01 local; the UTC date rolled mid-session and G11 compares UTC-stamped commits — the entry is dated to the session's close day) (U-88/P2-21 done, U-89/P2-22 partial) — the derived fix-order block, proof-provenance markers, and the gate/register freeze
 
 **Changed:**
