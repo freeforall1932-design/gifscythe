@@ -6,3 +6,5 @@
 *.c text eol=lf
 *.yml text eol=lf
 *.md text eol=lf
+# N-36: the text-encoded test images must reach every platform byte-exact (GNU base64 -d rejects a CR)
+working_code/gifscythe/tests/fixtures/* text eol=lf

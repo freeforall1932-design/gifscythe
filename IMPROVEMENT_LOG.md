@@ -294,7 +294,16 @@ Chronological log of decisions and changes. **Newest at the top.**
   `GS_TEST_REF_DIR` hook, so no Qt code changed). Main was merged into the branch first (no
   conflicts) so everything was tested on the tree that will exist after the merge: test_engine
   5/5, smoke 63/63, oracle quick 24 and full 64, glue harness, the wasm bar 9/9, the prove_wasm
-  suite 10/10, G8 and G10 green. The Windows/C#/Qt steps are proven only by CI. **Reversible:** if
+  suite 10/10, G8 and G10 green. The first CI run of it (37084921570) passed `docs`, `linux` — the engine
+  tests, smoke, oracle, web suites and the **Qt GUI harness** on the GIF-less tree — and `portability`, and
+  failed `windows` in exactly the two steps that call `fixtures.sh`. **Cause, found by reasoning from the
+  repo's own `.gitattributes` and reproduced offline (the Actions log is unreadable):** Git for Windows
+  checks text out as CRLF unless `.gitattributes` pins LF — it did for `*.sh`, `*.c`, `*.yml`, `*.md` but
+  not for the new `.b64` and `SHA256SUMS` — GNU `base64 -d` rejects a CR ("invalid input") and `read -r`
+  keeps the CR in the file name. Fixed in two places (the attribute, and `fixtures.sh` stripping CR) and
+  pinned by `tests/test_fixtures.py`: a CRLF copy of the fixtures, RED against the first version (exit 2,
+  "cannot decode"), GREEN 5/5 now; it also runs in the `portability` job. The Windows steps' own proof is
+  the next run. **Reversible:** if
   the images were meant to come back, restoring them is one `git checkout`, and nothing else
   changes. *How it was found:* the first command of the turn was a live check of
   `origin/main`, and `scripts/sim_postmerge.sh` (new, committed — it had been rebuilt in `/tmp` twice

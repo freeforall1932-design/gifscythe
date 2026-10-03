@@ -12,6 +12,8 @@
 # -O3 - was measured on exactly these bytes). Idempotent and quick; nothing is written outside DIR.
 #
 # Needs: base64 and sha256sum (GNU coreutils; Git for Windows ships both) or `shasum`.
+# CRLF-proof on purpose: GNU base64 -d rejects a CR, and a Windows checkout turns text into CRLF unless
+# .gitattributes says otherwise (it does, for tests/fixtures; this is the second line of defence).
 # Exit: 0 DIR holds both files and they match / 1 a checksum does not match / 2 a tool is missing.
 #
 set -uo pipefail
@@ -30,9 +32,10 @@ command -v base64 >/dev/null 2>&1 || { echo "fixtures.sh: no base64 on PATH" >&2
 mkdir -p "$dest" || exit 2
 status=0
 while read -r want name; do
+  want="${want%$'\r'}"; name="${name%$'\r'}"   # a Windows checkout may hand us CRLF text files
   [[ -n "${name:-}" ]] || continue
   if [[ -f "$dest/$name" && "$(sha "$dest/$name")" == "$want" ]]; then continue; fi   # already good
-  base64 -d "$src/$name.b64" > "$dest/$name.tmp" 2>/dev/null || { echo "fixtures.sh: cannot decode $src/$name.b64" >&2; rm -f "$dest/$name.tmp"; exit 2; }
+  tr -d '\r' < "$src/$name.b64" | base64 -d > "$dest/$name.tmp" 2>/dev/null || { echo "fixtures.sh: cannot decode $src/$name.b64" >&2; rm -f "$dest/$name.tmp"; exit 2; }
   if [[ "$(sha "$dest/$name.tmp")" != "$want" ]]; then
     echo "fixtures.sh: $name decodes to the wrong bytes (sha256 mismatch against SHA256SUMS)" >&2
     rm -f "$dest/$name.tmp"; status=1; continue

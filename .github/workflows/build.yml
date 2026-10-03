@@ -249,6 +249,12 @@ jobs:
       - name: Bar verdict logic (a proof gate must be able to fail)
         run: python3 working_code/gifscythe/tests/test_libc_parity_bar.py
 
+      # N-36: the repo holds no image files; the test images are text rebuilt by fixtures.sh. The first CI run of
+      # that change failed on Windows (a CRLF checkout: GNU base64 -d rejects a CR) in steps whose logs nothing here
+      # can read, so this suite reproduces a CRLF checkout offline and the Windows steps prove the real thing.
+      - name: Text fixtures rebuild byte-identical images, from LF and from CRLF (N-36)
+        run: python3 working_code/gifscythe/tests/test_fixtures.py
+
   windows:
     needs: gate
     if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
