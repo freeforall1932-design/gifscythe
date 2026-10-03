@@ -302,8 +302,9 @@ Chronological log of decisions and changes. **Newest at the top.**
   not for the new `.b64` and `SHA256SUMS` — GNU `base64 -d` rejects a CR ("invalid input") and `read -r`
   keeps the CR in the file name. Fixed in two places (the attribute, and `fixtures.sh` stripping CR) and
   pinned by `tests/test_fixtures.py`: a CRLF copy of the fixtures, RED against the first version (exit 2,
-  "cannot decode"), GREEN 5/5 now; it also runs in the `portability` job. The Windows steps' own proof is
-  the next run. **Reversible:** if
+  "cannot decode"), GREEN 5/5 now; it also runs in the `portability` job. That fix is proven: the next run, 37085302508 (head `33bea55`), is green on all six
+  jobs — `windows` (E2E smoke, GUI harness, packaging) and `csharp-spike` included — on a tree with no
+  image files, merged with the owner's current `main`. **Reversible:** if
   the images were meant to come back, restoring them is one `git checkout`, and nothing else
   changes. *How it was found:* the first command of the turn was a live check of
   `origin/main`, and `scripts/sim_postmerge.sh` (new, committed — it had been rebuilt in `/tmp` twice
@@ -412,6 +413,11 @@ Chronological log of decisions and changes. **Newest at the top.**
   0 failed, 1 skipped, G10 and G11 PASS in both shapes. A rebase-merge is the one shape it
   does not survive (the tip's parent would no longer be `c999061`); the owner has merged with
   merge commits so far and the PR body asks for one.
+- N-36 (the final head `33bea55`): Actions run 37085302508 — `gate`, `docs`, `linux`, `portability`, `windows`,
+  `csharp-spike` all green on the tree that will exist after the merge; `scripts/sim_postmerge.sh`: the docs gate
+  GREEN after a merge commit dated 2026-10-03 and 2026-10-10 and after a same-day squash (a squash on a later
+  day still fails G11 — merge commit is the safe shape); locally on that tree: test_engine 5/5, smoke 63/63,
+  oracle 24 + 64, glue harness, wasm bar 9/9, `test_fixtures.py` 5/5 (RED against the first fixtures.sh).
 - N-35: `server-bounds` loop (1 failure in 15 sequential runs before; 45 of 45 clean after the fix); the
   deterministic regression group RED 5/5 against the old readiness rule and GREEN with the fix; the nine web
   suites green; the extracted step text against stub suites (3 cases) and shellcheck.
