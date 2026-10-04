@@ -842,6 +842,12 @@ void MainWindow::runCommand() {
         gs::partial_output_path(pendingOutput_.toStdString()));
     gs::discard_partial(pendingPartial_.toStdString());  // self-heal a prior hard kill
     partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
+    // U-58 / P1-38: freeze the settings for the WHOLE batch at start —
+    // every continuation job (onProcessFinished) builds its argv from this
+    // snapshot, never from a live currentSettings() re-read. The output
+    // plan above was computed and collision-checked against `settings`;
+    // the jobs must run with exactly those values.
+    batchSettings_ = settings;
     gs::Settings one = settings;
     one.mode = gs::Mode::Auto;  // single-file, no -b needed
     one.inputs = {in.toStdString()};
@@ -1097,8 +1103,12 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
           gs::partial_output_path(pendingOutput_.toStdString()));
       gs::discard_partial(pendingPartial_.toStdString());
       partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
-      auto settings = currentSettings();
-      gs::Settings one = settings;
+      // U-58 / P1-38: continuation jobs MUST come from the batch-start
+      // snapshot frozen into batchSettings_ (runCommand), never from a
+      // live currentSettings() — the plan was computed and collision-
+      // checked against THOSE settings; re-reading here rebuilds argv
+      // from state the plan never saw.
+      gs::Settings one = batchSettings_;
       one.mode = gs::Mode::Auto;
       one.inputs = {in.toStdString()};
       one.output = pendingPartial_.toStdString();
