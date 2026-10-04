@@ -1197,7 +1197,13 @@ void MainWindow::startPreview() {
     previewPanel_->clearAfter(QStringLiteral("select an existing file to preview"));
     return;
   }
-  if (!gs::path_is_executable(enginePath_.toStdString())) {
+  // U-70 / P1-42 (F:NF-13): the preview path re-probed the engine with a
+  // bare toStdString(), bypassing the u8path_compat boundary that
+  // ensureEngine() wraps — the one std::string -> fs::path conversion this
+  // codebase allows at API edges (it exists for legacy-ACP Windows hosts,
+  // where the bare form throws or splits). One rule everywhere: every
+  // fs::path boundary goes through u8path_compat.
+  if (!gs::path_is_executable(gs::u8path_compat(enginePath_.toStdString()))) {
     previewPanel_->clearAfter(QStringLiteral("engine not found — preview unavailable"));
     return;
   }
