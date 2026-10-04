@@ -939,12 +939,22 @@ void MainWindow::cancelRun() {
   // kill() makes gifsicle exit with a non-zero/crash status, which normally
   // routes through the "optimization failed" branch. Mark the cancellation so
   // onProcessFinished doesn't surface a spurious error dialog mid-cancel.
-  cancelling_ = true;
-  if (process_ && process_->state() != QProcess::NotRunning) {
+  // U-72 / P1-42: the flag is LATCHED — arming and clearing live in two
+  // different places now. The old code cleared it right after
+  // waitForFinished(3000), but that wait can time out, and even when it
+  // succeeds the finished() signal can be queued-but-undelivered; a
+  // finished() that arrived after the clear took the failure branch and
+  // popped a spurious "Optimization failed" QMessageBox immediately after
+  // "Cancelled.". The latch is armed only when a process was ACTUALLY
+  // running (it can never outlive the killed run's own notification) and is
+  // consumed once by onProcessFinished — see there.
+  const bool engineWasRunning =
+      (process_ && process_->state() != QProcess::NotRunning);
+  if (engineWasRunning) {
+    cancelling_ = true;
     process_->kill();
     process_->waitForFinished(3000);
   }
-  cancelling_ = false;
 
   // N-11: the engine may have already exited successfully in the gap between
   // the last event-loop turn and this call. pendingPartial_ then holds VERIFIED
@@ -983,8 +993,16 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
   // Drain stdout so it doesn't fill the pipe (we don't use it when -o is set).
   process_->readAllStandardOutput();
 
+  // U-72 / P1-42: read-and-consume the cancel latch for THIS completion,
+  // whatever the verdict turns out to be. Simply KEEPING the flag (the naive
+  // fix for the early clear) would let it outlive one finished() and
+  // silently swallow the NEXT run's genuine failure — a new pit of exactly
+  // the class this finding belongs to. One completion, one consumption.
+  const bool wasCancelling = cancelling_;
+  cancelling_ = false;
+
   if (status != QProcess::NormalExit || exitCode != 0) {
-    if (cancelling_) {
+    if (wasCancelling) {
       // A user-initiated cancel (or window close) kills the engine, which then
       // reports a non-zero exit. That's expected, not a failure to alarm about;
       // cancelRun() finishes the cleanup and sets the "Cancelled." status.
