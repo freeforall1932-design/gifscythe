@@ -36,3 +36,4 @@ reference_code/gifsicle-upstream/
 
 # Locally installed tooling (pip-provided cmake; not committed)
 .tools/
+.env
