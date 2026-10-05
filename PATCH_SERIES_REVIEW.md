@@ -310,6 +310,26 @@ So: **100% of the fix content in the three rejected patches is live in the
 tree.** Only the three `@@` count fields were ever wrong; no code was
 reconstructed, paraphrased or dropped.
 
+## Wider regression run (added once the engine + CLI were built)
+
+Building `./build.sh` (engine 1.96 + CLI + unit tests; the GUI needs Qt6 and was
+not requested) unblocked the suites that had been skipping, and with them the
+strongest available check on the U-71 change — `smoke_cli.sh` drives the real CLI
+through `run_argv`, the exact function whose Windows return path was rewritten:
+
+| suite | result | why it matters here |
+|---|---|---|
+| `scripts/smoke_cli.sh` | **63 passed, 0 failed** | exercises `run_argv` end to end; U-71's contract change (codes > 255 now deliver 255) does not disturb the POSIX exit-code path |
+| `scripts/test_engine.sh` | 5 passed, 0 failed | engine pipeline unaffected |
+| `scripts/test_output_verify.sh` | 25 assertions, 0 failures | output verifier unaffected |
+| `scripts/oracle_fuzz.mjs --quick` | 24/24 deterministic cases | the pre-push hook's second stage |
+| `scripts/test_unit_32bit_long.sh` | **396 checks, 0 failures** on `x86-linux-musl`, `sizeof(long)==4` | was SKIP (no zig); now runs, and confirms the N-30 width class is still green alongside U-71's new classifier |
+| `scripts/verify_audit.sh` | **32 passed, 0 failed, 5 skipped** | includes **E9** (the `build.yml` byte mirror, so the CI edit is clean) and **F1** (doc gate green). Docs record 34/0/3 "with pip's cmake on PATH"; the two extra skips here are the no-cmake/no-Qt6 legs |
+| `./build.sh` unit tests | 396 checks, 0 failures | matches the documented unit count |
+
+The build writes only into gitignored paths (`build/`, `release/*/gifsicle`), so
+the tree stayed clean throughout.
+
 ## Final gate state
 
 `./scripts/check_docs.sh` → **23 passed, 0 failed, 3 skipped.** Both failures
