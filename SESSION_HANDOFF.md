@@ -1,16 +1,45 @@
 # Session Handoff
 
-**Session:** S34 · **Date:** 2026-10-03 (started 2026-10-02 UTC)
-**Branch:** arena/01a0f7ed-gifscythe
+**Session:** S35 · **Date:** 2026-10-06
+**Branch:** arena/9c0b8a7f-gifscythe
 **Repo re-created 2026-09-22:** the GitHub repo was rebuilt from a zip upload; the old remote's history (S1–S26, PRs #1–#33, shas like `5c93680`) does not exist in this clone — every such sha below is an old-remote record kept for the written history. The new remote: `04a1cd4` (initial) → `60d3df4` (zip upload) → `ce5fd51` (unpack to root) → PR #1 merge `824bf20`, whose tree is the S26 state minus the four root license files (loss = finding **U-97**, restored in S27 with executed proof). The ledger carries a separator: rows #1–#33 are the OLD repo's; the new repo's numbering restarts at #1. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number. This records the merged baseline, not a claim about current CI health.
 **Docs synced through:** PR #10 · branch `arena/01a0f7ed-gifscythe` · merged as: the merge commit of PR #10 (lookup in its ledger row — a PR pre-syncs itself)
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. A PR **pre-syncs itself**: right after `gh pr create` it moves this line to its own number — P6 accepts the number of the branch's own open PR — so the owner can merge from the GitHub UI and continue with nothing left to edit. Move this line only after the writing is done.)*
-Based on `main` commit `fe4f0a7` (the owner's direct web commit of 2026-10-02, "Deleted shot_actions_tab.png", which removed every image file in the repo — register row N-36; its parent `c999061` is PR #9's merge, 2026-10-02 — the S33 post-merge sync plus the N-31 fix that makes G11 skip in shallow clones — whose first parent `ad8f956` is PR #8's merge, whose own first parent `13d95a7` was the owner's 2026-09-29 direct upload. Re-anchored twice in S34, because every commit that lands on main moves its tip and G10 only accepts the tip or its first parent: an older sha here turns main red on the post-merge run — it did, for the old `13d95a7`, on PR #9's own merge run 36971588492, and the `c999061` this line named before the owner's direct commit went stale the same way; `scripts/sim_postmerge.sh` shows that before the merge instead of after it. Old-remote shas inside the historical sections are records this clone cannot resolve) ·
+Based on `main` commit `4430a28` ("Add files via upload" — **a second re-creation of this repo.** The entire history of this clone is that one squashed commit, so the `fe4f0a7` lineage below does not resolve here at all, exactly as the S27 re-creation did not; S27's entry is the precedent for how that is recorded. The TREE is nevertheless the one these docs describe, verified by markers rather than trust: `4430a28` holds zero image files (what `fe4f0a7`'s delete produced — N-36) and all five root license files (U-97's restoration survived). Re-anchored in S35 because G10 accepts only `origin/main`'s tip or its first parent, and an unresolvable base sha keeps main red on every run. **Consequence for anyone reading the patch series:** the five audit-fix patches applied in S35 were anchored on `fe4f0a7`, so every hunk landed at an offset of +14 to +562 lines in this tree; the offsets are recorded line by line in `PATCH_SERIES_REVIEW.md`.) PREVIOUS BASE, kept for the written history: `main` commit `fe4f0a7` (the owner's direct web commit of 2026-10-02, "Deleted shot_actions_tab.png", which removed every image file in the repo — register row N-36; its parent `c999061` is PR #9's merge, 2026-10-02 — the S33 post-merge sync plus the N-31 fix that makes G11 skip in shallow clones — whose first parent `ad8f956` is PR #8's merge, whose own first parent `13d95a7` was the owner's 2026-09-29 direct upload. Re-anchored twice in S34, because every commit that lands on main moves its tip and G10 only accepts the tip or its first parent: an older sha here turns main red on the post-merge run — it did, for the old `13d95a7`, on PR #9's own merge run 36971588492, and the `c999061` this line named before the owner's direct commit went stale the same way; `scripts/sim_postmerge.sh` shows that before the merge instead of after it. Old-remote shas inside the historical sections are records this clone cannot resolve) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-## Next session — fast hand-off (after S34)
+- **S35 was the patch-intake lane — read this before touching U-57/U-58/U-70/U-71/U-72.**
+  1. **Five audit-fix patches landed, and three of them were malformed as submitted.** `0001`,
+     `0004` and `0005` were rejected outright by `git apply --check` — one `@@` count field wrong
+     in each (`-66,6 +66,25`→`-66,7 +66,26`; `+617,14`→`+617,13`; `+164,15`→`+164,14`). The
+     correction is committed separately (`Fix malformed hunk headers…`) so the fix and the repair
+     are distinguishable in history. **100% of the fix content was salvaged**: every one of the
+     182 added lines across the three rejected patches is present in the tree and all 7 removed
+     lines are gone from their own sites (measured, `PATCH_SERIES_REVIEW.md`).
+  2. **U-57 and U-71 are FIXED with executed proof. U-58, U-70 and U-72 are PARTIAL, not FIXED.**
+     The three Qt rows have their source fix in the tree but no Qt proof — no cmake/Qt6 here, and
+     the repo's own rule is that a row without executed proof is PARTIAL with the gap named, never
+     DONE. **Do not flip them on a green CI build alone**: each names the behavioural case that is
+     still unwritten (U-58 mid-batch settings mutation, U-70 `GS_ENGINE` under a non-ASCII
+     directory, U-72 a `waitForFinished` timeout). Write those cases first.
+  3. **Both new proofs are now in `build.yml` (and its byte mirror).** `test_u71_exit_codes.sh`
+     runs on linux (LP64), on windows (native `g++`, `CXX` pinned because MinGW ships no `c++`)
+     and in `portability` under `CXX="python3 -m ziglang c++ -target x86-linux-musl"` — measured
+     `sizeof(long)==4`, the LLP64 width class the finding actually lives in. An 8-byte-long-only
+     run would not have proved it. `u57-stale-output` is its own linux step so a red names U-57.
+  4. **The U-72 latch has a bounded residual.** If the latch is armed and `finished()` never
+     arrives it survives into the next run. Worked through in S35 and **deliberately NOT
+     "hardened"**: the obvious one-liner (`cancelling_ = false` at the top of `runCommand()`)
+     re-opens the exact race U-72 fixes, because the stale `finished()` then arrives with the flag
+     already cleared. A new run cannot even start until the old process has exited, and exit ⇒
+     `finished()` ⇒ consumption, so the harmful interleaving is not reachable. The real fix is
+     U-12's state machine. **Do not add that one-liner.**
+  5. **This clone's base is `4430a28`, not `fe4f0a7`.** G10 was red on arrival and is green now;
+     see the base line above for why, and `PATCH_SERIES_REVIEW.md` for the per-hunk offsets.
+
+## Next session — fast hand-off (after S35)
 
 - **S34 was the CI-truth lane — read this before touching CI.**
   1. **CI now tells the truth.** The doc gate is its own `docs` job with full
@@ -180,7 +209,7 @@ Based on `main` commit `fe4f0a7` (the owner's direct web commit of 2026-10-02, "
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 158 DONE · 11 PARTIAL · 26 OPEN · 0 UNTRIAGED · 195 total (at S32: 149/9/30/0 — historical)
+- **Register:** 160 DONE · 14 PARTIAL · 21 OPEN · 0 UNTRIAGED · 195 total (at S34: 158/11/26/0; at S32: 149/9/30/0 — both historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -823,7 +852,7 @@ count (**G9** compares like with like).
 | `web/wasm/glue_harness.mjs` · the Python unit tests (`working_code/gifscythe/tests`) | ✅ `GLUE-HARNESS: PASS` · **61 tests OK** (21, plus 8 P6, 14 `ci_gate`, 10 `prove_wasm --oracle`, 8 `--bar` logic — all added in S34) |
 | `scripts/test_unit_32bit_long.sh` · `scripts/libc_parity/libc_parity.py --check` | ✅ unit suite **396/0** on a 4-byte `long` (RED with the 7 documented failures on the pre-fix `SettingsIO.h`) · `CHECK OK` — the N-32 finding re-asserted (RED when `random()` is left unpinned: 7/9) · `libc_parity.py --bar` **BAR OK 9/9** (and `--bar --against glibc`, the old bar, FAILS 6 of 9, as it must) |
 | `scripts/verify_audit.sh` | ✅ **34 PASS / 0 FAIL / 3 SKIP** (with pip's cmake on PATH; the 3 SKIPs are B = no Qt6, C1-C5 = Actions-only, D3/D4 = clean-Windows hardware) |
-| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **158/11/26/0 = 195** at S34; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
+| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **160/14/21/0 = 195** at S35; 158/11/26/0 at S34; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
 | `.github/workflows/build.yml` (both copies, byte-identical) | ✅ GitHub workflow schema (`check-jsonschema`) and actionlint (`scripts/lint_workflow.mjs`, its wasm build) clean; the dedupe gate's 14-case table passes and three mutants are each killed by their own test; live on Actions: the push run 36983282655 ran only the gate (`skip=true`, the other five jobs skipped) and the `pull_request` run 36983286343 ran all six jobs green (`portability` 2.0 min: toolchain 8 s, 32-bit unit suite 69 s, wasm bar 38 s) |
 | Qt/GUI harness (`test_gui_offscreen`) | ⏳ no Qt6 here (cmake is pip-installable, Qt6 headers are not) — CI is the proof: run 36967608254 ran the linux and the Windows offscreen suites green |
 | Windows-only rows, wasm rows, CI log blobs | ⏳ no wine, no emcc, no Windows runner here (zig compiles Windows exes, nothing runs them) — Windows results are read from CI (run 36967608254 for the N-30 fix); a zig wasm32-wasi build of the engine does run under Node's WASI (N-32, no promotion); Actions log blobs are unreachable, but the jobs API and check-run annotations are — N-26 and N-30 were diagnosed that way |
@@ -968,7 +997,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 158 DONE · 11 PARTIAL · 26 OPEN · 0
+   its generated counts line (currently: 160 DONE · 14 PARTIAL · 21 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
