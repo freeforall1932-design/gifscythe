@@ -233,25 +233,92 @@ U-70/U-72, …)" plus "the Windows rows (U-55, U-71)" are "**CI-provable only**
   this clone, not a consequence of applying the series — and it is the same
   root cause as the anchor mismatch in the table above.
 
-## Open items the series does not cover
+## Open items — status after the follow-up work
 
-1. **Neither new proof runs in existing CI.** `build.yml` names its scripts
-   explicitly (test_engine.sh:113, test_package.sh:177,
-   test_unit_32bit_long.sh:232) and hardcodes its web-suite list at line 135 —
-   `test_u71_exit_codes.sh` and `u57-stale-output` appear in neither. The
-   `audit-fix-proof.yml` workflow the console page offers as their runner is
-   **not in this repository** (only `build.yml` is). Until one of those lands,
-   both proofs run only by hand.
-   Wiring them in means editing `build.yml` **and** its byte mirror
-   `docs/ci/build.yml.proposed` together, or gate G7 goes red.
-2. **The 0005 CI sentinel as written false-fails** on the patch's own comment.
-3. **Register/doc bookkeeping is outstanding.** The patches each say "after
-   green proof: §5 row → FIXED, then `check_docs.sh --emit`, then re-anchor the
-   G10 base line". None of that is in the series, so STATUS.md and
-   COMPILED_AUDIT.md still report all five findings OPEN while the code has
-   them fixed. `review_change.sh` R5 names the same debt: SESSION_HANDOFF.md,
-   IMPROVEMENT_LOG.md, WORKLIST.md and STATUS.md are all absent from the
-   change. I did not touch the registers — flipping rows without the Qt CI
-   proof would contradict the project's own "no patch without proof" rule.
-4. `scripts/test_unit_32bit_long.sh` (the LLP64 leg the U-71 commit message
-   leans on) SKIPs here: `SKIP: no zig (pip install ziglang)`, exit 3.
+Items 1 and 3 below are now **done**; item 4 was **withdrawn as wrong**. What
+remains open is item 2 and the Qt proof.
+
+1. ~~Neither new proof runs in existing CI.~~ **DONE.** Four steps added to
+   `build.yml` and its byte mirror `docs/ci/build.yml.proposed` (gate G7 stays
+   green): `linux` host `c++` for U-71; `linux` `u57-stale-output` as its own
+   step so a red names U-57 rather than "web suite …"; `portability`
+   `CXX="python3 -m ziglang c++ -target x86-linux-musl"`; `windows` `CXX=g++`
+   (pinned because MinGW ships no `c++` alias, which is the script's default).
+   The `portability` leg is the one that matters for this finding and it was
+   **executed here** on the pinned `ziglang==0.16.0` that job installs —
+   `x86-linux-musl` measures `sizeof(long)==4` against this host's 8, and the
+   suite passes at both widths, so the table is proven at the LLP64 width class
+   the real NTSTATUS path lives in, not only at the width it was written on.
+   `node scripts/lint_workflow.mjs` → `actionlint: clean`, `--selftest` OK.
+2. **Still open — the 0005 CI sentinel as written false-fails** on the patch's
+   own comment (`MainWindow.cpp:1108` contains the literal `currentSettings()`),
+   so a plain `grep -c currentSettings()` goes red. Needs a comment filter. Not
+   wired into `build.yml` for that reason.
+3. ~~Register/doc bookkeeping is outstanding.~~ **DONE.** U-57 and U-71 flipped
+   OPEN → FIXED (S35) with their executed proof quoted; U-58, U-70 and U-72
+   flipped OPEN → **PARTIAL** (S35), not FIXED, each naming the behavioural case
+   that is still unwritten. `check_docs.sh --emit` regenerated STATUS.md:
+   158/11/26/0 → **160/14/21/0 = 195**, which is exactly two OPEN→DONE and three
+   OPEN→PARTIAL; P1-37 derived to DONE, P1-38 and P1-42 to PARTIAL, release bar
+   10 → 9 open P0/P1 ids. SESSION_HANDOFF.md, WORKLIST.md and IMPROVEMENT_LOG.md
+   all carry an S35 entry, so `review_change.sh` R5 now reports them `[touched]`
+   instead of `[MISSING]`.
+
+   **G10 was red on arrival and is green now.** This clone's `origin/main` is
+   `4430a28`, one squashed upload commit, so the `fe4f0a7` base line was
+   unresolvable here — the same event S27 recorded. Both base lines now name
+   `4430a28` and keep `fe4f0a7` as a labelled historical record. The tree was
+   checked against `fe4f0a7`'s description by markers rather than trust: zero
+   image files in `4430a28` (what that commit's delete produced, N-36) and all
+   five root license files present (U-97 survived).
+4. **WITHDRAWN — do not add the `cancelling_ = false;` one-liner.** I offered it
+   above as a hardening for U-72's residual. Working the interleaving through,
+   it is wrong: clearing the flag at the top of `runCommand()` re-opens the exact
+   race U-72 fixes, because the stale `finished()` from the killed engine then
+   arrives with the flag already cleared and the spurious "Optimization failed"
+   dialog comes back. And the harmful case is unreachable anyway — a new run
+   cannot start until the old process has exited, and exit ⇒ `finished()` ⇒
+   consumption. The real fix is U-12's state machine, still OPEN. This is
+   recorded in the S35 hand-off block so nobody re-adds it.
+5. `scripts/test_unit_32bit_long.sh` still SKIPs here (`no zig` on the system
+   Python — PEP 668 blocks the install); it runs in the `portability` job, which
+   installs `ziglang==0.16.0` into a venv.
+
+## Salvage check on the three rejected patches
+
+Measured, not assumed. Every `+` line the three git-rejected patches wanted to
+add was extracted from the **original** files and checked against the applied
+tree; every `-` line was checked for absence:
+
+```
+0001  ProcessRunner.h            35/35 added present · 1/1 removed gone
+0001  test_u71_exit_codes.sh    120/120 added present · 1/1 removed gone
+0004  MainWindow.cpp              7/7 added present · 2/2 removed gone
+0005  MainWindow.cpp             12/12 added present · 1/2 removed gone (*)
+0005  MainWindow.h                8/8 added present · 1/1 removed gone
+
+TOTAL                           182/182 added lines salvaged
+```
+
+(*) Not a loss — a limit of a set-based check. `gs::Settings one = settings;`
+still exists in the file, but only in `refreshCommand` (line 698) and
+`runCommand`'s batch branch (line 851); the `onProcessFinished` copy the patch
+removed is now `gs::Settings one = batchSettings_;` (line 1111). The removal
+landed at the correct site.
+
+So: **100% of the fix content in the three rejected patches is live in the
+tree.** Only the three `@@` count fields were ever wrong; no code was
+reconstructed, paraphrased or dropped.
+
+## Final gate state
+
+`./scripts/check_docs.sh` → **23 passed, 0 failed, 3 skipped.** Both failures
+present on arrival are gone: G10 (base re-anchored) and G15
+(`scripts/bootstrap_hooks.sh`, so the pre-push doc gate is live). The 3 SKIPs
+are the no-cmake/no-Qt6 measurements (G6, G9b) and G11's shallow-clone date
+rule.
+
+`./scripts/review_change.sh --range 4430a28..HEAD` → 4 passed, 0 failed,
+1 skipped; R5 reports every doc obligation `[touched]`.
+
+Both proof suites re-run green after the doc edits: U-71 S1/S2/S3, U-57 5/5.
