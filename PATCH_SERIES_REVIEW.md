@@ -208,6 +208,31 @@ control-flow hunk (U-72) line by line. A `cmake` GUI build plus the offscreen
 harness is still the outstanding proof for U-72/U-70/U-58, exactly as the
 patches themselves say ("proof: Qt CI").
 
+SESSION_HANDOFF.md lines 448-456 independently agrees with that split, and
+names these exact rows: this sandbox is "g++ 12.2, node v22, gh, curl — no
+cmake/Qt6/mingw/wine/emcc/dotnet", and the Qt rows "(U-59's half, U-12, U-58,
+U-70/U-72, …)" plus "the Windows rows (U-55, U-71)" are "**CI-provable only**
+(source edit here, proof on the runner)". Source edit here is what landed.
+
+## Cross-check against the handoff's own constraints
+
+* **U-70 is aligned with a real, documented rule.** SESSION_HANDOFF.md:763-764:
+  "every std::string↔fs::path boundary goes through
+  `u8path_compat`/`path_u8string` (`src/core/WinUnicode.h`)". `ensureEngine()`
+  already obeyed it; `startPreview()` did not. The patch closes a genuine
+  divergence from a written constraint.
+  One citation nit: 0004's commit message attributes the rule to "PRODUCT
+  CONSTRAINTS in SESSION_HANDOFF", but `grep -rn 'PRODUCT CONSTRAINTS'
+  --include=*.md .` matches **nothing** — no such heading exists anywhere in
+  the repo. The rule is real (line 763); only the label in the message is
+  wrong.
+* **The G10 failure is pre-existing and already documented as such.**
+  SESSION_HANDOFF.md:466-467 records that on the re-creation repair "the docs'
+  base shas became unresolvable in this clone (G10, the linux CI failure,
+  reproduced exactly here)". So G10 red on `fe4f0a7` is a known property of
+  this clone, not a consequence of applying the series — and it is the same
+  root cause as the anchor mismatch in the table above.
+
 ## Open items the series does not cover
 
 1. **Neither new proof runs in existing CI.** `build.yml` names its scripts
