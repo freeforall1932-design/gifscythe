@@ -116,6 +116,19 @@ jobs:
         working-directory: working_code/gifscythe
         run: ./scripts/smoke_cli.sh
 
+      # U-71 / P2-17 (F:NF-14). run_argv()'s Windows branch returned `code & 0xff`, so an
+      # NTSTATUS whose low byte is zero - 0xC0000100 among them - came back as exit 0: a crash
+      # reported as SUCCESS, the top false-success class this repo audits for. The mask rule is a
+      # pure function (classify_windows_exit_code, no Win32 types), so its proof runs HERE too and
+      # not only on the windows job, whose log these sandboxes cannot read. Three legs: S1 sentinel
+      # (the old mask must be absent), S2 semantic (an 11-row table plus the whole
+      # 0xC0000000..0xC000FFFF band delivers no 0 for a non-zero raw code), S3 mutation (the same
+      # probe with the old mask reintroduced MUST fail - a mutant that passes means the table has
+      # no teeth). The LLP64 leg, where `long` really is 4 bytes, is the `portability` job below.
+      - name: Windows exit-code classifier proof (U-71 / P2-17)
+        working-directory: working_code/gifscythe
+        run: ./scripts/test_u71_exit_codes.sh
+
       # The documentation status gate is the separate `docs` job above (S34): as
       # a step here, one doc failure skipped every verification step below it.
 
@@ -150,6 +163,19 @@ jobs:
             echo "failed suites:$failed"
             exit 1
           fi
+
+      # U-57 / P1-37 (E:NA-05). The Emscripten module behind web/wasm is a SINGLETON, so its
+      # virtual FS survived run to run: wasm.js wrote /in.gif, called callMain() and read /out.gif
+      # unconditionally, so after one success an exit-0/no-write run served the PREVIOUS run's GIF
+      # and reported success for the wrong input. Now both fixed paths are cleared BEFORE the call
+      # and the read-back goes through an admission rule (exists, non-empty, GIF87a/GIF89a magic -
+      # the same bar as the server's U-92 gate). Zero deps, no emcc, no browser: T1 replays the
+      # ORIGINAL sequence against a fake MEMFS and asserts the audit's claim is real (the in-suite
+      # RED leg - if T1 ever fails, the finding, not the fix, needs re-checking); T2..T5 prove the
+      # replacement. Kept as its own step rather than folded into the parity loop above so a red
+      # here names U-57 and not "web suite u57-stale-output" (S34).
+      - name: WASM stale-output guard (U-57 / P1-37)
+        run: node web/test/u57-stale-output.test.mjs
 
       - name: Seeded engine-oracle conformance (U-94 / P2-18)
         run: node working_code/gifscythe/scripts/oracle_fuzz.mjs --full
@@ -230,6 +256,19 @@ jobs:
       - name: Unit suite on a 32-bit-long target (the N-30 class)
         working-directory: working_code/gifscythe
         run: ./scripts/test_unit_32bit_long.sh
+
+      # U-71 / P2-17, the leg that actually matters for this finding. classify_windows_exit_code()
+      # takes and prints an `unsigned long` - 8 bytes on this LP64 runner, 4 bytes on every platform
+      # we ship - and its whole contract is about a raw code wider than one byte. Same trick as the
+      # step above: x86-linux-musl is ILP32, so sizeof(long) == 4 and the binary still executes
+      # here. test_u71_exit_codes.sh honours CXX with arguments, so the target rides in on the
+      # compiler. A table that only ever ran with an 8-byte long would not have proved the Windows
+      # shape at all.
+      - name: Windows exit-code classifier on a 4-byte-long target (U-71, LLP64 width class)
+        working-directory: working_code/gifscythe
+        env:
+          CXX: python3 -m ziglang c++ -target x86-linux-musl
+        run: ./scripts/test_u71_exit_codes.sh
 
       # N-32, the owner's decision: the wasm track's bar is a SAME-LIBC native oracle. gifsicle's output
       # depends on libc qsort tie order and random(), so byte parity with the glibc build cannot pass;
@@ -353,6 +392,17 @@ jobs:
           g++ -std=c++17 -O2 -static -I src -o build/gifscythe-cli.exe src/cli/main.cpp
           g++ -std=c++17 -O2 -static -I src -o build/test_gifsicle_command.exe tests/test_gifsicle_command.cpp
           ./build/test_gifsicle_command.exe
+
+      # U-71 / P2-17 on the platform the finding is about. This is the only runner where the raw
+      # code really is a DWORD and `unsigned long` really is 4 bytes natively, and where
+      # ProcessRunner.h compiles its _WIN32 branch - so the classifier is proven against the actual
+      # Windows headers, not only against the portable shape of them. CXX is pinned to g++ because
+      # MinGW ships no `c++` alias, which is the script's default.
+      - name: Windows exit-code classifier proof, native (U-71 / P2-17)
+        working-directory: working_code/gifscythe
+        env:
+          CXX: g++
+        run: ./scripts/test_u71_exit_codes.sh
 
       # Diagnostics only (S34, N-30). Runs ONLY when the step above failed: re-runs
       # the same two compiles (and the unit exe if it linked) with their output
