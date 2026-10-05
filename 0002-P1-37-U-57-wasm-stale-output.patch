@@ -1,0 +1,289 @@
+From 572cf000000000000000000000000000000000002 Mon Sep 17 00:00:00 2001
+From: freeforall1932-design <300004558+freeforall1932-design@users.noreply.github.com>
+Date: Sat, 04 Oct 2026 09:05:00 +0000
+Subject: [PATCH 2/5] P1-37 / U-57: wasm page must never read a stale
+ /out.gif — clear + verify around callMain
+
+Finding U-57 (E:NA-05, fix-order P1-37, state OPEN at main fe4f0a7):
+
+    WASM singleton reuses stale /out.gif — wasm.js does not unlink/snapshot
+    /out.gif before callMain(); after one success, an exit-zero/no-write run
+    reads the previous GIF and reports success for the wrong input.
+
+The Emscripten module is created once (lazy singleton, one module for many
+runs), so its virtual FS survives from run to run. The page wrote /in.gif,
+called callMain(), and read /out.gif unconditionally — the exact
+false-success shape the desktop closed with U-59 snapshots and the CLI with
+the N-15 partial snapshot.
+
+Fix, desktop-parity honest:
+
+  * new web/wasm/fs_run_guard.mjs — pure ESM, no DOM, no Emscripten import
+    (Node runs it directly; that is how the suite below proves it):
+      - clearRunArtifacts(FS, paths): unlink /in.gif and /out.gif BEFORE the
+        run; anything readable afterwards was written by THIS callMain.
+      - readVerifiedGif(FS, path): the read-back admission rule — exists,
+        non-empty, GIF87a/GIF89a magic (the server's U-92 gate, same bar).
+  * wasm.js calls the guard around the engine call and keeps the original
+    two status messages verbatim ("...no output..." / "...not a GIF..."),
+    so no UI wording drifts.
+
+Proof (failing-first leg included):
+
+  web/test/u57-stale-output.test.mjs (plain node, zero deps):
+    T1  RED leg — replays the ORIGINAL sequence against a fake MEMFS and
+        asserts the audit's claim is real: without clearing, run 2
+        (exit 0, writes nothing) reports the run-1 GIF — the bug, caught.
+    T2  the FIXED sequence refuses that run with reason "missing".
+    T3  clearRunArtifacts removes both fixed paths and is idempotent.
+    T4  readVerifiedGif admission table: missing/empty/not-gif/GIF87a/GIF89a.
+    T5  three consecutive real runs each return their own product bytes.
+
+Ship note: the wasm track stays NOT SHIPPABLE (OD-16 / N-32) — this patch
+closes a correctness finding so the track stops lying, it does not promote
+it. Register bookkeeping after green proof: §5 row U-57 -> FIXED with the
+node output, check_docs.sh --emit, re-anchor the G10 base line.
+---
+ web/test/u57-stale-output.test.mjs | 121 +++++++++++++++++++++++++++++
+ web/wasm/fs_run_guard.mjs          |  42 ++++++++++
+ web/wasm/wasm.js                   |  33 +++++++++---
+ 3 files changed, 185 insertions(+), 11 deletions(-)
+ create mode 100644 web/test/u57-stale-output.test.mjs
+ create mode 100644 web/wasm/fs_run_guard.mjs
+
+diff --git a/web/wasm/wasm.js b/web/wasm/wasm.js
+index 1111111..2222222 100644
+--- a/web/wasm/wasm.js
++++ b/web/wasm/wasm.js
+@@ -14,6 +14,7 @@
+ 
+ import { buildArgs, shellQuote } from "../command.mjs";
+ import { validate } from "../validate.mjs";
++import { clearRunArtifacts, readVerifiedGif } from "./fs_run_guard.mjs";
+ 
+ const $ = (id) => document.getElementById(id);
+ 
+@@ -128,6 +128,14 @@
+   try {
+     const M = await ensureEngine();
+     const inputBytes = new Uint8Array(await currentFile.arrayBuffer());
++    // U-57 / P1-37 (E:NA-05): the engine module is a singleton, so its
++    // virtual FS survives run to run — a previous success leaves /out.gif
++    // behind, and the next exit-0/no-write run would read those STALE bytes
++    // and report success for the wrong input (the desktop guards this class
++    // with U-59 snapshots; this page guarded nothing). Both fixed paths are
++    // removed BEFORE the call, so anything readable after callMain was
++    // necessarily written by THIS run.
++    clearRunArtifacts(M.FS, ["/in.gif", "/out.gif"]);
+     M.FS.writeFile("/in.gif", inputBytes);
+     // Same argv the live pane shows, except the fixed virtual-FS paths.
+     const args = buildArgs({ ...s, mode: "auto", inputs: ["/in.gif"], output: "/out.gif" });
+@@ -148,17 +156,19 @@
+       return;
+     }
+     let outBytes;
+-    try {
+-      outBytes = M.FS.readFile("/out.gif");
+-    } catch (e) {
+-      setStatus("engine exited 0 but produced no output — refusing to claim success.");
+-      return;
+-    }
+-    const magic = String.fromCharCode(...outBytes.slice(0, 6));
+-    if (outBytes.length === 0 || (magic !== "GIF87a" && magic !== "GIF89a")) {
+-      setStatus("engine output is not a GIF — refusing to claim success.");
+-      return;
+-    }
++    // U-57: with the pre-run clear above, a readable /out.gif here is THIS
++    // run's product. The guard re-checks existence, non-emptiness and GIF
++    // magic — the same admission bar as the server's U-92 upload gate.
++    const result = readVerifiedGif(M.FS, "/out.gif");
++    if (!result.ok) {
++      if (result.reason === "missing") {
++        setStatus("engine exited 0 but produced no output — refusing to claim success.");
++      } else {
++        setStatus("engine output is not a GIF — refusing to claim success.");
++      }
++      return;
++    }
++    outBytes = result.bytes;
+     const blob = new Blob([outBytes], { type: "image/gif" });
+     revoke(afterUrl);
+     afterUrl = URL.createObjectURL(blob);
+diff --git a/web/wasm/fs_run_guard.mjs b/web/wasm/fs_run_guard.mjs
+new file mode 100644
+index 0000000..4444444
+--- /dev/null
++++ b/web/wasm/fs_run_guard.mjs
+@@ -0,0 +1,42 @@
++// fs_run_guard.mjs — audit U-57 / fix-order P1-37 (E:NA-05).
++//
++// The Emscripten module behind the wasm page is a SINGLETON: one instance,
++// many runs, one virtual FS that survives from run to run. wasm.js used to
++// write /in.gif, callMain(), and read /out.gif WITHOUT clearing first — so
++// after one successful run, an exit-0/no-write run read the PREVIOUS run's
++// bytes and reported success for the wrong input. (Same family the desktop
++// closed with U-59 output snapshots and the CLI with the N-15 partial.)
++//
++// Pure ESM, no DOM, no Emscripten import — Node runs it directly, which is
++// how web/test/u57-stale-output.test.mjs proves the guard against a fake
++// MEMFS without needing emcc at all.
++
++// Remove every path the run is about to reuse. "Already absent" is the goal
++// state, never an error; whatever is readable afterwards is what THIS
++// callMain re-created.
++export function clearRunArtifacts(FS, paths) {
++  for (const p of paths) {
++    try {
++      FS.unlink(p);
++    } catch {
++      // ENOENT (or any unlink failure) is safe to ignore: readVerifiedGif
++      // re-verifies existence + content of the actual output after the run.
++    }
++  }
++}
++
++// The read-back admission rule — exists, non-empty, and starts with a GIF
++// header (the same bar as the server's U-92 upload gate).
++// Returns { ok: true, bytes } or { ok: false, reason: "missing" | "empty" | "not-gif" }.
++export function readVerifiedGif(FS, outPath) {
++  let bytes;
++  try {
++    bytes = FS.readFile(outPath);
++  } catch {
++    return { ok: false, reason: "missing" };
++  }
++  if (!bytes || bytes.length === 0) return { ok: false, reason: "empty" };
++  const magic = String.fromCharCode(...bytes.slice(0, 6));
++  if (magic !== "GIF87a" && magic !== "GIF89a") return { ok: false, reason: "not-gif" };
++  return { ok: true, bytes };
++}
+diff --git a/web/test/u57-stale-output.test.mjs b/web/test/u57-stale-output.test.mjs
+new file mode 100644
+index 0000000..5555555
+--- /dev/null
++++ b/web/test/u57-stale-output.test.mjs
+@@ -0,0 +1,121 @@
++// u57-stale-output.test.mjs — audit U-57 / fix-order P1-37.
++//
++// Runs with plain `node web/test/u57-stale-output.test.mjs` — zero deps, no
++// emcc, no browser. A fake MEMFS + a fake module stand in for Emscripten;
++// the behaviour under test is the guard the page now calls
++// (web/wasm/fs_run_guard.mjs), exercised through the page's exact fixed
++// sequence and — as the RED leg — through its ORIGINAL sequence.
++
++import test from "node:test";
++import assert from "node:assert/strict";
++import { clearRunArtifacts, readVerifiedGif } from "../wasm/fs_run_guard.mjs";
++
++// Minimal MEMFS stand-in: only the two methods the guard touches.
++class FakeFS {
++  constructor() { this.store = new Map(); }
++  writeFile(path, bytes) { this.store.set(path, Uint8Array.from(bytes)); }
++  unlink(path) {
++    if (!this.store.has(path)) throw Object.assign(new Error("ENOENT: no such file"), { errno: 2 });
++    this.store.delete(path);
++  }
++  readFile(path) {
++    if (!this.store.has(path)) throw Object.assign(new Error("ENOENT: no such file"), { errno: 2 });
++    return this.store.get(path);
++  }
++}
++
++// A GIF89a header plus a few payload bytes; per-run variants let T5 tell
++// runs apart byte-for-byte.
++const gif89 = (tag = 0x00) =>
++  new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, tag, 0x3b]);
++const NOT_A_GIF = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
++
++// Fake engine module. behavior "write" produces a tagged GIF for the
++// current input; behavior "no-write" exits 0 while writing nothing — the
++// audit's failing shape (gifsicle exit 0, no output file).
++function makeModule() {
++  const M = { FS: new FakeFS(), behavior: "write", calls: 0 };
++  M.callMain = () => {
++    M.calls += 1;
++    if (M.behavior === "write") M.FS.writeFile("/out.gif", gif89(M.calls));
++    // "no-write": returns without touching the FS, exit code 0.
++  };
++  return M;
++}
++
++// The page's ORIGINAL run sequence (pre-fix): write input, call, read.
++function runOnceLegacy(M, inputBytes) {
++  M.FS.writeFile("/in.gif", inputBytes);
++  M.callMain(["-O3", "-o", "/out.gif", "/in.gif"]);
++  return readVerifiedGif(M.FS, "/out.gif");
++}
++
++// The page's FIXED run sequence: clear fixed paths BEFORE the call.
++function runOnceFixed(M, inputBytes) {
++  clearRunArtifacts(M.FS, ["/in.gif", "/out.gif"]);
++  M.FS.writeFile("/in.gif", inputBytes);
++  M.callMain(["-O3", "-o", "/out.gif", "/in.gif"]);
++  return readVerifiedGif(M.FS, "/out.gif");
++}
++
++test("T1 RED leg: without the guard, a stale /out.gif is reported as THIS run's success", () => {
++  // This replays the audit's claim end to end and asserts the bug is real:
++  // if this leg ever fails, the finding (not the fix) needs re-checking.
++  const M = makeModule();
++  const r1 = runOnceLegacy(M, gif89(0xaa)); // first run succeeds honestly
++  assert.equal(r1.ok, true);
++  M.behavior = "no-write"; // second run: engine exits 0, writes nothing
++  const r2 = runOnceLegacy(M, gif89(0xbb));
++  assert.equal(r2.ok, true, "legacy sequence MUST (wrongly) succeed — that is the U-57 bug");
++  assert.deepEqual([...r2.bytes], [...r1.bytes], "and it serves run 1's bytes as run 2's product");
++});
++
++test("T2: with the guard, the same exit-0/no-write run is refused as missing", () => {
++  const M = makeModule();
++  const r1 = runOnceFixed(M, gif89(0xaa));
++  assert.equal(r1.ok, true);
++  M.behavior = "no-write";
++  const r2 = runOnceFixed(M, gif89(0xbb));
++  assert.equal(r2.ok, false);
++  assert.equal(r2.reason, "missing");
++});
++
++test("T3: clearRunArtifacts removes both fixed paths and is safe to re-run", () => {
++  const M = makeModule();
++  M.FS.writeFile("/in.gif", gif89(0x01));
++  M.FS.writeFile("/out.gif", gif89(0x02));
++  clearRunArtifacts(M.FS, ["/in.gif", "/out.gif"]);
++  assert.equal(M.FS.store.has("/in.gif"), false);
++  assert.equal(M.FS.store.has("/out.gif"), false);
++  // Second clear on absent paths must not throw (ENOENT is the goal state).
++  clearRunArtifacts(M.FS, ["/in.gif", "/out.gif"]);
++  // A path never created at all is likewise fine.
++  clearRunArtifacts(M.FS, ["/never-existed"]);
++});
++
++test("T4: readVerifiedGif admission table", () => {
++  const FS = new FakeFS();
++  assert.deepEqual(readVerifiedGif(FS, "/out.gif"), { ok: false, reason: "missing" });
++  FS.writeFile("/out.gif", new Uint8Array(0));
++  assert.deepEqual(readVerifiedGif(FS, "/out.gif"), { ok: false, reason: "empty" });
++  FS.writeFile("/out.gif", NOT_A_GIF);
++  assert.deepEqual(readVerifiedGif(FS, "/out.gif"), { ok: false, reason: "not-gif" });
++  const g87 = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x37, 0x61, 0x00, 0x3b]); // GIF87a
++  FS.writeFile("/out.gif", g87);
++  assert.equal(readVerifiedGif(FS, "/out.gif").ok, true);
++  FS.writeFile("/out.gif", gif89(0x00));
++  assert.equal(readVerifiedGif(FS, "/out.gif").ok, true);
++});
++
++test("T5: three consecutive runs each return their own product bytes", () => {
++  const M = makeModule();
++  const a = runOnceFixed(M, gif89(0x01));
++  const b = runOnceFixed(M, gif89(0x02));
++  const c = runOnceFixed(M, gif89(0x03));
++  assert.equal(a.ok && b.ok && c.ok, true);
++  const tags = [a.bytes[10], b.bytes[10], c.bytes[10]];
++  assert.deepEqual(tags, [1, 2, 3], "each run serves the bytes IT wrote (callMain #1/#2/#3)");
++  assert.notDeepEqual([...b.bytes], [...c.bytes]);
++});
++
++console.log("u57-stale-output: T1 RED leg + T2..T5 cases loaded (node:test)");
+-- 
+2.39.2
+

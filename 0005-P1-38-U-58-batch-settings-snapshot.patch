@@ -1,0 +1,117 @@
+From 583cf000000000000000000000000000000000005 Mon Sep 17 00:00:00 2001
+From: freeforall1932-design <300004558+freeforall1932-design@users.noreply.github.com>
+Date: Sat, 04 Oct 2026 09:20:00 +0000
+Subject: [PATCH 5/5] P1-38 / U-58: batch continuation jobs must run the
+ batch-start settings snapshot, not a live re-read
+
+Finding U-58 (F:NF-01 — WINNER audit, fix-order P1-38, state OPEN at main
+fe4f0a7):
+
+    Batch continuation re-reads LIVE settings — targets planned once
+    (batchTargets_ U-01) but currentSettings() called live for each
+    continuation job.
+
+runCommand()'s batch branch computes the whole job plan — the planned
+targets AND the collision-checked settings — then run 1 uses that
+snapshot. But every continuation job in onProcessFinished() (runs 2..N)
+rebuilt its argv from a LIVE currentSettings() call. Any Actions-tab state
+that changed between completions (the setBusy/disabled-UI locks cover the
+direct edits, not programmatic panel changes, session-restore timing, or
+panel signals) silently rewrote the rest of the batch — the settings-twin
+of U-45's closed output-destination hole: a job mutated after its plan was
+validated, with the UI still showing the old plan.
+
+Fix — the settings join the plan, where they always belonged:
+
+  * MainWindow.h: new member gs::Settings batchSettings_ — read only while
+    batchIndex_ >= 0 (the continuation condition), written once per batch.
+  * runCommand() batch branch: batchSettings_ = settings right after the
+    verified plan, beside the other per-batch planning state.
+  * onProcessFinished() continuation: gs::Settings one = batchSettings_
+    instead of the live re-read.
+
+Header/application note (honesty line — this hunk is labelled, not hidden):
+the continuation hunk and the MainWindow.h hunk are anchored on
+byte-verified lines taken from a raw fetch of main@fe4f0a7. The runCommand
+batch-branch hunk sits in a region whose fetched copy had elided line
+wraps; its indentation is reconstructed to match the file's style (4
+spaces at that nesting). `git apply` should take it as-is; if that ONE
+hunk rejects, apply it by hand — it is a single added line
+("batchSettings_ = settings;") placed directly after the existing
+"partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());"
+and directly before "gs::Settings one = settings;" in the Batch branch of
+runCommand(). The other two hunks are exact.
+
+Proof plan (Qt-class row — CI proves what a no-Qt sandbox cannot):
+
+  * cmake build clean on linux + windows.
+  * Offscreen harness batch cases (T4/T8/T9 family) unchanged-green —
+    run 2..N argv now provably equal run-1 settings.
+  * Sentinel (CI): no 'currentSettings()' call remains in
+    onProcessFinished; batchSettings_ appears in MainWindow.h,
+    runCommand (one write) and the continuation (one read).
+  * Behavioural harness case T24 (sketch in the accompanying audit MD):
+    two-file batch against a slow fake engine; mutate a SettingsPanel
+    control programmatically between job 1 and job 2; assert job 2's argv
+    (captured via the fake engine's argv log) equals job 1's. RED on main
+    (job 2 reflects the mutation), green here.
+
+After green CI proof: §5 row U-58 -> FIXED (harness: T24 (offscreen) +
+sentinel), then check_docs.sh --emit + G10 base re-anchor.
+---
+ .../gifscythe/src/qtui/MainWindow.cpp         | 14 ++++++++++++--
+ .../gifscythe/src/qtui/MainWindow.h           |  9 +++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/working_code/gifscythe/src/qtui/MainWindow.cpp b/working_code/gifscythe/src/qtui/MainWindow.cpp
+index 3333333..4444444 100644
+--- a/working_code/gifscythe/src/qtui/MainWindow.cpp
++++ b/working_code/gifscythe/src/qtui/MainWindow.cpp
+@@ -456,5 +456,11 @@ void MainWindow::runCommand() {
+     gs::discard_partial(pendingPartial_.toStdString());  // self-heal a prior hard kill
+     partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
++    // U-58 / P1-38: freeze the settings for the WHOLE batch at start —
++    // every continuation job (onProcessFinished) builds its argv from this
++    // snapshot, never from a live currentSettings() re-read. The output
++    // plan above was computed and collision-checked against `settings`;
++    // the jobs must run with exactly those values.
++    batchSettings_ = settings;
+     gs::Settings one = settings;
+     one.mode = gs::Mode::Auto;  // single-file, no -b needed
+     one.inputs = {in.toStdString()};
+@@ -572,7 +578,11 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
+       gs::discard_partial(pendingPartial_.toStdString());
+       partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
+-      auto settings = currentSettings();
+-      gs::Settings one = settings;
++      // U-58 / P1-38: continuation jobs MUST come from the batch-start
++      // snapshot frozen into batchSettings_ (runCommand), never from a
++      // live currentSettings() — the plan was computed and collision-
++      // checked against THOSE settings; re-reading here rebuilds argv
++      // from state the plan never saw.
++      gs::Settings one = batchSettings_;
+       one.mode = gs::Mode::Auto;
+       one.inputs = {in.toStdString()};
+       one.output = pendingPartial_.toStdString();
+diff --git a/working_code/gifscythe/src/qtui/MainWindow.h b/working_code/gifscythe/src/qtui/MainWindow.h
+index 1111111..2222222 100644
+--- a/working_code/gifscythe/src/qtui/MainWindow.h
++++ b/working_code/gifscythe/src/qtui/MainWindow.h
+@@ -164,6 +164,15 @@ class MainWindow : public QMainWindow {
+   QStringList batchTargets_;           // planned per-file outputs (audit U-01)
+   int batchIndex_ = -1;
+   QStringList batchQueue_;
++  // U-58 / P1-38 (F:NF-01): the settings the batch was STARTED with. Batch
++  // continuation jobs (onProcessFinished) used to call currentSettings()
++  // live, so any Actions-tab state that changed mid-batch silently altered
++  // every job after the first — the settings-twin of U-45's closed
++  // destination hole: an unplanned mutation of a job plan that was computed
++  // and collision-checked against DIFFERENT values. Written once in
++  // runCommand()'s batch branch, read only while batchIndex_ >= 0.
++  gs::Settings batchSettings_;
+   gs::Mode batchMode_ = gs::Mode::Batch;
+   // Explode frame verification (audit U-17 / P1-19): pre-run snapshot of the
+   // files under the frame prefix, so onProcessFinished can tell frames THIS
+-- 
+2.39.2
+

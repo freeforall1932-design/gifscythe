@@ -1,0 +1,66 @@
+From 703cf000000000000000000000000000000000004 Mon Sep 17 00:00:00 2001
+From: freeforall1932-design <300004558+freeforall1932-design@users.noreply.github.com>
+Date: Sat, 04 Oct 2026 09:15:00 +0000
+Subject: [PATCH 4/5] P1-42 / U-70: preview engine probe must cross the
+ u8path_compat boundary like ensureEngine()
+
+Finding U-70 (F:NF-13, fix-order P1-42, state OPEN at main fe4f0a7):
+
+    Preview engine check bypasses UTF-8 boundary — ensureEngine() wraps
+    u8path_compat(), startPreview() passes raw enginePath_.toStdString()
+    to path_is_executable().
+
+The codebase rule (src/core/WinUnicode.h, PRODUCT CONSTRAINTS in
+SESSION_HANDOFF): every std::string <-> fs::path boundary goes through
+u8path_compat / path_u8string — the conversion layer that exists for
+legacy-ACP Windows hosts, where the bare form throws or splits on
+non-UTF-8 input. ensureEngine() honours it; startPreview()'s engine
+re-probe did not, so the preview path could fail (or throw) on exactly the
+hosts U-07 fixed the CLI for, while the main-run path worked — a
+mode-dependent honesty difference.
+
+One-line behavioural change: probe through the same wrapper the main run
+uses. (The "cancelling lifetime" half of F:NF-15 lands separately — that
+is the U-72 latch patch; P1-42 groups the two.)
+
+Proof plan (Qt-class row — CI proves what a no-Qt sandbox cannot):
+
+  * cmake build clean on linux + windows (both CI GUI steps).
+  * Offscreen harness T-cases unchanged-green.
+  * Sentinel (CI): grep -c 'gs::u8path_compat(enginePath_.toStdString())'
+    src/qtui/MainWindow.cpp >= 3 (two in ensureEngine, one in startPreview)
+    and no bare 'path_is_executable(enginePath_' remains.
+  * New harness case T23 (sketch in the accompanying audit MD): with
+    GS_ENGINE pointed at a path under a non-ASCII directory, a preview run
+    must reach the engine instead of reporting "engine not found". Needs a
+    Qt host; CI's offscreen run is the executor.
+
+After green CI proof: §5 row U-70 -> FIXED (harness: T23 (offscreen) +
+sentinel), P1-42 -> DONE together with the U-72 sibling, then
+check_docs.sh --emit + G10 base re-anchor.
+---
+ .../gifscythe/src/qtui/MainWindow.cpp         | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/working_code/gifscythe/src/qtui/MainWindow.cpp b/working_code/gifscythe/src/qtui/MainWindow.cpp
+index 2222222..3333333 100644
+--- a/working_code/gifscythe/src/qtui/MainWindow.cpp
++++ b/working_code/gifscythe/src/qtui/MainWindow.cpp
+@@ -617,7 +617,14 @@ void MainWindow::startPreview() {
+     previewPanel_->clearAfter(QStringLiteral("select an existing file to preview"));
+     return;
+   }
+-  if (!gs::path_is_executable(enginePath_.toStdString())) {
++  // U-70 / P1-42 (F:NF-13): the preview path re-probed the engine with a
++  // bare toStdString(), bypassing the u8path_compat boundary that
++  // ensureEngine() wraps — the one std::string -> fs::path conversion this
++  // codebase allows at API edges (it exists for legacy-ACP Windows hosts,
++  // where the bare form throws or splits). One rule everywhere: every
++  // fs::path boundary goes through u8path_compat.
++  if (!gs::path_is_executable(gs::u8path_compat(enginePath_.toStdString()))) {
+     previewPanel_->clearAfter(QStringLiteral("engine not found — preview unavailable"));
+     return;
+   }
+-- 
+2.39.2
+

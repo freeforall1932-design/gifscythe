@@ -1,0 +1,117 @@
+From 723cf000000000000000000000000000000000003 Mon Sep 17 00:00:00 2001
+From: freeforall1932-design <300004558+freeforall1932-design@users.noreply.github.com>
+Date: Sat, 04 Oct 2026 09:10:00 +0000
+Subject: [PATCH 3/5] P1-42 / U-72: latch the cancel flag — consume it in
+ onProcessFinished, never clear it early
+
+Finding U-72 (F:NF-15, fix-order P1-42, state OPEN at main fe4f0a7):
+
+    cancelling_ cleared after 3s wait → spurious failure dialog after
+    Cancelled — cancelRun() resets the flag right after
+    waitForFinished(3000); if the engine dies later, finished() arrives with
+    cancelling_==false and shows the failure QMessageBox.
+
+cancelRun() armed cancelling_, killed the engine, waited up to 3 s, then
+cleared the flag unconditionally. Two delivery shapes race that clear: a
+waitForFinished() TIMEOUT (engine still dying), and a finished() signal
+that is queued but not yet dispatched even when the wait succeeded. Either
+way the late finished() found cancelling_ == false, took the failure
+branch, and popped "Optimization failed (exit …)" immediately after the
+status line had just said "Cancelled." — the UI contradicting itself in
+one breath. (The N-11 "Run had already finished" guard covers a different
+gap: an exit-0 that raced the cancel. It does not cover this crash-exit
+path.)
+
+Fix — the flag becomes a LATCH with exactly one owner:
+
+  * cancelRun() arms it ONLY when a process was actually running (so it can
+    never outlive the killed run's own notification) and no longer clears
+    it after the wait;
+  * onProcessFinished() reads-and-consumes it FIRST, before the verdict
+    branch — one completion, one consumption. The failure branch then tests
+    the consumed local.
+
+The consume-before-verdict placement is load-bearing: a naive "just keep
+the flag" repair lets it survive past this finished() and silently swallow
+the NEXT run's genuine failure — a new pit of exactly this finding's class
+(COMPILED_AUDIT §8). The killPreview() preview path is deliberately
+untouched: per-run QProcess + seq guard already prevents the stale-read,
+so there is no second flag to mis-consume (this is the pattern the fix
+aligns with).
+
+Proof plan (Qt-class row — CI proves what this sandbox cannot):
+
+  * cmake -S . -B build-cmake -DBUILD_GUI=ON && cmake --build build-cmake:
+    must compile clean (the offscreen harness CI step does this on linux +
+    windows).
+  * QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen: the
+    existing T4/T9/T21 cancel-and-partial cases must stay green (no
+    behavioural change on the happy path or the already-finished path).
+  * New harness case T22 (sketch in the accompanying audit MD): fake-engine
+    run, Cancel, artificial delivery of the killed run's finished() AFTER
+    cancelRun() returns — assert no "Optimization failed" dialog appears
+    and the status stays "Cancelled.". RED on the old code (dialog shows),
+    green here.
+  * Sentinel (CI): grep that cancelRun() no longer contains the bare
+    trailing `cancelling_ = false;` after the wait block.
+
+After green CI proof: §5 row U-72 -> FIXED (proof: harness: T22 (offscreen)),
+PAIR rows P1-42 -> DONE with U-70 once its sibling patch lands, then
+check_docs.sh --emit + G10 base re-anchor. Note for the register: U-12
+(P1-24, the full async state machine) stays OPEN — this patch removes the
+race, not the blocking waits themselves.
+---
+ .../gifscythe/src/qtui/MainWindow.cpp         | 26 ++++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/working_code/gifscythe/src/qtui/MainWindow.cpp b/working_code/gifscythe/src/qtui/MainWindow.cpp
+index 1111111..2222222 100644
+--- a/working_code/gifscythe/src/qtui/MainWindow.cpp
++++ b/working_code/gifscythe/src/qtui/MainWindow.cpp
+@@ -503,12 +503,22 @@ void MainWindow::cancelRun() {
+   // kill() makes gifsicle exit with a non-zero/crash status, which normally
+   // routes through the "optimization failed" branch. Mark the cancellation so
+   // onProcessFinished doesn't surface a spurious error dialog mid-cancel.
+-  cancelling_ = true;
+-  if (process_ && process_->state() != QProcess::NotRunning) {
++  // U-72 / P1-42: the flag is LATCHED — arming and clearing live in two
++  // different places now. The old code cleared it right after
++  // waitForFinished(3000), but that wait can time out, and even when it
++  // succeeds the finished() signal can be queued-but-undelivered; a
++  // finished() that arrived after the clear took the failure branch and
++  // popped a spurious "Optimization failed" QMessageBox immediately after
++  // "Cancelled.". The latch is armed only when a process was ACTUALLY
++  // running (it can never outlive the killed run's own notification) and is
++  // consumed once by onProcessFinished — see there.
++  const bool engineWasRunning =
++      (process_ && process_->state() != QProcess::NotRunning);
++  if (engineWasRunning) {
++    cancelling_ = true;
+     process_->kill();
+     process_->waitForFinished(3000);
+   }
+-  cancelling_ = false;
+ 
+   // N-11: the engine may have already exited successfully in the gap between
+   // the last event-loop turn and this call. pendingPartial_ then holds VERIFIED
+@@ -548,8 +558,16 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
+   // Drain stdout so it doesn't fill the pipe (we don't use it when -o is set).
+   process_->readAllStandardOutput();
+ 
++  // U-72 / P1-42: read-and-consume the cancel latch for THIS completion,
++  // whatever the verdict turns out to be. Simply KEEPING the flag (the naive
++  // fix for the early clear) would let it outlive one finished() and
++  // silently swallow the NEXT run's genuine failure — a new pit of exactly
++  // the class this finding belongs to. One completion, one consumption.
++  const bool wasCancelling = cancelling_;
++  cancelling_ = false;
++
+   if (status != QProcess::NormalExit || exitCode != 0) {
+-    if (cancelling_) {
++    if (wasCancelling) {
+       // A user-initiated cancel (or window close) kills the engine, which then
+       // reports a non-zero exit. That's expected, not a failure to alarm about;
+       // cancelRun() finishes the cleanup and sets the "Cancelled." status.
+-- 
+2.39.2
+
