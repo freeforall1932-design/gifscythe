@@ -46,7 +46,7 @@ diff --git a/working_code/gifscythe/src/qtui/MainWindow.cpp b/working_code/gifsc
 index 2222222..3333333 100644
 --- a/working_code/gifscythe/src/qtui/MainWindow.cpp
 +++ b/working_code/gifscythe/src/qtui/MainWindow.cpp
-@@ -617,7 +617,14 @@ void MainWindow::startPreview() {
+@@ -617,7 +617,13 @@ void MainWindow::startPreview() {
      previewPanel_->clearAfter(QStringLiteral("select an existing file to preview"));
      return;
    }
