@@ -13,8 +13,14 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+// The suite runs on every platform CMake builds for, INCLUDING MinGW (the
+// windows GUI job compiles it). Only the "unreadable file" leg needs POSIX
+// permissions, so the headers and the leg are guarded rather than assumed —
+// a Linux-only include here is what a `<unistd.h>`-less MinGW build trips on.
+#ifndef _WIN32
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
 
 using namespace gs;
 namespace fs = std::filesystem;
@@ -99,8 +105,10 @@ int main() {
   }
 
   // ---- an unreadable file is 'unreadable', not 'not-gif' ----
-  // Root ignores mode bits, so skip the assertion when the open would succeed
-  // anyway; the branch still exists for real users.
+  // POSIX-only: MinGW has no mode bits to withdraw, and root ignores them, so
+  // the leg is skipped on Windows and when the open would succeed anyway. The
+  // branch still exists for real users on POSIX.
+#ifndef _WIN32
   if (::geteuid() != 0) {
     const fs::path locked = dir / "locked.gif";
     write_bytes(locked, std::string("GIF89a") + std::string(16, '\0'));
@@ -112,6 +120,9 @@ int main() {
   } else {
     std::printf("  (running as root: unreadable-mode case skipped)\n");
   }
+#else
+  std::printf("  (windows: unreadable-mode case skipped - no POSIX mode bits)\n");
+#endif
 
   // ---- batch form separates accepted from refused and keeps the order ----
   {

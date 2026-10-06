@@ -518,7 +518,22 @@ jobs:
                 -DCMAKE_PREFIX_PATH="${QT_PREFIX}" \
                 -DBUILD_GUI=ON
           fi
-          cmake --build build-win --config Release
+          # Make the BUILD self-reporting too (S37): the harness step already
+          # annotates its FAIL lines, but a compile error here reported only
+          # "exit 1" and cost a whole guess-and-push cycle (the T25 <fstream>
+          # miss was found that way only after the second identical red).
+          # Tee the build, then re-emit the compiler's own error lines.
+          build_log="${RUNNER_TEMP:-/tmp}/gui_build.log"
+          set +e
+          cmake --build build-win --config Release 2>&1 | tee "$build_log"
+          build_status=${PIPESTATUS[0]}
+          set -e
+          if [[ "$build_status" -ne 0 ]]; then
+            while IFS= read -r line; do echo "::error::${line}"; done \
+              < <(grep -aE 'error:|Error|fatal error|ninja: build stopped|undefined reference' "$build_log" | head -25 || true)
+            echo "::error::GUI build failed (status $build_status; compiler errors above)"
+            exit "$build_status"
+          fi
           GUI_EXE=""
           for c in build-win/gifscythe.exe build-win/Release/gifscythe.exe build-win/Debug/gifscythe.exe; do
             if [[ -f "$c" ]]; then GUI_EXE="$c"; break; fi
