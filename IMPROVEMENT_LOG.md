@@ -52,7 +52,7 @@ Chronological log of decisions and changes. **Newest at the top.**
   executed contract, not an open question. No code changed; that IS the decision.
 
 **Measured after the changes (this sandbox, Qt 6.8.3 from source):** GUI harness
-**427 checks, 0 failures** (285 `CHECK(` sites; T25 re-measured 18 Qt rows);
+**436 checks, 0 failures** (286 `CHECK(` sites; T25 re-measured 18 Qt rows; T26 added S37);
 `build/test_gifsicle_command` **415/0**; `build/test_input_admission` **35/0**;
 eleven `web/test/*.test.mjs` suites green (the new `stem` suite included in CI's
 named list); `build.sh` runs both unit suites now. Register **169 DONE / 10 PARTIAL /
@@ -73,6 +73,35 @@ Also recorded: **`OD-16 = b`** (wasm may ship) **conditional on counsel-approved
 yet**, so the track stays unshipped and nothing about it changed today; and `R-02` was closed by
 unshallowing the clone, which also re-armed the pre-push hook (`.git/config` is not snapshotted — R-04's
 lesson, again).
+
+**U-12 (P1-24) got its executable evidence instead of its rewrite - and the evidence refuses the rewrite.** The
+rule for the row was: show the heartbeat RED first, fix only the waits the RED proves plus the two user-felt
+ones (1 s preview, 3 s cancel), and stop before touching the start-path waits. **T26**
+(`tests/test_gui_offscreen.cpp`, five legs) now measures that: a 10 ms `QTimer` records the largest
+event-loop gap across each wait, and `tests/fake_engine_orphan_pipe.cpp` supplies the hardest case a
+kill-first wait can face - its forked child keeps the inherited stdout/stderr open after the parent is
+SIGKILLed (verified with a blocking reader, which stays blocked past 1 s), so any "drain the pipes while
+waiting" behaviour in `waitForFinished` would be exposed. Measured on **unmodified** `MainWindow.cpp`,
+every leg with the target provably alive (a live preview, a live run; `state()` asserted): **11 ms**
+(preview supersede, deadline 1000) · **0 ms** (cancel, 3000) · **11 ms** (run start, 5000) · **3 ms**
+(window close during a run, 2000) · **11 ms** (run start, shipped engine). The primitive microbench shows
+why: `waitForFinished(1500)` against a **LIVE** target consumes the full **1501 ms**, but all five sites
+`kill()` first, and Qt 6.8.3 returns on the direct child's death rather than on pipe EOF. The freeze
+therefore needs a slow exec or an uninterruptible (`D`-state) death - neither constructible here (no
+root/NFS, no Windows host). **No wait was edited**; the only source change is the test, and T26 turns the
+row's assumption into an enforced bound (every leg fails if a wait consumes half its deadline). The S11
+note - "scoped-OPEN beats an untestable refactor" - now has the measurement it lacked; rewriting anyway
+for the unconstructible case is an owner decision, not a scoped fix.
+
+**Two environment traps re-learned this session.** (1) A sandbox restore is not only a `git` event: it
+also wipes `~/.local` (cmake + ninja), `build-cmake/` and `/home/user/build` (the source-built Qt 6.8.3),
+because those paths are snapshot-excluded - recovery is `pip install --break-system-packages cmake ninja`
+plus a ~13-minute `scripts/build_qt6_local.sh` rerun; and the restore reset the working branch to the base
+commit with the real tip only on `origin`, so the first thing to check is
+`git merge-base --is-ancestor origin/<branch> HEAD`. (2) The packaged `scripts/lint_workflow.mjs`
+**crashes** (`RuntimeError: unreachable` inside actionlint.wasm) when given **two or more** workflow files
+in one process, and is clean for one - so the release job stays inside `build.yml`, and every lint
+invocation names a single file.
 
 **Two "environment" rows turned out to be work, not fate.** (1) **R-02 was fixable in one
 command**: the session's clone was depth-1, so G11 skipped; `git fetch --unshallow` pulled
@@ -134,7 +163,7 @@ every gate. Nothing was lost; the re-run is what makes the numbers above trustwo
   run before sleeping; `GS_FAKE_SLEEP_MS`, `GS_FAKE_EXIT`). Measured here: **405 runtime
   checks, 0 failures** (Qt 6.8.3 from source, offscreen, `GS_TEST_REF_DIR` from
   `scripts/fixtures.sh`), ~20 s. The README's site/runtime figures were re-measured with it
-  (284 `CHECK(` sites at that point in S36; 285 after S37's T8/T25/DS-10 additions —
+  (284 `CHECK(` sites at that point in S36; 286 after S37's T8/T25/DS-10/T26 additions —
   the 271/398 numbers were stale).
 - **RED→GREEN is measured, not asserted.** T24, against the *real* pre-fix tree (a scratch
   copy with `0005` reverse-applied by `patch -p1 -R`), fails exactly its three snapshot

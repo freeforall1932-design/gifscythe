@@ -74,9 +74,11 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDateTime>
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
 #include <QIODevice>
@@ -417,6 +419,46 @@ QStringList flagTokens(const QString& line) {
 // before QApplication exists, so even a hang inside platform-plugin init
 // reports where we got stuck, then exits 124 instead of burning CI hours.
 static std::string g_stage = "process start";
+
+// ---- U-12 / P1-24 (S37): event-loop heartbeat -------------------------------
+//
+// The claim under test is "the GUI blocks the UI thread". The only honest way to
+// measure that from inside the process is to watch the event loop: a 10 ms timer
+// records the gap between consecutive ticks, and a blocking wait inside any slot
+// shows up as an oversized gap (no tick can fire while the loop is not running).
+// The metric is therefore maxGap, in ms.
+struct Heartbeat {
+  QTimer* timer = nullptr;
+  qint64 last = 0;
+  qint64 maxGap = 0;
+};
+Heartbeat g_hb;
+
+void heartbeatStart(QObject* parent) {
+  g_hb.timer = new QTimer(parent);
+  g_hb.timer->setInterval(10);
+  g_hb.last = QDateTime::currentMSecsSinceEpoch();
+  QObject::connect(g_hb.timer, &QTimer::timeout, [] {
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    const qint64 gap = now - g_hb.last;
+    if (gap > g_hb.maxGap) g_hb.maxGap = gap;
+    g_hb.last = now;
+  });
+  g_hb.timer->start();
+}
+
+// Start measuring: a fresh window, so a gap from an earlier leg cannot leak in.
+void heartbeatReset() {
+  g_hb.maxGap = 0;
+  g_hb.last = QDateTime::currentMSecsSinceEpoch();
+}
+
+// Keep the loop running for ms, so the timer can observe (and report) the gap.
+void heartbeatSettle(int ms) {
+  QElapsedTimer t;
+  t.start();
+  while (t.elapsed() < ms) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+}
 
 int main(int argc, char** argv) {
   setbuf(stdout, nullptr);  // unbuffered: crash diagnostics keep our trace
@@ -2308,6 +2350,147 @@ int main(int argc, char** argv) {
               ("every shared naming row matches Qt's completeBaseName" +
                (firstBad.empty() ? std::string() : (": " + firstBad))).c_str());
     std::printf("  (checked %d shared naming rows against Qt %s)\n", rows, qVersion());
+  }
+
+  // ========== T26: event-loop heartbeat during blocking waits (U-12) =======
+  //
+  // WHAT IS MEASURED, and why it needs its own fixture: all five waits U-12 names
+  // are `kill(); waitForFinished(N)`, and SIGKILL is immediate — with the existing
+  // fixtures the wait returns in ~1 ms and the freeze is invisible. The block is
+  // real when the killed process leaves a CHILD holding the inherited pipes: Qt's
+  // waitForFinished must drain the channels, and it cannot while an orphan holds
+  // them. tests/fake_engine_orphan_pipe.cpp builds exactly that, so each leg
+  // measures the actual event-loop gap instead of arguing from the constants.
+  //
+  // LEGS: (A) preview supersede -> startPreview's killPreview() waitForFinished(1000)
+  //       (B) Cancel -> cancelRun's waitForFinished(3000)
+  //       (C) close during a run -> ~MainWindow's waitForFinished(2000)
+  // THRESHOLDS: each leg asserts that the wait did NOT consume its deadline (bound
+  // = half the deadline, so a real freeze fails by a factor of two while offscreen
+  // CI noise on any platform passes). Asserting "the deadline was consumed" rather
+  // than a raw millisecond figure is deliberate: it is the actual defect, and it is
+  // the only bound calibratable from a Linux sandbox for an assertion that also has
+  // to hold on the Windows CI runner - which this session cannot measure.
+  // Leg D (the destructor) is measured and printed WITHOUT an assertion: if a fix
+  // turned out to need that third site, it is a scope decision to bring back.
+  {
+    g_stage = "T26"; std::printf("== T26 event-loop heartbeat (U-12) ==\n");
+    const QString orphan = fixturePath("fake_engine_orphan_pipe");
+    CHECK_MSG(QFileInfo::exists(orphan), "orphan-pipe fixture built next to the harness");
+    const QByteArray origEngine = qgetenv("GS_ENGINE");
+
+    if (QFileInfo::exists(orphan)) {
+      qputenv("GS_ENGINE", QFile::encodeName(orphan));
+      qputenv("GS_FAKE_ORPHAN_MS", QByteArray("30000"));
+      heartbeatStart(qApp);
+
+      QTemporaryDir tmp;
+      const QString input = tmp.path() + QStringLiteral("/a.gif");
+      CHECK(copyFile(logo, input));
+      const QString outPath = tmp.path() + QStringLiteral("/out.gif");
+
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      x.output->setText(outPath);
+      dropFiles(w, {input});
+
+      // ---- Leg A: preview supersede --------------------------------------
+      // debounce is 1200 ms: the first settle starts preview run #1, the settings
+      // change re-arms the debounce, and the next startPreview() kills run #1.
+      heartbeatSettle(1500);
+      auto* pv = byName<QProcess>(w, "previewProcess");
+      const bool previewAlive = (pv && pv->state() != QProcess::NotRunning);
+      CHECK_MSG(previewAlive, "leg A: a preview run is provably alive when the change supersedes it");
+      heartbeatReset();
+      auto* opt = x.optimize;
+      opt->setValue(opt->value() == 3 ? 2 : 3);
+      heartbeatSettle(2900);
+      const qint64 gapA = g_hb.maxGap;
+      std::printf("  (A) preview supersede (killPreview waits 1000): gap %lld ms\n",
+                  static_cast<long long>(gapA));
+      CHECK_MSG(gapA < 500,
+                ("leg A: the UI thread is not blocked when a superseded preview is killed ("
+                 + std::to_string(gapA) + " ms)").c_str());
+
+      // ---- Leg B: Cancel --------------------------------------------------
+      // The run below is NOT measured: setBusy(true) kills the still-running
+      // preview on the way in, so this click carries two waits. It exists to get
+      // to a state (engine running, preview dead) where Cancel can be isolated.
+      g_dialogs.clear();
+      x.run->click();
+      heartbeatSettle(400);
+      const bool runningBeforeCancel = (x.process->state() != QProcess::NotRunning);
+      CHECK_MSG(runningBeforeCancel, "leg B: the engine is provably running when Cancel is pressed");
+      heartbeatReset();
+      x.cancel->click();
+      const qint64 gapB = g_hb.maxGap;
+      std::printf("  (B) cancel (waitForFinished 3000):              gap %lld ms\n",
+                  static_cast<long long>(gapB));
+      std::printf("      engine state right after that wait: %s\n",
+                  x.process->state() == QProcess::NotRunning ? "NotRunning" : "still Running");
+      CHECK_MSG(gapB < 1500,
+                ("leg B: the UI thread is not blocked while a run is cancelled ("
+                 + std::to_string(gapB) + " ms)").c_str());
+      heartbeatSettle(600);
+      g_dialogs.clear();
+
+      // ---- Leg C: run start (the two waitForStarted(5000) sites) ----------
+      // Now the preview is provably dead (the leg B run killed it), so this click
+      // isolates the start path. A 30 s fixture makes the start failure-free.
+      heartbeatReset();
+      x.run->click();
+      heartbeatSettle(500);
+      const qint64 gapC = g_hb.maxGap;
+      std::printf("  (C) run start (waitForStarted 5000):            gap %lld ms\n",
+                  static_cast<long long>(gapC));
+      CHECK_MSG(gapC < 2500,
+                ("leg C: starting a run does not block the UI thread ("
+                 + std::to_string(gapC) + " ms)").c_str());
+
+      // ---- Leg D: window close during a run (MEASURED, not asserted) -------
+      const bool runningBeforeClose = (x.process->state() != QProcess::NotRunning);
+      CHECK_MSG(runningBeforeClose, "leg D: the engine is provably running when the window is destroyed");
+      heartbeatReset();
+      delete w;
+      const qint64 gapD = g_hb.maxGap;
+      std::printf("  (D) close during run (waitForFinished 2000):    gap %lld ms"
+                  "  [measured, not asserted]\n", static_cast<long long>(gapD));
+      g_dialogs.clear();
+
+      // ---- Leg E: run start with the SHIPPED engine -----------------------
+      // Same start path, real gifsicle: the 5000 ms constants must not block in
+      // normal use either. The fixture proves the timeout is reachable only when a
+      // process is slow to exec - which this sandbox cannot construct.
+      qputenv("GS_ENGINE", QFile::encodeName(g_engine));
+      {
+        QTemporaryDir tmp2;
+        const QString in2 = tmp2.path() + QStringLiteral("/b.gif");
+        copyFile(logo, in2);
+        MainWindow* w2 = makeWindow();
+        auto y = findWidgets(w2);
+        y.output->setText(tmp2.path() + QStringLiteral("/out.gif"));
+        dropFiles(w2, {in2});
+        heartbeatSettle(1600);  // preview debounce: same single-file plan
+        heartbeatReset();
+        y.run->click();
+        heartbeatSettle(900);
+        const qint64 gapE = g_hb.maxGap;
+        std::printf("  (E) run start, shipped engine:                  gap %lld ms\n",
+                    static_cast<long long>(gapE));
+        CHECK_MSG(gapE < 2500,
+                  ("leg E: starting a run with the shipped engine does not block ("
+                   + std::to_string(gapE) + " ms)").c_str());
+        delete w2;
+        g_dialogs.clear();
+      }
+
+      g_hb.timer->stop();
+      g_hb.timer->deleteLater();
+    }
+
+    if (origEngine.isNull()) qunsetenv("GS_ENGINE");
+    else qputenv("GS_ENGINE", origEngine);
+    qunsetenv("GS_FAKE_ORPHAN_MS");
   }
 
   std::printf("==> %d checks, %d failures\n", g_checks, g_failures);

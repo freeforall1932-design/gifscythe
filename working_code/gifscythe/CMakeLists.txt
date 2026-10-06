@@ -62,6 +62,11 @@ add_executable(fake_engine_partial_failure tests/fake_engine_partial_failure.cpp
 # (U-72 / P1-42). Copies its input to -o so the promotion path accepts it.
 add_executable(fake_engine_argv_sleep tests/fake_engine_argv_sleep.cpp)
 
+# U-12 / P1-24 (S37): a fixture whose CHILD keeps the inherited pipes open after
+# the parent is killed - without it, kill()+waitForFinished() returns in ~1 ms and
+# the event-loop freeze cannot be measured at all (see the file's header).
+add_executable(fake_engine_orphan_pipe tests/fake_engine_orphan_pipe.cpp)
+
 # ---- Qt6 GUI (optional) ----
 option(BUILD_GUI "Build the Qt6 GUI" ON)
 if(BUILD_GUI)
