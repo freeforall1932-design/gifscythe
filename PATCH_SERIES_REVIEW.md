@@ -359,9 +359,9 @@ through `run_argv`, the exact function whose Windows return path was rewritten:
 | `scripts/test_engine.sh` | 5 passed, 0 failed | engine pipeline unaffected |
 | `scripts/test_output_verify.sh` | 25 assertions, 0 failures | output verifier unaffected |
 | `scripts/oracle_fuzz.mjs --quick` | 24/24 deterministic cases | the pre-push hook's second stage |
-| `scripts/test_unit_32bit_long.sh` | **396 checks, 0 failures** on `x86-linux-musl`, `sizeof(long)==4` | was SKIP (no zig); now runs, and confirms the N-30 width class is still green alongside U-71's new classifier |
+| `scripts/test_unit_32bit_long.sh` | **396 checks / 0 failures** on `x86-linux-musl`, `sizeof(long)==4` (its own S34 measurement; the host suite is **415** in S37 — the two are different builds) | was SKIP (no zig); now runs, and confirms the N-30 width class is still green alongside U-71's new classifier |
 | `scripts/verify_audit.sh` | **32 passed, 0 failed, 5 skipped** | includes **E9** (the `build.yml` byte mirror, so the CI edit is clean) and **F1** (doc gate green). Docs record 34/0/3 "with pip's cmake on PATH"; the two extra skips here are the no-cmake/no-Qt6 legs |
-| `./build.sh` unit tests | 396 checks, 0 failures | matches the documented unit count |
+| `./build.sh` unit tests | **415 checks + 35 admission checks, 0 failures** (S37; 396 when this review was written) | matches the documented unit count |
 
 The build writes only into gitignored paths (`build/`, `release/*/gifsicle`), so
 the tree stayed clean throughout.

@@ -4,6 +4,69 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S37 — 2026-10-06: five rows closed on the owner's "cheaper path" instruction — DS-10, GS-205, U-55, U-96 (and U-76 via OD-18 = a); the Qt naming probe refuted the assumed semantics
+
+**Changed:**
+
+- **GS-205 / P1-27 — one input-admission rule.** `src/core/InputAdmission.h` (new,
+  Qt-free) is `gs::admit_input()`: exists + **regular file** + readable + `GIF87a`/
+  `GIF89a` magic. The picker and the drop list both call it (`MainWindow.cpp`), so
+  the old `.gif`-suffix-AND-exists drop filter is gone, and a dropped **directory**
+  — which the old `exists()` check cheerfully queued — is refused as `not-a-file`.
+  Refusals are **named** ("Refused 1 file(s): folder.gif — not-a-file"), with a dialog
+  when nothing was added; a GIF with a non-GIF extension is ADMITTED because the
+  bytes decide. Proof: `tests/test_input_admission.cpp` (35 checks/0, wired into
+  `build.sh` so every platform runs it) and harness **T8**, which now asserts the
+  refusals first and then produces a genuine failed run (real GIF, output path the
+  engine cannot write) so the failure-honesty assertions still mean something.
+- **DS-10 / P3-11 — disposal 4..7 reachable.** The combo stopped at 3 while the
+  engine's `DISPOSAL_TYPE` (Clp_AllowNumbers, `val.i < 0 || val.i > 7`) and
+  `web/validate.mjs` both allow 0..7, so a web-exported session could not be
+  represented and `readFrom` silently reset the control. Items 4..7 added
+  (`reserved — GIF89a "to be defined"`), `-1` untouched; harness T13 asserts each is
+  selectable **and** emits `--disposal N`, and that "Keep original" emits no flag.
+- **U-55 / P1-35 — the Windows case rule is now injectable, and tested.** `path_key`
+  grew `PathKeyPolicy{Posix,Windows}` + `case_fold_utf8` (ASCII, Latin-1, Latin Ext-A,
+  Greek, Cyrillic; invalid UTF-8 passes through) and `plan_outputs` takes the policy.
+  Linux CI therefore pins the WINDOWS rule: `Ä.gif`/`ä.gif` key equal, a case-only
+  self-target is `TargetsSource`, two case-variant targets are `DuplicateTarget` — and
+  the same pair plans clean under `Posix`, which is what proves the policy is doing
+  the work. Residual: the full Unicode table needs ICU/`CompareStringOrdinal`.
+- **U-96 / P3-18 — web/desktop naming parity, and the probe mattered.** A Qt 6.8.3
+  probe of `QFileInfo::completeBaseName()` **refuted the assumption** the row carried:
+  Qt counts a LEADING dot as an extension separator, so `.gif` and `.hidden` have an
+  EMPTY stem (their suffix is "gif"/"hidden"), `..` -> `.`, `a.` -> `a`. The shipping
+  JS rule (`lastIndexOf(".") > 0`) kept dotfiles whole and would have written
+  `.gif_opt.gif` where the desktop writes `_opt.gif`. Fix: one helper
+  (`web/stem.mjs`, imported by `app.js` and `server.mjs`; the U-67 allow-list serves
+  it and `static-hygiene` keeps the list honest) and one **measured** table
+  (`tests/stem_cases.txt`, 18 rows) read by BOTH sides — harness **T25** re-measures
+  every row against the running Qt, `web/test/stem.test.mjs` asserts `stemOf` matches
+  and that four mutant rules (pre-fix, first-dot, trailing-dot, no-strip) are all
+  CAUGHT, so the table cannot quietly stop discriminating.
+- **U-76 closed by recording owner decision `OD-18 = a`** (the cheaper path, and the
+  row's own recommendation): the un-prefixed CLI explode keeps writing
+  `<CWD>/<stem>_frame.NNN` and saying so on stderr, while the desktop/web write beside
+  their input. `scripts/smoke_cli.sh` case 15 already asserts the location, the NOTE,
+  and that the input's folder is untouched — so the divergence is a documented,
+  executed contract, not an open question. No code changed; that IS the decision.
+
+**Measured after the changes (this sandbox, Qt 6.8.3 from source):** GUI harness
+**427 checks, 0 failures** (285 `CHECK(` sites; T25 re-measured 18 Qt rows);
+`build/test_gifsicle_command` **415/0**; `build/test_input_admission` **35/0**;
+eleven `web/test/*.test.mjs` suites green (the new `stem` suite included in CI's
+named list); `build.sh` runs both unit suites now. Register **168 DONE / 10 PARTIAL /
+17 OPEN / 0 UNTRIAGED = 195** (from 163/11/21/0).
+
+**Sandbox note:** the sandbox was rebuilt mid-session (snapshot-excluded `build/`,
+`~/.local/bin`, and the Qt tree were gone; the repo came back at base `76392da` with
+the pushed work as uncommitted diffs). Recovery: `git fetch` + `git reset --hard
+origin/arena/0a711503-gifscythe`, re-apply the turn's edits from a saved copy, rebuild
+cmake/ninja via pip and Qt via `scripts/build_qt6_local.sh` (~15 min), then re-run
+every gate. Nothing was lost; the re-run is what makes the numbers above trustworthy.
+
+---
+
 ## S36 — 2026-10-06: the three S35 Qt rows CLOSED — U-58/U-70/U-72 flipped to FIXED with executed RED→GREEN proof; the 0005 sentinel fixed, extended to U-70 and wired into CI; Qt6 built from source here (the "no Qt6 in this sandbox" constraint was wrong)
 
 **Changed:**
@@ -30,7 +93,8 @@ Chronological log of decisions and changes. **Newest at the top.**
   run before sleeping; `GS_FAKE_SLEEP_MS`, `GS_FAKE_EXIT`). Measured here: **405 runtime
   checks, 0 failures** (Qt 6.8.3 from source, offscreen, `GS_TEST_REF_DIR` from
   `scripts/fixtures.sh`), ~20 s. The README's site/runtime figures were re-measured with it
-  (284 `CHECK(` sites; the 271/398 numbers were stale).
+  (284 `CHECK(` sites at that point in S36; 285 after S37's T8/T25/DS-10 additions —
+  the 271/398 numbers were stale).
 - **RED→GREEN is measured, not asserted.** T24, against the *real* pre-fix tree (a scratch
   copy with `0005` reverse-applied by `patch -p1 -R`), fails exactly its three snapshot
   assertions — "job 2 ran the BATCH-START -O3, not the mutated -O2" — and passes on the

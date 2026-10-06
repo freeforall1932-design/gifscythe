@@ -209,7 +209,7 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   `GS_SETTINGS_PATH`. The queue and Save-as field are deliberately *not*
   restored. Corrupt files apply their valid keys and warn in the status bar.
 - Regression net: `tests/test_gui_offscreen.cpp` — T1–T24 plus the S23 desktop
-  round-trip block, 284 `CHECK(` sites in source (which is more runtime
+  round-trip block, 285 `CHECK(` sites in source (which is more runtime
   assertions than sites, because several groups loop). T21 (S31, finding N-10)
   asserts that cancelling an Explode run reports the frame set as possibly
   incomplete; T22–T24 (S36) are the behavioural cases for the three S35 patch
@@ -218,7 +218,7 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   U-70 non-ASCII `GS_ENGINE` path (preview must reach the engine), and the U-58
   mid-batch settings mutation (job 2 runs the batch-start snapshot, proven from
   the fixture's argv log). Last measured at
-  **405 runtime checks** in the S36 sandbox (Qt 6.8.3 built from source) —
+  **427 runtime checks** in the S37 sandbox (Qt 6.8.3 built from source) —
   figure rises with every added case, so read it as a measurement, not a target;
   324 in the S11 sandbox (Qt 6.4.2) before T21 existed, 306 in S10. Runs in CI
   and in any Qt6-equipped sandbox — and `scripts/build_qt6_local.sh` lets a

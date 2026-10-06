@@ -29,9 +29,9 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 163 DONE · 11 PARTIAL · 21 OPEN · 0 UNTRIAGED · 195 total
-**Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 7 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
-**Last regenerated:** S36 · 2026-10-06 · by scripts/check_docs.sh --emit
+**Counts (generated - do not edit by hand):** 168 DONE · 10 PARTIAL · 17 OPEN · 0 UNTRIAGED · 195 total
+**Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 4 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
+**Last regenerated:** S37 · 2026-10-06 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
 
@@ -92,7 +92,7 @@ hand-fudged roll-up fails the gate.
 | U-52 | Before-image object URLs are never released — `app.js` creates object URLs for Before preview but only revokes After URLs. | DONE | S8 | `beforeUrl` tracked and revoked on replacement in `app.js` | - |
 | U-53 | Position half-parse leaves has_position true with X,0 — `set_field()` sets `has_position=true` on first valid coordinate; `load_settings()` records saw_x/y before parsing success; valid x + invalid y emits `-p 12,0`. | DONE | S22 | `set_field()` no longer toggles `has_position`; pair enabled only when both keys were seen and both parsed. Proof: `./build.sh` 308/308 +... | - |
 | U-54 | Web settings change does not invalidate in-flight run — `requestGen` advances on queue change but not on settings input; controls editable while `fetch('/run')` pending; old response accepted while UI shows new settings. | DONE | S23 | ownership rule extracted to `web/request-guard.mjs`: every control change invalidates + clears, `begin()` snapshots settings, `invalidate()` aborts;... | - |
-| U-55 | Windows path_key folds ASCII only — `OutputPlan.h` lowercases UTF-8 bytes with `tolower` under `_WIN32`; non-ASCII case... | OPEN | - | not started; scoped as P1-35 in COMPILED_AUDIT.md §6 | P1-35: Windows path_key Unicode case fold — NEW E:NA-03 — gpt 5.6. |
+| U-55 | Windows path_key folds ASCII only — `OutputPlan.h` lowercases UTF-8 bytes with `tolower` under `_WIN32`; non-ASCII case... | DONE | S37 | the case rule is an injectable `PathKeyPolicy` (`Posix`/`Windows`) with a documented partial Unicode fold (`case_fold_utf8`: ASCII, Latin-1/Ext-A,... | - |
 | U-56 | Desktop sanitization misses superscript COM/LPT aliases — `is_windows_reserved_device_name()` checks ASCII digit only; Windows reserves `COM¹²³` / `LPT¹²³` (U+00B9/00B2/00B3). | DONE | S23 | `is_windows_reserved_device_name()` folds U+00B9/B2/B3 after COM/LPT; one shared table `tests/windows_reserved_names.txt` (27 rows) drives the C++... | - |
 | U-57 | WASM singleton reuses stale /out.gif — `wasm.js` does not unlink/snapshot `/out.gif` before `callMain()`; after one success, exit-zero/no-write run reads previous GIF and reports success for wrong input. | DONE | S35 | `web/wasm/fs_run_guard.mjs` (new, pure ESM, no DOM, no Emscripten import): `clearRunArtifacts()` unlinks `/in.gif` AND `/out.gif` BEFORE... | - |
 | U-58 | Batch continuation re-reads LIVE settings — targets planned once (`batchTargets_` U-01) but `currentSettings()` called live for... | DONE | S36 | `MainWindow.h` gains `gs::Settings batchSettings_`; `runCommand()`'s batch branch writes it once beside the verified plan, `onProcessFinished()`... | - |
@@ -113,7 +113,7 @@ hand-fudged roll-up fails the gate.
 | U-73 | resolve_path CWD fallback contradicts CWD-independent contract — relative input missing next to conf but exists in CWD picked... | DONE | S23 | CWD fallback still honoured but never silent: names each CWD-resolved input on stderr and `--strict` refuses (rc=3); smoke 12j; `resolve_path_mode`... | - |
 | U-74 | Batch + output + N>1 passes planner in merge shape, engine semantics undocumented — GS-201 refuses Batch WITHOUT output; WITH... | DONE | S23 | `--run` refuses Batch with >1 input and one output (rc=2) — measured `gifsicle -b a.gif b.gif -o out.gif` exits 0 with out.gif == b.gif and a.gif's... | - |
 | U-75 | `-E` exposed but `--name` not, several engine options absent — without `--name` `-E` vs `-e` differs only if input already... | DONE | S23 | documented remedy (the scoped action's OR): README table of engine options the layer does not model + `-E` checkbox explains the `--name` dependency... | - |
-| U-76 | Explode default prefix differs per surface — GUI: `<dir>/<stem>_frame`, CLI: `<basename>.NNN` in CWD when output cleared;... | PARTIAL | S23 | name unified (`<stem>_frame`, C++ under `--run` only, so print/parity stay exact); the DIRECTORY was NOT moved beside the input — that wrote 12... | P1-43: CLI resolve_path and batch+output semantics — NEW F:NF-16/17/19 — fable 5.1 low — WINNER. |
+| U-76 | Explode default prefix differs per surface — GUI: `<dir>/<stem>_frame`, CLI: `<basename>.NNN` in CWD when output cleared;... | DONE | S37 | owner decision **OD-18 = a** issued 2026-10-06 (the cheaper path, and the row's own recommendation): the CWD policy stays, the NAME was already... | - |
 | U-77 | JSON null body crashed /run and /optimize into text/plain 500s — `payload.files` and `settings.info` dereferenced without an... | DONE | - | object-shape guards on both handlers (400 in the documented JSON shape); transport.test.mjs regression cases; commit d7f8ef9 | - |
 | U-78 | validate.mjs has no wrong-type gate: NaN slips every numeric check — `Number("abc")`=NaN passes every comparison, buildArgs... | DONE | S26 | `validate.mjs` finite-number gate: a wrong type is a named 422, never a silent 200; pinned against the real CLI (7 integer keys: parse warning +... | - |
 | U-79 | /optimize accepted mode:"explode" and answered a misleading 422 — explode writes frames as `<prefix>.NNN`, so the single-file... | DONE | - | 400 refusal naming POST /run; batch/merge single-file probed benign (200, one GIF); transport case; commit d7f8ef9 | - |
@@ -133,7 +133,7 @@ hand-fudged roll-up fails the gate.
 | U-93 | Web transport shape is unbounded: stderr capture has no cap and is echoed in 422 bodies, /run inlines every output as base64 in... | DONE | S28 | three bounds. (1) Engine stderr capture is capped (`GS_MAX_STDERR`, default 16 KiB) and the cap is DISCLOSED: a truncated message ends with `[stderr... | - |
 | U-94 | No suite sweeps the settings space against the real engine: hand-written mirrors prove agreement, not correctness — U-62, U-63... | DONE | S29 | `scripts/oracle_fuzz.mjs` runs a seeded, offline 64-case matrix (24-case `--quick` prefix): JS argv vs real C++ CLI parity, validator/strict-CLI... | - |
 | U-95 | The only published Release predates the Ms-PL relicence — snapshot-2026-09-07 was built from GPLv3-era first-party code and its... | DONE | S24 | MOOT BY VERIFICATION: the same GitHub releases API check that confirmed the defect (S24) now returns 0 releases and 0 tags on the live repo (created... | - |
-| U-96 | stemOf is hand-duplicated (app.js + server.mjs) and its dotfile/extensionless boundary is unpinned against Qt completeBaseName... | OPEN | S24 | not started; scoped as P3-18 in COMPILED_AUDIT.md §6 | P3-18: stemOf edge-name parity — S24 intake (G:GN-18). |
+| U-96 | stemOf is hand-duplicated (app.js + server.mjs) and its dotfile/extensionless boundary is unpinned against Qt completeBaseName... | DONE | S37 | the probe found the divergence the row predicted, in the DOTFILE case: Qt treats a LEADING dot as an extension separator, so `.gif`/`.hidden` have an... | - |
 | U-97 | The 2026-09-22 zip re-creation of the GitHub repo lost the root license set, so both packagers fail closed on every platform —... | DONE | S27 | canonical texts restored (GNU GPLv3 35147 B + standalone LGPLv3 7639 B via the gcc mirror, Ms-PL 2663 B via SPDX, COPYING.gifsicle byte-copied from... | - |
 <!-- END GENERATED -->
 
@@ -147,8 +147,8 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 |----|-------|-------|---------|-----------------|-------------|
 | W-01 | Project setup: `reference_code/` vs `working_code/` separation | DONE | S1 | split in place; README "What is reference vs. working" states the rule | - |
 | W-02 | GIF engine build + upstream identity verification | DONE | S8 | `verify_audit.sh` A10: `release/0.1.0/gifsicle --version` prints `LCDF Gifsicle 1.96` | - |
-| W-03 | Qt-independent command/settings control layer | DONE | S34 | `src/core/*.h` compile with plain g++ (no Qt); unit suite 396 checks (re-measured S34 after the N-30 width cases; 384 at S32, 372 at S23) | - |
-| W-04 | CLI driver + unit tests + integration smoke | DONE | S34 | `./build.sh` 396 checks, 0 failures (re-measured S34); `scripts/smoke_cli.sh` 63/63 (54/54 at S23; grown by U-59/U-81/U-83/N-10/N-15 cases) | - |
+| W-03 | Qt-independent command/settings control layer | DONE | S34 | `src/core/*.h` compile with plain g++ (no Qt); unit suite 415 checks (S37; 396 at S34 after the N-30 width cases; 384 at S32, 372 at S23) | - |
+| W-04 | CLI driver + unit tests + integration smoke | DONE | S34 | `./build.sh` 415 checks + 35 admission checks, 0 failures (S37; 396 at S34); `scripts/smoke_cli.sh` 63/63 (54/54 at S23; grown by U-59/U-81/U-83/N-10/N-15 cases) | - |
 | W-05 | Qt6 GUI MVP (Batch default, mode combo, async run, queue, DnD) | DONE | S8 | CI run `34471563229` green on linux + windows; NOT compiled in the S8/S9 sandboxes (no Qt6) | - |
 | W-06 | Portable + system-dependent packaging scripts | DONE | S20 | `scripts/test_package.sh` 9/9 negative cases; `verify_audit.sh` D1/D2/D5 ; S20 (OD-17): scripts unchanged — only the Windows package ships now | - |
 | W-07 | Linux GitHub Actions path with Qt6 (test battery) | DONE | S20 | `.github/workflows/build.yml`; main runs #23/#24 green both jobs ; S20 (OD-17): linux upload dropped (windows-only ship); job stays as the automated battery | - |
@@ -209,7 +209,7 @@ folded into `docs/archive/AUDIT_HISTORY.md` entry 7 in S24; original in git hist
 `OD-01 = a` and S15 mapped every row into a `§6` fix-order id, named in each Next action below —
 14 new ids (**P0-5, P0-6, P1-25…P1-32, P2-12…P2-14, P3-11**) and 4 folded into actions that already
 covered the same defect (**DS-06**→P0-2, **DS-12**→P1-13, **GS-208**→P2-7, **DS-08**→P3-5).
-Triage scoped them; it did not fix them. **S16 closed `GS-201` (P0-5); S17 closed `GS-202` (P0-6), `DS-13` (P1-32) and `GS-207` (P1-29)** with executed proof; S17 also closed `DS-11` (P2-14). `GS-203`, `GS-204` and `GS-210` are PARTIAL with explicit handoffs; as of S24 the not-DONE intake rows are those three plus `GS-205`, `GS-209`, `DS-10` (OPEN) — `GS-206`/`DS-06`..`DS-09` closed S22/S23 and `GS-208` closed S24.
+Triage scoped them; it did not fix them. **S16 closed `GS-201` (P0-5); S17 closed `GS-202` (P0-6), `DS-13` (P1-32) and `GS-207` (P1-29)** with executed proof; S17 also closed `DS-11` (P2-14). `GS-203`, `GS-204` and `GS-210` are PARTIAL with explicit handoffs; as of S24 the not-DONE intake rows were those three plus `GS-205`, `GS-209`, `DS-10` — **S37 closed `GS-205` (P1-27) and `DS-10` (P3-11)** with executed proof, so `GS-209` (P2-12) is the only intake row still OPEN; `GS-206`/`DS-06`..`DS-09` closed S22/S23 and `GS-208` closed S24.
 
 | ID | Item | State | Session | Proof / Blocker | Next action |
 |----|-------|-------|---------|-----------------|-------------|
@@ -217,7 +217,7 @@ Triage scoped them; it did not fix them. **S16 closed `GS-201` (P0-5); S17 close
 | GS-202 | Web upload names could escape the request temp directory and case-only output collisions were missed | DONE | S17 | P0-6: portable name admission + resolved target containment + case/NFC collision checks; transport 42/42; old server fails 7 security groups and overwrites isolated sentinels; disabling containment fails its probe | - |
 | GS-203 | Shared ordinary-run output postconditions across CLI, GUI and web | PARTIAL | S17 | Core/CLI explicit file output and web verify new or size/mtime-changed non-empty GIF-signature files; smoke 40/40, core verifier 12 assertions, transport 67/67 on Linux. GUI integration is missing; no full decoding or stdout capture | **P1-25** — Integrate core verifier into Qt run lifecycle and exercise stale/bogus/cancel paths; see `docs/planning/PLANNING.md` §4 |
 | GS-204 | Fail-closed, manifest-driven portable/system packaging | PARTIAL | S20 | Shared fresh staging + required non-empty files, explicit headless/Windows targets; 36 Linux checks (30 + 2 required-file cases S18 + 4 Qt LGPL cases S19) include both packagers, real native CLI artifacts and deployer fixtures. S20: Windows CI packages + asserts the manifest (run 34812043127 green); binary architecture checks and clean-machine proof remain | **P1-26** — Binary architecture checks + clean-machine smoke; retain the U-09 blocker (U-08 closed S19); see `docs/planning/PLANNING.md` §4 |
-| GS-205 | Non-GIF inputs still admitted: picker offers `All files`, `appendInputs` validates nothing, drop checks existence not `isFile()` | OPEN | S15 | `src/qtui/MainWindow.cpp:358,405,415` (intake A.5) | **P1-27** — One `admitInputs()` (existing readable regular file + GIF magic) used by picker and drop, with rejected-item feedback; the web-surface twin is U-92/P2-19 (S24) |
+| GS-205 | Non-GIF inputs still admitted: picker offers `All files`, `appendInputs` validates nothing, drop checks existence not `isFile()` | DONE | S37 | P1-27: ONE admission rule, `gs::admit_input()` (`src/core/InputAdmission.h`) — existing, readable, REGULAR file whose first 6 bytes are GIF87a/GIF89a — called by both the picker and the drop list; reason-named refusals in the status line plus a dialog when nothing was added. Executed: `test_input_admission` 35/0 (directory, missing, empty, unreadable, renamed JPEG, non-ASCII name, batch split) and harness T8 (dropped `.gif` whose bytes are not a GIF refused as `not-gif`, dropped DIRECTORY refused as `not-a-file`, GIF with an odd extension ADMITTED, then a real failed run stays honest) | Closed — no further action |
 | GS-206 | `long` to `int` narrowing without range checks; validation has no rules for loopcount, threads, gamma or method-name enums | DONE | S23 | `to_int_strict`/`to_uint_strict` (std::from_chars into the destination width) replace every `long`→`static_cast<int>` site, and the missing domains landed in `Validate.h` + `web/validate.mjs`: loopcount 0..65535 (engine wraps 65536→forever, rc=0), color_method and resize_method against the engine's own lists, gamma shape. `dither_method` is deliberately NOT enum-checked (parameterised grammar) and the test pins that as a non-rule | - |
 | GS-207 | An invalid GS_ENGINE override could silently select another engine | DONE | S17 | P1-29: structured resolution; CLI print/run exit 1, web APIs 503 on invalid override; source logs; smoke 30/30 and web 63/63 on Linux; old CLI accepts all 5 invalid cases | - |
 | GS-208 | Main is release-red (run 34705247115 failed the Linux documentation gate) while status docs claimed a green open PR #15 and the pending marker described an applied change | DONE | S24 | fixed-doc half landed S14 (`ddc4194`); the missing workflow-copy-sync half landed S24: proposed copy re-synced to the maintainer-fixed live line (`414f5fc`) and the marker deleted in the same commit (P2-7). Main green at `3c67e14` (run 35112077599, 2026-09-16) | - |
@@ -227,7 +227,7 @@ Triage scoped them; it did not fix them. **S16 closed `GS-201` (P0-5); S17 close
 | DS-07 | GUI Threads spinner spans 0..64 and always writes a value; the no-flag/unchanged state is unrepresentable | DONE | S23 | Closed by the same edit as N-09: range is `gs::GS_THREADS_UNSET..64`, the minimum reads "Unchanged (engine default)", `applyToUi` sets it unconditionally, and an offscreen harness case asserts a `-1` conf survives save/close/reopen as absence rather than becoming `0`. Agrees with DS-06 as **P1-30** required. CI-compiled proof only — no Qt6 in the S23 sandbox | - |
 | DS-08 | Non-strict print mode returns 0 even when validation warned, so scripts cannot tell valid from warned | DONE | S23 | advisory contract documented in `print_usage` and honoured exactly (a warning still exits 0), plus one greppable `WARNING-SUMMARY: parse=N validation=M mode=advisory outcome=print\|run-continued` line printed after the strict refusal. Proof: smoke 12m (present on warned print+run, absent when clean and under --strict) | - |
 | DS-09 | `threads < -1` is accepted with no warning and re-interpreted as auto | DONE | S22 | P1-31 closed this in S22 — `Validate.h` warns on `threads < GS_THREADS_UNSET` and `web/validate.mjs` mirrors it — but this hand-maintained row was never moved off OPEN/S15, so the register contradicted `COMPILED_AUDIT.md` §6/§16 for four sessions; S26 synced it and re-measured the proof: unit 372/0 (`threads = -7` at `tests/test_gifsicle_command.cpp:380,543`), the `validate.test.mjs` parity fixture "threads below -1 warns (audit DS-09)", smoke 54/54 | - |
-| DS-10 | Disposal 4..7 are unreachable from the desktop picker although the engine and web validator allow 0..7 | OPEN | S15 | `src/qtui/SettingsPanel.cpp:329-339`; `web/validate.mjs:22-25` (intake B.5) | **P3-11** — Add 4..7 to the picker, or document the cap in the UI tooltip |
+| DS-10 | Disposal 4..7 are unreachable from the desktop picker although the engine and web validator allow 0..7 | DONE | S37 | P3-11: the placeholder offers 4..7 (`reserved — GIF89a "to be defined"`), matching the engine's `DISPOSAL_TYPE` parser (Clp_AllowNumbers, bounds `0..7`) and `web/validate.mjs`; the -1 sentinel stays "Keep original". Executed: harness T13 asserts each of 4..7 is selectable AND reaches the command line as `--disposal N`, and that "Keep original" emits no flag; `readFrom` now represents 4..7 instead of silently resetting the control to -1 | Closed — no further action |
 | DS-11 | Gate current audit narrative against its §5 register in both contradiction directions | DONE | S17 | P2-14: S5 (via G17) rejects OPEN vs closed and closed vs nonclosed, ignores historical tails, fails uncheckable current references; 20 regression tests pass; old checker falsely passes all 3 OPEN-vs-fixed variants | - |
 | DS-12 | The line-based settings format silently loses leading and trailing whitespace in values | DONE | S23 | `encode_line_value` quotes only lossy values (leading/trailing space-or-tab, or a leading quote) with `"`/`\` escapes; decode happens in ONE place (`set_field`, which every caller funnels through) so it cannot apply twice. Proof: unit 29 rows incl. byte-identical re-save and the legacy `comment = "hi"` case; web parity fixture | - |
 | DS-13 | Web `/optimize` served non-GIF output as `200 image/gif` | DONE | S17 | P1-32: shared exact GIF87a/GIF89a signature predicate checks the response buffer before 200; transport 53/53, including 11 output-fixture cases; pre-fix server fails all 6 invalid-signature cases | - |
@@ -303,7 +303,7 @@ finished?"* without hand-reading (U-88 / P2-21).
 | P1-24 | U-12 | OPEN | 1 member(s); OPEN: U-12 | close the OPEN member(s): U-12 |
 | P1-25 | GS-203 | PARTIAL | 1 member(s); PARTIAL: GS-203 | close the PARTIAL member(s): GS-203 |
 | P1-26 | GS-204 | PARTIAL | 1 member(s); PARTIAL: GS-204 | close the PARTIAL member(s): GS-204 |
-| P1-27 | GS-205 | OPEN | 1 member(s); OPEN: GS-205 | close the OPEN member(s): GS-205 |
+| P1-27 | GS-205 | DONE | 1 member(s) - all DONE | - |
 | P1-28 | GS-206 | DONE | 1 member(s) - all DONE | - |
 | P1-29 | GS-207 | DONE | 1 member(s) - all DONE | - |
 | P1-30 | DS-07 | DONE | 1 member(s) - all DONE | - |
@@ -311,7 +311,7 @@ finished?"* without hand-reading (U-88 / P2-21).
 | P1-32 | DS-13 | DONE | 1 member(s) - all DONE | - |
 | P1-33 | U-53 | DONE | 1 member(s) - all DONE | - |
 | P1-34 | U-54 | DONE | 1 member(s) - all DONE | - |
-| P1-35 | U-55 | OPEN | 1 member(s); OPEN: U-55 | close the OPEN member(s): U-55 |
+| P1-35 | U-55 | DONE | 1 member(s) - all DONE | - |
 | P1-36 | U-56 | DONE | 1 member(s) - all DONE | - |
 | P1-37 | U-57 | DONE | 1 member(s) - all DONE | - |
 | P1-38 | U-58 | DONE | 1 member(s) - all DONE | - |
@@ -319,7 +319,7 @@ finished?"* without hand-reading (U-88 / P2-21).
 | P1-40 | U-62,U-63 | DONE | 2 member(s) - all DONE | - |
 | P1-41 | U-64,U-65,U-66 | DONE | 3 member(s) - all DONE | - |
 | P1-42 | U-70,U-72 | DONE | 2 member(s) - all DONE | - |
-| P1-43 | U-73,U-74,U-76 | PARTIAL | 3 member(s); PARTIAL: U-76 | close the PARTIAL member(s): U-76 |
+| P1-43 | U-73,U-74,U-76 | DONE | 3 member(s) - all DONE | - |
 | P1-44 | U-78,U-87 | DONE | 2 member(s) - all DONE | - |
 | P1-45 | U-95 | DONE | 1 member(s) - all DONE | - |
 | P1-46 | U-81 | DONE | 1 member(s) - all DONE | - |
@@ -356,14 +356,14 @@ finished?"* without hand-reading (U-88 / P2-21).
 | P3-8 | U-37 | DONE | 1 member(s) - all DONE | - |
 | P3-9 | U-32 | DONE | 1 member(s) - all DONE | - |
 | P3-10 | U-31 | DONE | 1 member(s) - all DONE | - |
-| P3-11 | DS-10 | OPEN | 1 member(s); OPEN: DS-10 | close the OPEN member(s): DS-10 |
+| P3-11 | DS-10 | DONE | 1 member(s) - all DONE | - |
 | P3-12 | U-75 | DONE | 1 member(s) - all DONE | - |
 | P3-13 | U-85 | DONE | 1 member(s) - all DONE | - |
 | P3-14 | U-84 | DONE | 1 member(s) - all DONE | - |
 | P3-15 | U-83 | DONE | 1 member(s) - all DONE | - |
 | P3-16 | U-86 | DONE | 1 member(s) - all DONE | - |
 | P3-17 | U-91 | OPEN | 1 member(s); OPEN: U-91 | close the OPEN member(s): U-91 |
-| P3-18 | U-96 | OPEN | 1 member(s); OPEN: U-96 | close the OPEN member(s): U-96 |
+| P3-18 | U-96 | DONE | 1 member(s) - all DONE | - |
 | P3-19 | U-90 | OPEN | 1 member(s); OPEN: U-90 | close the OPEN member(s): U-90 |
 <!-- END GENERATED P-BLOCK -->
 
