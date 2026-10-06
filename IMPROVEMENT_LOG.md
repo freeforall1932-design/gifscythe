@@ -89,7 +89,11 @@ why: `waitForFinished(1500)` against a **LIVE** target consumes the full **1501 
 `kill()` first, and Qt 6.8.3 returns on the direct child's death rather than on pipe EOF. The freeze
 therefore needs a slow exec or an uninterruptible (`D`-state) death - neither constructible here (no
 root/NFS, no Windows host). **No wait was edited**; the only source change is the test, and T26 turns the
-row's assumption into an enforced bound (every leg fails if a wait consumes half its deadline). The S11
+row's assumption into an enforced bound (every leg fails if a wait consumes half its deadline). The Windows
+runner agrees - **11 / 0 / 11 / 10 / 11 ms** (run `37496371141`, windows job) - and those numbers are
+retrievable at all only because both harness steps now re-emit T26's leg lines as `::notice::`
+annotations: job log blobs EOF from this sandbox, annotations do not, so the per-platform record costs
+one grep and survives the log's 90-day expiry. The S11
 note - "scoped-OPEN beats an untestable refactor" - now has the measurement it lacked; rewriting anyway
 for the unconstructible case is an owner decision, not a scoped fix.
 

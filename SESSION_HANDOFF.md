@@ -349,7 +349,9 @@ Based on `main` commit `76392da` (PR #11's merge commit — the tip this branch 
   **11 ms** run start (5000) · **3 ms** close during a run (2000) · **11 ms** start with the shipped
   engine. Microbench of the primitive: `waitForFinished(1500)` on a LIVE target spends the full
   **1501 ms**, but all five sites `kill()` first, and Qt returns on the direct child's death, not on pipe
-  EOF — so the freeze needs a slow exec or a `D`-state death (not constructible here). **No wait was
+  EOF — so the freeze needs a slow exec or a `D`-state death (not constructible here). The Windows runner
+  measured the same thing on CI's Qt 6.7.3/MinGW: **11 / 0 / 11 / 10 / 11 ms** (run `37496371141`) -
+  published as annotations by both harness steps, because job log blobs are not retrievable here. **No wait was
   edited**; T26 enforces the assumption (each leg fails if a wait consumes half its deadline) and the
   question of rewriting for the unconstructible case is with the owner.
 - **Environment traps, re-learned:** a sandbox restore also wipes `~/.local/bin` (cmake + ninja),
