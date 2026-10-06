@@ -45,6 +45,19 @@
 //       clearing the queue or switching to Explode invalidates the in-flight
 //       preview, and superseded/stale preview files are swept from the
 //       temp dir instead of leaking for the session
+//   T21 explode cancel honesty (N-10): a cancelled Explode says frames
+//       already written may be incomplete; a guarded mode keeps the flat
+//       "Cancelled."
+//   T22 cancel-latch honesty (U-72 / P1-42): an idle Cancel arms nothing, a
+//       cancelled run's own completion consumes the latch (no spurious
+//       failure dialog), and the NEXT genuine failure still surfaces - the
+//       "one completion, one consumption" contract the fix names
+//   T23 non-ASCII engine path (U-70 / P1-42): GS_ENGINE under a non-ASCII
+//       directory survives the u8path_compat boundary, so the preview
+//       re-probe finds the engine and the debounced preview runs
+//   T24 mid-batch settings mutation (U-58 / P1-38): a control changed between
+//       batch job 1 and job 2 does not change job 2's argv - the batch-start
+//       settings snapshot, proven from the fixture's argv log
 //
 // Modal dialogs are recorded and auto-closed by a DialogKiller timer.
 // Widget lookup is by objectName (stable against layout changes).
@@ -88,6 +101,7 @@
 
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <thread>
 #include <string>
@@ -229,6 +243,17 @@ void spinEvents(int ms) {
 }
 
 // ---- File / engine helpers ----
+// Absolute path of a CMake-built fixture: built next to the harness, ".exe" on
+// Windows. Same convention as the inline lookups in T7/T8.
+QString fixturePath(const char* base) {
+  QString p = QCoreApplication::applicationDirPath() + QLatin1Char('/')
+            + QString::fromLatin1(base);
+#ifdef _WIN32
+  p += QStringLiteral(".exe");
+#endif
+  return p;
+}
+
 QString g_engine;
 QString g_refDir;
 
@@ -297,6 +322,86 @@ MainWindow* makeWindow() {
 QString rowPath(DropListWidget* list, int row) {
   auto* item = list->item(row);
   return item ? item->data(Qt::UserRole).toString() : QString();
+}
+
+
+// ---- fixture argv log + Unicode-env helpers (T22/T23/T24) ----------------
+
+// Set an environment variable from a QString so a NON-ASCII value keeps its
+// meaning on Windows. qputenv() takes BYTES whose encoding is CRT-defined,
+// while the core reads GS_ENGINE through GetEnvironmentVariableW -> UTF-8
+// (gs::win_getenv_utf8, WinUnicode.h); _wputenv_s() writes the exact UTF-16
+// value, which is what a user setting the variable natively produces. On
+// POSIX the raw bytes ARE the value, so hand over UTF-8.
+void setEnvU8(const char* name, const QString& value) {
+#ifdef _WIN32
+  const std::wstring wname = QString::fromLatin1(name).toStdWString();
+  const std::wstring wvalue = value.toStdWString();
+  _wputenv_s(wname.c_str(), wvalue.c_str());
+#else
+  qputenv(name, value.toUtf8());
+#endif
+}
+
+// Poll a file's contents (processEvents + short sleeps), used to wait for the
+// argv-logging fixture's FIRST line — i.e. proof that batch job 1 is running.
+bool waitForFileText(const QString& path, const QString& needle, int timeoutMs) {
+  QElapsedTimer el;
+  el.start();
+  while (el.elapsed() < timeoutMs) {
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    QThread::msleep(2);
+    QFile f(path);
+    if (f.open(QIODevice::ReadOnly)) {
+      const bool hit = QString::fromUtf8(f.readAll()).contains(needle);
+      f.close();
+      if (hit) return true;
+    }
+  }
+  return false;
+}
+
+// Lines of the fixture's argv log that belong to a BATCH job: the GUI writes
+// batch/merge/single output through "<target>.gs-partial" (U-59), so that
+// marker is unique to those runs — previews write preview_<seq>.gif under the
+// temp dir and therefore never match.
+QStringList batchRunLines(const QString& logPath) {
+  QStringList out;
+  QFile f(logPath);
+  if (!f.open(QIODevice::ReadOnly)) return out;
+  const QStringList lines =
+      QString::fromUtf8(f.readAll()).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+  for (const auto& line : lines) {
+    if (line.contains(QStringLiteral(".gs-partial"))) out << line;
+  }
+  return out;
+}
+
+// Wait until the argv log holds `expected` main-run lines (batch/merge/single
+// all write through "<target>.gs-partial", so preview runs never count).
+// T22 uses this to prove a run really reached the engine before clicking
+// Cancel, and that the run after the cancel reached it too.
+bool waitForBatchRuns(const QString& logPath, int expected, int timeoutMs) {
+  QElapsedTimer el;
+  el.start();
+  while (el.elapsed() < timeoutMs) {
+    if (batchRunLines(logPath).size() >= expected) return true;
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    QThread::msleep(2);
+  }
+  return batchRunLines(logPath).size() >= expected;
+}
+
+// The flags (tokens starting with '-') of one logged argv line. Comparing
+// flag lists instead of whole lines ignores the per-job input/output paths,
+// which is exactly the settings surface U-58 is about.
+QStringList flagTokens(const QString& line) {
+  QStringList out;
+  const QStringList toks = line.split(QLatin1Char('\t'), Qt::SkipEmptyParts);
+  for (const auto& t : toks) {
+    if (t.startsWith(QLatin1Char('-'))) out << t;
+  }
+  return out;
 }
 
 }  // namespace
@@ -1780,6 +1885,273 @@ int main(int argc, char** argv) {
     CHECK_MSG(x2.status->text().trimmed() == QStringLiteral("Cancelled."),
               "a guarded mode still reports a flat 'Cancelled.'");
     delete w2;
+  }
+
+
+  // =========== T22: cancel-latch honesty (U-72 / P1-42) ==================
+  //
+  // The finding: cancelRun() armed `cancelling_`, killed the engine, waited
+  // up to 3 s and then CLEARED the flag unconditionally. A finished()
+  // delivered after that clear - the wait timing out, or a notification
+  // queued but not yet dispatched - took the failure branch and popped
+  // "Optimization failed" immediately after "Cancelled.". The fix makes the
+  // flag a LATCH: armed only when a process was ACTUALLY running, consumed
+  // exactly once by onProcessFinished.
+  //
+  // What is provable offscreen, and why (read before "improving" this case):
+  // Qt emits finished() SYNCHRONOUSLY from QProcessPrivate::processFinished()
+  // and QProcessPrivate::waitForFinished() calls it directly when forkfd
+  // reports death (qtbase v6.8.3, src/corelib/io/qprocess.cpp and
+  // qprocess_unix.cpp). A child killed by kill() is therefore always
+  // delivered INSIDE cancelRun()'s wait, and the timeout leg would need a
+  // child SIGKILL cannot reap - not constructible with a normal fixture
+  // (SIGKILL is final). So this case pins the two halves that ARE
+  // deterministic: an idle Cancel arms nothing, and a cancelled run's own
+  // completion consumes the latch instead of leaking it into the next run.
+  // The pre-fix shape ("cleared right after the wait") is enforced by
+  // scripts/test_u58_u72_sentinels.sh, which fails against the pre-fix source.
+  {
+    g_stage = "T22"; std::printf("== T22 cancel-latch honesty (U-72) ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a));
+
+    const QString fake = fixturePath("fake_engine_argv_sleep");
+    CHECK_MSG(QFileInfo::exists(fake), "slow fixture built next to the harness");
+    const QString argvLog = tmp.path() + QStringLiteral("/argv.log");
+    const QByteArray origEngine = qgetenv("GS_ENGINE");
+    const QByteArray origLog = qgetenv("GS_FAKE_ARGV_LOG");
+    const QByteArray origSleep = qgetenv("GS_FAKE_SLEEP_MS");
+    const QByteArray origExit = qgetenv("GS_FAKE_EXIT");
+    setEnvU8("GS_ENGINE", fake);
+    qputenv("GS_FAKE_ARGV_LOG", QFile::encodeName(argvLog));
+
+    // (a) idle Cancel: must arm nothing — and the NEXT genuine failure in the
+    // SAME window must still surface. The window is shared on purpose: if the
+    // idle Cancel armed the latch unconditionally (the plausible wrong fix),
+    // this failure would be swallowed, so a fresh window could not tell.
+    qputenv("GS_FAKE_SLEEP_MS", "0");
+    qputenv("GS_FAKE_EXIT", "7");
+    {
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      dropFiles(w, {a});
+      CHECK_MSG(byName<DropListWidget>(w, "queueList")->count() == 1,
+                "the queue row survives an idle Cancel (the next run has input)");
+      g_dialogs.clear();
+      x.cancel->setEnabled(true);  // the idle cancel button is disabled by design
+      x.cancel->click();
+      spinEvents(120);
+      CHECK_MSG(x.status->text().contains(QStringLiteral("Cancelled")),
+                "idle Cancel reports Cancelled");
+      CHECK_MSG(g_dialogs.empty(), "idle Cancel arms nothing (no failure dialog)");
+      g_dialogs.clear();
+      x.run->click();
+      CHECK_MSG(waitForStatus(w, QStringLiteral("failed"), 30000),
+                "a genuine failure after an idle Cancel still reports failed");
+      CHECK_MSG(dialogsContain(QStringLiteral("exit 7")),
+                "the idle Cancel did not swallow the next genuine failure");
+      CHECK(x.process->state() == QProcess::NotRunning);
+      CHECK(x.run->isEnabled());
+      CHECK(!x.cancel->isEnabled());
+      delete w;
+    }
+
+    // (b) cancel a run whose engine is REALLY running, then fail again in the
+    // SAME window: one completion, one consumption. Simply KEEPING the latch
+    // (the naive fix for the early clear) would leave it armed here, so the
+    // second run would report "Cancelled" and swallow its "exit 9" dialog.
+    qunsetenv("GS_FAKE_EXIT");
+    qputenv("GS_FAKE_SLEEP_MS", "900");
+    {
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      dropFiles(w, {a});
+      const int runsBefore = batchRunLines(argvLog).size();
+      g_dialogs.clear();
+      x.run->click();
+      CHECK_MSG(waitForBatchRuns(argvLog, runsBefore + 1, 15000),
+                "the main run really reached the engine (argv log)");
+      CHECK_MSG(x.process->state() == QProcess::Running,
+                "engine genuinely running when Cancel is pressed");
+      x.cancel->click();
+      CHECK_MSG(waitForStatus(w, QStringLiteral("Cancelled"), 10000),
+                "cancelled run reports Cancelled");
+      spinEvents(400);  // a queued/late delivery, if any, lands in here
+      CHECK_MSG(g_dialogs.empty(), "a cancelled run shows no failure dialog");
+      CHECK(x.process->state() == QProcess::NotRunning);
+      CHECK(!x.cancel->isEnabled());
+      CHECK(x.run->isEnabled());
+      CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));
+
+      qputenv("GS_FAKE_SLEEP_MS", "0");
+      qputenv("GS_FAKE_EXIT", "9");
+      const int afterCancel = batchRunLines(argvLog).size();
+      g_dialogs.clear();
+      x.run->click();
+      CHECK_MSG(waitForStatus(w, QStringLiteral("failed"), 30000),
+                "post-cancel genuine failure still reports failed "
+                "(latch consumed, not kept)");
+      CHECK_MSG(dialogsContain(QStringLiteral("exit 9")),
+                "the latch did not outlive the cancelled run "
+                "(no swallowed failure)");
+      CHECK_MSG(waitForBatchRuns(argvLog, afterCancel + 1, 15000),
+                "the second run really reached the engine (argv log)");
+      delete w;
+    }
+
+    if (origEngine.isNull()) qunsetenv("GS_ENGINE");
+    else qputenv("GS_ENGINE", origEngine);
+    if (origLog.isNull()) qunsetenv("GS_FAKE_ARGV_LOG");
+    else qputenv("GS_FAKE_ARGV_LOG", origLog);
+    if (origSleep.isNull()) qunsetenv("GS_FAKE_SLEEP_MS");
+    else qputenv("GS_FAKE_SLEEP_MS", origSleep);
+    if (origExit.isNull()) qunsetenv("GS_FAKE_EXIT");
+    else qputenv("GS_FAKE_EXIT", origExit);
+  }
+
+  // =========== T23: non-ASCII engine path (U-70 / P1-42) =================
+  //
+  // The finding: startPreview()'s engine re-probe passed
+  // enginePath_.toStdString() straight into path_is_executable(). On Windows
+  // that implicit std::string -> fs::path conversion goes through the
+  // toolchain's narrow encoding (bytewise widening with MinGW libstdc++ -
+  // WinUnicode.h documents the verification), so the UTF-8 bytes of a
+  // non-ASCII directory named a path that does not exist and the preview said
+  // "engine not found - preview unavailable". ensureEngine() already obeyed
+  // the u8path_compat rule; the preview re-probe now does too.
+  //
+  // Windows-teeth case by construction: on POSIX the two conversions are
+  // identical (narrow strings ARE the native filename bytes), so the guard
+  // below asserts - on Windows only - that the BARE conversion really fails
+  // for this path. If the test directory ever went ASCII, that guard fails
+  // instead of letting the case pass without covering the boundary.
+  {
+    g_stage = "T23"; std::printf("== T23 non-ASCII engine path (U-70) ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a));
+
+    const QString dir = tmp.path() + QStringLiteral("/\u00fcn\u00efcode-\u65e5\u672c\u8a9e-\u03a9-engine");
+    CHECK_MSG(QDir().mkpath(dir), "non-ASCII engine directory created");
+    const QString engineCopy = dir + QStringLiteral("/gifsicle-test-engine");
+#ifdef _WIN32
+    const QString exeCopy = engineCopy + QStringLiteral(".exe");
+#else
+    const QString& exeCopy = engineCopy;
+#endif
+    CHECK_MSG(copyFile(g_engine, exeCopy), "engine copied under the non-ASCII directory");
+    QFile::setPermissions(exeCopy, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner |
+                                      QFile::ReadGroup | QFile::ExeGroup |
+                                      QFile::ReadOther | QFile::ExeOther);
+    const std::string engineUtf8 = exeCopy.toStdString();  // QString::toStdString is UTF-8
+#ifdef _WIN32
+    CHECK_MSG(!gs::path_is_executable(fs::path(engineUtf8)),
+              "guard: UTF-8 bytes are not the native path on Windows "
+              "(if this fails the finding's premise must be re-read)");
+#endif
+    CHECK_MSG(gs::path_is_executable(gs::u8path_compat(engineUtf8)),
+              "the u8path_compat boundary resolves the non-ASCII engine path");
+
+    const QByteArray origEngine = qgetenv("GS_ENGINE");
+    setEnvU8("GS_ENGINE", exeCopy);
+    {
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      CHECK_MSG(x.status->text().contains(QStringLiteral("engine")),
+                "window located the engine through GS_ENGINE");
+      dropFiles(w, {a});  // appendInputs selects row 0 -> debounced preview
+      CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("\u2192"), 25000),
+                "debounced preview RAN with a non-ASCII engine path (U-70 site)");
+      CHECK_MSG(!x.previewCaption->text().contains(QStringLiteral("engine not found")),
+                "no false 'engine not found' from the preview re-probe");
+      delete w;
+    }
+    if (origEngine.isNull()) qunsetenv("GS_ENGINE");
+    else qputenv("GS_ENGINE", origEngine);
+  }
+
+  // =========== T24: mid-batch settings mutation (U-58 / P1-38) ===========
+  //
+  // The finding: the batch plan (targets AND the collision-checked settings)
+  // was computed once, but every continuation job (runs 2..N) rebuilt its
+  // argv from a LIVE currentSettings() re-read, so a control changed between
+  // completions silently rewrote the rest of the batch while the UI still
+  // showed the old plan. The fixture logs each run's argv, so the case can
+  // compare what job 1 and job 2 actually ran.
+  //
+  // Teeth, in one run: the mutation is asserted to be LIVE (the command pane
+  // and currentSettings() both render -O2 afterwards), so the only reason job
+  // 2 can still carry -O3 is the batch-start snapshot. Without it, job 2's
+  // argv is rebuilt from the mutated panel and the -O3 assertion fails.
+  {
+    g_stage = "T24"; std::printf("== T24 mid-batch settings mutation (U-58) ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    const QString b = tmp.path() + QStringLiteral("/b.gif");
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+
+    const QString fake = fixturePath("fake_engine_argv_sleep");
+    CHECK_MSG(QFileInfo::exists(fake), "slow fixture built next to the harness");
+    const QString argvLog = tmp.path() + QStringLiteral("/argv.log");
+    const QByteArray origEngine = qgetenv("GS_ENGINE");
+    const QByteArray origLog = qgetenv("GS_FAKE_ARGV_LOG");
+    const QByteArray origSleep = qgetenv("GS_FAKE_SLEEP_MS");
+    const QByteArray origExit = qgetenv("GS_FAKE_EXIT");
+    setEnvU8("GS_ENGINE", fake);
+    qputenv("GS_FAKE_ARGV_LOG", QFile::encodeName(argvLog));
+    qputenv("GS_FAKE_SLEEP_MS", "900");
+    qunsetenv("GS_FAKE_EXIT");
+    {
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      dropFiles(w, {a, b});
+      CHECK_MSG(x.optimize->value() == 3, "batch starts at the default -O3");
+      g_dialogs.clear();
+      x.run->click();
+      CHECK_MSG(waitForFileText(argvLog, QStringLiteral(".gs-partial"), 15000),
+                "batch job 1 reached the fixture (argv logged)");
+      CHECK_MSG(x.process->state() == QProcess::Running,
+                "job 1 still running when the control is mutated");
+      x.optimize->setValue(2);  // the mid-batch mutation
+      spinEvents(30);
+      CHECK_MSG(waitForStatus(w, QStringLiteral("complete"), 60000),
+                "batch completes after the mid-batch mutation");
+      CHECK_MSG(g_dialogs.empty(), "the mid-batch mutation raised no dialog");
+      CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));
+      CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/b_opt.gif")));
+
+      const QStringList runs = batchRunLines(argvLog);
+      CHECK_MSG(runs.size() >= 2, "the fixture logged both batch jobs");
+      if (runs.size() >= 2) {
+        const QStringList flags1 = flagTokens(runs.at(0));
+        const QStringList flags2 = flagTokens(runs.at(1));
+        CHECK_MSG(flags1.contains(QStringLiteral("-O3")), "job 1 ran the batch-start -O3");
+        CHECK_MSG(flags2.contains(QStringLiteral("-O3")),
+                  "job 2 ran the BATCH-START -O3, not the mutated -O2");
+        CHECK_MSG(!flags2.contains(QStringLiteral("-O2")),
+                  "job 2 does not carry the mid-batch mutation");
+        CHECK_MSG(flags2 == flags1, "job 2's flags equal job 1's for the whole batch");
+      } else {
+        CHECK_MSG(false, "both batch jobs were logged (cannot compare argv)");
+      }
+      // Vacuity guard: the mutation really took effect in the live settings,
+      // so the snapshot is what held the batch together.
+      CHECK_MSG(x.pane->toPlainText().contains(QStringLiteral("-O2")),
+                "the mutated -O2 is live in the command pane after the batch");
+      const gs::Settings live = w->currentSettings();
+      CHECK_MSG(live.optimize_level == 2, "currentSettings() reports the mutated -O2");
+      delete w;
+    }
+    if (origEngine.isNull()) qunsetenv("GS_ENGINE");
+    else qputenv("GS_ENGINE", origEngine);
+    if (origLog.isNull()) qunsetenv("GS_FAKE_ARGV_LOG");
+    else qputenv("GS_FAKE_ARGV_LOG", origLog);
+    if (origSleep.isNull()) qunsetenv("GS_FAKE_SLEEP_MS");
+    else qputenv("GS_FAKE_SLEEP_MS", origSleep);
+    if (origExit.isNull()) qunsetenv("GS_FAKE_EXIT");
+    else qputenv("GS_FAKE_EXIT", origExit);
   }
 
   std::printf("==> %d checks, %d failures\n", g_checks, g_failures);
