@@ -1,0 +1,48 @@
+# stem_cases.txt — the shared naming table for U-96 / P3-18 (S37).
+#
+# WHAT: one row per edge-case file name, "name<TAB>stem", where `stem` is the
+# value of the rule BOTH surfaces must use to build `<stem>_opt.gif` and
+# `<stem>_frame`:
+#   * desktop: QFileInfo::completeBaseName()   (src/qtui/MainWindow.cpp)
+#   * web:     stemOf() in web/stem.mjs        (imported by app.js/server.mjs)
+#
+# HOW IT WAS MEASURED (not guessed — S33's rule: guessing Qt semantics into a
+# fixture table is the U-82/R2 failure class): a probe program was run against
+# the Qt 6.8.3 build this sandbox compiled from source, printing
+# QFileInfo::completeBaseName() for every name below. The Qt-side harness case
+# T25 (tests/test_gui_offscreen.cpp) re-measures every row on the running Qt on
+# every CI run, and web/test/stem.test.mjs asserts stemOf() matches every row,
+# so the two surfaces cannot drift apart again.
+#
+# WHAT IT CAUGHT: the pre-fix web rule (`lastIndexOf(".")` stripped only when
+# the dot index was > 0) DISAGREED with Qt for dotfiles — Qt treats a LEADING
+# dot as an extension separator too, so `.gif` and `.hidden` have an EMPTY stem
+# (suffix "gif"/"hidden"), while the old JS returned the whole name. The web
+# would have written `.gif_opt.gif` where the desktop writes `_opt.gif`. The
+# rows below are the measured truth; the JS rule was changed to match Qt.
+#
+# NOTES:
+#   * "." and ".." are measured for completeness; both are refused upstream by
+#     the upload-name rules (web/run-paths.mjs), so they cannot reach naming in
+#     either product.
+#   * The stem may be EMPTY (".gif") — that is real Qt behaviour, and the
+#     desktop's fallback for it is `_opt.gif`; the web now agrees.
+#   * Suffix case is preserved by Qt ("x.GIF" -> "x") and never part of a stem.
+logo.gif	logo
+a.b.gif	a.b
+archive.tar.gz	archive.tar
+noext	noext
+.gif	
+.hidden	
+a.	a
+..	.
+.	
+a..gif	a.
+Ünïcode-日本語-Ω.gif	Ünïcode-日本語-Ω
+x.GIF	x
+trailing.	trailing
+a b.gif	a b
+-	-
+_	_
+......gif	.....
+co.html.gif	co.html

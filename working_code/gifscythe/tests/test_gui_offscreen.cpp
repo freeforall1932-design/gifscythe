@@ -805,9 +805,12 @@ int main(int argc, char** argv) {
   {
     g_stage = "T8"; std::printf("== T8 failure honesty ==\n");
     QTemporaryDir tmp;
-    // The engine must fail, so the file has to exist and be readable — the
-    // drop filter (audit U-13) is now ".gif" AND exists, so a merely
-    // nonexistent path can no longer be used to reach the failure path.
+    // GS-205 / P1-27 (S37): admission is now ONE rule (gs::admit_input) for the
+    // picker and the drop, and it looks at the BYTES. A .gif-suffixed file whose
+    // content is not a GIF is refused at queue time — the old harness relied on
+    // exactly that file to reach the engine-failure path, which is why this case
+    // now asserts the refusal FIRST and then produces a genuine failed RUN with
+    // a real GIF and an output the engine cannot write.
     const QString ghost = tmp.path() + QStringLiteral("/ghost.gif");
     {
       QFile f(ghost);
@@ -818,12 +821,26 @@ int main(int argc, char** argv) {
 
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
-    dropFiles(w, {ghost});  // exists + .gif suffix passes the drop filter
-    CHECK(x.list->count() == 1);
+    dropFiles(w, {ghost});
+    CHECK_MSG(x.list->count() == 0,
+              "a .gif whose bytes are not a GIF is refused at admission (GS-205)");
+    CHECK_MSG(x.status->text().contains(QStringLiteral("Refused")) &&
+                  x.status->text().contains(QStringLiteral("not-gif")),
+              ("the refusal is NAMED in the status line, not silent: " +
+               x.status->text().toStdString()).c_str());
 
-    // U-13 regression: the filter used to be `endsWith(".gif") || exists(f)`,
-    // which queued ANY existing file (.exe, .jpg, .txt) and let it fail only
-    // at run time. Both halves must hold now.
+    // A DIRECTORY must be refused too: the old drop filter's exists() said yes
+    // to folders (GS-205's exact complaint). This uses a real subdirectory.
+    const QString folderGif = tmp.path() + QStringLiteral("/folder.gif");
+    CHECK(QDir().mkpath(folderGif));
+    dropFiles(w, {folderGif});
+    CHECK_MSG(x.list->count() == 0, "a dropped directory is refused (not-a-file)");
+    CHECK_MSG(x.status->text().contains(QStringLiteral("not-a-file")),
+              ("the directory refusal names the reason: " +
+               x.status->text().toStdString()).c_str());
+
+    // U-13 regression, kept: a file that is neither a GIF by name nor by bytes
+    // is refused, and a nonexistent path is refused as 'missing'.
     const QString notGif = tmp.path() + QStringLiteral("/notes.txt");
     {
       QFile f(notGif);
@@ -831,10 +848,24 @@ int main(int argc, char** argv) {
       f.write("hello");
       f.close();
     }
-    dropFiles(w, {notGif});                                    // exists, not .gif
-    CHECK_MSG(x.list->count() == 1, "existing non-.gif file is rejected by the drop filter");
-    dropFiles(w, {tmp.path() + QStringLiteral("/missing.gif")});  // .gif, absent
-    CHECK_MSG(x.list->count() == 1, "nonexistent .gif is rejected by the drop filter");
+    dropFiles(w, {notGif});
+    CHECK_MSG(x.list->count() == 0, "existing non-.gif file is refused");
+    dropFiles(w, {tmp.path() + QStringLiteral("/missing.gif")});
+    CHECK_MSG(x.list->count() == 0, "nonexistent .gif is refused as missing");
+    CHECK_MSG(x.status->text().contains(QStringLiteral("missing")),
+              "the missing-file refusal names it");
+
+    // A real GIF with a NON-GIF name is admitted — the bytes decide (GS-205).
+    const QString reallyGif = tmp.path() + QStringLiteral("/payload.notgif");
+    CHECK(copyFile(logo, reallyGif));
+    dropFiles(w, {reallyGif});
+    CHECK_MSG(x.list->count() == 1, "a GIF with an unusual extension IS admitted (bytes decide)");
+    dropFiles(w, {ghost});
+    CHECK_MSG(x.list->count() == 1, "the refused file still did not enter the queue");
+
+    // Now a genuine failed RUN: real GIF input, output inside a directory that
+    // does not exist, so the real engine exits nonzero.
+    x.output->setText(tmp.path() + QStringLiteral("/no-such-dir/out.gif"));
     g_dialogs.clear();
     x.run->click();
     CHECK_MSG(waitForStatus(w, QStringLiteral("failed")), "failed run says failed");
@@ -1012,6 +1043,27 @@ int main(int argc, char** argv) {
     disposalCombo->setCurrentIndex(3);  // background (2)
     setAndWait();
     CHECK(paneText().contains(QStringLiteral("--disposal 2")));
+
+    // DS-10 / P3-11 (S37): 4..7 are reachable. The engine's DISPOSAL_TYPE
+    // parser accepts every value 0..7 and web/validate.mjs admits 0..7, but the
+    // desktop picker stopped at 3 — so a session exported from the web could
+    // not be represented here. Each reserved value must select AND emit.
+    for (int d = 4; d <= 7; ++d) {
+      const int idx = disposalCombo->findData(d);
+      CHECK_MSG(idx >= 0, ("disposal " + std::to_string(d) + " is selectable (DS-10)").c_str());
+      if (idx < 0) continue;
+      disposalCombo->setCurrentIndex(idx);
+      setAndWait();
+      CHECK_MSG(paneText().contains(QStringLiteral("--disposal %1").arg(d)),
+                ("disposal " + std::to_string(d) + " reaches the command line").c_str());
+    }
+    // The -1 sentinel is still "Keep original" and still emits no flag.
+    const int keepIdx = disposalCombo->findData(-1);
+    CHECK_MSG(keepIdx >= 0, "the -1 sentinel item still exists");
+    disposalCombo->setCurrentIndex(keepIdx);
+    setAndWait();
+    CHECK_MSG(!paneText().contains(QStringLiteral("--disposal")),
+              "Keep original emits no --disposal flag");
 
     auto* threadsSpin = byName<QSpinBox>(w, "threadsSpin");
     threadsSpin->setValue(2);
@@ -2191,6 +2243,65 @@ int main(int argc, char** argv) {
     else qputenv("GS_FAKE_SLEEP_MS", origSleep);
     if (origExit.isNull()) qunsetenv("GS_FAKE_EXIT");
     else qputenv("GS_FAKE_EXIT", origExit);
+  }
+
+  // ========== T25: web/desktop naming parity (U-96 / P3-18) ===============
+  //
+  // The web's `stemOf` decides the names the browser and the server write
+  // (`<stem>_opt.gif`, `<stem>_frame`); the desktop's rule is Qt's
+  // QFileInfo::completeBaseName() (MainWindow.cpp). U-96's finding was that the
+  // rule was hand-duplicated in JS and its dotfile/extensionless boundary was
+  // never pinned against Qt — and the measurement shows the old hand-written
+  // rule really did disagree: for a name ending in a dot ("trailing.") it
+  // stripped the dot, while Qt keeps it (the suffix is empty, so there is no
+  // extension). The web would have written `trailing_opt.gif` where the desktop
+  // writes `trailing._opt.gif`.
+  //
+  // One table (tests/stem_cases.txt) is read by BOTH sides — this case below
+  // and web/test/stem.test.mjs — so neither surface can drift without the other
+  // going red. This is the Qt half: it re-measures every row on the running Qt
+  // and proves the products' naming path (`completeBaseName` + the suffixes the
+  // GUI appends) lands on the table's stems.
+  {
+    g_stage = "T25"; std::printf("== T25 web/desktop naming parity (U-96) ==\n");
+    const fs::path table = fs::path(__FILE__).parent_path() / "stem_cases.txt";
+    CHECK_MSG(fs::exists(table), "tests/stem_cases.txt exists next to the harness");
+    int rows = 0;
+    int mismatches = 0;
+    std::string firstBad;
+    std::ifstream in(gs::u8path_compat(table.string()));
+    CHECK_MSG(static_cast<bool>(in), "tests/stem_cases.txt opens");
+    std::string line;
+    while (std::getline(in, line)) {
+      if (line.empty() || line[0] == '#') continue;
+      const size_t tab = line.find('\t');
+      if (tab == std::string::npos) continue;
+      const std::string name = line.substr(0, tab);
+      const std::string want = line.substr(tab + 1);
+      ++rows;
+      // The rule the DESKTOP uses — measured here, on this Qt, not read from
+      // the table: if Qt's semantics ever change, this is where it shows.
+      const QString got = QFileInfo(QString::fromUtf8(name.c_str())).completeBaseName();
+      if (got.toUtf8().toStdString() != want) {
+        ++mismatches;
+        if (firstBad.empty())
+          firstBad = name + " -> Qt says \"" + got.toStdString() + "\", the shared table says \"" + want + "\"";
+      }
+      // And the naming the GUI actually builds: completeBaseName() + "_opt.gif"
+      // or "_frame" (MainWindow.cpp). Both suffixes are checked against the
+      // table stem, so a change to the append site is caught too.
+      const std::string opt = got.toUtf8().toStdString() + "_opt.gif";
+      const std::string frame = got.toUtf8().toStdString() + "_frame";
+      if (opt != want + "_opt.gif" || frame != want + "_frame") {
+        ++mismatches;
+        if (firstBad.empty()) firstBad = name + " -> desktop suffix naming diverged";
+      }
+    }
+    CHECK_MSG(rows >= 10, "the shared naming table has at least 10 measured rows");
+    CHECK_MSG(mismatches == 0,
+              ("every shared naming row matches Qt's completeBaseName" +
+               (firstBad.empty() ? std::string() : (": " + firstBad))).c_str());
+    std::printf("  (checked %d shared naming rows against Qt %s)\n", rows, qVersion());
   }
 
   std::printf("==> %d checks, %d failures\n", g_checks, g_failures);

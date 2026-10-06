@@ -98,6 +98,10 @@ try {
     ["/app.js", "app.js", "text/javascript"],
     ["/command.mjs", "command.mjs", "text/javascript"],
     ["/request-guard.mjs", "request-guard.mjs", "text/javascript"],
+    // U-96 / P3-18 (S37): app.js imports the shared naming helper. This list is
+    // what the "imports are all routable" check below compares against, so a new
+    // app.js import that is not served fails HERE (U-54's rule, kept).
+    ["/stem.mjs", "stem.mjs", "text/javascript"],
   ];
   for (const [path, file, mime] of UI) {
     const r = await raw(port, "GET", path);

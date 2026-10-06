@@ -1,6 +1,7 @@
 // server.mjs — zero-dependency Node HTTP server for the Gifscythe web build.
 //
-// Serves the static web UI (index.html / app.js / style.css / command.mjs) and
+// Serves the static web UI (index.html / app.js / style.css / command.mjs /
+// stem.mjs) and
 // exposes two API endpoints:
 //
 //   POST /optimize?settings=<urlencoded JSON>   body = raw GIF bytes
@@ -42,6 +43,7 @@ import { realpath } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { buildArgs, shellQuote } from "./command.mjs";
 import { validate } from "./validate.mjs";
+import { stemOf } from "./stem.mjs";
 import { createRateLimiter } from "./rate_limit.mjs";
 import { hasGifMagic, snapshotOutput, verifyOutput } from "./output-verify.mjs";
 import { uploadNameError, outputNameKey, requestPath, assertContainedPath } from "./run-paths.mjs";
@@ -335,8 +337,8 @@ function sendTooLarge(res, req, limit) {
 }
 
 // U-67 / NF-10, narrowed by measurement in S21. The shipped UI is a closed set:
-// index.html -> style.css + app.js -> command.mjs (a leaf module), and app.js
-// posts to /run. web/wasm/ is experimental and not shippable (owner decision
+// index.html -> style.css + app.js -> command.mjs / request-guard.mjs /
+// stem.mjs (leaf modules), and app.js posts to /run. web/wasm/ is experimental and not shippable (owner decision
 // S21), so it is deliberately NOT routable here — serve that page with any
 // static server rooted at web/, per web/wasm/README.md.
 //
@@ -354,6 +356,12 @@ const STATIC_FILES = new Map([
   // allow-list that lags the UI's import list breaks the shipped page with a
   // 404 on module load. static-hygiene.test.mjs now asserts the two lists agree.
   ["/request-guard.mjs", "request-guard.mjs"],
+  // U-96 / P3-18 (S37): app.js imports the shared naming helper, so it must be
+  // routable for exactly the reason U-54 gave above — an allow-list that lags
+  // the UI's import list breaks the shipped page with a 404 on module load.
+  // static-hygiene.test.mjs derives its expectation from app.js's import list,
+  // so this entry is asserted, not assumed.
+  ["/stem.mjs", "stem.mjs"],
 ]);
 
 const STATIC_NOT_FOUND = Buffer.from("not found");
@@ -578,12 +586,9 @@ function sendJson(res, status, obj) {
   res.end(body);
 }
 
-// QFileInfo::completeBaseName semantics (strip after the LAST dot), which is
-// what the desktop naming uses for <stem>_opt.gif / <stem>_frame.
-const stemOf = (name) => {
-  const i = String(name).lastIndexOf(".");
-  return i > 0 ? String(name).slice(0, i) : String(name);
-};
+// stemOf is imported from stem.mjs (U-96): ONE naming rule for the browser and
+// the server, pinned against Qt's QFileInfo::completeBaseName by
+// tests/stem_cases.txt (see web/test/stem.test.mjs).
 
 const isGifMagic = async (path) => {
   let fh;

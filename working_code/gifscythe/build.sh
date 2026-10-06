@@ -9,6 +9,7 @@
 # Output:
 #   build/gifscythe-cli
 #   build/test_gifsicle_command
+#   build/test_input_admission   (GS-205 / P1-27, S37)
 #   build/gifscythe          (GUI, if requested and Qt6 present — cmake path)
 #   build/gui/gifscythe      (GUI, if built via qmake)
 #   release/<v>/gifsicle     (engine)
@@ -100,6 +101,12 @@ g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
   -o "$BUILD_DIR/test_gifsicle_command" "$self/tests/test_gifsicle_command.cpp" $STDCXXFS \
   || fail "unit test compile failed"
 "$BUILD_DIR/test_gifsicle_command" || fail "unit tests failed"
+# GS-205 / P1-27 (S37): the input-admission rule has its own Qt-free suite, so the
+# rule the GUI merely CALLS is pinned on every platform this script builds for.
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/test_input_admission" "$self/tests/test_input_admission.cpp" $STDCXXFS \
+  || fail "input-admission test compile failed"
+"$BUILD_DIR/test_input_admission" || fail "input-admission tests failed"
 
 # 4. GUI (only when requested)
 echo "==> [4/4] Qt6 GUI..."

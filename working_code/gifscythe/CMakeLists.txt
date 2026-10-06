@@ -43,6 +43,12 @@ add_executable(test_gifsicle_command tests/test_gifsicle_command.cpp)
 target_link_libraries(test_gifsicle_command PRIVATE gifscythe_core)
 add_test(NAME gifsicle_command COMMAND test_gifsicle_command)
 
+# GS-205 / P1-27 (S37): the input-admission rule, Qt-free, so the rule itself
+# is pinned by CI on Linux while the GUI only CALLS it (tests/test_input_admission.cpp).
+add_executable(test_input_admission tests/test_input_admission.cpp)
+target_link_libraries(test_input_admission PRIVATE gifscythe_core)
+add_test(NAME input_admission COMMAND test_input_admission)
+
 # Lying-engine fixture for the harness's U-17 explode-verification test:
 # exits 0 without writing anything. Tiny, dependency-free, built on every
 # platform so T7 finds it next to test_gui_offscreen (see tests/fake_engine_exit0.cpp).

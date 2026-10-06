@@ -145,7 +145,7 @@ jobs:
         run: |
           set -uo pipefail
           failed=""
-          for t in command validate numeric-honesty transport body-limit static-hygiene request-guard device-names server-bounds; do
+          for t in command validate numeric-honesty transport body-limit static-hygiene request-guard device-names server-bounds stem; do
             if out="$(node "web/test/$t.test.mjs" 2>&1)"; then
               printf '%s\n' "$out" | tail -n 2
             else

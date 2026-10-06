@@ -50,6 +50,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include "WinUnicode.h"
 #include <filesystem>
 #include <map>
@@ -60,12 +61,130 @@
 namespace gs {
 namespace fs = std::filesystem;
 
+// Which case rule a key uses (U-55 / P1-35, S37).
+//
+// WHY this is a parameter and not an #ifdef: the finding was that the Windows
+// key folded ASCII only, so `Ä.gif` and `ä.gif` produced DIFFERENT keys and the
+// duplicate check waved a pair through that Windows then wrote to one file —
+// reopening U-01. The old code could not be tested here because the rule only
+// existed inside `#ifdef _WIN32`; CI's Linux job is where the tests run, so the
+// rule is now an injectable policy and the POSIX build tests the Windows rule
+// with PathKeyPolicy::Windows.
+//
+// The fold itself is a documented PARTIAL Unicode fold (see case_fold_utf8):
+// full Unicode case folding needs ICU or CompareStringOrdinal, neither of which
+// this header may depend on. The ranges it covers are exactly the ones the
+// finding named plus their neighbours, and the residual is stated at the
+// function.
+enum class PathKeyPolicy {
+  Posix,    // case-sensitive; '\' is an ordinary filename character
+  Windows   // case-insensitive; '\' and '/' name the same separator
+};
+
+inline PathKeyPolicy host_path_key_policy() {
+#ifdef _WIN32
+  return PathKeyPolicy::Windows;
+#else
+  return PathKeyPolicy::Posix;
+#endif
+}
+
+// Unicode simple case fold for UTF-8, covering the ranges this codebase can
+// verify without ICU:
+//   * ASCII A-Z                      -> a-z (unchanged from the old behaviour)
+//   * Latin-1 Supplement  À..Þ (minus ×) -> à..þ
+//   * Latin Extended-A    0x0100..0x017F: most upper-case code points are EVEN,
+//                         so an even code point folds to itself+1 (verified
+//                         per range: this holds for the letters, and the two
+//                         odd/odd exceptions are special-cased below)
+//   * Greek               0x0391..0x03A9 -> +0x20 (final sigma 0x03C2 folds to
+//                         0x03C3, the standard simple-fold choice)
+//   * Cyrillic            0x0410..0x042F -> +0x20; 0x0400..0x040F -> +0x50
+//   * 0x0178 Ÿ -> 0x00FF ÿ, 0x0130 İ -> 0x0069 i, 0x0131 ı -> 0x0131
+// RESIDUAL (stated, not hidden): characters outside these ranges are left
+// alone, so a host that distinguishes e.g. Greek final sigma in a filename
+// still gets a conservative key. Closing the remainder needs ICU's full
+// case-folding table or CompareStringOrdinal on Windows; both are bigger than
+// this finding, and neither is testable on this host. The rule is deliberately
+// CONSERVATIVE: over-folding two DISTINCT files into one key can only cause a
+// spurious refusal, never a silent overwrite, which is the failure direction
+// U-01/U-55 care about.
+inline void fold_code_point_utf8(uint32_t& cp) {
+  if (cp < 0x80) {
+    if (cp >= 'A' && cp <= 'Z') cp += 0x20;
+    return;
+  }
+  if (cp >= 0x00C0 && cp <= 0x00DE && cp != 0x00D7) { cp += 0x20; return; }
+  if (cp >= 0x00C0 && cp <= 0x00DE) return;
+  if (cp == 0x0178) { cp = 0x00FF; return; }
+  if (cp == 0x0130) { cp = 0x0069; return; }   // İ -> i
+  if (cp >= 0x0100 && cp <= 0x0137 && (cp % 2) == 0) { ++cp; return; }
+  if (cp >= 0x0139 && cp <= 0x0148 && (cp % 2) == 1) { ++cp; return; }
+  if (cp >= 0x014A && cp <= 0x0177 && (cp % 2) == 0) { ++cp; return; }
+  if (cp >= 0x0391 && cp <= 0x03A1) { cp += 0x20; return; }
+  if (cp >= 0x03A3 && cp <= 0x03AB) { cp += 0x20; return; }
+  if (cp == 0x03C2) { cp = 0x03C3; return; }   // final sigma -> sigma
+  if (cp >= 0x0410 && cp <= 0x042F) { cp += 0x20; return; }
+  if (cp >= 0x0400 && cp <= 0x040F) { cp += 0x50; return; }
+  if (cp >= 0x0460 && cp <= 0x0481 && (cp % 2) == 0) { ++cp; return; }
+  if (cp >= 0x048A && cp <= 0x04BF && (cp % 2) == 0) { ++cp; return; }
+}
+
+// UTF-8 decode -> fold -> UTF-8 encode. Invalid bytes are passed through
+// unchanged (one byte at a time): a key must never throw on a filename.
+inline std::string case_fold_utf8(const std::string& in) {
+  std::string out;
+  out.reserve(in.size());
+  size_t i = 0;
+  const auto put = [&out](uint32_t cp) {
+    if (cp < 0x80) { out.push_back(static_cast<char>(cp)); return; }
+    if (cp < 0x800) {
+      out.push_back(static_cast<char>(0xC0 | (cp >> 6)));
+      out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+      return;
+    }
+    if (cp < 0x10000) {
+      out.push_back(static_cast<char>(0xE0 | (cp >> 12)));
+      out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+      out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+      return;
+    }
+    out.push_back(static_cast<char>(0xF0 | (cp >> 18)));
+    out.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+    out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+    out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+  };
+  while (i < in.size()) {
+    const unsigned char b0 = static_cast<unsigned char>(in[i]);
+    size_t len = 0;
+    uint32_t cp = 0;
+    if (b0 < 0x80) { len = 1; cp = b0; }
+    else if ((b0 & 0xE0) == 0xC0) { len = 2; cp = b0 & 0x1Fu; }
+    else if ((b0 & 0xF0) == 0xE0) { len = 3; cp = b0 & 0x0Fu; }
+    else if ((b0 & 0xF8) == 0xF0) { len = 4; cp = b0 & 0x07u; }
+    else { out.push_back(in[i++]); continue; }  // stray continuation byte
+    if (i + len > in.size()) { out.push_back(in[i++]); continue; }
+    bool ok = true;
+    for (size_t k = 1; k < len; ++k) {
+      const unsigned char bk = static_cast<unsigned char>(in[i + k]);
+      if ((bk & 0xC0) != 0x80) { ok = false; break; }
+      cp = (cp << 6) | (bk & 0x3Fu);
+    }
+    if (!ok) { out.push_back(in[i++]); continue; }
+    fold_code_point_utf8(cp);
+    put(cp);
+    i += len;
+  }
+  return out;
+}
+
 // A comparison key for a path: two strings that name the same file on the host
 // must produce the same key. Resolved through the filesystem so "./a.gif",
 // "a.gif" and "/abs/../abs/a.gif" agree, with a purely lexical fallback when
-// the OS call fails. Windows additionally folds case and separators, because
-// that is how the Win32 file APIs treat names.
-inline std::string path_key(const std::string& p) {
+// the OS call fails. The Windows policy additionally folds case (Unicode, not
+// just ASCII — U-55) and separators, because that is how the Win32 file APIs
+// treat names.
+inline std::string path_key(const std::string& p, PathKeyPolicy policy) {
   if (p.empty()) return std::string();
   std::error_code ec;
   fs::path abs = fs::absolute(u8path_compat(p), ec);
@@ -74,15 +193,16 @@ inline std::string path_key(const std::string& p) {
   if (ec) norm = abs;
   std::string s = path_u8string(norm.lexically_normal());
   while (s.size() > 1 && (s.back() == '/' || s.back() == '\\')) s.pop_back();
-#ifdef _WIN32
-  for (auto& c : s) {
-    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    if (c == '\\') c = '/';
+  if (policy == PathKeyPolicy::Windows) {
+    s = case_fold_utf8(s);
+    for (auto& c : s) if (c == '\\') c = '/';
   }
-#else
-  (void)0;  // POSIX: case-sensitive, '\' is an ordinary filename character
-#endif
   return s;
+}
+
+// The platform's own policy — what every caller in the products uses.
+inline std::string path_key(const std::string& p) {
+  return path_key(p, host_path_key_policy());
 }
 
 enum class PlanIssueKind {
@@ -152,8 +272,11 @@ struct OutputPlan {
 // Plan a whole run. inputs[i] is written to outputs[i].
 // Returns ok=false with one issue per problem; nothing is executed by this
 // function and no file is touched except to stat() existing targets.
+// `policy` exists so tests can plan under the WINDOWS case rule on Linux
+// (U-55 / P1-35): products always take the default (the host's own rule).
 inline OutputPlan plan_outputs(const std::vector<std::string>& inputs,
-                               const std::vector<std::string>& outputs) {
+                               const std::vector<std::string>& outputs,
+                               PathKeyPolicy policy = host_path_key_policy()) {
   OutputPlan plan;
   // Two legal shapes:
   //   batch  — one output per input           (inputs.size() == outputs.size())
@@ -175,7 +298,7 @@ inline OutputPlan plan_outputs(const std::vector<std::string>& inputs,
   // output, and a batch template can render another file's name).
   std::map<std::string, size_t> input_keys;
   for (size_t i = 0; i < inputs.size(); ++i) {
-    const std::string k = path_key(inputs[i]);
+    const std::string k = path_key(inputs[i], policy);
     if (!k.empty() && input_keys.find(k) == input_keys.end()) input_keys[k] = i;
   }
 
@@ -196,7 +319,7 @@ inline OutputPlan plan_outputs(const std::vector<std::string>& inputs,
       continue;
     }
 
-    const std::string k = path_key(outputs[i]);
+    const std::string k = path_key(outputs[i], policy);
 
     const auto src = input_keys.find(k);
     if (src != input_keys.end()) {

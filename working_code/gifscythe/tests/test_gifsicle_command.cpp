@@ -599,6 +599,60 @@ int main() {
     CHECK(issue_is(mergeSelf, 0, PlanIssueKind::TargetsSource));
     CHECK(issue_other_index(mergeSelf, 0, 1));        // names b, not a
 
+    // (e) U-55 / P1-35: the WINDOWS case rule is injectable, so Linux CI pins
+    // it. The finding: path_key() folded ASCII only, so "Ä.gif" and "ä.gif"
+    // keyed DIFFERENTLY and plan_outputs waved a colliding pair through —
+    // Windows then wrote both to one file, reopening U-01. These cases run the
+    // real Windows rule on this host.
+    {
+      CHECK(path_key("A.GIF", PathKeyPolicy::Windows) ==
+            path_key("a.gif", PathKeyPolicy::Windows));
+      CHECK(path_key("Ä.gif", PathKeyPolicy::Windows) ==
+            path_key("ä.gif", PathKeyPolicy::Windows));
+      CHECK(path_key("Ünïcode/Ω.gif", PathKeyPolicy::Windows) ==
+            path_key("ünïcode/ω.gif", PathKeyPolicy::Windows));
+      // Greek/Cyrillic/Latin-Ext-A folds are pinned by code point, so a future
+      // edit that drops a range fails here rather than in the field.
+      CHECK(case_fold_utf8("ΓΔΘΛ") == "γδθλ");
+      CHECK(case_fold_utf8("ЖЗИЙ") == "жзий");
+      CHECK(case_fold_utf8("ĀĂĄĆ") == "āăąć");
+      CHECK(case_fold_utf8("Ÿ") == "ÿ");
+      CHECK(case_fold_utf8("ΣΟΣ") == "σοσ");
+      CHECK(case_fold_utf8(std::string("\xce\xa3")) == std::string("\xcf\x83"));  // final sigma
+      // and POSIX is untouched: case-sensitive, so the same pair is DISTINCT
+      CHECK(path_key("Ä.gif", PathKeyPolicy::Posix) !=
+            path_key("ä.gif", PathKeyPolicy::Posix));
+      CHECK(path_key("Ä.gif", PathKeyPolicy::Posix) == path_key("Ä.gif", PathKeyPolicy::Posix));
+      // Invalid UTF-8 must not throw or vanish: it passes through.
+      CHECK(case_fold_utf8(std::string("\xff\xfe")) == std::string("\xff\xfe"));
+      CHECK(case_fold_utf8("") == "");
+    }
+
+    // (f) The reopened-U-01 class, planned under the Windows rule.
+    {
+      const std::string inUp = (dir / "in/Ä.gif").string();
+      const std::string inLo = (dir / "in/ä.gif").string();
+
+      // (f1) An output that differs from an INPUT only by case is refused under
+      // the Windows rule (on Windows those are one file: the run would destroy
+      // the source) and allowed under POSIX (two real files).
+      OutputPlan selfFold = plan_outputs({inUp}, {(dir / "in/ä.gif").string()},
+                                         PathKeyPolicy::Windows);
+      CHECK(!selfFold.ok);
+      CHECK(issue_is(selfFold, 0, PlanIssueKind::TargetsSource));
+      CHECK(plan_outputs({inUp}, {(dir / "in/ä.gif").string()}, PathKeyPolicy::Posix).ok);
+
+      // (f2) Two inputs differing only by case, with a template that renders
+      // both outputs to the SAME target under the Windows rule: refused.
+      const std::string oUp = (dir / "out/Ä.gif").string();
+      const std::string oLo = (dir / "out/ä.gif").string();
+      OutputPlan collide = plan_outputs({inUp, inLo}, {oUp, oLo}, PathKeyPolicy::Windows);
+      CHECK(!collide.ok);
+      CHECK(issue_is(collide, 0, PlanIssueKind::DuplicateTarget));
+      // The same two targets are distinct files under POSIX, so it plans clean.
+      CHECK(plan_outputs({inUp, inLo}, {oUp, oLo}, PathKeyPolicy::Posix).ok);
+    }
+
     // (e) Empty target and count mismatch.
     CHECK(!plan_outputs({a}, {""}).ok);
     CHECK(issue_is(plan_outputs({a}, {""}), 0, PlanIssueKind::EmptyTarget));
