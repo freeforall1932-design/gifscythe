@@ -156,10 +156,12 @@ back to enforcing byte-equality with no standing exception.
 **Purpose:** prove the portable Windows bundle runs on a machine with **no Qt,
 no MinGW, no dev tools** — the last unverified promise of the portable vision.
 Status: **OPEN** (never executed). **Asset (S37):** the pre-release
-**`snapshot-2026-10-06`** — <https://github.com/freeforall1932-design/gifscythe/releases/tag/snapshot-2026-10-06>
-— whose notes pin its own commit (`6aaabcf`) and evidence run, with a per-asset
-sha256 `add856c850076b2bf3a37ad01b25d4c5d8ab8d0d60890f4f591be60e90d8096e` for
-`Gifscythe-0.1.0-windows-portable.zip`. It is produced by the `release-snapshot`
+**`snapshot-2026-10-07`** — <https://github.com/freeforall1932-design/gifscythe/releases/tag/snapshot-2026-10-07>
+— whose notes pin its own commit (the post-PR-#12 main tip `7f29347`) and evidence
+run (`37527057333`), with a per-asset sha256 `158d551bfdbd214e1d7e4c91cdf0dcd8d682fdad2becac92316248289286a5fc` for
+`Gifscythe-0.1.0-windows-portable.zip` (23 777 755 B). The previous
+`snapshot-2026-10-06` (commit `6aaabcf`, `add856c8…096e`) still exists and is honest,
+but predates PR #12; prefer the newest. It is produced by the `release-snapshot`
 job in the tag's own run, so the published bytes are the ones that run's `windows`
 job asserted. **Do not use `snapshot-2026-09-07`**: it predates S7 while its notes
 pinned a newer SHA (U-09) and predates the S18 Ms-PL relicence (U-95) — and it no

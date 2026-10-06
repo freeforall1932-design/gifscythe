@@ -46,6 +46,23 @@ Chronological log of decisions and changes. **Newest at the top.**
   published snapshot, have CI build one from a tag, or build it locally with the new script —
   with the clean-machine caveat intact (`-Smoke` passing on a dev box is **not** W-18 evidence).
 
+
+- **PR #12 merged, and it very nearly turned main red — the simulation caught it first.**
+  `sim_postmerge.sh --style merge` reproduced `[G10] stale base commit - COMPILED_AUDIT.md names base
+  4430a28 (expected origin/main = 8614c1d or merge first parent = 76392da)` **before** anything merged:
+  the PR's own run was green while main's docs job would have failed on the post-merge push (the N-26
+  class). Checked rather than assumed — `4430a28` still resolves and IS an ancestor of main, it just
+  sits 15 commits back — and both enforced base lines were re-anchored to `76392da`, which is main's
+  tip and the merge's first parent. Re-simulated: **GREEN, 24/0/1**. Merged as `7f29347` (merge
+  commit); main's own push run `37526084455` is green on all seven jobs, docs included.
+- **New snapshot published from the merged tip:** tag `snapshot-2026-10-07` at `7f29347`, run
+  `37527057333`, `release snapshot (tag only)` green → asset `Gifscythe-0.1.0-windows-portable.zip`
+  **23 777 755 B**, sha256 `158d551bfdbd214e1d7e4c91cdf0dcd8d682fdad2becac92316248289286a5fc`, the
+  notes pinning the tagged commit and the evidence run by construction. This is the artifact to run
+  W-18 against; the previous `snapshot-2026-10-06` remains valid but predates PR #12.
+- **Post-merge sync:** ledger row #12's *Merged as* cell filled with the real merge commit, the
+  handoff header moved off the lookup form, base lines re-anchored, and the run-sheet, `docs/ci/README.md` §2,
+  and the W-18 rows pointed at the new asset.
 **Register:** unchanged in count — 177 DONE · 6 PARTIAL · 13 OPEN · 0 UNTRIAGED = 196 (N-32 and
 U-68 were re-derived in place, U-98 was added earlier this session).
 
