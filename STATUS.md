@@ -29,8 +29,8 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 170 DONE · 10 PARTIAL · 15 OPEN · 0 UNTRIAGED · 195 total
-**Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 3 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
+**Counts (generated - do not edit by hand):** 171 DONE · 10 PARTIAL · 14 OPEN · 0 UNTRIAGED · 195 total
+**Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 2 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
 **Last regenerated:** S37 · 2026-10-06 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
@@ -49,7 +49,7 @@ hand-fudged roll-up fails the gate.
 | U-09 | Banked Windows snapshot is 5 commits behind the SHA its own notes claim. | DONE | S37 | a fresh pre-release was cut the way the row demanded: **`snapshot-2026-10-06`**, tag at `6aaabcf`, whose notes pin that exact sha AND the evidence... | - |
 | U-10 | The "read-only, identical-to-upstream" vendored engine is neither. | PARTIAL | S13 | provenance and product-config relocation verified; `reference_code/gifsicle/` is now upstream-only and native build stages... | P2-3: Immutable + correctly-labelled upstream tree. |
 | U-11 | Malformed booleans degrade silently. | DONE | S8 | `parse_bool_strict` warns, leaves field unchanged | - |
-| U-12 | "Fully async" GUI still blocks the UI thread in 5 places — up to 5 s per run start. | OPEN | S11 | not started; scoped as P1-24 in COMPILED_AUDIT.md §6 | P1-24: Async run/cancel state machine (scoped S11; deliberately NOT yet implemented). |
+| U-12 | "Fully async" GUI still blocks the UI thread in 5 places — up to 5 s per run start. | DONE | S37 | scoped as P1-24 (S11) and dispositioned by MEASUREMENT, not by a rewrite: the owner's evidence-scoped rule was to show the heartbeat RED first, fix... | - |
 | U-13 | Drag-and-drop accepts any existing file. | DONE | S8 | drop filter `&&`; empty comments skipped (C++ + JS) | - |
 | U-14 | Green CI does not enforce the claims used as release gates. | PARTIAL | S8 | packaging negatives + manifest assert + the doc gate run in CI; verify_audit itself stays out by design (job time) — S24: workflows scope is no... | P2-1: Run `verify_audit.sh` in CI. |
 | U-15 | CMake writes into the source tree. | DONE | S11 | build-tree-only configure_file (`build_support/version.h.in`); generated-first includes; gate C9 + read-only-src repro flipped FAIL->PASS | - |
@@ -300,7 +300,7 @@ finished?"* without hand-reading (U-88 / P2-21).
 | P1-21 | U-28 | DONE | 1 member(s) - all DONE | - |
 | P1-22 | U-35 | DONE | 1 member(s) - all DONE | - |
 | P1-23 | U-45 | DONE | 1 member(s) - all DONE | - |
-| P1-24 | U-12 | OPEN | 1 member(s); OPEN: U-12 | close the OPEN member(s): U-12 |
+| P1-24 | U-12 | DONE | 1 member(s) - all DONE | - |
 | P1-25 | GS-203 | PARTIAL | 1 member(s); PARTIAL: GS-203 | close the PARTIAL member(s): GS-203 |
 | P1-26 | GS-204 | PARTIAL | 1 member(s); PARTIAL: GS-204 | close the PARTIAL member(s): GS-204 |
 | P1-27 | GS-205 | DONE | 1 member(s) - all DONE | - |

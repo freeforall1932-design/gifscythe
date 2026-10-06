@@ -56,7 +56,9 @@ Chronological log of decisions and changes. **Newest at the top.**
 `build/test_gifsicle_command` **415/0**; `build/test_input_admission` **35/0**;
 eleven `web/test/*.test.mjs` suites green (the new `stem` suite included in CI's
 named list); `build.sh` runs both unit suites now. Register **169 DONE / 10 PARTIAL /
-16 OPEN / 0 UNTRIAGED = 195** (from 163/11/21/0; R-02 closed after the unshallow).
+16 OPEN / 0 UNTRIAGED = 195** (from 163/11/21/0; R-02 closed after the unshallow) — S37 ended at
+**171 DONE / 10 PARTIAL / 14 OPEN / 0 UNTRIAGED = 195**: U-09 closed by the snapshot cut and U-12 by the
+T26 measurement (owner decision `OD-19 = a`; the P1-24 rewrite is declined).
 
 **U-09 / P0-4 closed by cutting the snapshot the row demanded (owner: "cut a snapshot pre-release").**
 The old release is gone (2026-09-22 re-creation), so the fix is forward-looking: a `release-snapshot`
