@@ -212,6 +212,12 @@ jobs:
             while IFS= read -r line; do echo "::error::$line"; done < <(grep -a 'FAIL' "$log" | head -20 || true)
             echo "::error::test_gui_offscreen exited $status (FAIL lines above; a crash prints none)"
           fi
+          # U-12 / P1-24: T26's event-loop gaps are the ONE measurement this project cannot
+          # take in a Linux sandbox on the Windows runner's behalf (a kill-first wait's cost
+          # there is unmeasurable from here), and job log blobs are not always retrievable
+          # (the runner-side log endpoint EOFs). Annotations ARE retrievable, so publish the
+          # numbers on every run, pass or fail - they are the per-platform record of T26.
+          while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\([A-E]\)' "$log" | head -10 || true)
           exit "$status"
 
       - name: Package portable
