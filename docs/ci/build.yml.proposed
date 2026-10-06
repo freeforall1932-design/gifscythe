@@ -149,7 +149,21 @@ jobs:
       - name: Audit gate (verify_audit.sh - U-14)
         timeout-minutes: 10
         working-directory: working_code/gifscythe
-        run: ./scripts/verify_audit.sh
+        run: |
+          set +e
+          log="${RUNNER_TEMP:-/tmp}/verify_audit.log"
+          ./scripts/verify_audit.sh 2>&1 | tee "$log"
+          status=${PIPESTATUS[0]}
+          set -e
+          # Self-reporting (learned twice today): its first CI failure said only
+          # "exit code 1", which names neither the failing check nor its message.
+          # Publish every FAIL/ERROR line plus the summary, pass or fail.
+          while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^==> Done' "$log" | head -3 || true)
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r line; do echo "::error::$line"; done < <(grep -aE 'FAIL|ERROR' "$log" | head -25 || true)
+            echo "::error::verify_audit.sh exited $status (failing checks above; full log in the job output)"
+          fi
+          exit "$status"
 
       # U-71 / P2-17 (F:NF-14). run_argv()'s Windows branch returned `code & 0xff`, so an
       # NTSTATUS whose low byte is zero - 0xC0000100 among them - came back as exit 0: a crash
