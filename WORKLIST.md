@@ -390,7 +390,7 @@ Still open from the audit intake (state lives in `STATUS.md`):
    U-58 (P1-38), U-70 and U-72 (P1-42) are FIXED — Qt6 is buildable in this
    sandbox after all (`scripts/build_qt6_local.sh`; the S35 "no Qt6 here" note
    was a provisioning mistake), and the behavioural cases the rows named now
-   exist and run: T22/T23/T24 in `tests/test_gui_offscreen.cpp` (404/0 here),
+   exist and run: T22/T23/T24 in `tests/test_gui_offscreen.cpp` (405/0 here),
    T24 RED on the real `0005`-reversed tree, T22 red against both plausible
    wrong fixes. U-70 and U-72 also carry CI-enforced source sentinels
    (`scripts/test_u58_u70_u72_sentinels.sh`, S1/S2/S3 + four mutation legs,

@@ -1962,7 +1962,10 @@ int main(int argc, char** argv) {
     // (the naive fix for the early clear) would leave it armed here, so the
     // second run would report "Cancelled" and swallow its "exit 9" dialog.
     qunsetenv("GS_FAKE_EXIT");
-    qputenv("GS_FAKE_SLEEP_MS", "900");
+    // 3 s, not 0.9: the case needs the engine PROVABLY alive when Cancel is
+    // pressed, and a loaded Windows runner schedules the harness's poll loop
+    // slowly enough to close a 0.9 s window. Cancel still ends it immediately.
+    qputenv("GS_FAKE_SLEEP_MS", "3000");
     {
       MainWindow* w = makeWindow();
       auto x = findWidgets(w);
@@ -2046,9 +2049,22 @@ int main(int argc, char** argv) {
                                       QFile::ReadOther | QFile::ExeOther);
     const std::string engineUtf8 = exeCopy.toStdString();  // QString::toStdString is UTF-8
 #ifdef _WIN32
-    CHECK_MSG(!gs::path_is_executable(fs::path(engineUtf8)),
-              "guard: UTF-8 bytes are not the native path on Windows "
-              "(if this fails the finding's premise must be re-read)");
+    // The bare std::string -> fs::path conversion on Windows either resolves to
+    // a name that does not exist (bytewise widening, MinGW libstdc++) or throws
+    // (codecvt failure) — the finding's own text says "throws or splits", so a
+    // guard that only handles the first mode would abort the harness with an
+    // uncaught exception on the second. Both mean the same thing: the bare form
+    // does not find the file.
+    bool bareProbe = false;
+    try {
+      bareProbe = gs::path_is_executable(fs::path(engineUtf8));
+    } catch (const std::exception& e) {
+      std::printf("  (bare conversion threw, as the row documents: %s)\n", e.what());
+      bareProbe = false;
+    }
+    CHECK_MSG(!bareProbe,
+              "guard: the BARE conversion does not find the non-ASCII engine on "
+              "Windows (if this fails the finding's premise must be re-read)");
 #endif
     CHECK_MSG(gs::path_is_executable(gs::u8path_compat(engineUtf8)),
               "the u8path_compat boundary resolves the non-ASCII engine path");
@@ -2060,6 +2076,14 @@ int main(int argc, char** argv) {
       auto x = findWidgets(w);
       CHECK_MSG(x.status->text().contains(QStringLiteral("engine")),
                 "window located the engine through GS_ENGINE");
+      // Distinguishes "the environment did not take" from "the preview path is
+      // broken" on Windows, where getenv/setenv go through the ANSI/Unicode
+      // boundary itself. Self-reporting on failure: print what it actually saw.
+      if (!x.status->text().contains(QStringLiteral("gifsicle-test-engine"))) {
+        std::printf("  (status says: %s)\n", qPrintable(x.status->text()));
+      }
+      CHECK_MSG(x.status->text().contains(QStringLiteral("gifsicle-test-engine")),
+                "the engine in use IS the copy under the non-ASCII directory");
       dropFiles(w, {a});  // appendInputs selects row 0 -> debounced preview
       CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("\u2192"), 25000),
                 "debounced preview RAN with a non-ASCII engine path (U-70 site)");

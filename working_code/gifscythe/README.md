@@ -218,7 +218,7 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   U-70 non-ASCII `GS_ENGINE` path (preview must reach the engine), and the U-58
   mid-batch settings mutation (job 2 runs the batch-start snapshot, proven from
   the fixture's argv log). Last measured at
-  **404 runtime checks** in the S36 sandbox (Qt 6.8.3 built from source) —
+  **405 runtime checks** in the S36 sandbox (Qt 6.8.3 built from source) —
   figure rises with every added case, so read it as a measurement, not a target;
   324 in the S11 sandbox (Qt 6.4.2) before T21 existed, 306 in S10. Runs in CI
   and in any Qt6-equipped sandbox — and `scripts/build_qt6_local.sh` lets a

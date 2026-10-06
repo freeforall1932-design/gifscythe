@@ -27,7 +27,7 @@ Chronological log of decisions and changes. **Newest at the top.**
   `tests/test_gui_offscreen.cpp` grows **T22** (cancel-latch honesty), **T23** (non-ASCII
   `GS_ENGINE`), **T24** (mid-batch settings mutation) on the new argv-logging fixture
   `tests/fake_engine_argv_sleep.cpp` (`GS_FAKE_ARGV_LOG` appends one TAB-joined argv line per
-  run before sleeping; `GS_FAKE_SLEEP_MS`, `GS_FAKE_EXIT`). Measured here: **404 runtime
+  run before sleeping; `GS_FAKE_SLEEP_MS`, `GS_FAKE_EXIT`). Measured here: **405 runtime
   checks, 0 failures** (Qt 6.8.3 from source, offscreen, `GS_TEST_REF_DIR` from
   `scripts/fixtures.sh`), ~20 s. The README's site/runtime figures were re-measured with it
   (284 `CHECK(` sites; the 271/398 numbers were stale).
@@ -46,7 +46,14 @@ Chronological log of decisions and changes. **Newest at the top.**
   PASS on the fixed tree and **RED on a `0004`-reversed tree** with S1/S2 still green there.
   On Windows T23 also asserts the premise itself (`#ifdef _WIN32`: the bare conversion must
   fail for that path, else the case would silently stop covering the boundary) and the same
-  case runs in the `windows` GUI job. Residual kept in the row: no legacy-ACP host has been
+  case runs in the `windows` GUI job. **The Windows job's first run caught a real case bug:**
+  the guard handled only the documented "bytewise widening resolves to a bogus name" mode,
+  while the row's own text says the bare form "throws or splits" — a codecvt throw there
+  aborts the harness with no FAIL lines. The guard now accepts BOTH modes (try/catch, with the
+  caught message printed) and T23 additionally proves the window is really using the copied
+  engine before it judges the preview, so the next red names its own cause. Both GUI harness
+  steps also capture their output and publish `::error::` annotations for the FAIL lines — a
+  400-check harness that dies on one assertion must not report only "exit 1" (S34's rule). Residual kept in the row: no legacy-ACP host has been
   observed by anyone in this repo.
 - **U-72: the race is not constructible on Qt 6.8.3 — and the fix is still falsifiable.**
   Read in the real source (`qtbase` v6.8.3): `QProcessPrivate::waitForFinished()` polls the
