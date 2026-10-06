@@ -806,3 +806,111 @@ jobs:
           name: gifscythe-spike
           retention-days: 14
           path: csharp/spike/publish/
+
+  # S37 — U-09's forward half (fix-order P0-4): cut a pre-release SNAPSHOT from a tag.
+  #
+  # WHY: U-09 was "the banked Windows snapshot is 5 commits behind the SHA its own notes claim" — a
+  # release whose asset and notes disagreed. S37 found the old release is gone entirely (the
+  # 2026-09-22 repo re-creation lost it; the releases API returns none, and there are no tags), so
+  # nothing can be repaired retroactively. This job is the forward half: assets built by CI from the
+  # tag's OWN commit, notes that pin that commit by construction, and a sha256 for every file.
+  #
+  # It does NOT rebuild anything: `needs: windows` and `actions/download-artifact` mean the published
+  # zip IS the artifact the windows job just manifest-asserted and harness-tested in this same run.
+  #
+  # NOT INCLUDED, deliberately (the owner's S37 call): a tag-time asset/manifest GATE. That was offered
+  # as "cut + gate" and declined, because a new gate would need an exception to the U-89 freeze (no new
+  # gates while the release bar is above zero). This job builds, hashes and publishes; it does not enforce.
+  #
+  # It runs only for `refs/tags/snapshot-*`; ci_gate.sh never skips a tag (see its header), so the tag's
+  # own run is the one that verifies and then publishes.
+  release-snapshot:
+    name: release snapshot (tag only)
+    needs: windows
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/snapshot-') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Fetch the Windows artifact THIS run built and asserted
+        uses: actions/download-artifact@v4
+        with:
+          name: gifscythe-windows
+
+      - name: Zip the portable folder and hash every asset
+        run: |
+          set -euo pipefail
+          # upload-artifact v4 stores paths from their least common ancestor
+          # (working_code/gifscythe), so find the portable folder by SHAPE rather than by a
+          # hard-coded prefix - the layout has moved once already.
+          pkg="$(find . -type d -path '*/release/*/Gifscythe' | head -1)"
+          if [[ -z "$pkg" ]]; then
+            echo "::error::no release/<version>/Gifscythe folder in the artifact; listing what is there:"
+            find . -maxdepth 4 -type d | head -40
+            exit 1
+          fi
+          version="$(basename "$(dirname "$pkg")")"
+          zip_name="Gifscythe-${version}-windows-portable.zip"
+          # -j would flatten the folder; the zip must unzip to a self-contained directory a tester
+          # can drop anywhere (that is what W-18's checklist expects to find at C:\gifscythe-test\).
+          (cd "$(dirname "$pkg")" && zip -r "$GITHUB_WORKSPACE/$zip_name" "$(basename "$pkg")")
+          cd "$GITHUB_WORKSPACE"
+          sha256sum "$zip_name" > SHA256SUMS
+          {
+            echo "### Assets"
+            echo
+            echo "| file | bytes | sha256 |"
+            echo "|---|---|---|"
+            echo "| $zip_name | $(stat -c%s "$zip_name") | \`$(cut -d' ' -f1 SHA256SUMS)\` |"
+          } > ASSET_TABLE.md
+          cat ASSET_TABLE.md
+
+      - name: Write the release notes (they PIN the sha, by construction)
+        run: |
+          set -euo pipefail
+          {
+            echo "Pre-release **snapshot**, built by CI from an exact commit. Not a 1.0.0: the"
+            echo "product version stays \`0.1.0\` until the release criteria are met (\`OD-11 = a\`)."
+            echo
+            echo "| field | value |"
+            echo "|---|---|"
+            echo "| tagged commit | \`$GITHUB_SHA\` |"
+            echo "| tag | \`$GITHUB_REF_NAME\` |"
+            echo "| evidence run | [\`$GITHUB_RUN_ID\`](https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID) — the \`windows\` job that built, manifest-asserted and harness-tested these bytes |"
+            echo "| linux/mac | not shipped (\`OD-17 = a\`: Windows ships, Linux is the test rig) |"
+            echo
+            echo "**What these bytes are.** This run's \`gifscythe-windows\` artifact, zipped as a"
+            echo "portable folder: \`gifscythe.exe\` + windeployqt runtime, \`gifscythe-cli.exe\`, the"
+            echo "static \`gifsicle.exe\` engine beside them, and the four licence files. The windows"
+            echo "job already asserted that package manifest, so the listing is CI-checked."
+            echo
+            echo "**What is NOT claimed.** The clean-Windows smoke (\`W-18\`) and the real-desktop GUI"
+            echo "probes (\`W-19\`) have never been executed — CI proves the bundle builds, packages and"
+            echo "passes the offscreen harness, not that it runs on a machine without Qt. Treat this as"
+            echo "a test artifact. \`web/wasm/\` is not shipped (\`OD-16\`: owner answered (b), pending"
+            echo "counsel-approved terms; unshipped until those exist)."
+            echo
+            cat ASSET_TABLE.md
+          } > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+
+      - name: Publish the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # No --target/--verify-tag dance: the tag already exists (it triggered this run), and a
+          # re-run for the same tag is idempotent only if the release does not exist yet - so a
+          # second run uploads a fresh asset with --clobber instead of failing the job.
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber \
+              Gifscythe-*-windows-portable.zip SHA256SUMS
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --notes-file RELEASE_NOTES.md
+          else
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease \
+              --title "Gifscythe $GITHUB_REF_NAME (snapshot, v0.1.0)" \
+              --notes-file RELEASE_NOTES.md \
+              Gifscythe-*-windows-portable.zip SHA256SUMS
+          fi
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json url,assets \
+            --jq '.url, (.assets[] | "\(.name) \(.size)")'
