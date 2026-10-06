@@ -29,7 +29,7 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 176 DONE · 6 PARTIAL · 13 OPEN · 0 UNTRIAGED · 195 total
+**Counts (generated - do not edit by hand):** 177 DONE · 6 PARTIAL · 13 OPEN · 0 UNTRIAGED · 196 total
 **Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 2 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
 **Last regenerated:** S37 · 2026-10-06 · by scripts/check_docs.sh --emit
 
@@ -135,6 +135,7 @@ hand-fudged roll-up fails the gate.
 | U-95 | The only published Release predates the Ms-PL relicence — snapshot-2026-09-07 was built from GPLv3-era first-party code and its... | DONE | S24 | MOOT BY VERIFICATION: the same GitHub releases API check that confirmed the defect (S24) now returns 0 releases and 0 tags on the live repo (created... | - |
 | U-96 | stemOf is hand-duplicated (app.js + server.mjs) and its dotfile/extensionless boundary is unpinned against Qt completeBaseName... | DONE | S37 | the probe found the divergence the row predicted, in the DOTFILE case: Qt treats a LEADING dot as an extension separator, so `.gif`/`.hidden` have an... | - |
 | U-97 | The 2026-09-22 zip re-creation of the GitHub repo lost the root license set, so both packagers fail closed on every platform —... | DONE | S27 | canonical texts restored (GNU GPLv3 35147 B + standalone LGPLv3 7639 B via the gcc mirror, Ms-PL 2663 B via SPDX, COPYING.gifsicle byte-copied from... | - |
+| U-98 | A sandbox restore silently rewinds the clone to the base commit while the worktree keeps newer content, so a commit made... | DONE | S37 | detected by `git merge-base --is-ancestor origin/<branch> HEAD` and by the sign that `git status` suddenly lists the whole season as uncommitted;... | - |
 <!-- END GENERATED -->
 
 ## Register, part 2 - hand-maintained (W worklist · D deferred · R risk · new findings)
