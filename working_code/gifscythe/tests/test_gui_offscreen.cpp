@@ -103,6 +103,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+// S37 (windows CI red at the GUI BUILD step): T25 reads tests/stem_cases.txt with
+// std::ifstream, and <fstream> was being pulled in TRANSITIVELY on Linux. MinGW's
+// libstdc++ does not do that, so the file must be included explicitly — a
+// platform difference in the include graph, not in the code. (Same lesson as the
+// T23 premise: what compiles here is not what compiles everywhere.)
+#include <fstream>
 #include <thread>
 #include <string>
 #include <vector>
