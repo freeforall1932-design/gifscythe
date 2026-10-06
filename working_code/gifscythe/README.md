@@ -208,19 +208,40 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   location (`%APPDATA%\Gifscythe\` on Windows); override the path with
   `GS_SETTINGS_PATH`. The queue and Save-as field are deliberately *not*
   restored. Corrupt files apply their valid keys and warn in the status bar.
-- Regression net: `tests/test_gui_offscreen.cpp` — T1–T21 plus the S23 desktop
-  round-trip block, 271 `CHECK(` sites in source (8 of them that block, which is 8
-  runtime assertions). T21 (S31, finding N-10) asserts that cancelling an
-  Explode run reports the frame set as possibly incomplete. Last measured at
-  **324 runtime checks** in the S11 sandbox (Qt 6.4.2) — before T21 existed, so
-  the next measured figure will be higher;
-  306 in the S10 sandbox before that. Runs in CI and in any Qt6-equipped
-  sandbox (S10/S11 both compiled and ran it locally).
+- Regression net: `tests/test_gui_offscreen.cpp` — T1–T24 plus the S23 desktop
+  round-trip block, 286 `CHECK(` sites in source (which is more runtime
+  assertions than sites, because several groups loop). T21 (S31, finding N-10)
+  asserts that cancelling an Explode run reports the frame set as possibly
+  incomplete; T22–T24 (S36) are the behavioural cases for the three S35 patch
+  rows — the U-72 cancel latch (idle cancel arms nothing, a cancelled run's
+  completion consumes the latch, the NEXT genuine failure still surfaces), the
+  U-70 non-ASCII `GS_ENGINE` path (preview must reach the engine), and the U-58
+  mid-batch settings mutation (job 2 runs the batch-start snapshot, proven from
+  the fixture's argv log), and T26 (S37) the event-loop heartbeat: a 10 ms timer
+  watches for UI-thread stalls across the five blocking waits U-12 names, using
+  `tests/fake_engine_orphan_pipe.cpp` — a fixture whose forked child keeps the
+  inherited pipes open after the parent is killed, i.e. the worst case a
+  kill-first wait can face. On current code the gaps are 0-11 ms against
+  1000-5000 ms deadlines (measured, with the target provably alive), so the row's
+  freeze is not reachable through these sites; the leg bounds are half a
+  deadline, so any future change that starts consuming them fails the harness.
+  Last measured at
+  **436 runtime checks** in the S37 sandbox (Qt 6.8.3 built from source) —
+  figure rises with every added case, so read it as a measurement, not a target;
+  324 in the S11 sandbox (Qt 6.4.2) before T21 existed, 306 in S10. Runs in CI
+  and in any Qt6-equipped sandbox — and `scripts/build_qt6_local.sh` lets a
+  sandbox with no Qt6 and no apt/root build one from source and run the
+  harness there too (that is how the S36 figures above were measured).
 - Cross-platform engine-probe fixtures: `tests/fake_engine_exit0.cpp` (CMake
-  target `fake_engine_exit0`) — exits 0 without writing for T7; and
+  target `fake_engine_exit0`) — exits 0 without writing for T7;
   `tests/fake_engine_partial_failure.cpp` (CMake target
   `fake_engine_partial_failure`) — writes corrupt `-o` bytes then exits 7 for
-  the U-59 failure-preservation regression.
+  the U-59 failure-preservation regression; and
+  `tests/fake_engine_argv_sleep.cpp` (CMake target `fake_engine_argv_sleep`) —
+  slow and argv-logging for T22/T24: `GS_FAKE_ARGV_LOG` appends one TAB-joined
+  argv line per run, `GS_FAKE_SLEEP_MS` (default 800) is the window in which
+  Cancel can race a really-running process or a control can be mutated, and it
+  copies its input to `-o` so the U-59 verification accepts it like real output.
 
 ## Versioning
 0.1.0 → 1.0.0–1.9.9 (finished GIF product) → 2.0.0–3.0.0 (WebP + APNG).  

@@ -10,6 +10,7 @@
 // template controls stay desktop-only (documented in web/README.md).
 
 import { buildArgs, numOrNull, shellQuote } from "./command.mjs";
+import { stemOf } from "./stem.mjs";
 import { createRequestGuard } from "./request-guard.mjs";
 
 const $ = (id) => document.getElementById(id);
@@ -28,11 +29,9 @@ let resultUrls = [];
 // new settings (that second half is U-69's complaint about the failure path).
 const guard = createRequestGuard();
 
-// QFileInfo::completeBaseName parity with the server (<stem>_opt.gif naming).
-const stemOf = (name) => {
-  const i = name.lastIndexOf(".");
-  return i > 0 ? name.slice(0, i) : name;
-};
+// stemOf lives in stem.mjs since U-96: the browser and the server must not
+// carry two copies of the naming rule (they had drifted from the desktop's Qt
+// rule before it was pinned). See stem.mjs and tests/stem.test.mjs.
 
 // ---- settings model (mirrors gs::Settings) ----
 function settings() {

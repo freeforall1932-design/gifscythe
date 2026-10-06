@@ -3,7 +3,7 @@
 # build_engine.sh - Build the gifsicle engine that Gifscythe bundles.
 #
 # Usage:
-#   ./scripts/build_engine.sh            # build native (linux/mac) gifsicle
+#   ./scripts/build_engine.sh            # build the native engine (x86_64 glibc Linux; see NOTE)
 #   ./scripts/build_engine.sh --windows  # cross-compile gifsicle.exe (needs mingw-w64)
 #
 # The built binary is placed into release/<version>/ as the engine that the
@@ -43,6 +43,30 @@ VERSION="$(grep -oE 'Current version:.*[0-9]+\.[0-9]+\.[0-9]+' \
   | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
 VERSION="${VERSION:-0.1.0}"
 ENGINE_VERSION="1.96"
+
+# GS-209 (S37, owner decision): the ADVERTISED native target is exactly one —
+# x86_64 glibc Linux. config.native.h is a single fixed config (glibc headers,
+# glibc random(), LP64 type sizes, gettimeofday, no per-target feature checks),
+# so macOS, 32-bit Linux and musl targets were never actually supported — the
+# header merely happened to compile on the x86_64 glibc host (A-09's "attempt the
+# advertised native build on macOS/32-bit/non-glibc" observation). Generating the
+# config from feature checks per target is the alternative the audit offered and
+# the owner rejected in favour of narrowing the promise (OD-17 = a already says
+# the shipped product is Windows-only and Linux is the test battery).
+#
+# The check below makes the narrowing visible instead of leaving it in prose: it
+# WARNS (never fails) on any other host, because the build may still work there by
+# luck and a hard failure would break sandboxes and other unix CI images for a
+# promise this repo no longer makes.
+gs_host_arch="$(uname -m 2>/dev/null || echo unknown)"
+if [[ "$TARGET" != "windows" ]] && ! (ldd --version 2>/dev/null | head -1 | grep -qi "glibc\|GNU libc"); then
+  echo "WARNING: no glibc detected on this host. The advertised native target is x86_64 glibc Linux;" >&2
+  echo "         config.native.h is a fixed glibc/x86_64 configuration and this build is UNSUPPORTED here" >&2
+  echo "         (it may still work by luck — that is exactly the assumption GS-209 narrowed away)." >&2
+elif [[ "$TARGET" != "windows" && "$gs_host_arch" != "x86_64" ]]; then
+  echo "WARNING: host arch is '$gs_host_arch', not x86_64. The advertised native target is x86_64 glibc Linux;" >&2
+  echo "         config.native.h fixes LP64 sizes and glibc behaviour, so this build is UNSUPPORTED here (GS-209)." >&2
+fi
 
 echo "==> Building gifsicle engine (target: $TARGET, product: $VERSION, engine: $ENGINE_VERSION)"
 

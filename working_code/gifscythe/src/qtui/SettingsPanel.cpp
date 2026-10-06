@@ -337,9 +337,23 @@ void SettingsPanel::buildUi() {
   disposalCombo_->addItem(QStringLiteral("asis (1) — do not dispose"), 1);
   disposalCombo_->addItem(QStringLiteral("background (2) — restore to background"), 2);
   disposalCombo_->addItem(QStringLiteral("previous (3) — restore to previous"), 3);
+  // DS-10 / P3-11 (S37): 4..7 are reachable. GIF89a defines 0..3 and leaves
+  // 4..7 "to be defined"; gifsicle's DISPOSAL_TYPE parser accepts every value
+  // 0..7 (Clp_AllowNumbers) and its bounds check is `val.i < 0 || val.i > 7`
+  // (gifsicle.c DISPOSAL_OPT), and web/validate.mjs admits 0..7 too. The
+  // desktop picker stopped at 3, so a session exported from the web (or a
+  // config a user hand-wrote) could not be represented here — readFrom()
+  // silently left the control at "Keep original". Values stay numeric, which
+  // is what the engine receives, so nothing here invents a name the engine
+  // does not know.
+  for (int d = 4; d <= 7; ++d) {
+    disposalCombo_->addItem(
+        QStringLiteral("%1 (reserved — GIF89a \u201Cto be defined\u201D)").arg(d), d);
+  }
   disposalCombo_->setToolTip(QStringLiteral(
       "Frame disposal method (--disposal). Names/values from the engine's\n"
-      "DISPOSAL_TYPE parser."));
+      "DISPOSAL_TYPE parser (none/asis/background/previous, or 0..7).\n"
+      "4..7 are reserved by the GIF spec and passed to the engine as-is."));
   form->addRow(QStringLiteral("Disposal"), disposalCombo_);
 
   unoptimizeCheck_ = new QCheckBox(QStringLiteral("Unoptimize (expand to full frames, -U)"), animBox);
@@ -736,7 +750,7 @@ void SettingsPanel::readFrom(const gs::Settings& s) {
   } else {
     selectByData(loopCombo_, 0);  // keep original
   }
-  selectByData(disposalCombo_, s.disposal);  // -1..3; 4..7 not GUI-representable
+  selectByData(disposalCombo_, s.disposal);  // -1 and 0..7, all representable (DS-10)
   unoptimizeCheck_->setChecked(s.unoptimize);
   // -1 is inside the range now (DS-07); setSpin clamps anything else, and the
   // clamped value is what the live pane shows, so a clamp cannot pass unnoticed.

@@ -1,16 +1,82 @@
 # Session Handoff
 
-**Session:** S35 · **Date:** 2026-10-06
-**Branch:** arena/9c0b8a7f-gifscythe
+**Session:** S37 · **Date:** 2026-10-06
+**Branch:** arena/0a711503-gifscythe
 **Repo re-created 2026-09-22:** the GitHub repo was rebuilt from a zip upload; the old remote's history (S1–S26, PRs #1–#33, shas like `5c93680`) does not exist in this clone — every such sha below is an old-remote record kept for the written history. The new remote: `04a1cd4` (initial) → `60d3df4` (zip upload) → `ce5fd51` (unpack to root) → PR #1 merge `824bf20`, whose tree is the S26 state minus the four root license files (loss = finding **U-97**, restored in S27 with executed proof). The ledger carries a separator: rows #1–#33 are the OLD repo's; the new repo's numbering restarts at #1. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number. This records the merged baseline, not a claim about current CI health.
-**Docs synced through:** PR #11 · branch `arena/9c0b8a7f-gifscythe` · merged as: the merge commit of PR #11 (lookup in its ledger row — a PR pre-syncs itself)
+**Docs synced through:** PR #12 · branch `arena/0a711503-gifscythe` · merged as: the merge commit of PR #12 (lookup in its ledger row — a PR pre-syncs itself)
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. A PR **pre-syncs itself**: right after `gh pr create` it moves this line to its own number — P6 accepts the number of the branch's own open PR — so the owner can merge from the GitHub UI and continue with nothing left to edit. Move this line only after the writing is done.)*
-Based on `main` commit `4430a28` ("Add files via upload" — **a second re-creation of this repo.** The entire history of this clone is that one squashed commit, so the `fe4f0a7` lineage below does not resolve here at all, exactly as the S27 re-creation did not; S27's entry is the precedent for how that is recorded. The TREE is nevertheless the one these docs describe, verified by markers rather than trust: `4430a28` holds zero image files (what `fe4f0a7`'s delete produced — N-36) and all five root license files (U-97's restoration survived). Re-anchored in S35 because G10 accepts only `origin/main`'s tip or its first parent, and an unresolvable base sha keeps main red on every run. **Consequence for anyone reading the patch series:** the five audit-fix patches applied in S35 were anchored on `fe4f0a7`, so every hunk landed at an offset of +14 to +562 lines in this tree; the offsets are recorded line by line in `PATCH_SERIES_REVIEW.md`.) PREVIOUS BASE, kept for the written history: `main` commit `fe4f0a7` (the owner's direct web commit of 2026-10-02, "Deleted shot_actions_tab.png", which removed every image file in the repo — register row N-36; its parent `c999061` is PR #9's merge, 2026-10-02 — the S33 post-merge sync plus the N-31 fix that makes G11 skip in shallow clones — whose first parent `ad8f956` is PR #8's merge, whose own first parent `13d95a7` was the owner's 2026-09-29 direct upload. Re-anchored twice in S34, because every commit that lands on main moves its tip and G10 only accepts the tip or its first parent: an older sha here turns main red on the post-merge run — it did, for the old `13d95a7`, on PR #9's own merge run 36971588492, and the `c999061` this line named before the owner's direct commit went stale the same way; `scripts/sim_postmerge.sh` shows that before the merge instead of after it. Old-remote shas inside the historical sections are records this clone cannot resolve) ·
+Based on `main` commit `76392da` (PR #11's merge commit — the tip this branch `arena/0a711503-gifscythe` was cut from. **S36 re-anchor:** every commit that lands on main moves its tip and G10 accepts only the tip or its first parent, so the base line moves with it; `4430a28`, the base S35 named, is PR #11's first parent and stays the history entry below. The tree was verified again the same way, by markers rather than trust.) PREVIOUS BASE, kept for the written history: `main` commit `4430a28` ("Add files via upload" — **a second re-creation of this repo.** The entire history of this clone is that one squashed commit, so the `fe4f0a7` lineage below does not resolve here at all, exactly as the S27 re-creation did not; S27's entry is the precedent for how that is recorded. The TREE is nevertheless the one these docs describe, verified by markers rather than trust: `4430a28` holds zero image files (what `fe4f0a7`'s delete produced — N-36) and all five root license files (U-97's restoration survived). Re-anchored in S35 because G10 accepts only `origin/main`'s tip or its first parent, and an unresolvable base sha keeps main red on every run. **Consequence for anyone reading the patch series:** the five audit-fix patches applied in S35 were anchored on `fe4f0a7`, so every hunk landed at an offset of +14 to +562 lines in this tree; the offsets are recorded line by line in `PATCH_SERIES_REVIEW.md`.) PREVIOUS BASE, kept for the written history: `main` commit `fe4f0a7` (the owner's direct web commit of 2026-10-02, "Deleted shot_actions_tab.png", which removed every image file in the repo — register row N-36; its parent `c999061` is PR #9's merge, 2026-10-02 — the S33 post-merge sync plus the N-31 fix that makes G11 skip in shallow clones — whose first parent `ad8f956` is PR #8's merge, whose own first parent `13d95a7` was the owner's 2026-09-29 direct upload. Re-anchored twice in S34, because every commit that lands on main moves its tip and G10 only accepts the tip or its first parent: an older sha here turns main red on the post-merge run — it did, for the old `13d95a7`, on PR #9's own merge run 36971588492, and the `c999061` this line named before the owner's direct commit went stale the same way; `scripts/sim_postmerge.sh` shows that before the merge instead of after it. Old-remote shas inside the historical sections are records this clone cannot resolve) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-- **S35 was the patch-intake lane — read this before touching U-57/U-58/U-70/U-71/U-72.**
+### S36 — what just changed (current session)
+
+- **U-58, U-70 and U-72 are FIXED (S36), with executed proof. U-57 and U-71 stay FIXED (S35).**
+  The three S35 PARTIAL rows were closed the way the S35 hand-off demanded — the behavioural
+  case first, then the flip:
+  1. **Qt6 is buildable in this sandbox, and that is the headline correction.**
+     `scripts/build_qt6_local.sh` (new, committed) builds qtbase v6.8.3 Core+Gui+Widgets,
+     `moc`/`rcc`/`uic`, the offscreen platform plugin **and the `qgif` image-format plugin**
+     with bundled third-party libs — no apt, no root, ~15 min on 2 cores. The harness then
+     compiles and runs here (S36 measured **405 runtime checks, 0 failures**; S37 re-measured
+     **436/0** after T8/T25/DS-10/T26 — see the S37 entry). Full recipe in the script's
+     header and in `IMPROVEMENT_LOG.md` (S36). **Two traps:** a module build produces neither
+     the offscreen plugin nor `qgif` unless you name those targets, and without `qgif` QMovie
+     cannot decode a GIF at all — T12/T20/T23 fail on the environment (6 failures) until it
+     is built (0 after). **Third trap, learned the hard way:** qtbase's `configure` builds in
+     the *current directory*; run it from the repo and it writes ~1150 Qt build files there.
+     The script `cd`s into the build tree first.
+  2. **The cases the PARTIAL rows named are written and green:**
+     `tests/test_gui_offscreen.cpp` **T22** (cancel-latch honesty, legs in ONE window),
+     **T23** (non-ASCII `GS_ENGINE`), **T24** (mid-batch settings mutation), on the new
+     argv-logging fixture `tests/fake_engine_argv_sleep.cpp`. T24 is **RED on the real
+     pre-fix tree** (`0005` reverse-applied: exactly its three snapshot checks fail) and
+     green here.
+  3. **U-70's proof is a source invariant, because NO runner here can discriminate
+     behaviourally** — measured, not assumed: POSIX `u8path_compat` is the identity, and the
+     case's first Windows run measured the bare `fs::path(std::string)` conversion *resolving*
+     the non-ASCII file correctly on MinGW GCC 13.1. Sentinel **S3** counts the 3 wrapped
+     probes and rejects the bare form, RED on a `0004`-reversed tree. T23 is the end-to-end
+     behavioural case (preview must reach the engine under that path); it now PRINTS which
+     conversion mode the host is in instead of asserting the finding's premise — the assertion
+     was red on the Windows runner for a reason the case was not about. No legacy-ACP host has
+     ever been observed here; the premise is recorded as toolchain-dependent.
+  4. **U-72's race is NOT constructible on Qt 6.8.3** and the row says so: `waitForFinished()`
+     calls `processFinished()` synchronously on forkfd POLLIN (`qprocess_unix.cpp:1242-1277`)
+     and `kill()` is final SIGKILL, so the `0003`-reversed tree stays green under T22. T22 was
+     restructured to run its legs in one window and was proven to bite the two plausible wrong
+     fixes (kept latch → RED ×2; arm-on-idle → RED ×4). The invariant is sentinel **S2**, RED
+     on the `0003`-reversed tree. **The S35 constraint stands: do NOT add
+     `cancelling_ = false;` to `runCommand()`** — it re-opens that race.
+  5. **The `0005` sentinel defect is fixed and the sentinel is wired into CI.**
+     `scripts/test_u58_u70_u72_sentinels.sh` strips comments before every check (the defect
+     was a `grep` counting the patch's own comment), covers U-58/U-70/U-72 as S1/S2/S3, and
+     mutation-tests itself as S4 a/b/c/d. It runs as its own step in `build.yml` and the byte
+     mirror. Register: **163 DONE / 11 PARTIAL / 21 OPEN = 195**; P1-38 and P1-42 DONE.
+     *(S37 moved the register to 177/6/13/0 — see the S37 entry.)*
+  6. **All five S35 patches are now fully consumed** — fixes applied, proofs executed,
+     sentinels wired.
+  7. **The `windows` GUI job ran these cases, and the red that got them green is on the record.**
+     Its first run (`37470204618`, job `112291512983`) failed at *GUI offscreen tests (Windows)*
+     with no FAIL text retrievable from this sandbox — which is why **both** GUI harness steps
+     now capture their output and publish each `FAIL` line as a `::error::` annotation (S34's
+     naming rule). The next run's annotation named the case: *"FAIL (line 2065): guard: the BARE
+     conversion does not find the non-ASCII engine on Windows"* — the premise measurement in
+     item 3, not a product defect. With T23 measuring instead of asserting, run
+     **`37470942912` is green on all six jobs** (gate, linux, docs, windows, portability,
+     csharp-spike); the Windows GUI step passes in 22 s on CI's own Qt **6.7.3** (aqt) + MinGW
+     **GCC 13.1** toolchain — the same harness that is 436/0 here against source-built 6.8.3.
+     **Evidence, not a flip:** nothing was moved to FIXED on a green build alone.
+- **Still not proven here, and named in the rows:** the legacy-ACP host itself (and with it
+  any *behavioural* discrimination of the U-70 call forms — the Windows runner measured the
+  bare form working, so the discriminating proof is the source sentinel); and any runtime
+  reproduction of U-72's late-`finished()` (shown impossible on this Qt). Do not flip anything
+  else on a green CI run alone.
+
+### S35 — the patch-intake lane (previous session)
+
+- **Read this before touching U-57/U-71.**
   1. **Five audit-fix patches landed, and three of them were malformed as submitted.** `0001`,
      `0004` and `0005` were rejected outright by `git apply --check` — one `@@` count field wrong
      in each (`-66,6 +66,25`→`-66,7 +66,26`; `+617,14`→`+617,13`; `+164,15`→`+164,14`). The
@@ -39,7 +105,7 @@ Based on `main` commit `4430a28` ("Add files via upload" — **a second re-creat
   5. **This clone's base is `4430a28`, not `fe4f0a7`.** G10 was red on arrival and is green now;
      see the base line above for why, and `PATCH_SERIES_REVIEW.md` for the per-hunk offsets.
 
-## Next session — fast hand-off (after S35)
+## Next session — fast hand-off (after S36)
 
 - **S34 was the CI-truth lane — read this before touching CI.**
   1. **CI now tells the truth.** The doc gate is its own `docs` job with full
@@ -209,9 +275,117 @@ Based on `main` commit `4430a28` ("Add files via upload" — **a second re-creat
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 160 DONE · 14 PARTIAL · 21 OPEN · 0 UNTRIAGED · 195 total (at S34: 158/11/26/0; at S32: 149/9/30/0 — both historical)
+- **Register:** 177 DONE · 6 PARTIAL · 13 OPEN · 0 UNTRIAGED · 196 total (at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
+
+### S37 — what just changed (current session)
+
+- **Five more rows closed, each with executed proof — and one refuted assumption.**
+  Owner instruction: take the cheaper, already-shipped path where a decision is
+  open, and revisit only if it proves wrong.
+  1. **`GS-205` / P1-27 — non-GIF input admission (DONE).** One rule now:
+     `gs::admit_input()` (`src/core/InputAdmission.h`, Qt-free) = exists + **regular
+     file** + readable + `GIF87a/GIF89a` magic, called by **both** the picker and the
+     drop list. A dropped **directory** (the old `exists()` said yes to folders), a
+     renamed JPEG, a missing path and an unreadable file are refused with a
+     **named reason** in the status line (plus a dialog when nothing was added); a
+     GIF with an odd extension is ADMITTED — the bytes decide, not the suffix.
+     Proof: the new **`build/test_input_admission` suite (35 checks/0)** run by
+     `build.sh`, and harness **T8** (refusals + a real failed run that stays honest).
+  2. **`DS-10` / P3-11 — disposal 4..7 in the desktop picker (DONE).** The engine's
+     `DISPOSAL_TYPE` accepts 0..7 and `web/validate.mjs` admits 0..7, but the combo
+     stopped at 3, so a web-exported session could not be represented. 4..7 are now
+     items (labelled `reserved — GIF89a "to be defined"`), `readFrom` no longer
+     silently resets them, and `-1` stays "Keep original". Proof: harness T13 asserts
+     each of 4..7 is selectable AND emits `--disposal N`.
+  3. **`U-55` / P1-35 — Windows case folding (DONE, with an injectable rule).** The
+     case rule is now a policy (`PathKeyPolicy::Posix`/`Windows`) with a documented
+     partial Unicode fold (`case_fold_utf8`), so **Linux CI pins the Windows rule**:
+     `path_key("Ä.gif", Windows) == path_key("ä.gif", Windows)`, the case-only
+     self-collision is `TargetsSource`, two case-variant targets are
+     `DuplicateTarget` — each allowed under POSIX, which proves the policy does the
+     work. Residual stated: the rest of the Unicode table waits on ICU/CompareStringOrdinal.
+  4. **`U-96` / P3-18 — web/desktop naming parity (DONE, and the measurement
+     mattered).** Qt 6.8.3 `QFileInfo::completeBaseName()` was probed on this
+     sandbox's own Qt build over the edge-name set, and it **refuted the assumed
+     semantics**: Qt counts a **leading** dot as an extension separator, so `.gif`
+     and `.hidden` have an **empty** stem (`.gif` → suffix "gif"), `..` → `.`, and
+     `a.` → `a`. The shipping JS rule (`i > 0`) kept dotfiles whole and would have
+     written `.gif_opt.gif` where the desktop writes `_opt.gif`. Now: ONE helper
+     (`web/stem.mjs`, imported by app.js and server.mjs, served through the U-67
+     allow-list) and ONE **measured** table (`tests/stem_cases.txt`, 18 rows) read by
+     both sides — Qt re-measures every row in harness **T25** (18 rows vs Qt 6.8.3),
+     and `web/test/stem.test.mjs` asserts `stemOf` matches + four mutation legs
+     (pre-fix rule, first-dot rule, trailing-dot rule, no-strip) must be caught.
+  5. **`U-76` closed by owner decision `OD-18 = a`** (the row's own recommendation,
+     and the cheaper path): the CLI explode keeps writing `<CWD>/<stem>_frame.NNN`,
+     announced on stderr; the desktop/web keep writing beside their input. The
+     divergence is now a **documented, executed contract** (`smoke_cli.sh` case 15)
+     instead of an open question. No code change — that is the point.
+- **Measured here after all of it:** GUI harness **436 checks, 0 failures** (286
+  `CHECK(` sites, Qt 6.8.3 from source, offscreen, T25 re-measuring 18 Qt rows on every
+  run); `build/test_gifsicle_command` **415/0**; `build/test_input_admission` **35/0**;
+  all **eleven** `web/test/*.test.mjs` suites green (the new `stem` suite is the
+  eleventh, and CI's suite list now names it); `check_docs.sh`/`sweep_stale.sh` green
+  after `--emit`; register **177 DONE / 6 PARTIAL / 13 OPEN = 196** (U-12 closed after T26).
+- **U-09 is closed and the snapshot exists (S37): `snapshot-2026-10-06`.** The old release died in the
+  2026-09-22 re-creation, so U-09's *subject* was gone — but its forward half (P0-4) was executable,
+  and it is done the strict way: a new `release-snapshot` job in `build.yml` (tag-only, `needs: windows`)
+  downloads **the tag's own run's** artifact (no rebuild), zips the portable folder, writes SHA256SUMS,
+  and generates notes that interpolate the sha/tag/run-id **from the environment** so notes and asset
+  cannot drift — the defect U-09 named. Tag `6aaabcf`, run `37490183737`, release is a PRE-release at
+  version 0.1.0 (`OD-11 = a`); asset `Gifscythe-0.1.0-windows-portable.zip` (23 777 470 B,
+  `add856c8…096e`). **W-18's asset problem is solved** — it is now a login-free download; the smoke
+  itself still needs a clean Windows machine. Owner decision **`OD-16 = b`** was also recorded, and the
+  condition is load-bearing: **the counsel-approved terms do not exist yet**, so `web/wasm/` stays
+  unshipped and `D-07` stays OPEN until they are written down.
+- **U-12 (P1-24) is measured, not rewritten — and the measurement is why.** T26
+  (`tests/test_gui_offscreen.cpp`, five legs) records the largest event-loop gap across each of the
+  five waits with a 10 ms `QTimer`, against `tests/fake_engine_orphan_pipe.cpp` — a fixture whose
+  forked child holds the inherited pipes open after the parent is SIGKILLed (verified with a blocking
+  reader), i.e. the worst case a kill-first wait can meet. On **unmodified** `MainWindow.cpp`, every leg
+  with the target provably alive: **11 ms** preview supersede (deadline 1000) · **0 ms** cancel (3000) ·
+  **11 ms** run start (5000) · **3 ms** close during a run (2000) · **11 ms** start with the shipped
+  engine. Microbench of the primitive: `waitForFinished(1500)` on a LIVE target spends the full
+  **1501 ms**, but all five sites `kill()` first, and Qt returns on the direct child's death, not on pipe
+  EOF — so the freeze needs a slow exec or a `D`-state death (not constructible here). The Windows runner
+  measured the same thing on CI's Qt 6.7.3/MinGW: **11 / 0 / 11 / 10 / 11 ms** (run `37496371141`) -
+  published as annotations by both harness steps, because job log blobs are not retrievable here. **No wait was
+  edited**; T26 enforces the assumption (each leg fails if a wait consumes half its deadline) and the
+  question of rewriting for the unconstructible case is with the owner.
+- **Environment traps, re-learned:** a sandbox restore also wipes `~/.local/bin` (cmake + ninja),
+  `build-cmake/` and `/home/user/build` (source-built Qt 6.8.3) because they are snapshot-excluded —
+  recovery is `pip install --break-system-packages cmake ninja` + `scripts/build_qt6_local.sh` (~13 min),
+  and `git merge-base --is-ancestor origin/<branch> HEAD` before any commit. `scripts/lint_workflow.mjs`
+  **crashes** on two or more workflow files in one process (actionlint.wasm `unreachable`) — lint one file
+  at a time, which is also why the release job lives inside `build.yml`.
+- - **Two rows in the "environment, not fixable" bucket were re-examined and one closed:**
+  **R-02** was a one-command job — this clone was depth-1 (G11 skipped), and
+  `git fetch --unshallow` brought the remote's full 115 commits (4.9 MB) so **G11 now runs
+  and PASSES**; R-02 is DONE with that proof (CI's depth-1 checkout stays an honest skip under
+  N-31). The same round trip lost `core.hooksPath` again (`.git/config` is not snapshotted) —
+  `scripts/bootstrap_hooks.sh` re-armed it, which is R-04's standing lesson. **U-09's subject,
+  meanwhile, is gone:** the "banked snapshot" release it describes no longer exists in this
+  repo (`releases` API returns 0, tags 0 — it died in the 2026-09-22 re-creation), so nothing
+  can be repaired retroactively; the live remainder is P0-4 (cut fresh evidence at an exact
+  SHA), which needs an owner decision.
+- **The `windows` job caught two real portability bugs in this batch, and CI is green
+  after both:** (1) T25's `std::ifstream` needed an explicit `<fstream>` (Linux's
+  libstdc++ supplies it transitively, MinGW's does not); (2) the new
+  `tests/test_input_admission.cpp` used `<unistd.h>`/`::geteuid()`/`::chmod` unguarded for
+  its one POSIX-only leg, and CMake builds that target on Windows too. Both reds arrived as
+  "exit code 1" only, so the windows **GUI build step now tees its output and annotates the
+  compiler's error lines** — the harness steps already did. **CI: run `37480581369`, all
+  six jobs green** (gate/linux/docs/windows/portability/csharp-spike); the windows GUI build
+  ran 40 s and the windows offscreen harness 22 s, so T8, T13 and T25 all execute on
+  Windows too. Artifacts: `gifscythe-windows` (51 MB) on that run.
+- **Sandbox note (recurring):** this session's sandbox was rebuilt mid-run and lost
+  `build/`, `~/.local/bin` and the Qt tree — the repo was restored from `origin`
+  (`7c02981`) and this turn's edits re-applied from a saved copy before continuing.
+  The Qt provisioner script (`scripts/build_qt6_local.sh`) is what makes that loss
+  recoverable in ~15 minutes; the harness was then re-run against the rebuilt Qt and
+  is green.
 
 ## Context-budget protocol (S24 — enforce at every new session)
 
@@ -297,6 +471,7 @@ this ledger exists to make obvious.
 | #9 | S33 | `arena/01a0eebe-gifscythe` | `c999061` | Opened 2026-10-02, immediately after merging #8. The post-merge sync (S28 #3→#4 pattern): ledger row #8 filled (`ad8f956`), `COMPILED_AUDIT.md` base re-anchored to `ad8f956` (S26 mechanic), `SESSION_HANDOFF.md` Docs-synced-through moved to PR #8, PR #7 closed with the G10 anchor analysis rather than merged, S33 log merge note. No product code. Gates: check_docs 23/0/1, preflight P1–P6 PASS. **Merged 2026-10-02 (06:01Z) as `c999061`.** Added to the PR after this row was written: **N-31** (G11's non-doc-date rule degenerated in shallow clones and had turned main and this very PR red; fixed by extending G11 with G10's shallow skip, reproduced failing-first in a depth-1 clone) and the S33 count-quote sync. Its own push-to-main run (36971588492) went red exactly as predicted — G10 (this file's base line still named `13d95a7`) and Windows N-30 — and the S34 branch fixes both. |
 | #10 | S34 | `arena/01a0f7ed-gifscythe` | merge commit of PR #10 — lookup: `git log --first-parent --merges --grep='pull request #10 from'` | Opened 2026-10-02, after PR #9 merged (`c999061`) — the first PR from this branch; nothing from #8 or #9 is repeated. **CI un-masked:** the doc gate is its own full-history `docs` job and no longer hides the web suites, oracle, GUI harness and packaging; the Windows GUI build + harness no longer depend on "Build CLI + unit tests"; two inert Windows diagnostics publish findings as annotations. **N-30 fixed** (the settings integer probes used a `long`, 4 bytes on Windows — a code bug, not MinGW; `to_llong` + unit block 37, RED 7 failures on a 32-bit-`long` build → GREEN; the Windows job is green in runs 36967608254 and 36974199294) and **N-26 closed** (the "flaky linux job" was the doc gate: 8 of 8 red mains). **N-32** (the wasm proof bar cannot pass: libc `qsort` and `random()` differ) and **N-34** (`ubuntu-latest` → Ubuntu 26.04 from 2026-10-19) registered and then **decided and implemented at the owner's call** — N-34 pinned to `ubuntu-24.04` (DONE); N-32's bar is a same-libc native oracle, enforced by `libc_parity.py --bar` and `prove_wasm.mjs --oracle` (PARTIAL: no emcc build has run through it); a `gate` job de-duplicates push vs PR runs and workflow `concurrency` cancels superseded runs; a parallel `portability` CI job runs the 32-bit-`long` unit suite and the wasm bar (tests `test_ci_gate.py` 14, `test_prove_wasm_oracle.py` 10, `test_libc_parity_bar.py` 8; `scripts/lint_workflow.mjs`); **N-33** (README honesty summary) fixed; **N-35** found by the PR's own final CI run and fixed the same session (the `linux` job's web-suite step went red once on a docs-only commit: a startup-banner race in `server-bounds.test.mjs`'s `startServer`, 1 failure in 15 locally, 45/45 clean after the fix, plus a deterministic regression group; the step now also names a failing suite as an annotation); the docs that said an agent cannot push workflows corrected. **Post-merge sync pre-included** (the owner merges from the UI and continues): this row, the header's Docs-synced-through line, and both base lines (`fe4f0a7`, the merge's first parent) are written to be true at the merge; P6 now accepts a PR's own open number (`tests/test_pr_preflight_p6.py`: 1 FAIL → 8/8) and the *Merged as* cell is a lookup, so nothing is left to edit afterwards (merge simulated: the docs gate stays 24/0/1, G10 and G11 PASS, also for a merge dated after UTC midnight and for a squash). **Tooling moved out of `/tmp`**: the 32-bit-`long` unit runner (`scripts/test_unit_32bit_long.sh`) and the N-32 probe (`scripts/libc_parity/`) are committed. Register **158/11/26/0 = 195**. **N-36 (DONE):** the owner's direct commit `fe4f0a7` deleted every image file, including the 4 gifsicle test GIFs that the engine tests, smoke, oracle (and so the pre-push hook), glue harness, libc probe and the Windows/C#/Qt CI steps read, so main went red. The owner skipped the question asked, so the option that respects the deletion was taken — **the repo stays binary-free**: the two test images are base64 text (`tests/fixtures/`, rebuilt byte-identically into `build/fixtures/` by `scripts/fixtures.sh`/`fixtures.mjs`) and every consumer and CI step was repointed; the base lines were re-anchored to `fe4f0a7`. Merging takes the owner's explicit yes — as a **merge commit**: `scripts/sim_postmerge.sh` measured that a squash fails G11 when merged on a later UTC day than the log entry's date, and a rebase is impossible for this PR. |
 | #11 | S35 | `arena/9c0b8a7f-gifscythe` | merge commit of PR #11 — lookup: `git log --first-parent --merges --grep='pull request #11 from'` | Opened 2026-10-06. **Five-patch audit intake.** The series `0001`–`0005` arrived as files in the repo root, anchored on `fe4f0a7` — a commit this clone does not contain (its whole history is the single squashed `4430a28`), so every hunk landed at an offset of +14 to +562 lines, recorded hunk by hunk in `PATCH_SERIES_REVIEW.md`. **Three of the five were structurally invalid as submitted** and `git apply --check` rejected them outright (`0001` `patch fragment without header at line 93`, `0004` `corrupt patch at line 65`, `0005` `corrupt patch at line 116`); all three were one wrong `@@` count field, corrected in their own commit so the repair and the fixes stay distinguishable. **The salvage is measured, not assumed: 182/182 added lines present in the tree, all 7 removed lines gone from their own sites** — only the count fields were ever wrong. **U-57 (P1-37) and U-71 (P2-17) CLOSED** with executed proof; **U-58 (P1-38), U-70 and U-72 (P1-42) moved to PARTIAL, not FIXED** — the source fix is in the tree but there is no cmake/Qt6 here, so those three hunks were never compiled, and each row names the behavioural case that is still unwritten. **Both proofs wired into `build.yml` and its byte mirror** (neither ran in CI before): U-71 on `linux`, on `windows` (`CXX=g++`, MinGW ships no `c++`) and on `portability` under `CXX="python3 -m ziglang c++ -target x86-linux-musl"` — measured `sizeof(long)==4`, the LLP64 width class the finding lives in, so the table is proven at both widths; `u57-stale-output` as its own `linux` step so a red names U-57 (S34's naming discipline). **G10 was red on arrival and is green**: both base lines re-anchored to `4430a28`, the tree verified against `fe4f0a7`'s description by markers rather than trust (zero image files — N-36's delete; all five root license files — U-97 survived), `fe4f0a7` kept as a labelled historical record, the S27 pattern. **A hardening offered and withdrawn:** `cancelling_ = false;` at the top of `runCommand()` re-opens the exact race U-72 fixes, so it is NOT applied and the S35 hand-off block says so. Proof executed here: `test_u71_exit_codes.sh` PASS at both `long` widths · `u57-stale-output` 5/5 incl. the T1 RED leg · `smoke_cli.sh` **63/0** (drives the real CLI through `run_argv`, the function U-71 rewrote) · `test_engine.sh` 5/0 · `test_output_verify.sh` 25/0 · `oracle_fuzz --quick` 24/24 · `test_unit_32bit_long.sh` **396/0** on a 4-byte `long` · `verify_audit.sh` **32/0/5** incl. E9 and F1 · `check_docs.sh` **23/0/2** · `review_change.sh` 4/0/1 with every R5 doc obligation `[touched]` · `lint_workflow.mjs` `actionlint: clean`. Register **160/14/21/0 = 195** (from 158/11/26/0: two OPEN→DONE, three OPEN→PARTIAL); P1-37→DONE, P1-38 and P1-42→PARTIAL; release bar 10→9 open P0/P1 ids. **Not in this PR:** the Qt6 proof for U-58/U-70/U-72 (cmake GUI build + offscreen harness), the three behavioural cases those PARTIAL rows name, the `0005` CI sentinel (it false-fails on the patch's own comment at `MainWindow.cpp:1108`, so it is not wired in), U-12's state machine, and any wasm-track promotion (OD-16 / N-32). |
+| #12 | S36 | `arena/0a711503-gifscythe` | merge commit of PR #12 — lookup: `git log --first-parent --merges --grep='pull request #12 from'` | Opened 2026-10-06, after PR #11 merged (`76392da`) — the first PR from this branch; nothing from #11 is repeated. **The three S35 Qt rows CLOSED.** **The S35 blocker was wrong:** Qt6 IS buildable here — `scripts/build_qt6_local.sh` (new) builds qtbase `v6.8.3` Core+Gui+Widgets, `moc`/`rcc`/`uic`, the offscreen platform plugin and the `qgif` image-format plugin with bundled third-party libs (no apt, no root, ~15 min on 2 cores); the offscreen harness then compiles and runs in this sandbox — **405 runtime checks, 0 failures** (S36's measurement; S37 re-measured 436/0 after T8/T25/DS-10/T26), and the README's stale 271/398 figures were re-measured with it (**286** `CHECK(` sites in S37 — 284 when S36 wrote that line, before T8/T25/DS-10 and 285 before T26). **The three missing cases exist:** `tests/test_gui_offscreen.cpp` **T22** (cancel-latch honesty — legs in ONE window, because a fresh window per leg reset the member and tested nothing), **T23** (non-ASCII `GS_ENGINE`; Windows reports the conversion mode it measures, after the runner measured the finding's premise toolchain-dependent), **T24** (mid-batch settings mutation), on the new argv-logging fixture `tests/fake_engine_argv_sleep.cpp`. **RED→GREEN is executed, not claimed:** T24 fails exactly its three snapshot checks on a scratch tree with `0005` reverse-applied ("job 2 ran the BATCH-START -O3, not the mutated -O2") and passes on the fixed tree; T22 bites both plausible wrong fixes (kept-latch mutant → RED ×2, arm-on-idle mutant → RED ×4). **U-70 has no POSIX-discriminating behaviour** (`u8path_compat` is the identity there), so its platform-independent proof is a source sentinel; **U-72's race is not constructible on Qt 6.8.3 at all** — `waitForFinished()` calls `processFinished()` synchronously on forkfd POLLIN (`qprocess_unix.cpp:1242-1277`) and `kill()` is final SIGKILL — so its falsifiable proof is the sentinel too, and both records say so instead of claiming a red harness. **The `0005` sentinel defect fixed and the set wired into CI:** `scripts/test_u58_u70_u72_sentinels.sh` (S1 U-58 / S2 U-72 / S3 U-70, comment-stripped so the patch's own prose cannot trip a grep, plus S4 a/b/c/d rebuilding every pre-fix shape and requiring rejection) runs as its own step in `build.yml` and the byte mirror; re-run against all three real reversed patches — S1 red on `0005`, S2 red on `0003`, S3 red on `0004`, each with the other sentinels green in that tree. Register **163/11/21/0 = 195** (from 160/14/21/0: three PARTIAL→DONE); P1-38 and P1-42 DONE. Proof executed here: GUI harness **405/0** · pre-fix trees red as above · sentinel PASS + four mutation legs · `test_u71_exit_codes.sh` PASS · `test_output_verify.sh` 25/0 · `test_engine.sh` 5/0 · `smoke_cli.sh` 63/0 · nine node web suites green · `check_docs.sh` (see its line in the session entry). The `windows` GUI job did run these cases and is green (run `37470942912`, on CI's Qt 6.7.3 / MinGW GCC 13.1); it measured T23's premise as **toolchain-dependent** (the bare conversion works there), which is why the discriminating proof for U-70 is the sentinel, not behaviour. **Not in this PR:** any legacy-ACP observation (none exists in this repo), U-12's state machine, and any wasm-track promotion (OD-16 / N-32). **S37 ADDED TO THE SAME PR (same branch, pushed before the merge):** DS-10 (P3-11) and GS-205 (P1-27) closed, plus U-55 (P1-35) and U-96 (P3-18) — one admission rule with its own suite, disposal 4..7 in the picker, an injectable Windows case rule pinned by Linux CI, and one MEASURED stem table whose Qt probe refuted the assumed dotfile semantics; U-76 also closed by owner decision `OD-18 = a`. Re-measured after: harness **436/0** (286 `CHECK(` sites, T26 included), unit **415/0**, admission **35/0**, eleven node web suites; register **177/6/13/0 = 196**; plus the S37 release (**`snapshot-2026-10-06`**, tag `6aaabcf`) and the U-12 measurement T26 carries. |
 
 **Maintenance rule (one row per PR; the merge itself leaves nothing to edit — S34):**
 The owner merges from the GitHub UI and continues, so everything a "post-merge sync" PR used to carry
@@ -844,7 +1019,7 @@ count (**G9** compares like with like).
 
 | Check | Result |
 |---|---|
-| `./build.sh` | ✅ engine `LCDF Gifsicle 1.96` + CLI + **396 checks, 0 failures** (re-measured S34; 384 before the N-30 width cases, 372 before the N-27/N-29 cases) |
+| `./build.sh` | ✅ engine `LCDF Gifsicle 1.96` + CLI + **415 checks, 0 failures** + **35 admission checks** (S37 added the GS-205 suite; 396 at S34; 384 before the N-30 width cases, 372 before the N-27/N-29 cases) |
 | `scripts/smoke_cli.sh` | ✅ **63 passed, 0 failed** |
 | `scripts/test_output_verify.sh` | ✅ **25 assertions, 0 failures** |
 | `scripts/test_engine.sh` · `scripts/test_package.sh` | ✅ 5/5 · **36/36** |
@@ -853,7 +1028,7 @@ count (**G9** compares like with like).
 | `web/wasm/glue_harness.mjs` · the Python unit tests (`working_code/gifscythe/tests`) | ✅ `GLUE-HARNESS: PASS` · **61 tests OK** (21, plus 8 P6, 14 `ci_gate`, 10 `prove_wasm --oracle`, 8 `--bar` logic — all added in S34) |
 | `scripts/test_unit_32bit_long.sh` · `scripts/libc_parity/libc_parity.py --check` | ✅ unit suite **396/0** on a 4-byte `long` (RED with the 7 documented failures on the pre-fix `SettingsIO.h`) · `CHECK OK` — the N-32 finding re-asserted (RED when `random()` is left unpinned: 7/9) · `libc_parity.py --bar` **BAR OK 9/9** (and `--bar --against glibc`, the old bar, FAILS 6 of 9, as it must) |
 | `scripts/verify_audit.sh` | ✅ **34 PASS / 0 FAIL / 3 SKIP** (with pip's cmake on PATH; the 3 SKIPs are B = no Qt6, C1-C5 = Actions-only, D3/D4 = clean-Windows hardware) |
-| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **160/14/21/0 = 195** at S35; 158/11/26/0 at S34; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
+| `scripts/check_docs.sh` · `sweep_stale.sh` | ✅ green after `--emit` (register **177/6/13/0 = 196** at S37 (U-12 closed 2026-10-07); 163/11/21/0 at S36; 160/14/21/0 at S35; 158/11/26/0 at S34; 149/9/30/0 at S32 — historical); G18 kept true by the commit-as-you-go rule |
 | `.github/workflows/build.yml` (both copies, byte-identical) | ✅ GitHub workflow schema (`check-jsonschema`) and actionlint (`scripts/lint_workflow.mjs`, its wasm build) clean; the dedupe gate's 14-case table passes and three mutants are each killed by their own test; live on Actions: the push run 36983282655 ran only the gate (`skip=true`, the other five jobs skipped) and the `pull_request` run 36983286343 ran all six jobs green (`portability` 2.0 min: toolchain 8 s, 32-bit unit suite 69 s, wasm bar 38 s) |
 | Qt/GUI harness (`test_gui_offscreen`) | ⏳ no Qt6 here (cmake is pip-installable, Qt6 headers are not) — CI is the proof: run 36967608254 ran the linux and the Windows offscreen suites green |
 | Windows-only rows, wasm rows, CI log blobs | ⏳ no wine, no emcc, no Windows runner here (zig compiles Windows exes, nothing runs them) — Windows results are read from CI (run 36967608254 for the N-30 fix); a zig wasm32-wasi build of the engine does run under Node's WASI (N-32, no promotion); Actions log blobs are unreachable, but the jobs API and check-run annotations are — N-26 and N-30 were diagnosed that way |
@@ -892,10 +1067,15 @@ count (**G9** compares like with like).
   is blocked) but its WebAssembly build is on npm — `node
   working_code/gifscythe/scripts/lint_workflow.mjs` installs it on first use
   into `$TMPDIR` and runs it (`--selftest` proves it is really running).
-  **Still unavailable:** apt (mirror blocked), a Qt6 build (the PySide6
-  wheel ships Qt libraries but no headers), emcc, wine, dotnet,
+  **Still unavailable:** apt (mirror blocked), emcc, wine, dotnet,
   and the Actions **log blobs** (EOF at `results-receiver`) — but **check-run
   annotations and the jobs API are readable** (S34 bullet at the top).
+  **CORRECTED S36 — a Qt6 build IS possible here** (S35 wrote it off from
+  the PySide6 wheel, which ships Qt libraries but no headers). qtbase v6.8.3
+  builds from source with pip's cmake+ninja and bundled third-party libs;
+  `scripts/build_qt6_local.sh` is the committed recipe and its header carries
+  the two plugin targets a module build otherwise omits. The GUI harness then
+  compiles and runs offscreen in this sandbox — see the S36 section.
   **Persistence:** git state (HEAD, index, shallow depth) can reset between
   turns while the files persist, `/tmp` is wiped, and `build/` is excluded
   from snapshots. At turn start: `git status`, `git fetch --unshallow --tags
@@ -998,7 +1178,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 160 DONE · 14 PARTIAL · 21 OPEN · 0
+   its generated counts line (currently: 177 DONE · 6 PARTIAL · 13 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High

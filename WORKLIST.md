@@ -327,8 +327,15 @@ Still open from the audit intake (state lives in `STATUS.md`):
             **DONE (S28)** — all three comment/message truths corrected, and `run()`'s double-resolve is now an explicit `settleOnce` guard; the two transport assertions that pinned the old wording were re-pinned, not deleted.
       - [ ] **U-91** → **P3-17** — one shared exit-code contract (CLI vs C#
             spike collide on 3) + the spike's ReadExactly/quoting port traps.
-      - [ ] **U-96** → **P3-18** — stemOf dotfile/extensionless parity vs Qt
+      - [x] **U-96** → **P3-18** — stemOf dotfile/extensionless parity vs Qt
             completeBaseName (probe + one shared helper + fixtures).
+            **DONE (S37)** — the Qt 6.8.3 probe REFUTED the assumed semantics and
+            found the real divergence: Qt treats a LEADING dot as an extension
+            separator, so `.gif`/`.hidden` have an EMPTY stem, `..` -> `.`, `a.` ->
+            `a`; the shipping JS kept dotfiles whole. One helper (`web/stem.mjs`),
+            one measured table (`tests/stem_cases.txt`, 18 rows) read by both sides
+            (`web/test/stem.test.mjs` with four mutation legs; harness T25
+            re-measures on Qt), and the U-67 allow-list serves the new module.
       - [ ] **U-90** → **P3-19** — register the parked-plan scope (stills →
             animated, video endpoints) as gated rows + the PROJECT_VISION
             amendment proposal; no code until the owner adopts the words.
@@ -385,18 +392,32 @@ Still open from the audit intake (state lives in `STATUS.md`):
    these.
 4. **GS-203 / P1-25 GUI half** — wire the shared output verifier into the Qt
    run lifecycle (execution detail: `docs/planning/PLANNING.md` §4).
-5. **The Qt/platform rows** — U-12 (P1-24 async state machine), U-59's GUI
-   half, DS-10, GS-205, and the three rows S35 moved to PARTIAL: U-58 (P1-38
-   batch settings snapshot), U-70/U-72 (P1-42). **S35 landed the source fix for
-   all three but could not prove any of them** (no cmake/Qt6 in the sandbox), so
-   each row names the behavioural case that is still unwritten — write those
-   cases on a Qt-enabled runner before flipping them to FIXED. **U-71 (P2-17) is
+5. **The Qt/platform rows** — U-12 (P1-24 async state machine) and U-59's GUI
+   half. **DS-10 (P3-11) and GS-205 (P1-27) are CLOSED (S37)**, each with an
+   executed proof: disposal 4..7 are selectable and reach the argv (harness T13),
+   and one `gs::admit_input()` rule refuses directories/renamed JPEGs/missing
+   paths with a named reason while admitting a GIF with an odd extension (its own
+   Qt-free suite, 35 checks, run by `build.sh`, plus harness T8). **The three rows S35 left PARTIAL are CLOSED (S36):**
+   U-58 (P1-38), U-70 and U-72 (P1-42) are FIXED — Qt6 is buildable in this
+   sandbox after all (`scripts/build_qt6_local.sh`; the S35 "no Qt6 here" note
+   was a provisioning mistake), and the behavioural cases the rows named now
+   exist and run: T22/T23/T24 in `tests/test_gui_offscreen.cpp` (405/0 at S36; 436/0 at S37),
+   T24 RED on the real `0005`-reversed tree, T22 red against both plausible
+   wrong fixes. U-70 and U-72 also carry CI-enforced source sentinels
+   (`scripts/test_u58_u70_u72_sentinels.sh`, S1/S2/S3 + four mutation legs,
+   wired into `build.yml`) — read the S36 rows before touching either row, and
+   note that **U-72's late-`finished()` race is not constructible on Qt 6.8.3**
+   (the record says so instead of claiming a red harness). **U-71 (P2-17) is
    CLOSED (S35)**: GN-14 was right that the mask rule is a pure function, so it
    needed no VM — `scripts/test_u71_exit_codes.sh` ran green at both `long`
    widths (host c++, and `x86-linux-musl` where `sizeof(long)==4`) plus native
    `g++` on the windows job. **U-57 (P1-37) is CLOSED (S35)** on
    `node web/test/u57-stale-output.test.mjs`; the wasm TRACK itself stays not
    shippable (OD-16 / N-32) — closing a correctness finding is not a promotion.
+   **Still unprovable from here, named in the rows:** any legacy-ACP host (the CI
+   Windows runner measured T23's premise as toolchain-dependent — its bare
+   conversion works there — so U-70's discriminating proof is the source
+   sentinel, not behaviour), and real-machine Windows smoke (W-18/W-19).
 6. **The S24 web-intake batch** — P1-44 first (U-78/U-87, closed S26), then the
    P2/P3 rows above; all are provable with node alone except where noted.
    **S28 closed the node/CLI batch**: U-92/P2-19, U-93/P2-20, U-85/P3-13,
@@ -405,9 +426,10 @@ Still open from the audit intake (state lives in `STATUS.md`):
    U-88/P2-21 + U-89/P2-22 (they edit gate logic, so they are R1 work and need
    mutation testing).
 7. **Owner decisions** — `docs/planning/OWNER_DECISIONS.md`: remaining
-   OD-03…OD-07, OD-10, OD-13…OD-16, OD-18 (OD-16 blocks `web/wasm/`;
-   OD-18 blocks closing U-76). Version decision (0.2.0 vs 1.0.0) last, per
-   `OD-11 = a`.
+   OD-03…OD-07, OD-10, OD-13…OD-16 (OD-16 blocks `web/wasm/`). **OD-18 was
+   answered `= a` in S37** — the un-prefixed CLI explode keeps writing into the
+   CWD, documented and tested, which closed U-76. Version decision (0.2.0 vs
+   1.0.0) last, per `OD-11 = a`.
 8. WebP/APNG stay blocked until all of the above ships (D-01..D-04).
 
 ## Deferred bucket list — after GIF `1.0.0`

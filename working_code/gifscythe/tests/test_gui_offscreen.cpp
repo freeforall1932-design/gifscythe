@@ -45,6 +45,19 @@
 //       clearing the queue or switching to Explode invalidates the in-flight
 //       preview, and superseded/stale preview files are swept from the
 //       temp dir instead of leaking for the session
+//   T21 explode cancel honesty (N-10): a cancelled Explode says frames
+//       already written may be incomplete; a guarded mode keeps the flat
+//       "Cancelled."
+//   T22 cancel-latch honesty (U-72 / P1-42): an idle Cancel arms nothing, a
+//       cancelled run's own completion consumes the latch (no spurious
+//       failure dialog), and the NEXT genuine failure still surfaces - the
+//       "one completion, one consumption" contract the fix names
+//   T23 non-ASCII engine path (U-70 / P1-42): GS_ENGINE under a non-ASCII
+//       directory survives the u8path_compat boundary, so the preview
+//       re-probe finds the engine and the debounced preview runs
+//   T24 mid-batch settings mutation (U-58 / P1-38): a control changed between
+//       batch job 1 and job 2 does not change job 2's argv - the batch-start
+//       settings snapshot, proven from the fixture's argv log
 //
 // Modal dialogs are recorded and auto-closed by a DialogKiller timer.
 // Widget lookup is by objectName (stable against layout changes).
@@ -61,9 +74,11 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDateTime>
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
 #include <QIODevice>
@@ -88,7 +103,14 @@
 
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
+// S37 (windows CI red at the GUI BUILD step): T25 reads tests/stem_cases.txt with
+// std::ifstream, and <fstream> was being pulled in TRANSITIVELY on Linux. MinGW's
+// libstdc++ does not do that, so the file must be included explicitly — a
+// platform difference in the include graph, not in the code. (Same lesson as the
+// T23 premise: what compiles here is not what compiles everywhere.)
+#include <fstream>
 #include <thread>
 #include <string>
 #include <vector>
@@ -229,6 +251,17 @@ void spinEvents(int ms) {
 }
 
 // ---- File / engine helpers ----
+// Absolute path of a CMake-built fixture: built next to the harness, ".exe" on
+// Windows. Same convention as the inline lookups in T7/T8.
+QString fixturePath(const char* base) {
+  QString p = QCoreApplication::applicationDirPath() + QLatin1Char('/')
+            + QString::fromLatin1(base);
+#ifdef _WIN32
+  p += QStringLiteral(".exe");
+#endif
+  return p;
+}
+
 QString g_engine;
 QString g_refDir;
 
@@ -299,6 +332,86 @@ QString rowPath(DropListWidget* list, int row) {
   return item ? item->data(Qt::UserRole).toString() : QString();
 }
 
+
+// ---- fixture argv log + Unicode-env helpers (T22/T23/T24) ----------------
+
+// Set an environment variable from a QString so a NON-ASCII value keeps its
+// meaning on Windows. qputenv() takes BYTES whose encoding is CRT-defined,
+// while the core reads GS_ENGINE through GetEnvironmentVariableW -> UTF-8
+// (gs::win_getenv_utf8, WinUnicode.h); _wputenv_s() writes the exact UTF-16
+// value, which is what a user setting the variable natively produces. On
+// POSIX the raw bytes ARE the value, so hand over UTF-8.
+void setEnvU8(const char* name, const QString& value) {
+#ifdef _WIN32
+  const std::wstring wname = QString::fromLatin1(name).toStdWString();
+  const std::wstring wvalue = value.toStdWString();
+  _wputenv_s(wname.c_str(), wvalue.c_str());
+#else
+  qputenv(name, value.toUtf8());
+#endif
+}
+
+// Poll a file's contents (processEvents + short sleeps), used to wait for the
+// argv-logging fixture's FIRST line — i.e. proof that batch job 1 is running.
+bool waitForFileText(const QString& path, const QString& needle, int timeoutMs) {
+  QElapsedTimer el;
+  el.start();
+  while (el.elapsed() < timeoutMs) {
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    QThread::msleep(2);
+    QFile f(path);
+    if (f.open(QIODevice::ReadOnly)) {
+      const bool hit = QString::fromUtf8(f.readAll()).contains(needle);
+      f.close();
+      if (hit) return true;
+    }
+  }
+  return false;
+}
+
+// Lines of the fixture's argv log that belong to a BATCH job: the GUI writes
+// batch/merge/single output through "<target>.gs-partial" (U-59), so that
+// marker is unique to those runs — previews write preview_<seq>.gif under the
+// temp dir and therefore never match.
+QStringList batchRunLines(const QString& logPath) {
+  QStringList out;
+  QFile f(logPath);
+  if (!f.open(QIODevice::ReadOnly)) return out;
+  const QStringList lines =
+      QString::fromUtf8(f.readAll()).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+  for (const auto& line : lines) {
+    if (line.contains(QStringLiteral(".gs-partial"))) out << line;
+  }
+  return out;
+}
+
+// Wait until the argv log holds `expected` main-run lines (batch/merge/single
+// all write through "<target>.gs-partial", so preview runs never count).
+// T22 uses this to prove a run really reached the engine before clicking
+// Cancel, and that the run after the cancel reached it too.
+bool waitForBatchRuns(const QString& logPath, int expected, int timeoutMs) {
+  QElapsedTimer el;
+  el.start();
+  while (el.elapsed() < timeoutMs) {
+    if (batchRunLines(logPath).size() >= expected) return true;
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    QThread::msleep(2);
+  }
+  return batchRunLines(logPath).size() >= expected;
+}
+
+// The flags (tokens starting with '-') of one logged argv line. Comparing
+// flag lists instead of whole lines ignores the per-job input/output paths,
+// which is exactly the settings surface U-58 is about.
+QStringList flagTokens(const QString& line) {
+  QStringList out;
+  const QStringList toks = line.split(QLatin1Char('\t'), Qt::SkipEmptyParts);
+  for (const auto& t : toks) {
+    if (t.startsWith(QLatin1Char('-'))) out << t;
+  }
+  return out;
+}
+
 }  // namespace
 
 // Stage tracker + watchdog: on Windows CI the harness once hung with ZERO
@@ -306,6 +419,46 @@ QString rowPath(DropListWidget* list, int row) {
 // before QApplication exists, so even a hang inside platform-plugin init
 // reports where we got stuck, then exits 124 instead of burning CI hours.
 static std::string g_stage = "process start";
+
+// ---- U-12 / P1-24 (S37): event-loop heartbeat -------------------------------
+//
+// The claim under test is "the GUI blocks the UI thread". The only honest way to
+// measure that from inside the process is to watch the event loop: a 10 ms timer
+// records the gap between consecutive ticks, and a blocking wait inside any slot
+// shows up as an oversized gap (no tick can fire while the loop is not running).
+// The metric is therefore maxGap, in ms.
+struct Heartbeat {
+  QTimer* timer = nullptr;
+  qint64 last = 0;
+  qint64 maxGap = 0;
+};
+Heartbeat g_hb;
+
+void heartbeatStart(QObject* parent) {
+  g_hb.timer = new QTimer(parent);
+  g_hb.timer->setInterval(10);
+  g_hb.last = QDateTime::currentMSecsSinceEpoch();
+  QObject::connect(g_hb.timer, &QTimer::timeout, [] {
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    const qint64 gap = now - g_hb.last;
+    if (gap > g_hb.maxGap) g_hb.maxGap = gap;
+    g_hb.last = now;
+  });
+  g_hb.timer->start();
+}
+
+// Start measuring: a fresh window, so a gap from an earlier leg cannot leak in.
+void heartbeatReset() {
+  g_hb.maxGap = 0;
+  g_hb.last = QDateTime::currentMSecsSinceEpoch();
+}
+
+// Keep the loop running for ms, so the timer can observe (and report) the gap.
+void heartbeatSettle(int ms) {
+  QElapsedTimer t;
+  t.start();
+  while (t.elapsed() < ms) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+}
 
 int main(int argc, char** argv) {
   setbuf(stdout, nullptr);  // unbuffered: crash diagnostics keep our trace
@@ -700,9 +853,12 @@ int main(int argc, char** argv) {
   {
     g_stage = "T8"; std::printf("== T8 failure honesty ==\n");
     QTemporaryDir tmp;
-    // The engine must fail, so the file has to exist and be readable — the
-    // drop filter (audit U-13) is now ".gif" AND exists, so a merely
-    // nonexistent path can no longer be used to reach the failure path.
+    // GS-205 / P1-27 (S37): admission is now ONE rule (gs::admit_input) for the
+    // picker and the drop, and it looks at the BYTES. A .gif-suffixed file whose
+    // content is not a GIF is refused at queue time — the old harness relied on
+    // exactly that file to reach the engine-failure path, which is why this case
+    // now asserts the refusal FIRST and then produces a genuine failed RUN with
+    // a real GIF and an output the engine cannot write.
     const QString ghost = tmp.path() + QStringLiteral("/ghost.gif");
     {
       QFile f(ghost);
@@ -713,12 +869,26 @@ int main(int argc, char** argv) {
 
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
-    dropFiles(w, {ghost});  // exists + .gif suffix passes the drop filter
-    CHECK(x.list->count() == 1);
+    dropFiles(w, {ghost});
+    CHECK_MSG(x.list->count() == 0,
+              "a .gif whose bytes are not a GIF is refused at admission (GS-205)");
+    CHECK_MSG(x.status->text().contains(QStringLiteral("Refused")) &&
+                  x.status->text().contains(QStringLiteral("not-gif")),
+              ("the refusal is NAMED in the status line, not silent: " +
+               x.status->text().toStdString()).c_str());
 
-    // U-13 regression: the filter used to be `endsWith(".gif") || exists(f)`,
-    // which queued ANY existing file (.exe, .jpg, .txt) and let it fail only
-    // at run time. Both halves must hold now.
+    // A DIRECTORY must be refused too: the old drop filter's exists() said yes
+    // to folders (GS-205's exact complaint). This uses a real subdirectory.
+    const QString folderGif = tmp.path() + QStringLiteral("/folder.gif");
+    CHECK(QDir().mkpath(folderGif));
+    dropFiles(w, {folderGif});
+    CHECK_MSG(x.list->count() == 0, "a dropped directory is refused (not-a-file)");
+    CHECK_MSG(x.status->text().contains(QStringLiteral("not-a-file")),
+              ("the directory refusal names the reason: " +
+               x.status->text().toStdString()).c_str());
+
+    // U-13 regression, kept: a file that is neither a GIF by name nor by bytes
+    // is refused, and a nonexistent path is refused as 'missing'.
     const QString notGif = tmp.path() + QStringLiteral("/notes.txt");
     {
       QFile f(notGif);
@@ -726,10 +896,24 @@ int main(int argc, char** argv) {
       f.write("hello");
       f.close();
     }
-    dropFiles(w, {notGif});                                    // exists, not .gif
-    CHECK_MSG(x.list->count() == 1, "existing non-.gif file is rejected by the drop filter");
-    dropFiles(w, {tmp.path() + QStringLiteral("/missing.gif")});  // .gif, absent
-    CHECK_MSG(x.list->count() == 1, "nonexistent .gif is rejected by the drop filter");
+    dropFiles(w, {notGif});
+    CHECK_MSG(x.list->count() == 0, "existing non-.gif file is refused");
+    dropFiles(w, {tmp.path() + QStringLiteral("/missing.gif")});
+    CHECK_MSG(x.list->count() == 0, "nonexistent .gif is refused as missing");
+    CHECK_MSG(x.status->text().contains(QStringLiteral("missing")),
+              "the missing-file refusal names it");
+
+    // A real GIF with a NON-GIF name is admitted — the bytes decide (GS-205).
+    const QString reallyGif = tmp.path() + QStringLiteral("/payload.notgif");
+    CHECK(copyFile(logo, reallyGif));
+    dropFiles(w, {reallyGif});
+    CHECK_MSG(x.list->count() == 1, "a GIF with an unusual extension IS admitted (bytes decide)");
+    dropFiles(w, {ghost});
+    CHECK_MSG(x.list->count() == 1, "the refused file still did not enter the queue");
+
+    // Now a genuine failed RUN: real GIF input, output inside a directory that
+    // does not exist, so the real engine exits nonzero.
+    x.output->setText(tmp.path() + QStringLiteral("/no-such-dir/out.gif"));
     g_dialogs.clear();
     x.run->click();
     CHECK_MSG(waitForStatus(w, QStringLiteral("failed")), "failed run says failed");
@@ -907,6 +1091,27 @@ int main(int argc, char** argv) {
     disposalCombo->setCurrentIndex(3);  // background (2)
     setAndWait();
     CHECK(paneText().contains(QStringLiteral("--disposal 2")));
+
+    // DS-10 / P3-11 (S37): 4..7 are reachable. The engine's DISPOSAL_TYPE
+    // parser accepts every value 0..7 and web/validate.mjs admits 0..7, but the
+    // desktop picker stopped at 3 — so a session exported from the web could
+    // not be represented here. Each reserved value must select AND emit.
+    for (int d = 4; d <= 7; ++d) {
+      const int idx = disposalCombo->findData(d);
+      CHECK_MSG(idx >= 0, ("disposal " + std::to_string(d) + " is selectable (DS-10)").c_str());
+      if (idx < 0) continue;
+      disposalCombo->setCurrentIndex(idx);
+      setAndWait();
+      CHECK_MSG(paneText().contains(QStringLiteral("--disposal %1").arg(d)),
+                ("disposal " + std::to_string(d) + " reaches the command line").c_str());
+    }
+    // The -1 sentinel is still "Keep original" and still emits no flag.
+    const int keepIdx = disposalCombo->findData(-1);
+    CHECK_MSG(keepIdx >= 0, "the -1 sentinel item still exists");
+    disposalCombo->setCurrentIndex(keepIdx);
+    setAndWait();
+    CHECK_MSG(!paneText().contains(QStringLiteral("--disposal")),
+              "Keep original emits no --disposal flag");
 
     auto* threadsSpin = byName<QSpinBox>(w, "threadsSpin");
     threadsSpin->setValue(2);
@@ -1780,6 +1985,512 @@ int main(int argc, char** argv) {
     CHECK_MSG(x2.status->text().trimmed() == QStringLiteral("Cancelled."),
               "a guarded mode still reports a flat 'Cancelled.'");
     delete w2;
+  }
+
+
+  // =========== T22: cancel-latch honesty (U-72 / P1-42) ==================
+  //
+  // The finding: cancelRun() armed `cancelling_`, killed the engine, waited
+  // up to 3 s and then CLEARED the flag unconditionally. A finished()
+  // delivered after that clear - the wait timing out, or a notification
+  // queued but not yet dispatched - took the failure branch and popped
+  // "Optimization failed" immediately after "Cancelled.". The fix makes the
+  // flag a LATCH: armed only when a process was ACTUALLY running, consumed
+  // exactly once by onProcessFinished.
+  //
+  // What is provable offscreen, and why (read before "improving" this case):
+  // Qt emits finished() SYNCHRONOUSLY from QProcessPrivate::processFinished()
+  // and QProcessPrivate::waitForFinished() calls it directly when forkfd
+  // reports death (qtbase v6.8.3, src/corelib/io/qprocess.cpp and
+  // qprocess_unix.cpp). A child killed by kill() is therefore always
+  // delivered INSIDE cancelRun()'s wait, and the timeout leg would need a
+  // child SIGKILL cannot reap - not constructible with a normal fixture
+  // (SIGKILL is final). So this case pins the two halves that ARE
+  // deterministic: an idle Cancel arms nothing, and a cancelled run's own
+  // completion consumes the latch instead of leaking it into the next run.
+  // The pre-fix shape ("cleared right after the wait") is enforced by
+  // scripts/test_u58_u72_sentinels.sh, which fails against the pre-fix source.
+  {
+    g_stage = "T22"; std::printf("== T22 cancel-latch honesty (U-72) ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a));
+
+    const QString fake = fixturePath("fake_engine_argv_sleep");
+    CHECK_MSG(QFileInfo::exists(fake), "slow fixture built next to the harness");
+    const QString argvLog = tmp.path() + QStringLiteral("/argv.log");
+    const QByteArray origEngine = qgetenv("GS_ENGINE");
+    const QByteArray origLog = qgetenv("GS_FAKE_ARGV_LOG");
+    const QByteArray origSleep = qgetenv("GS_FAKE_SLEEP_MS");
+    const QByteArray origExit = qgetenv("GS_FAKE_EXIT");
+    setEnvU8("GS_ENGINE", fake);
+    qputenv("GS_FAKE_ARGV_LOG", QFile::encodeName(argvLog));
+
+    // (a) idle Cancel: must arm nothing — and the NEXT genuine failure in the
+    // SAME window must still surface. The window is shared on purpose: if the
+    // idle Cancel armed the latch unconditionally (the plausible wrong fix),
+    // this failure would be swallowed, so a fresh window could not tell.
+    qputenv("GS_FAKE_SLEEP_MS", "0");
+    qputenv("GS_FAKE_EXIT", "7");
+    {
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      dropFiles(w, {a});
+      CHECK_MSG(byName<DropListWidget>(w, "queueList")->count() == 1,
+                "the queue row survives an idle Cancel (the next run has input)");
+      g_dialogs.clear();
+      x.cancel->setEnabled(true);  // the idle cancel button is disabled by design
+      x.cancel->click();
+      spinEvents(120);
+      CHECK_MSG(x.status->text().contains(QStringLiteral("Cancelled")),
+                "idle Cancel reports Cancelled");
+      CHECK_MSG(g_dialogs.empty(), "idle Cancel arms nothing (no failure dialog)");
+      g_dialogs.clear();
+      x.run->click();
+      CHECK_MSG(waitForStatus(w, QStringLiteral("failed"), 30000),
+                "a genuine failure after an idle Cancel still reports failed");
+      CHECK_MSG(dialogsContain(QStringLiteral("exit 7")),
+                "the idle Cancel did not swallow the next genuine failure");
+      CHECK(x.process->state() == QProcess::NotRunning);
+      CHECK(x.run->isEnabled());
+      CHECK(!x.cancel->isEnabled());
+      delete w;
+    }
+
+    // (b) cancel a run whose engine is REALLY running, then fail again in the
+    // SAME window: one completion, one consumption. Simply KEEPING the latch
+    // (the naive fix for the early clear) would leave it armed here, so the
+    // second run would report "Cancelled" and swallow its "exit 9" dialog.
+    qunsetenv("GS_FAKE_EXIT");
+    // 3 s, not 0.9: the case needs the engine PROVABLY alive when Cancel is
+    // pressed, and a loaded Windows runner schedules the harness's poll loop
+    // slowly enough to close a 0.9 s window. Cancel still ends it immediately.
+    qputenv("GS_FAKE_SLEEP_MS", "3000");
+    {
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      dropFiles(w, {a});
+      const int runsBefore = batchRunLines(argvLog).size();
+      g_dialogs.clear();
+      x.run->click();
+      CHECK_MSG(waitForBatchRuns(argvLog, runsBefore + 1, 15000),
+                "the main run really reached the engine (argv log)");
+      CHECK_MSG(x.process->state() == QProcess::Running,
+                "engine genuinely running when Cancel is pressed");
+      x.cancel->click();
+      CHECK_MSG(waitForStatus(w, QStringLiteral("Cancelled"), 10000),
+                "cancelled run reports Cancelled");
+      spinEvents(400);  // a queued/late delivery, if any, lands in here
+      CHECK_MSG(g_dialogs.empty(), "a cancelled run shows no failure dialog");
+      CHECK(x.process->state() == QProcess::NotRunning);
+      CHECK(!x.cancel->isEnabled());
+      CHECK(x.run->isEnabled());
+      CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));
+
+      qputenv("GS_FAKE_SLEEP_MS", "0");
+      qputenv("GS_FAKE_EXIT", "9");
+      const int afterCancel = batchRunLines(argvLog).size();
+      g_dialogs.clear();
+      x.run->click();
+      CHECK_MSG(waitForStatus(w, QStringLiteral("failed"), 30000),
+                "post-cancel genuine failure still reports failed "
+                "(latch consumed, not kept)");
+      CHECK_MSG(dialogsContain(QStringLiteral("exit 9")),
+                "the latch did not outlive the cancelled run "
+                "(no swallowed failure)");
+      CHECK_MSG(waitForBatchRuns(argvLog, afterCancel + 1, 15000),
+                "the second run really reached the engine (argv log)");
+      delete w;
+    }
+
+    if (origEngine.isNull()) qunsetenv("GS_ENGINE");
+    else qputenv("GS_ENGINE", origEngine);
+    if (origLog.isNull()) qunsetenv("GS_FAKE_ARGV_LOG");
+    else qputenv("GS_FAKE_ARGV_LOG", origLog);
+    if (origSleep.isNull()) qunsetenv("GS_FAKE_SLEEP_MS");
+    else qputenv("GS_FAKE_SLEEP_MS", origSleep);
+    if (origExit.isNull()) qunsetenv("GS_FAKE_EXIT");
+    else qputenv("GS_FAKE_EXIT", origExit);
+  }
+
+  // =========== T23: non-ASCII engine path (U-70 / P1-42) =================
+  //
+  // The finding: startPreview()'s engine re-probe passed
+  // enginePath_.toStdString() straight into path_is_executable(). On Windows
+  // that implicit std::string -> fs::path conversion goes through the
+  // toolchain's narrow encoding (bytewise widening with MinGW libstdc++ -
+  // WinUnicode.h documents the verification), so the UTF-8 bytes of a
+  // non-ASCII directory named a path that does not exist and the preview said
+  // "engine not found - preview unavailable". ensureEngine() already obeyed
+  // the u8path_compat rule; the preview re-probe now does too.
+  //
+  // Teeth: on POSIX the two conversions are identical (narrow strings ARE the
+  // native filename bytes) and on the CI Windows toolchain the bare form also
+  // resolves correctly (measured - see the printout below), so NO runner this
+  // repo has can tell the wrapped call from the bare one by behaviour. The
+  // platform-independent discrimination is the source sentinel
+  // (scripts/test_u58_u70_u72_sentinels.sh S3); this case is the end-to-end
+  // proof that the preview really reaches an engine under a non-ASCII path.
+  {
+    g_stage = "T23"; std::printf("== T23 non-ASCII engine path (U-70) ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    CHECK(copyFile(logo, a));
+
+    const QString dir = tmp.path() + QStringLiteral("/\u00fcn\u00efcode-\u65e5\u672c\u8a9e-\u03a9-engine");
+    CHECK_MSG(QDir().mkpath(dir), "non-ASCII engine directory created");
+    const QString engineCopy = dir + QStringLiteral("/gifsicle-test-engine");
+#ifdef _WIN32
+    const QString exeCopy = engineCopy + QStringLiteral(".exe");
+#else
+    const QString& exeCopy = engineCopy;
+#endif
+    CHECK_MSG(copyFile(g_engine, exeCopy), "engine copied under the non-ASCII directory");
+    QFile::setPermissions(exeCopy, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner |
+                                      QFile::ReadGroup | QFile::ExeGroup |
+                                      QFile::ReadOther | QFile::ExeOther);
+    const std::string engineUtf8 = exeCopy.toStdString();  // QString::toStdString is UTF-8
+#ifdef _WIN32
+    // The bare std::string -> fs::path conversion on Windows either resolves to
+    // a name that does not exist (bytewise widening, MinGW libstdc++) or throws
+    // (codecvt failure) — the finding's own text says "throws or splits", so a
+    // guard that only handles the first mode would abort the harness with an
+    // uncaught exception on the second. Both mean the same thing: the bare form
+    // does not find the file.
+    // MEASUREMENT, not an assertion - and the first Windows CI run of this case
+    // is why. The finding was filed on the premise that the bare form cannot
+    // find a non-ASCII path on Windows; measured on the windows runner
+    // (MinGW GCC 13.1, x86_64-posix-seh) the bare conversion RESOLVES the file
+    // correctly, so the premise is toolchain-dependent, not universal. The
+    // bytewise-widening behaviour WinUnicode.h records is real (it was measured
+    // under Wine with gcc 12-win32) but it is not what this runner does, and
+    // asserting it here turned the whole job red for a reason the case was not
+    // about. So: report which mode this host is in, and let the source sentinel
+    // (platform-independent by construction) carry the discrimination.
+    bool bareProbe = false;
+    const char* bareMode = "resolution";
+    try {
+      bareProbe = gs::path_is_executable(fs::path(engineUtf8));
+    } catch (const std::exception& e) {
+      bareMode = "throw";
+      std::printf("  (bare conversion THREW: %s)\n", e.what());
+      bareProbe = false;
+    }
+    std::printf("  (measured here: the bare fs::path(std::string) conversion %s "
+                "the non-ASCII engine - %s mode; the wrapped call below is what "
+                "the fix guarantees)\n",
+                bareProbe ? "RESOLVES" : "does not resolve", bareMode);
+#endif
+    CHECK_MSG(gs::path_is_executable(gs::u8path_compat(engineUtf8)),
+              "the u8path_compat boundary resolves the non-ASCII engine path");
+
+    const QByteArray origEngine = qgetenv("GS_ENGINE");
+    setEnvU8("GS_ENGINE", exeCopy);
+    {
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      CHECK_MSG(x.status->text().contains(QStringLiteral("engine")),
+                "window located the engine through GS_ENGINE");
+      // Distinguishes "the environment did not take" from "the preview path is
+      // broken" on Windows, where getenv/setenv go through the ANSI/Unicode
+      // boundary itself. Self-reporting on failure: print what it actually saw.
+      if (!x.status->text().contains(QStringLiteral("gifsicle-test-engine"))) {
+        std::printf("  (status says: %s)\n", qPrintable(x.status->text()));
+      }
+      CHECK_MSG(x.status->text().contains(QStringLiteral("gifsicle-test-engine")),
+                "the engine in use IS the copy under the non-ASCII directory");
+      dropFiles(w, {a});  // appendInputs selects row 0 -> debounced preview
+      CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("\u2192"), 25000),
+                "debounced preview RAN with a non-ASCII engine path (U-70 site)");
+      CHECK_MSG(!x.previewCaption->text().contains(QStringLiteral("engine not found")),
+                "no false 'engine not found' from the preview re-probe");
+      delete w;
+    }
+    if (origEngine.isNull()) qunsetenv("GS_ENGINE");
+    else qputenv("GS_ENGINE", origEngine);
+  }
+
+  // =========== T24: mid-batch settings mutation (U-58 / P1-38) ===========
+  //
+  // The finding: the batch plan (targets AND the collision-checked settings)
+  // was computed once, but every continuation job (runs 2..N) rebuilt its
+  // argv from a LIVE currentSettings() re-read, so a control changed between
+  // completions silently rewrote the rest of the batch while the UI still
+  // showed the old plan. The fixture logs each run's argv, so the case can
+  // compare what job 1 and job 2 actually ran.
+  //
+  // Teeth, in one run: the mutation is asserted to be LIVE (the command pane
+  // and currentSettings() both render -O2 afterwards), so the only reason job
+  // 2 can still carry -O3 is the batch-start snapshot. Without it, job 2's
+  // argv is rebuilt from the mutated panel and the -O3 assertion fails.
+  {
+    g_stage = "T24"; std::printf("== T24 mid-batch settings mutation (U-58) ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    const QString b = tmp.path() + QStringLiteral("/b.gif");
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+
+    const QString fake = fixturePath("fake_engine_argv_sleep");
+    CHECK_MSG(QFileInfo::exists(fake), "slow fixture built next to the harness");
+    const QString argvLog = tmp.path() + QStringLiteral("/argv.log");
+    const QByteArray origEngine = qgetenv("GS_ENGINE");
+    const QByteArray origLog = qgetenv("GS_FAKE_ARGV_LOG");
+    const QByteArray origSleep = qgetenv("GS_FAKE_SLEEP_MS");
+    const QByteArray origExit = qgetenv("GS_FAKE_EXIT");
+    setEnvU8("GS_ENGINE", fake);
+    qputenv("GS_FAKE_ARGV_LOG", QFile::encodeName(argvLog));
+    qputenv("GS_FAKE_SLEEP_MS", "900");
+    qunsetenv("GS_FAKE_EXIT");
+    {
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      dropFiles(w, {a, b});
+      CHECK_MSG(x.optimize->value() == 3, "batch starts at the default -O3");
+      g_dialogs.clear();
+      x.run->click();
+      CHECK_MSG(waitForFileText(argvLog, QStringLiteral(".gs-partial"), 15000),
+                "batch job 1 reached the fixture (argv logged)");
+      CHECK_MSG(x.process->state() == QProcess::Running,
+                "job 1 still running when the control is mutated");
+      x.optimize->setValue(2);  // the mid-batch mutation
+      spinEvents(30);
+      CHECK_MSG(waitForStatus(w, QStringLiteral("complete"), 60000),
+                "batch completes after the mid-batch mutation");
+      CHECK_MSG(g_dialogs.empty(), "the mid-batch mutation raised no dialog");
+      CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));
+      CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/b_opt.gif")));
+
+      const QStringList runs = batchRunLines(argvLog);
+      CHECK_MSG(runs.size() >= 2, "the fixture logged both batch jobs");
+      if (runs.size() >= 2) {
+        const QStringList flags1 = flagTokens(runs.at(0));
+        const QStringList flags2 = flagTokens(runs.at(1));
+        CHECK_MSG(flags1.contains(QStringLiteral("-O3")), "job 1 ran the batch-start -O3");
+        CHECK_MSG(flags2.contains(QStringLiteral("-O3")),
+                  "job 2 ran the BATCH-START -O3, not the mutated -O2");
+        CHECK_MSG(!flags2.contains(QStringLiteral("-O2")),
+                  "job 2 does not carry the mid-batch mutation");
+        CHECK_MSG(flags2 == flags1, "job 2's flags equal job 1's for the whole batch");
+      } else {
+        CHECK_MSG(false, "both batch jobs were logged (cannot compare argv)");
+      }
+      // Vacuity guard: the mutation really took effect in the live settings,
+      // so the snapshot is what held the batch together.
+      CHECK_MSG(x.pane->toPlainText().contains(QStringLiteral("-O2")),
+                "the mutated -O2 is live in the command pane after the batch");
+      const gs::Settings live = w->currentSettings();
+      CHECK_MSG(live.optimize_level == 2, "currentSettings() reports the mutated -O2");
+      delete w;
+    }
+    if (origEngine.isNull()) qunsetenv("GS_ENGINE");
+    else qputenv("GS_ENGINE", origEngine);
+    if (origLog.isNull()) qunsetenv("GS_FAKE_ARGV_LOG");
+    else qputenv("GS_FAKE_ARGV_LOG", origLog);
+    if (origSleep.isNull()) qunsetenv("GS_FAKE_SLEEP_MS");
+    else qputenv("GS_FAKE_SLEEP_MS", origSleep);
+    if (origExit.isNull()) qunsetenv("GS_FAKE_EXIT");
+    else qputenv("GS_FAKE_EXIT", origExit);
+  }
+
+  // ========== T25: web/desktop naming parity (U-96 / P3-18) ===============
+  //
+  // The web's `stemOf` decides the names the browser and the server write
+  // (`<stem>_opt.gif`, `<stem>_frame`); the desktop's rule is Qt's
+  // QFileInfo::completeBaseName() (MainWindow.cpp). U-96's finding was that the
+  // rule was hand-duplicated in JS and its dotfile/extensionless boundary was
+  // never pinned against Qt — and the measurement shows the old hand-written
+  // rule really did disagree: for a name ending in a dot ("trailing.") it
+  // stripped the dot, while Qt keeps it (the suffix is empty, so there is no
+  // extension). The web would have written `trailing_opt.gif` where the desktop
+  // writes `trailing._opt.gif`.
+  //
+  // One table (tests/stem_cases.txt) is read by BOTH sides — this case below
+  // and web/test/stem.test.mjs — so neither surface can drift without the other
+  // going red. This is the Qt half: it re-measures every row on the running Qt
+  // and proves the products' naming path (`completeBaseName` + the suffixes the
+  // GUI appends) lands on the table's stems.
+  {
+    g_stage = "T25"; std::printf("== T25 web/desktop naming parity (U-96) ==\n");
+    const fs::path table = fs::path(__FILE__).parent_path() / "stem_cases.txt";
+    CHECK_MSG(fs::exists(table), "tests/stem_cases.txt exists next to the harness");
+    int rows = 0;
+    int mismatches = 0;
+    std::string firstBad;
+    std::ifstream in(gs::u8path_compat(table.string()));
+    CHECK_MSG(static_cast<bool>(in), "tests/stem_cases.txt opens");
+    std::string line;
+    while (std::getline(in, line)) {
+      if (line.empty() || line[0] == '#') continue;
+      const size_t tab = line.find('\t');
+      if (tab == std::string::npos) continue;
+      const std::string name = line.substr(0, tab);
+      const std::string want = line.substr(tab + 1);
+      ++rows;
+      // The rule the DESKTOP uses — measured here, on this Qt, not read from
+      // the table: if Qt's semantics ever change, this is where it shows.
+      const QString got = QFileInfo(QString::fromUtf8(name.c_str())).completeBaseName();
+      if (got.toUtf8().toStdString() != want) {
+        ++mismatches;
+        if (firstBad.empty())
+          firstBad = name + " -> Qt says \"" + got.toStdString() + "\", the shared table says \"" + want + "\"";
+      }
+      // And the naming the GUI actually builds: completeBaseName() + "_opt.gif"
+      // or "_frame" (MainWindow.cpp). Both suffixes are checked against the
+      // table stem, so a change to the append site is caught too.
+      const std::string opt = got.toUtf8().toStdString() + "_opt.gif";
+      const std::string frame = got.toUtf8().toStdString() + "_frame";
+      if (opt != want + "_opt.gif" || frame != want + "_frame") {
+        ++mismatches;
+        if (firstBad.empty()) firstBad = name + " -> desktop suffix naming diverged";
+      }
+    }
+    CHECK_MSG(rows >= 10, "the shared naming table has at least 10 measured rows");
+    CHECK_MSG(mismatches == 0,
+              ("every shared naming row matches Qt's completeBaseName" +
+               (firstBad.empty() ? std::string() : (": " + firstBad))).c_str());
+    std::printf("  (checked %d shared naming rows against Qt %s)\n", rows, qVersion());
+  }
+
+  // ========== T26: event-loop heartbeat during blocking waits (U-12) =======
+  //
+  // WHAT IS MEASURED, and why it needs its own fixture: all five waits U-12 names
+  // are `kill(); waitForFinished(N)`, and SIGKILL is immediate — with the existing
+  // fixtures the wait returns in ~1 ms and the freeze is invisible. The block is
+  // real when the killed process leaves a CHILD holding the inherited pipes: Qt's
+  // waitForFinished must drain the channels, and it cannot while an orphan holds
+  // them. tests/fake_engine_orphan_pipe.cpp builds exactly that, so each leg
+  // measures the actual event-loop gap instead of arguing from the constants.
+  //
+  // LEGS: (A) preview supersede -> startPreview's killPreview() waitForFinished(1000)
+  //       (B) Cancel -> cancelRun's waitForFinished(3000)
+  //       (C) close during a run -> ~MainWindow's waitForFinished(2000)
+  // THRESHOLDS: each leg asserts that the wait did NOT consume its deadline (bound
+  // = half the deadline, so a real freeze fails by a factor of two while offscreen
+  // CI noise on any platform passes). Asserting "the deadline was consumed" rather
+  // than a raw millisecond figure is deliberate: it is the actual defect, and it is
+  // the only bound calibratable from a Linux sandbox for an assertion that also has
+  // to hold on the Windows CI runner - which this session cannot measure.
+  // Leg D (the destructor) is measured and printed WITHOUT an assertion: if a fix
+  // turned out to need that third site, it is a scope decision to bring back.
+  {
+    g_stage = "T26"; std::printf("== T26 event-loop heartbeat (U-12) ==\n");
+    const QString orphan = fixturePath("fake_engine_orphan_pipe");
+    CHECK_MSG(QFileInfo::exists(orphan), "orphan-pipe fixture built next to the harness");
+    const QByteArray origEngine = qgetenv("GS_ENGINE");
+
+    if (QFileInfo::exists(orphan)) {
+      qputenv("GS_ENGINE", QFile::encodeName(orphan));
+      qputenv("GS_FAKE_ORPHAN_MS", QByteArray("30000"));
+      heartbeatStart(qApp);
+
+      QTemporaryDir tmp;
+      const QString input = tmp.path() + QStringLiteral("/a.gif");
+      CHECK(copyFile(logo, input));
+      const QString outPath = tmp.path() + QStringLiteral("/out.gif");
+
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      x.output->setText(outPath);
+      dropFiles(w, {input});
+
+      // ---- Leg A: preview supersede --------------------------------------
+      // debounce is 1200 ms: the first settle starts preview run #1, the settings
+      // change re-arms the debounce, and the next startPreview() kills run #1.
+      heartbeatSettle(1500);
+      auto* pv = byName<QProcess>(w, "previewProcess");
+      const bool previewAlive = (pv && pv->state() != QProcess::NotRunning);
+      CHECK_MSG(previewAlive, "leg A: a preview run is provably alive when the change supersedes it");
+      heartbeatReset();
+      auto* opt = x.optimize;
+      opt->setValue(opt->value() == 3 ? 2 : 3);
+      heartbeatSettle(2900);
+      const qint64 gapA = g_hb.maxGap;
+      std::printf("  (A) preview supersede (killPreview waits 1000): gap %lld ms\n",
+                  static_cast<long long>(gapA));
+      CHECK_MSG(gapA < 500,
+                ("leg A: the UI thread is not blocked when a superseded preview is killed ("
+                 + std::to_string(gapA) + " ms)").c_str());
+
+      // ---- Leg B: Cancel --------------------------------------------------
+      // The run below is NOT measured: setBusy(true) kills the still-running
+      // preview on the way in, so this click carries two waits. It exists to get
+      // to a state (engine running, preview dead) where Cancel can be isolated.
+      g_dialogs.clear();
+      x.run->click();
+      heartbeatSettle(400);
+      const bool runningBeforeCancel = (x.process->state() != QProcess::NotRunning);
+      CHECK_MSG(runningBeforeCancel, "leg B: the engine is provably running when Cancel is pressed");
+      heartbeatReset();
+      x.cancel->click();
+      const qint64 gapB = g_hb.maxGap;
+      std::printf("  (B) cancel (waitForFinished 3000):              gap %lld ms\n",
+                  static_cast<long long>(gapB));
+      std::printf("      engine state right after that wait: %s\n",
+                  x.process->state() == QProcess::NotRunning ? "NotRunning" : "still Running");
+      CHECK_MSG(gapB < 1500,
+                ("leg B: the UI thread is not blocked while a run is cancelled ("
+                 + std::to_string(gapB) + " ms)").c_str());
+      heartbeatSettle(600);
+      g_dialogs.clear();
+
+      // ---- Leg C: run start (the two waitForStarted(5000) sites) ----------
+      // Now the preview is provably dead (the leg B run killed it), so this click
+      // isolates the start path. A 30 s fixture makes the start failure-free.
+      heartbeatReset();
+      x.run->click();
+      heartbeatSettle(500);
+      const qint64 gapC = g_hb.maxGap;
+      std::printf("  (C) run start (waitForStarted 5000):            gap %lld ms\n",
+                  static_cast<long long>(gapC));
+      CHECK_MSG(gapC < 2500,
+                ("leg C: starting a run does not block the UI thread ("
+                 + std::to_string(gapC) + " ms)").c_str());
+
+      // ---- Leg D: window close during a run (MEASURED, not asserted) -------
+      const bool runningBeforeClose = (x.process->state() != QProcess::NotRunning);
+      CHECK_MSG(runningBeforeClose, "leg D: the engine is provably running when the window is destroyed");
+      heartbeatReset();
+      delete w;
+      const qint64 gapD = g_hb.maxGap;
+      std::printf("  (D) close during run (waitForFinished 2000):    gap %lld ms"
+                  "  [measured, not asserted]\n", static_cast<long long>(gapD));
+      g_dialogs.clear();
+
+      // ---- Leg E: run start with the SHIPPED engine -----------------------
+      // Same start path, real gifsicle: the 5000 ms constants must not block in
+      // normal use either. The fixture proves the timeout is reachable only when a
+      // process is slow to exec - which this sandbox cannot construct.
+      qputenv("GS_ENGINE", QFile::encodeName(g_engine));
+      {
+        QTemporaryDir tmp2;
+        const QString in2 = tmp2.path() + QStringLiteral("/b.gif");
+        copyFile(logo, in2);
+        MainWindow* w2 = makeWindow();
+        auto y = findWidgets(w2);
+        y.output->setText(tmp2.path() + QStringLiteral("/out.gif"));
+        dropFiles(w2, {in2});
+        heartbeatSettle(1600);  // preview debounce: same single-file plan
+        heartbeatReset();
+        y.run->click();
+        heartbeatSettle(900);
+        const qint64 gapE = g_hb.maxGap;
+        std::printf("  (E) run start, shipped engine:                  gap %lld ms\n",
+                    static_cast<long long>(gapE));
+        CHECK_MSG(gapE < 2500,
+                  ("leg E: starting a run with the shipped engine does not block ("
+                   + std::to_string(gapE) + " ms)").c_str());
+        delete w2;
+        g_dialogs.clear();
+      }
+
+      g_hb.timer->stop();
+      g_hb.timer->deleteLater();
+    }
+
+    if (origEngine.isNull()) qunsetenv("GS_ENGINE");
+    else qputenv("GS_ENGINE", origEngine);
+    qunsetenv("GS_FAKE_ORPHAN_MS");
   }
 
   std::printf("==> %d checks, %d failures\n", g_checks, g_failures);

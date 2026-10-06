@@ -4,6 +4,290 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S37 — 2026-10-07: the wasm claim re-derived (a `.wasm` IS built on every CI run), the page glue wired into CI without emcc, and a Windows build path that runs on your own machine
+
+**Changed:**
+
+- **N-32 re-derived against measurement, not memory.** The register said "no Emscripten build
+  run through it"; the honest correction is narrower and it is now written down:
+  - a real `.wasm` **is built and executed on every CI run** — the `portability` job's zig
+    wasm32-wasi engine under Node's WASI, byte-compared to a musl-native build (9/9, green run
+    `37518884447`). "No `.wasm` has ever been built anywhere" was **false**;
+  - what has never existed is the **Emscripten MODULARIZE module** (`web/wasm/dist/gifsicle.js`
+    + `.wasm`) that `wasm.js` loads, so `prove_wasm.mjs --oracle` has still never run against a
+    real module;
+  - the suggested lighter route was **re-measured and does not unblock it**: the npm package
+    `emsdk` exists (0.4.0, bins for emcc/em++, darwin+linux), but it downloads from
+    `storage.googleapis.com`, which is still unreachable from the sandbox (`curl` HTTP 000;
+    `npm install emsdk` dies with *"Client network socket disconnected before secure TLS
+    connection was established"*), `emscripten.org` likewise, and its own README's
+    `npm install emsdk@4.0.23` is an **E404** (the registry holds only 0.0.1 and 0.4.0);
+  - the "is the oracle even worth it" question was **checked, not assumed**: zero
+    `__EMSCRIPTEN__`/EMSCRIPTEN conditionals across the engine sources, so the residual risk is
+    the JS glue + Emscripten's libc, not the C. Skipping emcc stays defensible — because
+    `OD-16` keeps the track unshippable, not because the C is portable.
+- **The one wasm-track layer with no CI step now has one.** `node web/wasm/glue_harness.mjs`
+  (stub DOM + a fake module shelling out to the REAL native engine) runs in the **linux** job
+  after `build.sh`. Measured locally: **PASS in 0.4 s**. It covers `wasm.js` end to end —
+  settings → argv, FS write/`callMain`/read round-trip, GIF magic check, savings/download
+  rendering, out-of-range refusal — which is precisely where U-57 lived. No emcc, no browser,
+  no 1 GB download.
+- **A Windows build path the owner can run: `scripts/build_portable_windows.ps1` (+ a
+  double-clickable `.bat`).** It provisions Qt 6.7.3 + MinGW via `aqt`, cmake/ninja via pip,
+  builds the engine, a `-static` CLI, the CMake/Ninja GUI with `windeployqt`, stages the
+  portable folder through the repo's own fail-closed stager, asserts the same manifest CI
+  asserts, and zips it with a sha256. `-EngineCliOnly` skips Qt; `-Smoke` runs the §1–§2 checks.
+  **Provenance, stated in the file itself:** every command is transcribed from the green
+  `windows` CI job, and the `.ps1` has never been executed — the sandbox that wrote it has no
+  Windows and no PowerShell. What *was* verified: the bash each here-string expands to
+  (three blocks, all `bash -n` clean, including the two error-prone lines `exec gcc "$@"` and
+  `#define GS_VERSION \"$version\"`).
+- **`docs/ci/WINDOWS_TEST_RUNSHEET.md` now offers three routes** to the zip — download the
+  published snapshot, have CI build one from a tag, or build it locally with the new script —
+  with the clean-machine caveat intact (`-Smoke` passing on a dev box is **not** W-18 evidence).
+
+**Register:** unchanged in count — 177 DONE · 6 PARTIAL · 13 OPEN · 0 UNTRIAGED = 196 (N-32 and
+U-68 were re-derived in place, U-98 was added earlier this session).
+
+---
+
+## S37 — 2026-10-06: five rows closed on the owner's "cheaper path" instruction — DS-10, GS-205, U-55, U-96 (and U-76 via OD-18 = a); the Qt naming probe refuted the assumed semantics
+
+**Changed:**
+
+- **GS-205 / P1-27 — one input-admission rule.** `src/core/InputAdmission.h` (new,
+  Qt-free) is `gs::admit_input()`: exists + **regular file** + readable + `GIF87a`/
+  `GIF89a` magic. The picker and the drop list both call it (`MainWindow.cpp`), so
+  the old `.gif`-suffix-AND-exists drop filter is gone, and a dropped **directory**
+  — which the old `exists()` check cheerfully queued — is refused as `not-a-file`.
+  Refusals are **named** ("Refused 1 file(s): folder.gif — not-a-file"), with a dialog
+  when nothing was added; a GIF with a non-GIF extension is ADMITTED because the
+  bytes decide. Proof: `tests/test_input_admission.cpp` (35 checks/0, wired into
+  `build.sh` so every platform runs it) and harness **T8**, which now asserts the
+  refusals first and then produces a genuine failed run (real GIF, output path the
+  engine cannot write) so the failure-honesty assertions still mean something.
+- **DS-10 / P3-11 — disposal 4..7 reachable.** The combo stopped at 3 while the
+  engine's `DISPOSAL_TYPE` (Clp_AllowNumbers, `val.i < 0 || val.i > 7`) and
+  `web/validate.mjs` both allow 0..7, so a web-exported session could not be
+  represented and `readFrom` silently reset the control. Items 4..7 added
+  (`reserved — GIF89a "to be defined"`), `-1` untouched; harness T13 asserts each is
+  selectable **and** emits `--disposal N`, and that "Keep original" emits no flag.
+- **U-55 / P1-35 — the Windows case rule is now injectable, and tested.** `path_key`
+  grew `PathKeyPolicy{Posix,Windows}` + `case_fold_utf8` (ASCII, Latin-1, Latin Ext-A,
+  Greek, Cyrillic; invalid UTF-8 passes through) and `plan_outputs` takes the policy.
+  Linux CI therefore pins the WINDOWS rule: `Ä.gif`/`ä.gif` key equal, a case-only
+  self-target is `TargetsSource`, two case-variant targets are `DuplicateTarget` — and
+  the same pair plans clean under `Posix`, which is what proves the policy is doing
+  the work. Residual: the full Unicode table needs ICU/`CompareStringOrdinal`.
+- **U-96 / P3-18 — web/desktop naming parity, and the probe mattered.** A Qt 6.8.3
+  probe of `QFileInfo::completeBaseName()` **refuted the assumption** the row carried:
+  Qt counts a LEADING dot as an extension separator, so `.gif` and `.hidden` have an
+  EMPTY stem (their suffix is "gif"/"hidden"), `..` -> `.`, `a.` -> `a`. The shipping
+  JS rule (`lastIndexOf(".") > 0`) kept dotfiles whole and would have written
+  `.gif_opt.gif` where the desktop writes `_opt.gif`. Fix: one helper
+  (`web/stem.mjs`, imported by `app.js` and `server.mjs`; the U-67 allow-list serves
+  it and `static-hygiene` keeps the list honest) and one **measured** table
+  (`tests/stem_cases.txt`, 18 rows) read by BOTH sides — harness **T25** re-measures
+  every row against the running Qt, `web/test/stem.test.mjs` asserts `stemOf` matches
+  and that four mutant rules (pre-fix, first-dot, trailing-dot, no-strip) are all
+  CAUGHT, so the table cannot quietly stop discriminating.
+- **U-76 closed by recording owner decision `OD-18 = a`** (the cheaper path, and the
+  row's own recommendation): the un-prefixed CLI explode keeps writing
+  `<CWD>/<stem>_frame.NNN` and saying so on stderr, while the desktop/web write beside
+  their input. `scripts/smoke_cli.sh` case 15 already asserts the location, the NOTE,
+  and that the input's folder is untouched — so the divergence is a documented,
+  executed contract, not an open question. No code changed; that IS the decision.
+
+**Measured after the changes (this sandbox, Qt 6.8.3 from source):** GUI harness
+**436 checks, 0 failures** (286 `CHECK(` sites; T25 re-measured 18 Qt rows; T26 added S37);
+`build/test_gifsicle_command` **415/0**; `build/test_input_admission` **35/0**;
+eleven `web/test/*.test.mjs` suites green (the new `stem` suite included in CI's
+named list); `build.sh` runs both unit suites now. Register **169 DONE / 10 PARTIAL /
+16 OPEN / 0 UNTRIAGED = 195** (from 163/11/21/0; R-02 closed after the unshallow) — S37 ended at
+**177 DONE / 6 PARTIAL / 13 OPEN / 0 UNTRIAGED = 195**: U-09 closed by the snapshot cut and U-12 by the
+T26 measurement (owner decision `OD-19 = a`; the P1-24 rewrite is declined).
+
+**U-09 / P0-4 closed by cutting the snapshot the row demanded (owner: "cut a snapshot pre-release").**
+The old release is gone (2026-09-22 re-creation), so the fix is forward-looking: a `release-snapshot`
+job in `build.yml`, tag-only (`refs/tags/snapshot-*`; `ci_gate.sh` never skips a tag), `needs: windows`,
+which downloads THIS run's `gifscythe-windows` artifact — no rebuild, so the published bytes are the
+ones the manifest assert and the offscreen harness just passed — zips the portable folder, writes
+`SHA256SUMS`, and generates notes that interpolate the sha, tag and run id so **notes and asset cannot
+disagree**, which is exactly what U-09 found. Live at
+<https://github.com/freeforall1932-design/gifscythe/releases/tag/snapshot-2026-10-06> (tag `6aaabcf`,
+pre-release, v0.1.0 per `OD-11 = a`, asset sha256 `add856c8…096e`). Two deliberate exclusions: **no
+tag-time manifest gate** (offered with the cut, declined — it would need an exception to the U-89
+freeze), and **no claim of clean-machine proof** — the notes say outright that W-18/W-19 have never run.
+Also recorded: **`OD-16 = b`** (wasm may ship) **conditional on counsel-approved terms that do not exist
+yet**, so the track stays unshipped and nothing about it changed today; and `R-02` was closed by
+unshallowing the clone, which also re-armed the pre-push hook (`.git/config` is not snapshotted — R-04's
+lesson, again).
+
+**U-12 (P1-24) got its executable evidence instead of its rewrite - and the evidence refuses the rewrite.** The
+rule for the row was: show the heartbeat RED first, fix only the waits the RED proves plus the two user-felt
+ones (1 s preview, 3 s cancel), and stop before touching the start-path waits. **T26**
+(`tests/test_gui_offscreen.cpp`, five legs) now measures that: a 10 ms `QTimer` records the largest
+event-loop gap across each wait, and `tests/fake_engine_orphan_pipe.cpp` supplies the hardest case a
+kill-first wait can face - its forked child keeps the inherited stdout/stderr open after the parent is
+SIGKILLed (verified with a blocking reader, which stays blocked past 1 s), so any "drain the pipes while
+waiting" behaviour in `waitForFinished` would be exposed. Measured on **unmodified** `MainWindow.cpp`,
+every leg with the target provably alive (a live preview, a live run; `state()` asserted): **11 ms**
+(preview supersede, deadline 1000) · **0 ms** (cancel, 3000) · **11 ms** (run start, 5000) · **3 ms**
+(window close during a run, 2000) · **11 ms** (run start, shipped engine). The primitive microbench shows
+why: `waitForFinished(1500)` against a **LIVE** target consumes the full **1501 ms**, but all five sites
+`kill()` first, and Qt 6.8.3 returns on the direct child's death rather than on pipe EOF. The freeze
+therefore needs a slow exec or an uninterruptible (`D`-state) death - neither constructible here (no
+root/NFS, no Windows host). **No wait was edited**; the only source change is the test, and T26 turns the
+row's assumption into an enforced bound (every leg fails if a wait consumes half its deadline). The Windows
+runner agrees - **11 / 0 / 11 / 10 / 11 ms** (run `37496371141`, windows job) - and those numbers are
+retrievable at all only because both harness steps now re-emit T26's leg lines as `::notice::`
+annotations: job log blobs EOF from this sandbox, annotations do not, so the per-platform record costs
+one grep and survives the log's 90-day expiry. The S11
+note - "scoped-OPEN beats an untestable refactor" - now has the measurement it lacked; rewriting anyway
+for the unconstructible case is an owner decision, not a scoped fix.
+
+**Two environment traps re-learned this session.** (1) A sandbox restore is not only a `git` event: it
+also wipes `~/.local` (cmake + ninja), `build-cmake/` and `/home/user/build` (the source-built Qt 6.8.3),
+because those paths are snapshot-excluded - recovery is `pip install --break-system-packages cmake ninja`
+plus a ~13-minute `scripts/build_qt6_local.sh` rerun; and the restore reset the working branch to the base
+commit with the real tip only on `origin`, so the first thing to check is
+`git merge-base --is-ancestor origin/<branch> HEAD`. (2) The packaged `scripts/lint_workflow.mjs`
+**crashes** (`RuntimeError: unreachable` inside actionlint.wasm) when given **two or more** workflow files
+in one process, and is clean for one - so the release job stays inside `build.yml`, and every lint
+invocation names a single file.
+
+**Two "environment" rows turned out to be work, not fate.** (1) **R-02 was fixable in one
+command**: the session's clone was depth-1, so G11 skipped; `git fetch --unshallow` pulled
+the remote's full 115 commits (4.9 MB) and G11 now RUNS and passes — the register row is
+closed with that executed proof, and the honest skip remains only for CI's deliberate
+depth-1 checkout (N-31). The same round trip exposed that `.git/config` is not snapshotted,
+so `core.hooksPath` was lost and G15 was red until `scripts/bootstrap_hooks.sh` re-armed it
+(the R-04 row's lesson, re-learned). (2) **U-09's subject does not exist any more**: the
+"banked Windows snapshot" release it complains about was lost in the 2026-09-22 repo
+re-creation — `gh api .../releases` returns **0** releases and 0 tags. So there is nothing
+to repair retroactively; what remains is P0-4's forward half (cut fresh evidence at an exact
+SHA), which is an owner decision, not a fix.
+
+**The windows job found two real portability bugs in this batch, and a third of the
+lesson:** (1) the harness's new T25 reads a file with `std::ifstream` and never included
+`<fstream>` — Linux's libstdc++ supplies it transitively, MinGW's does not; (2)
+`tests/test_input_admission.cpp` used `<unistd.h>`/`<sys/stat.h>`/`::geteuid()`/`::chmod`
+UNGUARDED for its one POSIX-only leg, and CMake builds that target on Windows too. Both
+were red **at the GUI BUILD step** (15 s), and both reported only "Process completed with
+exit code 1" — so the step now tees its output and re-emits the compiler's own error lines
+as `::error::` annotations, the same rule the harness steps already followed. The two reds
+are the argument for that: the first one cost a guess-and-push cycle that fixed the wrong
+thing. **CI after both fixes: run `37480581369`, all six jobs green** — the windows GUI
+build 40 s, the windows offscreen harness 22 s (T8's admission refusals, T13's disposal
+4..7 and T25's 18 Qt naming rows all run there now).
+
+**Sandbox note:** the sandbox was rebuilt mid-session (snapshot-excluded `build/`,
+`~/.local/bin`, and the Qt tree were gone; the repo came back at base `76392da` with
+the pushed work as uncommitted diffs). Recovery: `git fetch` + `git reset --hard
+origin/arena/0a711503-gifscythe`, re-apply the turn's edits from a saved copy, rebuild
+cmake/ninja via pip and Qt via `scripts/build_qt6_local.sh` (~15 min), then re-run
+every gate. Nothing was lost; the re-run is what makes the numbers above trustworthy.
+
+---
+
+## S36 — 2026-10-06: the three S35 Qt rows CLOSED — U-58/U-70/U-72 flipped to FIXED with executed RED→GREEN proof; the 0005 sentinel fixed, extended to U-70 and wired into CI; Qt6 built from source here (the "no Qt6 in this sandbox" constraint was wrong)
+
+**Changed:**
+
+- **Qt6 now runs in this sandbox — the S35 blocker was a provisioning mistake, not a
+  platform limit.** `scripts/build_qt6_local.sh` (new) shallow-clones qtbase `v6.8.3` and
+  builds Core + Gui + Widgets, the host tools (`moc`/`rcc`/`uic`), the offscreen platform
+  plugin and the **`qgif` image-format plugin** with bundled zlib/pcre/freetype/libpng/
+  harfbuzz — no apt, no root, ~15 minutes on 2 cores. The harness then compiles and runs
+  here: `cmake -S . -B build-cmake -DBUILD_GUI=ON -DCMAKE_PREFIX_PATH=<qtbuild>` and
+  `LD_LIBRARY_PATH=<qtbuild>/lib QT_PLUGIN_PATH=<qtbuild>/plugins QT_QPA_PLATFORM=offscreen
+  GS_TEST_REF_DIR="$(./scripts/fixtures.sh)" ./build-cmake/test_gui_offscreen`.
+  **Two traps are in the script's header:** a module build produces neither the offscreen
+  plugin nor `qgif` unless their targets are named; without `qgif`, QMovie cannot decode a
+  GIF at all, so T12/T20/T23 fail on the *environment* (6 failures) while the fixed tree
+  passes with it (0). The script also had to learn where qtbase's `configure` writes: it
+  builds in the **current directory**, and running it from the repo dropped ~1150 Qt build
+  files into `working_code/gifscythe` (cleaned; the script now `cd`s into the build tree
+  first, and the incident is recorded in its comments).
+- **The three missing behavioural cases are written and executed.**
+  `tests/test_gui_offscreen.cpp` grows **T22** (cancel-latch honesty), **T23** (non-ASCII
+  `GS_ENGINE`), **T24** (mid-batch settings mutation) on the new argv-logging fixture
+  `tests/fake_engine_argv_sleep.cpp` (`GS_FAKE_ARGV_LOG` appends one TAB-joined argv line per
+  run before sleeping; `GS_FAKE_SLEEP_MS`, `GS_FAKE_EXIT`). Measured here: **405 runtime
+  checks, 0 failures** (Qt 6.8.3 from source, offscreen, `GS_TEST_REF_DIR` from
+  `scripts/fixtures.sh`), ~20 s. The README's site/runtime figures were re-measured with it
+  (284 `CHECK(` sites at that point in S36; 286 after S37's T8/T25/DS-10/T26 additions —
+  the 271/398 numbers were stale).
+- **RED→GREEN is measured, not asserted.** T24, against the *real* pre-fix tree (a scratch
+  copy with `0005` reverse-applied by `patch -p1 -R`), fails exactly its three snapshot
+  assertions — "job 2 ran the BATCH-START -O3, not the mutated -O2" — and passes on the
+  fixed tree. That is the acceptance case the U-58 row named, and its mutation is asserted
+  live (the pane and `currentSettings()` both show the new level), so the case cannot pass
+  vacuously.
+- **U-70's teeth are the source invariant, and they are now platform-independent.** T23
+  copies the engine under `ünïcode-日本語-Ω-engine`, points `GS_ENGINE` at it and requires the
+  debounced preview to actually run; it is green here. But POSIX `u8path_compat` is the
+  identity, so a UTF-8-clean host cannot distinguish the wrapped call from the bare one —
+  which is why the sentinel now carries **S3** (3 wrapped probes, `startPreview()` wrapped
+  once, zero bare `path_is_executable(fs::path(enginePath_.toStdString()))` forms), executed
+  PASS on the fixed tree and **RED on a `0004`-reversed tree** with S1/S2 still green there.
+  On Windows T23 runs in the `windows` GUI job, and **its first run there measured the
+  finding's premise to be toolchain-dependent**: the bare `fs::path(std::string)` conversion
+  *resolved* the non-ASCII engine correctly on MinGW GCC 13.1 (x86_64-posix-seh), where the
+  original gcc 12-win32 measurement under Wine showed bytewise widening. An assertion built on
+  the premise turned the whole Windows job red for a reason the case was not about, so T23 now
+  **prints** which conversion mode the host is in and proves instead that the window is really
+  using the engine copy under the non-ASCII directory before it judges the preview. The
+  consequence is stated wherever the row is: no runner available to this repo discriminates
+  the two call forms behaviourally — the falsifiable proof is the source invariant. Two
+  process fixes came out of that red run and stay: both GUI harness steps now capture their
+  output and publish every FAIL line as a `::error::` annotation (a 400-check harness that dies
+  on one assertion must not report only "exit 1" — S34's rule), and T22's live-cancel leg
+  sleeps 3 s instead of 0.9 s so a loaded runner cannot close the window in which the engine
+  must be provably alive. Residual kept in the row: no legacy-ACP host has been
+  observed by anyone in this repo.
+- **U-72: the race is not constructible on Qt 6.8.3 — and the fix is still falsifiable.**
+  Read in the real source (`qtbase` v6.8.3): `QProcessPrivate::waitForFinished()` polls the
+  forkfd and calls `processFinished()` **synchronously** when the child dies
+  (`qprocess_unix.cpp:1242-1277`); `processFinished()` emits `finished()` after reading the
+  channels (`qprocess.cpp:1201-1251`); and `kill()` is SIGKILL — final, unblockable. So on
+  this path a `finished()` cannot arrive after `cancelRun()` returns, which is why the
+  `0003`-reversed tree keeps T22 **green**: pre-fix and post-fix are observationally equal
+  here. T22 was therefore restructured to run its legs in **one window** (a fresh window per
+  leg reset the member and tested nothing) and given teeth against the two plausible wrong
+  fixes, both built and executed: keeping the latch without consuming it → T22 RED ×2;
+  arming it unconditionally (ignoring `engineWasRunning`) → T22 RED ×4. The invariant itself
+  is CI-enforced by sentinel **S2** (no clear in `cancelRun()`, one arm inside
+  `if (engineWasRunning) {`, one clear file-wide, read-before-clear in `onProcessFinished()`),
+  **RED on the `0003`-reversed tree**. The literal "slow kill" leg the finding describes is
+  recorded in the row as not constructible; U-12 stays OPEN (this removes the race, not the
+  bounded waits), and the S35 constraint stands: **do not** add `cancelling_ = false;` to
+  `runCommand()`.
+- **The 0005 sentinel defect is fixed by removing the defect, not by relaxing the check.**
+  `grep -c currentSettings()` counted the patch's own comment (it names the call to explain
+  what must NOT happen there). The replacement `scripts/test_u58_u70_u72_sentinels.sh` strips
+  comments before every check, covers all three rows (S1/S2/S3, each with a vacuity guard on
+  its function extraction), and is mutation-tested **inside itself**: S4 rebuilds the pre-fix
+  U-58 re-read, the early `cancelling_ = false;` after the 3 s wait, the consume-after-verdict
+  pit, and a bare preview probe — and fails if any sentinel accepts its mutant. Re-run against
+  all three real reversed patches: S1 red on `0005`, S2 red on `0003`, S3 red on `0004`, each
+  with the other sentinels green in that tree. Wired into `build.yml` **and** the byte mirror
+  as its own step ("Qt source sentinels (U-58 batch snapshot, U-70 preview boundary, U-72
+  cancel latch)"), so a red names the rows rather than a suite; `lint_workflow.mjs` clean.
+- **Register: 160/14/21/0 → 163/11/21/0 = 195** (three PARTIAL → DONE; P1-38 and P1-42 both
+  DONE). The audit rows and their §5 proof paragraphs carry the executed commands and the
+  exact failures the pre-fix trees produced, and the §17.2 acceptance-case list marks NF-01 /
+  NF-13 / NF-15 **WRITTEN (S36)**.
+
+**Not verifiable here (stated, not hidden):** a **legacy-ACP Windows host** — none exists
+anywhere in this repo's CI, and the CI Windows runner measured the U-70 premise to be
+toolchain-dependent (the bare conversion works there), so the discriminating proof for U-70 is
+the source sentinel, not behaviour; the `windows` GUI job itself runs only on Windows (it did
+run this branch: the harness's own FAIL annotation is what identified the T23 guard); and
+T22's pre-fix race has no runtime reproduction on Qt 6.8.3 at all (proven above), so its proof
+is the mutation-tested source invariant plus the two wrong-fix mutants, never a red harness on
+the pre-fix tree.
+
 ## S35 — 2026-10-06: five-patch audit intake — three malformed patches repaired, 100% of the fix content salvaged, U-57/U-71 CLOSED with executed proof, U-58/U-70/U-72 moved to PARTIAL (source landed, Qt proof outstanding), both new proofs wired into CI, G10 re-anchored
 
 **Changed:**
@@ -3362,7 +3646,7 @@ starting; the two stale `414f5fc` mentions (G10) were re-synced first.
   `wmain` (reference_code read-only). Gifscythe's own chain is lossless
   (proven byte-exact to the child's UTF-16 line); the residual is documented
   in `WinUnicode.h`, §8 and the U-07 row.
-* **PUSHED, PR #14 OPEN, CI GREEN.** Branch `arena/s11-gifscythe` pushed
+* **PUSHED, PR #13 OPEN, CI GREEN.** Branch `arena/s11-gifscythe` pushed
   after the push-time gate run; **PR #14** opened against `main`. The FIRST
   CI run (`34671814580` on `f655987`) failed windows-only, and the failure
   was a real (cosmetic) portability finding in the new T7 assertion:

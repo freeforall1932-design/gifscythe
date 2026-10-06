@@ -112,6 +112,29 @@ jobs:
         working-directory: working_code/gifscythe
         run: ./scripts/test_engine.sh
 
+      # U-10 / A-09: the vendored upstream trees were verified by HAND in S11 and never
+      # watched again - and the prose got two things wrong (a local edit to Makefile.w32
+      # that the manifest called upstream-identical, and repo-wide CRLF->LF drift from the
+      # 2026-09-22 web re-creation). This pins every file of the three vendored sets by
+      # sha256 and fails on drift, deletion OR an added file.
+      - name: Vendored upstream identity pins (U-10 / A-09)
+        working-directory: working_code/gifscythe
+        run: |
+          set +e
+          log="${RUNNER_TEMP:-/tmp}/reference_pins.log"
+          ./scripts/verify_reference_pins.sh 2>&1 | tee "$log"
+          status=${PIPESTATUS[0]}
+          set -e
+          # Self-reporting: this step FAILED its first CI run (the pin caught an
+          # intended edit to config.native.h that had not been re-pinned) and the
+          # only thing the annotation said was "exit code 1" - whose file, which
+          # hash, was invisible. Publish the FAIL lines, same rule as the harness.
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r line; do echo "::error::$line"; done < <(grep -a '^FAIL' "$log" | head -20 || true)
+            echo "::error::verify_reference_pins.sh exited $status (drift lines above; re-pin deliberately if intended)"
+          fi
+          exit "$status"
+
       - name: CLI smoke tests
         working-directory: working_code/gifscythe
         run: ./scripts/smoke_cli.sh
@@ -145,7 +168,7 @@ jobs:
         run: |
           set -uo pipefail
           failed=""
-          for t in command validate numeric-honesty transport body-limit static-hygiene request-guard device-names server-bounds; do
+          for t in command validate numeric-honesty transport body-limit static-hygiene request-guard device-names server-bounds stem; do
             if out="$(node "web/test/$t.test.mjs" 2>&1)"; then
               printf '%s\n' "$out" | tail -n 2
             else
@@ -177,8 +200,31 @@ jobs:
       - name: WASM stale-output guard (U-57 / P1-37)
         run: node web/test/u57-stale-output.test.mjs
 
+      # The page's own glue (web/wasm/wasm.js), end to end: stub DOM + a fake module that shells
+      # out to the REAL engine just built above. This needs no emcc and no browser, so the whole
+      # engine-less-audit story of the wasm track is exercised on every run: settings -> argv,
+      # FS write/callMain/read round-trip, the GIF magic check, savings/download rendering and the
+      # invalid-settings refusal. It was the only wasm-track layer with NO CI step (the guard test
+      # covers fs_run_guard.mjs, the oracle test covers comparison logic with a fake module) - the
+      # glue is where U-57 actually lived. Measured locally: PASS in 0.4 s.
+      - name: WASM page glue, end to end (no emcc needed - glue_harness.mjs)
+        run: node web/wasm/glue_harness.mjs
+
       - name: Seeded engine-oracle conformance (U-94 / P2-18)
         run: node working_code/gifscythe/scripts/oracle_fuzz.mjs --full
+
+      # U-58 / P1-38 + U-72 / P1-42. Both patches in the S35 intake specify a source-level
+      # sentinel; the 0005 one as written (`grep -c currentSettings()`) FALSE-FAILS on the
+      # fix's own comment - MainWindow.cpp's continuation comment names currentSettings()
+      # to say what must NOT run there - so it was never wired in. This script is that
+      # sentinel with a comment filter, plus the U-70 preview-boundary and U-72 latch
+      # siblings, and it mutation-tests itself: S4 rebuilds every pre-fix shape (live
+      # re-read in the continuation; the early `cancelling_ = false;` after the 3 s wait;
+      # consume-after-verdict; a bare preview probe) and REQUIRES the checks to reject
+      # them. Its own step so a red names the rows, not a suite (S34).
+      - name: Qt source sentinels (U-58 batch snapshot, U-70 preview boundary, U-72 cancel latch)
+        working-directory: working_code/gifscythe
+        run: ./scripts/test_u58_u70_u72_sentinels.sh
 
       - name: GUI offscreen tests (COMPILED_AUDIT 6.B harness)
         timeout-minutes: 12
@@ -188,7 +234,24 @@ jobs:
           cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON
           cmake --build build-cmake -j2
           # The repo holds no image files (N-36): GS_TEST_REF_DIR is the harness's own hook for where logo.gif lives.
-          GS_TEST_REF_DIR="$(./scripts/fixtures.sh)" QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen
+          # Capture the run and publish each FAIL line as an annotation: a harness that
+          # dies on one assertion must name the case, not just exit 1 (S34's rule).
+          log="${RUNNER_TEMP:-/tmp}/gui_offscreen.log"
+          set +e
+          GS_TEST_REF_DIR="$(./scripts/fixtures.sh)" QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen 2>&1 | tee "$log"
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r line; do echo "::error::$line"; done < <(grep -a 'FAIL' "$log" | head -20 || true)
+            echo "::error::test_gui_offscreen exited $status (FAIL lines above; a crash prints none)"
+          fi
+          # U-12 / P1-24: T26's event-loop gaps are the ONE measurement this project cannot
+          # take in a Linux sandbox on the Windows runner's behalf (a kill-first wait's cost
+          # there is unmeasurable from here), and job log blobs are not always retrievable
+          # (the runner-side log endpoint EOFs). Annotations ARE retrievable, so publish the
+          # numbers on every run, pass or fail - they are the per-platform record of T26.
+          while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\([A-E]\)' "$log" | head -10 || true)
+          exit "$status"
 
       - name: Package portable
         working-directory: working_code/gifscythe
@@ -230,6 +293,43 @@ jobs:
   # csharp-spike chain, which is the longest path - so it adds no wall-clock time. Any non-zero
   # exit fails it, including a runner's "SKIPPED" exit 3 (and GS_REQUIRE_PROOF=1 below turns a
   # skipped Python suite into a failure): a skipped proof must never read as a passed one.
+      # U-14 / P2-3: the audit gate runs LAST in this job ON PURPOSE. Its first CI run
+      # failed B1-B20 - "0 test blocks, 0 checks" - because it exercises the offscreen
+      # GUI harness and this job builds that harness later (build-cmake/ is created by
+      # the "GUI offscreen tests" step above). Locally it passed only because the
+      # harness happened to be built already. Running it last means every input it
+      # inspects exists: engine, CLI, fixtures, web deps, the packaged folder, the
+      # harness binaries. Naming an unmeasured exclusion was the alternative.
+      # U-14 / P2-3 remainder: the audit's own gate existed but NEVER ran in CI, so
+      # "green CI" could not speak for the 34 claims verify_audit.sh checks (web
+      # parity, transport, oracle matrix, parser suite, sentinels). Measured before
+      # adding it: 119 s wall here, 34 passed / 0 failed / 3 skipped (the skips are
+      # the two things no Linux runner can do - Actions-job inspection and a clean
+      # Windows machine). Cheap enough to be a gate; the alternative was naming an
+      # unmeasured exclusion.
+      - name: Audit gate (verify_audit.sh - U-14)
+        timeout-minutes: 10
+        working-directory: working_code/gifscythe
+        run: |
+          set +e
+          log="${RUNNER_TEMP:-/tmp}/verify_audit.log"
+          ./scripts/verify_audit.sh 2>&1 | tee "$log"
+          status=${PIPESTATUS[0]}
+          set -e
+          # Self-reporting (learned twice today): its first CI failure said only
+          # "exit code 1", which names neither the failing check nor its message.
+          # Publish every FAIL/ERROR line plus the summary, pass or fail.
+          while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^==> Done' "$log" | head -3 || true)
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r line; do echo "::error::$line"; done < <(grep -aE 'FAIL|ERROR' "$log" | head -25 || true)
+            # The check's own context block (verify_audit.sh prints the first 25
+            # lines of captured harness output on this failure) is where the cause
+            # lives; annotate it too, or the next reader gets "0 blocks" again.
+            while IFS= read -r line; do echo "::error::$line"; done < <(grep -aE '^  \| |---- ' "$log" | head -30 || true)
+            echo "::error::verify_audit.sh exited $status (failing checks above; full log in the job output)"
+          fi
+          exit "$status"
+
   portability:
     name: portability (32-bit long, wasm32 bar)
     needs: gate
@@ -237,6 +337,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
+
       - uses: actions/checkout@v4
 
       # A venv: 24.04's system pip refuses to install into the system Python (PEP 668).
@@ -494,7 +595,22 @@ jobs:
                 -DCMAKE_PREFIX_PATH="${QT_PREFIX}" \
                 -DBUILD_GUI=ON
           fi
-          cmake --build build-win --config Release
+          # Make the BUILD self-reporting too (S37): the harness step already
+          # annotates its FAIL lines, but a compile error here reported only
+          # "exit 1" and cost a whole guess-and-push cycle (the T25 <fstream>
+          # miss was found that way only after the second identical red).
+          # Tee the build, then re-emit the compiler's own error lines.
+          build_log="${RUNNER_TEMP:-/tmp}/gui_build.log"
+          set +e
+          cmake --build build-win --config Release 2>&1 | tee "$build_log"
+          build_status=${PIPESTATUS[0]}
+          set -e
+          if [[ "$build_status" -ne 0 ]]; then
+            while IFS= read -r line; do echo "::error::${line}"; done \
+              < <(grep -aE 'error:|Error|fatal error|ninja: build stopped|undefined reference' "$build_log" | head -25 || true)
+            echo "::error::GUI build failed (status $build_status; compiler errors above)"
+            exit "$build_status"
+          fi
           GUI_EXE=""
           for c in build-win/gifscythe.exe build-win/Release/gifscythe.exe build-win/Debug/gifscythe.exe; do
             if [[ -f "$c" ]]; then GUI_EXE="$c"; break; fi
@@ -533,7 +649,23 @@ jobs:
           mkdir -p build-win/platforms
           cp "$QT_BIN/../plugins/platforms/qoffscreen.dll" build-win/platforms/ || true
           # The repo holds no image files (N-36): GS_TEST_REF_DIR is the harness's own hook for where logo.gif lives.
-          GS_TEST_REF_DIR="$(cygpath -m "$(./scripts/fixtures.sh)")" QT_QPA_PLATFORM=offscreen ./build-win/test_gui_offscreen.exe
+          # Capture the run and publish each FAIL line as an annotation: a harness that
+          # dies on one assertion must name the case, not just exit 1 (S34's rule).
+          log="${RUNNER_TEMP:-/tmp}/gui_offscreen.log"
+          set +e
+          GS_TEST_REF_DIR="$(cygpath -m "$(./scripts/fixtures.sh)")" QT_QPA_PLATFORM=offscreen ./build-win/test_gui_offscreen.exe 2>&1 | tee "$log"
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r line; do echo "::error::$line"; done < <(grep -a 'FAIL' "$log" | head -20 || true)
+            echo "::error::test_gui_offscreen.exe exited $status (FAIL lines above; a crash prints none)"
+          fi
+          # U-12 / P1-24: T26's event-loop gaps are the one measurement this project cannot
+          # take on this runner's behalf from a Linux sandbox (a kill-first wait's cost on
+          # Windows is unmeasurable there), and job log blobs are not always retrievable.
+          # Annotations are, so publish the numbers on every run, pass or fail.
+          while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\([A-E]\)' "$log" | head -10 || true)
+          exit "$status"
 
       - name: Package portable (Windows)
         working-directory: working_code/gifscythe
@@ -756,3 +888,111 @@ jobs:
           name: gifscythe-spike
           retention-days: 14
           path: csharp/spike/publish/
+
+  # S37 — U-09's forward half (fix-order P0-4): cut a pre-release SNAPSHOT from a tag.
+  #
+  # WHY: U-09 was "the banked Windows snapshot is 5 commits behind the SHA its own notes claim" — a
+  # release whose asset and notes disagreed. S37 found the old release is gone entirely (the
+  # 2026-09-22 repo re-creation lost it; the releases API returns none, and there are no tags), so
+  # nothing can be repaired retroactively. This job is the forward half: assets built by CI from the
+  # tag's OWN commit, notes that pin that commit by construction, and a sha256 for every file.
+  #
+  # It does NOT rebuild anything: `needs: windows` and `actions/download-artifact` mean the published
+  # zip IS the artifact the windows job just manifest-asserted and harness-tested in this same run.
+  #
+  # NOT INCLUDED, deliberately (the owner's S37 call): a tag-time asset/manifest GATE. That was offered
+  # as "cut + gate" and declined, because a new gate would need an exception to the U-89 freeze (no new
+  # gates while the release bar is above zero). This job builds, hashes and publishes; it does not enforce.
+  #
+  # It runs only for `refs/tags/snapshot-*`; ci_gate.sh never skips a tag (see its header), so the tag's
+  # own run is the one that verifies and then publishes.
+  release-snapshot:
+    name: release snapshot (tag only)
+    needs: windows
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/snapshot-') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Fetch the Windows artifact THIS run built and asserted
+        uses: actions/download-artifact@v4
+        with:
+          name: gifscythe-windows
+
+      - name: Zip the portable folder and hash every asset
+        run: |
+          set -euo pipefail
+          # upload-artifact v4 stores paths from their least common ancestor
+          # (working_code/gifscythe), so find the portable folder by SHAPE rather than by a
+          # hard-coded prefix - the layout has moved once already.
+          pkg="$(find . -type d -path '*/release/*/Gifscythe' | head -1)"
+          if [[ -z "$pkg" ]]; then
+            echo "::error::no release/<version>/Gifscythe folder in the artifact; listing what is there:"
+            find . -maxdepth 4 -type d | head -40
+            exit 1
+          fi
+          version="$(basename "$(dirname "$pkg")")"
+          zip_name="Gifscythe-${version}-windows-portable.zip"
+          # -j would flatten the folder; the zip must unzip to a self-contained directory a tester
+          # can drop anywhere (that is what W-18's checklist expects to find at C:\gifscythe-test\).
+          (cd "$(dirname "$pkg")" && zip -r "$GITHUB_WORKSPACE/$zip_name" "$(basename "$pkg")")
+          cd "$GITHUB_WORKSPACE"
+          sha256sum "$zip_name" > SHA256SUMS
+          {
+            echo "### Assets"
+            echo
+            echo "| file | bytes | sha256 |"
+            echo "|---|---|---|"
+            echo "| $zip_name | $(stat -c%s "$zip_name") | \`$(cut -d' ' -f1 SHA256SUMS)\` |"
+          } > ASSET_TABLE.md
+          cat ASSET_TABLE.md
+
+      - name: Write the release notes (they PIN the sha, by construction)
+        run: |
+          set -euo pipefail
+          {
+            echo "Pre-release **snapshot**, built by CI from an exact commit. Not a 1.0.0: the"
+            echo "product version stays \`0.1.0\` until the release criteria are met (\`OD-11 = a\`)."
+            echo
+            echo "| field | value |"
+            echo "|---|---|"
+            echo "| tagged commit | \`$GITHUB_SHA\` |"
+            echo "| tag | \`$GITHUB_REF_NAME\` |"
+            echo "| evidence run | [\`$GITHUB_RUN_ID\`](https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID) — the \`windows\` job that built, manifest-asserted and harness-tested these bytes |"
+            echo "| linux/mac | not shipped (\`OD-17 = a\`: Windows ships, Linux is the test rig) |"
+            echo
+            echo "**What these bytes are.** This run's \`gifscythe-windows\` artifact, zipped as a"
+            echo "portable folder: \`gifscythe.exe\` + windeployqt runtime, \`gifscythe-cli.exe\`, the"
+            echo "static \`gifsicle.exe\` engine beside them, and the four licence files. The windows"
+            echo "job already asserted that package manifest, so the listing is CI-checked."
+            echo
+            echo "**What is NOT claimed.** The clean-Windows smoke (\`W-18\`) and the real-desktop GUI"
+            echo "probes (\`W-19\`) have never been executed — CI proves the bundle builds, packages and"
+            echo "passes the offscreen harness, not that it runs on a machine without Qt. Treat this as"
+            echo "a test artifact. \`web/wasm/\` is not shipped (\`OD-16\`: owner answered (b), pending"
+            echo "counsel-approved terms; unshipped until those exist)."
+            echo
+            cat ASSET_TABLE.md
+          } > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+
+      - name: Publish the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # No --target/--verify-tag dance: the tag already exists (it triggered this run), and a
+          # re-run for the same tag is idempotent only if the release does not exist yet - so a
+          # second run uploads a fresh asset with --clobber instead of failing the job.
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber \
+              Gifscythe-*-windows-portable.zip SHA256SUMS
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --notes-file RELEASE_NOTES.md
+          else
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease \
+              --title "Gifscythe $GITHUB_REF_NAME (snapshot, v0.1.0)" \
+              --notes-file RELEASE_NOTES.md \
+              Gifscythe-*-windows-portable.zip SHA256SUMS
+          fi
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json url,assets \
+            --jq '.url, (.assets[] | "\(.name) \(.size)")'

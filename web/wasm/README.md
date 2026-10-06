@@ -91,8 +91,12 @@ it needs no emcc output: it proves the live pane renders engine-valid
 argv, the virtual-FS write/`callMain`/read flow round-trips bytes, the
 GIF magic check and savings/download rendering work, and out-of-range
 settings refuse the run. Requires a built engine (`build.sh` first);
-prints `GLUE-HARNESS: PASS` and exits 0 on success. It does not promote
-the track: the wasm binary itself is still unbuilt and `OD-16` unanswered.
+prints `GLUE-HARNESS: PASS` and exits 0 on success.
+
+**Wired into CI 2026-10-07** (linux job, after `build.sh`) — it was the
+only wasm-track layer with no CI step, and the glue is where U-57 lived.
+It does not promote the track: no Emscripten module exists and `OD-16`
+keeps `web/wasm/` experimental, so this proves the JS, not the binary.
 
 ## Serve the page
 
@@ -111,30 +115,67 @@ other static server rooted at `web/` (for example
 `python3 -m http.server -d web`), which also supplies the `../validate.mjs`
 this page imports and the shipped UI does not.
 
-## Why no binary exists yet (executed S19)
+## What is actually built, and what is not (re-derived 2026-10-07)
 
-Emscripten cannot be installed in this sandbox: `git clone` of the SDK
-works, but `./emsdk install latest` fails downloading its toolchain
-from `storage.googleapis.com` (TLS EOF — the host is unreachable from
-here; `nodejs.org` is unreachable too). So `build_wasm.sh` is written
-and shell-checked but has never run green, `prove_wasm.mjs` has never
-run against a real module, and the page has never loaded an engine.
-The first emcc-equipped run that prints the proof bytes above is what
-promotes this track from scaffold to proven. The licence question
-(`OD-16`) is independent of that proof and still gates shippable.
+**"No `.wasm` has ever been built anywhere" is FALSE, and the distinction matters.** Every CI run
+builds a real WebAssembly engine and runs it:
 
-## Third-party notices (folded from THIRD_PARTY_NOTICES.md, S24)
+- the `portability` job (`libc_parity.py --bar`) compiles these same engine sources for
+  **wasm32-wasi** with zig, **executes the `.wasm`** under Node's WASI, and asserts the output is
+  byte-equal to a **musl-native** build of the same sources — 9 invocations, 9/9, green in run
+  `37518884447`. `--bar --against glibc` fails 6 of 9, which is the proof that bar has teeth.
 
-**gifsicle (the engine).** The GIF engine this track compiles to WebAssembly,
-Copyright (C) Eddie Kohler. Licence: GNU General Public License, Version 2
-ONLY. Full text: staged into the build output directory as `COPYING.gifsicle`
-by `build_wasm.sh` (every build ships it); the same text lives at the repo root.
-Source: `reference_code/gifsicle/` in this repo, or upstream
-https://github.com/kohler/gifsicle.
+What has **never** existed is narrower and specific: the **Emscripten module** that
+`build_wasm.sh` produces and `wasm.js` loads — `gifsicle.js` + `gifsicle.wasm` built by `emcc`
+(the `-sMODULARIZE` factory `createGifsicle`, MEMFS, `EXIT_RUNTIME=0`). No `web/wasm/dist/`
+has ever been produced, so `prove_wasm.mjs --oracle` has never run against a real module and
+the page has never loaded an engine. That part of the old note below was right; the blanket
+"no `.wasm` ever" claim was not.
 
-**Everything else in this track.** The page, the glue script, the build script,
-and the proof script are first-party Gifscythe code under the Ms-PL (`LICENSE`,
-`COPYING.ms-pl`). No other third-party code ships in this track. The
-in-process licence question for this track is tracked in
-`docs/legal/README.md` §3 and decided by `OD-16`
-(`docs/planning/OWNER_DECISIONS.md`).
+**Re-measured 2026-10-07 in the agent sandbox** (the npm route proposed as a lighter path):
+
+| route | result |
+|---|---|
+| `storage.googleapis.com` (emsdk's toolchain host) | **unreachable**: `curl -I` → HTTP 000; the connection never establishes |
+| `emscripten.org` | unreachable (HTTP 000) |
+| `github.com` (releases, clone) | reachable (HTTP 200) |
+| npm package `emsdk` | exists — 0.4.0, published 2026-02-17, bins for `emcc`/`em++`/`emrun`/`emcmake`, `engines: node >=18`, `os: [darwin, linux]`, ~300 MB toolchain |
+| `npm install emsdk` here | fails exactly as predicted: `Downloading from https://storage.googleapis.com/webassembly/emscripten-releases-builds/…` → *"Client network socket disconnected before secure TLS connection was established"* |
+| `npm install emsdk@4.0.23` (the npm README's own Quick Start line) | **E404** — the registry has only `0.0.1` and `0.4.0`, and the package then treats its own version (`0.4.0`) as the Emscripten version |
+
+So the "GCS is a different endpoint, so it may not be blocked" hypothesis is **refuted**: it is the
+same host the old note blamed, still blocked from here. The selective-install suggestion
+(`./emsdk install clang-<ver>-64bit emscripten-<ver>`) belongs to the old git-clone driver and
+fetches the same `wasm-binaries.tar.xz` archives from that same bucket — a smaller argument
+surface, not a different host. The remaining route that would work is **CI** (GitHub runners have
+the network this sandbox lacks); see the candidate below.
+
+**Is the oracle low-value because the C is portable?** Partly — and for a different reason than
+the source-purity argument. Measured: `grep -rn '__EMSCRIPTEN__|__wasm__|EMSCRIPTEN'` over
+`reference_code/gifsicle/src/*.c`, `src/*.h` and `config.wasm.h` returns **zero** hits, so there
+are no Emscripten-specific *code* branches to review. But the N-32 bar already covers
+wasm-vs-native byte behaviour, so the residual risk was never in the C source either. It is in
+**two layers the zig build does not exercise**: Emscripten's own libc/ABI, and — the one that
+actually bit — the **JS glue and module lifecycle**, where U-57's stale `/out.gif` lived
+(a singleton `EXIT_RUNTIME=0` module whose virtual FS survived run to run). So skipping the
+emcc build is defensible, but the honest reason is **OD-16**: the track cannot ship until
+counsel's terms exist, so a second wasm toolchain buys nothing shippable today — not "the C is
+pure, so it doesn't matter".
+
+**What IS covered without emcc** (all four run in CI, none needs `emcc`):
+
+| layer | proof | where |
+|---|---|---|
+| the run guard (fixed FS paths, GIF-magic admission) | `web/test/u57-stale-output.test.mjs` — 5/5, incl. an in-suite RED leg replaying the ORIGINAL bug | linux job |
+| **the page glue end to end** (`wasm.js`: settings → argv, FS write/`callMain`/read, magic check, savings + download rendering, refusal path) | `node web/wasm/glue_harness.mjs` — stub DOM + a fake module shelling out to the **real** native engine; measured locally **PASS in 0.4 s** | linux job (added 2026-10-07) |
+| the oracle's comparison logic | `tests/test_prove_wasm_oracle.py` — fake module, real native engine | portability job |
+| wasm bytes vs same-libc native | `libc_parity.py --bar` — zig wasm32-wasi under Node's WASI | portability job |
+
+**Candidate, not done (owner decision).** A CI job could close the last gap without any local
+toolchain: on `ubuntu-24.04`, `git clone https://github.com/emscripten-core/emsdk` (github is
+reachable), `./emsdk install <ver> && ./emsdk activate <ver>` with `actions/cache` on the SDK dir,
+then `libc_parity.py --build-oracle /tmp/gs-oracle` and `prove_wasm.mjs --oracle
+/tmp/gs-oracle/gifsicle-musl`. Cost: ~1 GB cold download, minutes; cache makes it cheap after
+that. It is not implemented because nothing about it changes what may ship (`OD-16` keeps
+`web/wasm/` experimental and unshipped), and the repo's rule is no unrequested work. If the
+track is ever revived toward shipping, this is the first thing to add.

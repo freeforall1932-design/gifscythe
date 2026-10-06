@@ -5,6 +5,7 @@
 
 #include "core/EngineLocator.h"
 #include "core/OutputName.h"
+#include "core/InputAdmission.h"
 #include "core/OutputPlan.h"
 #include "core/OutputVerify.h"
 #include "core/SettingsIO.h"
@@ -357,15 +358,26 @@ bool MainWindow::ensureEngine() {
 }
 
 void MainWindow::appendInputs(const QStringList& files) {
+  // GS-205 / P1-27 (S37): ONE admission rule for the picker, the drop list and
+  // anything else that queues input — gs::admit_input() in core/InputAdmission.h.
+  // It requires a readable REGULAR file whose bytes start with GIF87a/GIF89a,
+  // so a dropped FOLDER (the old `exists()` check said yes to directories) and
+  // a .jpg renamed to .gif are refused here, with a reason, instead of being
+  // queued and failing later inside the engine.
   int added = 0;
+  QStringList refused;
   for (const auto& f : files) {
     if (inputs_.contains(f)) continue;
+    const gs::AdmitResult verdict = gs::admit_input(f.toStdString());
+    if (!verdict.admitted) {
+      refused << QStringLiteral("%1 — %2").arg(QFileInfo(f).fileName(),
+                                               QString::fromLatin1(gs::admit_issue_name(verdict.issue)));
+      continue;
+    }
     inputs_.append(f);
     const QFileInfo fi(f);
     auto* item = new QListWidgetItem(
-        fi.exists()
-            ? QStringLiteral("%1 — %2").arg(fi.fileName(), humanSize(fi.size()))
-            : QStringLiteral("%1 — (missing)").arg(fi.fileName()));
+        QStringLiteral("%1 — %2").arg(fi.fileName(), humanSize(fi.size())));
     item->setData(Qt::UserRole, f);
     item->setToolTip(f);
     inputList_->addItem(item);
@@ -374,11 +386,26 @@ void MainWindow::appendInputs(const QStringList& files) {
   if (added > 0) {
     runButton_->setEnabled(!busy_ && ensureEngine() && !inputs_.isEmpty());
     refreshQueueLabel();
-    updateStatus(QStringLiteral("%1 GIF file(s) in queue.").arg(inputs_.size()));
     refreshCommand();
     refreshOutputSummary();
     if (inputList_->currentRow() < 0) inputList_->setCurrentRow(0);
     schedulePreview();
+  }
+  if (!refused.isEmpty()) {
+    // Never a silent drop: the status line always names the count and the
+    // first reason, and a refusal that leaves the queue EMPTY is also a dialog
+    // (otherwise clicking "Add" on a bad file looks like the app did nothing).
+    const QString detail = refused.join(QStringLiteral("; "));
+    updateStatus(QStringLiteral("Refused %1 file(s): %2").arg(refused.size()).arg(detail));
+    if (added == 0 && inputs_.isEmpty() && !refused.isEmpty()) {
+      QMessageBox::warning(
+          this, QStringLiteral("Gifscythe"),
+          QStringLiteral("Not a GIF file (needs a readable file starting with "
+                         "GIF87a/GIF89a):\n%1")
+              .arg(detail));
+    }
+  } else if (added > 0) {
+    updateStatus(QStringLiteral("%1 GIF file(s) in queue.").arg(inputs_.size()));
   }
 }
 
@@ -403,20 +430,19 @@ void MainWindow::refreshQueueLabel() {
 void MainWindow::chooseInputs() {
   const auto files = QFileDialog::getOpenFileNames(
       this, QStringLiteral("Open GIF files"), QString(),
-      QStringLiteral("GIF files (*.gif);;All files (*)"));
+      QStringLiteral("GIF files (*.gif *.GIF);;All files (*)"));
   if (!files.isEmpty()) appendInputs(files);
 }
 
 void MainWindow::onFilesDropped(const QStringList& files) {
-  QStringList gifs;
-  for (const auto& f : files) {
-    // Audit U-13: this was `|| exists(f)`, so ANY existing file (.exe, .jpg,
-    // .txt) was queued and only failed later, at run time. Both conditions
-    // were clearly meant to hold.
-    if (f.endsWith(QStringLiteral(".gif"), Qt::CaseInsensitive) && QFileInfo::exists(f))
-      gifs << f;
-  }
-  appendInputs(gifs);
+  // Audit U-13 fixed the `|| exists(f)` half here (ANY existing file was
+  // queued); GS-205 / P1-27 (S37) removes the other half's guesswork: the drop
+  // path no longer filters on the SUFFIX, it hands every dropped path to the
+  // same gs::admit_input() rule the picker uses. A directory, a missing file, a
+  // non-GIF and a .gif that is not really a GIF all end up in the same
+  // "Refused ..." feedback, and a GIF with an unusual extension is admitted —
+  // the bytes decide, not the name.
+  appendInputs(files);
 }
 
 void MainWindow::removeSelected() {

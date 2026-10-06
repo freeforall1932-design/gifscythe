@@ -45,7 +45,8 @@ class SettingsPanel : public QWidget {
 
   // Inverse of writeInto: restore every control from s (used for session
   // persistence — S7). Fields that the GUI cannot represent (e.g. optimize
-  // -1 "no flag", disposal 4..7) leave their control at the default.
+  // -1 "no flag") leave their control at the default; disposal 4..7 IS
+  // representable since DS-10 (S37), and the -1 sentinel stays "Keep original".
   // Does NOT emit changed() — callers refresh consumers once afterwards.
   void readFrom(const gs::Settings& s);
 

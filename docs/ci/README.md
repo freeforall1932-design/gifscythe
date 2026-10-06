@@ -51,8 +51,9 @@ back to enforcing byte-equality with no standing exception.
   smokes, the offscreen GUI harness, the Windows unit-test exe
   (`build/test_gifsicle_command.exe` — relevant to `U-71`/`U-94`-class rows:
   pure Win32 rule cases can be proven in CI without a VM), all **eight** Node
-  web suites, packaging + manifest assertion (Windows ships; linux is the test
-  battery since S20/OD-17), artifact upload (`gifscythe-windows`, 14-day
+  web suites, the wasm-track proofs that need no Emscripten (`u57-stale-output.test.mjs` and, since
+  2026-10-07, the page glue end to end in `web/wasm/glue_harness.mjs`), packaging + manifest
+  assertion (Windows ships; linux is the test battery since S20/OD-17), artifact upload (`gifscythe-windows`, 14-day
   retention; binaries are banked on Releases), the csharp-spike job (parked
   track, still CI-run), and the doc gate (its own `docs` job). The Windows GUI
   build and its offscreen harness (S34) run even when the CLI/unit-test step
@@ -154,11 +155,17 @@ back to enforcing byte-equality with no standing exception.
 
 **Purpose:** prove the portable Windows bundle runs on a machine with **no Qt,
 no MinGW, no dev tools** — the last unverified promise of the portable vision.
-Status: **OPEN** (never executed). **Asset:** the `gifscythe-windows` artifact
-of a green CI run on `main` (record run id + built commit; retention 14 days).
-Do NOT use GitHub Release `snapshot-2026-09-07`: it predates S7 while its notes
-pin a newer SHA (U-09) and predates the S18 Ms-PL relicence (U-95). A re-cut
-release (P0-4) becomes the preferred asset once it exists. Contents: `build/`
+Status: **OPEN** (never executed). **Asset (S37):** the pre-release
+**`snapshot-2026-10-06`** — <https://github.com/freeforall1932-design/gifscythe/releases/tag/snapshot-2026-10-06>
+— whose notes pin its own commit (`6aaabcf`) and evidence run, with a per-asset
+sha256 `add856c850076b2bf3a37ad01b25d4c5d8ab8d0d60890f4f591be60e90d8096e` for
+`Gifscythe-0.1.0-windows-portable.zip`. It is produced by the `release-snapshot`
+job in the tag's own run, so the published bytes are the ones that run's `windows`
+job asserted. **Do not use `snapshot-2026-09-07`**: it predates S7 while its notes
+pinned a newer SHA (U-09) and predates the S18 Ms-PL relicence (U-95) — and it no
+longer exists in this repo anyway (the 2026-09-22 re-creation lost it). A fallback
+asset remains the `gifscythe-windows` artifact of a green run (record run id +
+built commit; retention 14 days), but it needs a GitHub login to fetch. Contents: `build/`
 (static `gifscythe-cli.exe`, tests), `build-win/` (`gifscythe.exe` +
 windeployqt runtime + `gifsicle.exe` beside it), `release/` (engine exes).
 

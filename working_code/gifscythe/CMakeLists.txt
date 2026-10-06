@@ -43,6 +43,12 @@ add_executable(test_gifsicle_command tests/test_gifsicle_command.cpp)
 target_link_libraries(test_gifsicle_command PRIVATE gifscythe_core)
 add_test(NAME gifsicle_command COMMAND test_gifsicle_command)
 
+# GS-205 / P1-27 (S37): the input-admission rule, Qt-free, so the rule itself
+# is pinned by CI on Linux while the GUI only CALLS it (tests/test_input_admission.cpp).
+add_executable(test_input_admission tests/test_input_admission.cpp)
+target_link_libraries(test_input_admission PRIVATE gifscythe_core)
+add_test(NAME input_admission COMMAND test_input_admission)
+
 # Lying-engine fixture for the harness's U-17 explode-verification test:
 # exits 0 without writing anything. Tiny, dependency-free, built on every
 # platform so T7 finds it next to test_gui_offscreen (see tests/fake_engine_exit0.cpp).
@@ -50,6 +56,16 @@ add_executable(fake_engine_exit0 tests/fake_engine_exit0.cpp)
 
 # Writes corrupt bytes to -o and then fails; GUI U-59 regression fixture.
 add_executable(fake_engine_partial_failure tests/fake_engine_partial_failure.cpp)
+
+# Slow, argv-logging engine: makes each run's argv observable (U-58 / P1-38
+# mid-batch mutation) and stays alive so Cancel can race a REAL process
+# (U-72 / P1-42). Copies its input to -o so the promotion path accepts it.
+add_executable(fake_engine_argv_sleep tests/fake_engine_argv_sleep.cpp)
+
+# U-12 / P1-24 (S37): a fixture whose CHILD keeps the inherited pipes open after
+# the parent is killed - without it, kill()+waitForFinished() returns in ~1 ms and
+# the event-loop freeze cannot be measured at all (see the file's header).
+add_executable(fake_engine_orphan_pipe tests/fake_engine_orphan_pipe.cpp)
 
 # ---- Qt6 GUI (optional) ----
 option(BUILD_GUI "Build the Qt6 GUI" ON)
@@ -86,7 +102,12 @@ if(BUILD_GUI)
     )
     target_link_libraries(test_gui_offscreen PRIVATE gifscythe_core Qt6::Widgets)
     target_include_directories(test_gui_offscreen PRIVATE "${CMAKE_BINARY_DIR}/generated" src)
-    add_dependencies(test_gui_offscreen fake_engine_exit0 fake_engine_partial_failure)
+    # Every fixture the harness looks for must be built WITH it: the audit gate
+    # builds `--target test_gui_offscreen` only, so a fixture that is merely
+    # declared (not a dependency) is missing at run time and its case fails on the
+    # environment. T26's orphan-pipe fixture was exactly that when it was added.
+    add_dependencies(test_gui_offscreen fake_engine_exit0 fake_engine_partial_failure
+                     fake_engine_argv_sleep fake_engine_orphan_pipe)
     add_test(NAME gui_offscreen COMMAND test_gui_offscreen)
     set_tests_properties(gui_offscreen PROPERTIES
       ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
@@ -106,6 +127,7 @@ if(MINGW)
   target_link_options(test_gifsicle_command PRIVATE -static)
   target_link_options(fake_engine_exit0 PRIVATE -static)
   target_link_options(fake_engine_partial_failure PRIVATE -static)
+  target_link_options(fake_engine_argv_sleep PRIVATE -static)
   foreach(gui_tgt gifscythe test_gui_offscreen)
     if(TARGET ${gui_tgt})
       target_link_options(${gui_tgt} PRIVATE -static-libgcc -static-libstdc++)
