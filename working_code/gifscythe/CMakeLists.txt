@@ -102,8 +102,12 @@ if(BUILD_GUI)
     )
     target_link_libraries(test_gui_offscreen PRIVATE gifscythe_core Qt6::Widgets)
     target_include_directories(test_gui_offscreen PRIVATE "${CMAKE_BINARY_DIR}/generated" src)
+    # Every fixture the harness looks for must be built WITH it: the audit gate
+    # builds `--target test_gui_offscreen` only, so a fixture that is merely
+    # declared (not a dependency) is missing at run time and its case fails on the
+    # environment. T26's orphan-pipe fixture was exactly that when it was added.
     add_dependencies(test_gui_offscreen fake_engine_exit0 fake_engine_partial_failure
-                     fake_engine_argv_sleep)
+                     fake_engine_argv_sleep fake_engine_orphan_pipe)
     add_test(NAME gui_offscreen COMMAND test_gui_offscreen)
     set_tests_properties(gui_offscreen PROPERTIES
       ENVIRONMENT "QT_QPA_PLATFORM=offscreen"

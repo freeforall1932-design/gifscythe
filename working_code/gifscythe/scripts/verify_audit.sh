@@ -159,7 +159,10 @@ if command -v cmake >/dev/null 2>&1 && (command -v qmake6 >/dev/null 2>&1 || [[ 
   cmake -S . -B "$work/gui" -DCMAKE_BUILD_TYPE=Release >/dev/null 2>&1
   # fake_engine_exit0 is T7's lying-engine fixture (audit U-17) — the harness
   # requires it next to the test binary, so build both targets here.
-  if cmake --build "$work/gui" --target test_gui_offscreen fake_engine_exit0 -j2 >/dev/null 2>&1; then
+  # Build the harness target ONLY: every fixture it needs is an add_dependencies
+  # edge, so the graph brings them along. (Naming fixtures here instead is how
+  # T26's fixture went missing on CI - the target's own deps are the contract.)
+  if cmake --build "$work/gui" --target test_gui_offscreen -j2 >/dev/null 2>&1; then
     # N-12: the old form piped through `tail -1`, so its ONLY assertion was the
     # final banner. Deleting a T-block (T14 persistence, T17 batch planning,
     # T19 atomic save) left this gate green while the STATUS.md rows that cite
@@ -180,6 +183,13 @@ if command -v cmake >/dev/null 2>&1 && (command -v qmake6 >/dev/null 2>&1 || [[ 
       ok "B1-B20" "offscreen GUI harness green (${gui_checks} checks over ${gui_blocks} test blocks)"
     else
       bad "B1-B20" "GUI harness: banner said $(grep -q 'ALL GUI TESTS PASSED' <<<"$gui_out" && echo PASSED || echo NOT-passed), ${gui_blocks:-0} test blocks (<20) and ${gui_checks:-0} checks (<300)"
+    # Self-reporting (U-14's own lesson, learned on its first CI run): a captured
+    # harness output that is never shown makes "0 blocks, 0 checks" undiagnosable.
+    # Print the head of it, which is where an early FATAL (missing engine, refs or
+    # platform plugin) and the first failing CHECK both live.
+    echo "  ---- harness output (first 25 lines) ----"
+    sed -n '1,25p' <<<"$gui_out" | sed 's/^/  | /'
+    echo "  ---- end ----"
     fi
   else skip "B" "GUI harness build failed (Qt6 incomplete?)"; fi
 else
