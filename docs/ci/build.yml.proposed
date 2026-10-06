@@ -139,32 +139,6 @@ jobs:
         working-directory: working_code/gifscythe
         run: ./scripts/smoke_cli.sh
 
-      # U-14 / P2-3 remainder: the audit's own gate existed but NEVER ran in CI, so
-      # "green CI" could not speak for the 34 claims verify_audit.sh checks (web
-      # parity, transport, oracle matrix, parser suite, sentinels). Measured before
-      # adding it: 119 s wall here, 34 passed / 0 failed / 3 skipped (the skips are
-      # the two things no Linux runner can do - Actions-job inspection and a clean
-      # Windows machine). Cheap enough to be a gate; the alternative was naming an
-      # unmeasured exclusion.
-      - name: Audit gate (verify_audit.sh - U-14)
-        timeout-minutes: 10
-        working-directory: working_code/gifscythe
-        run: |
-          set +e
-          log="${RUNNER_TEMP:-/tmp}/verify_audit.log"
-          ./scripts/verify_audit.sh 2>&1 | tee "$log"
-          status=${PIPESTATUS[0]}
-          set -e
-          # Self-reporting (learned twice today): its first CI failure said only
-          # "exit code 1", which names neither the failing check nor its message.
-          # Publish every FAIL/ERROR line plus the summary, pass or fail.
-          while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^==> Done' "$log" | head -3 || true)
-          if [ "$status" -ne 0 ]; then
-            while IFS= read -r line; do echo "::error::$line"; done < <(grep -aE 'FAIL|ERROR' "$log" | head -25 || true)
-            echo "::error::verify_audit.sh exited $status (failing checks above; full log in the job output)"
-          fi
-          exit "$status"
-
       # U-71 / P2-17 (F:NF-14). run_argv()'s Windows branch returned `code & 0xff`, so an
       # NTSTATUS whose low byte is zero - 0xC0000100 among them - came back as exit 0: a crash
       # reported as SUCCESS, the top false-success class this repo audits for. The mask rule is a
@@ -316,6 +290,39 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
+
+      # U-14 / P2-3: the audit gate runs LAST in this job ON PURPOSE. Its first CI run
+      # failed B1-B20 - "0 test blocks, 0 checks" - because it exercises the offscreen
+      # GUI harness and this job builds that harness later (build-cmake/ is created by
+      # the "GUI offscreen tests" step above). Locally it passed only because the
+      # harness happened to be built already. Running it last means every input it
+      # inspects exists: engine, CLI, fixtures, web deps, the packaged folder, the
+      # harness binaries. Naming an unmeasured exclusion was the alternative.
+      # U-14 / P2-3 remainder: the audit's own gate existed but NEVER ran in CI, so
+      # "green CI" could not speak for the 34 claims verify_audit.sh checks (web
+      # parity, transport, oracle matrix, parser suite, sentinels). Measured before
+      # adding it: 119 s wall here, 34 passed / 0 failed / 3 skipped (the skips are
+      # the two things no Linux runner can do - Actions-job inspection and a clean
+      # Windows machine). Cheap enough to be a gate; the alternative was naming an
+      # unmeasured exclusion.
+      - name: Audit gate (verify_audit.sh - U-14)
+        timeout-minutes: 10
+        working-directory: working_code/gifscythe
+        run: |
+          set +e
+          log="${RUNNER_TEMP:-/tmp}/verify_audit.log"
+          ./scripts/verify_audit.sh 2>&1 | tee "$log"
+          status=${PIPESTATUS[0]}
+          set -e
+          # Self-reporting (learned twice today): its first CI failure said only
+          # "exit code 1", which names neither the failing check nor its message.
+          # Publish every FAIL/ERROR line plus the summary, pass or fail.
+          while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^==> Done' "$log" | head -3 || true)
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r line; do echo "::error::$line"; done < <(grep -aE 'FAIL|ERROR' "$log" | head -25 || true)
+            echo "::error::verify_audit.sh exited $status (failing checks above; full log in the job output)"
+          fi
+          exit "$status"
       - uses: actions/checkout@v4
 
       # A venv: 24.04's system pip refuses to install into the system Python (PEP 668).
