@@ -274,10 +274,22 @@ remains open is item 2 and the Qt proof.
    suite passes at both widths, so the table is proven at the LLP64 width class
    the real NTSTATUS path lives in, not only at the width it was written on.
    `node scripts/lint_workflow.mjs` → `actionlint: clean`, `--selftest` OK.
-2. **Still open — the 0005 CI sentinel as written false-fails** on the patch's
-   own comment (`MainWindow.cpp:1108` contains the literal `currentSettings()`),
-   so a plain `grep -c currentSettings()` goes red. Needs a comment filter. Not
-   wired into `build.yml` for that reason.
+2. ~~The 0005 CI sentinel as written false-fails.~~ **DONE (S36).** The defect
+   was in the sentinel, not the fix: `grep -c currentSettings()` counted the
+   patch's own comment (`MainWindow.cpp:1108` names `currentSettings()` to say
+   what must NOT run there). The replacement is
+   `scripts/test_u58_u70_u72_sentinels.sh`: every check strips comments first,
+   and the script carries the sentinels all three patches asked for — S1 (U-58
+   batch snapshot), S2 (U-72 cancel latch) and S3 (U-70 preview boundary, whose
+   Qt behaviour is indistinguishable on a UTF-8-clean host, so the source
+   invariant is the platform-independent proof). It is mutation-tested inside
+   itself (S4 rebuilds the pre-fix shapes — live re-read in the continuation,
+   the early `cancelling_ = false;` after the 3 s wait, consume-after-verdict,
+   and a bare `fs::path(enginePath_.toStdString())` probe — and requires the
+   checks to reject them), and it was re-run against the real pre-fix trees
+   (`patch -p1 -R` of `0003`, `0004` and `0005` in scratch copies: S1, S2 and S3
+   red respectively, each with the other sentinels still green in that tree).
+   Wired into `build.yml` and the byte mirror as its own step.
 3. ~~Register/doc bookkeeping is outstanding.~~ **DONE.** U-57 and U-71 flipped
    OPEN → FIXED (S35) with their executed proof quoted; U-58, U-70 and U-72
    flipped OPEN → **PARTIAL** (S35), not FIXED, each naming the behavioural case

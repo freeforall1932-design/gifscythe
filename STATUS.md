@@ -29,9 +29,9 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 160 DONE · 14 PARTIAL · 21 OPEN · 0 UNTRIAGED · 195 total
-**Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 9 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
-**Last regenerated:** S35 · 2026-10-06 · by scripts/check_docs.sh --emit
+**Counts (generated - do not edit by hand):** 163 DONE · 11 PARTIAL · 21 OPEN · 0 UNTRIAGED · 195 total
+**Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 7 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
+**Last regenerated:** S36 · 2026-10-06 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
 
@@ -95,7 +95,7 @@ hand-fudged roll-up fails the gate.
 | U-55 | Windows path_key folds ASCII only — `OutputPlan.h` lowercases UTF-8 bytes with `tolower` under `_WIN32`; non-ASCII case... | OPEN | - | not started; scoped as P1-35 in COMPILED_AUDIT.md §6 | P1-35: Windows path_key Unicode case fold — NEW E:NA-03 — gpt 5.6. |
 | U-56 | Desktop sanitization misses superscript COM/LPT aliases — `is_windows_reserved_device_name()` checks ASCII digit only; Windows reserves `COM¹²³` / `LPT¹²³` (U+00B9/00B2/00B3). | DONE | S23 | `is_windows_reserved_device_name()` folds U+00B9/B2/B3 after COM/LPT; one shared table `tests/windows_reserved_names.txt` (27 rows) drives the C++... | - |
 | U-57 | WASM singleton reuses stale /out.gif — `wasm.js` does not unlink/snapshot `/out.gif` before `callMain()`; after one success, exit-zero/no-write run reads previous GIF and reports success for wrong input. | DONE | S35 | `web/wasm/fs_run_guard.mjs` (new, pure ESM, no DOM, no Emscripten import): `clearRunArtifacts()` unlinks `/in.gif` AND `/out.gif` BEFORE... | - |
-| U-58 | Batch continuation re-reads LIVE settings — targets planned once (`batchTargets_` U-01) but `currentSettings()` called live for... | PARTIAL | S35 | source fix landed, Qt proof outstanding. `MainWindow.h` gains `gs::Settings batchSettings_`; `runCommand()`'s batch branch writes it once, beside the... | P1-38: Snapshot batch settings — NEW F:NF-01 — fable 5.1 low — WINNER. |
+| U-58 | Batch continuation re-reads LIVE settings — targets planned once (`batchTargets_` U-01) but `currentSettings()` called live for... | DONE | S36 | `MainWindow.h` gains `gs::Settings batchSettings_`; `runCommand()`'s batch branch writes it once beside the verified plan, `onProcessFinished()`... | - |
 | U-59 | Cancel / failure leaves truncated file over PRE-EXISTING output — gifsicle writes direct to `-o <target>`; `cancelRun()` kills mid-write, failure branch never removes/restores; re-optimising existing `_opt.gif` + Cancel destroys last good result. | DONE | S30 | CLI/core proof remains as recorded below. GUI Batch/Merge/Auto writes to the same-directory `<target>.gs-partial`, snapshots/verifies the partial,... ; harness: CLI/core proof (S30; offscreen); GUI write path not desktop-proven | - |
 | U-60 | CLI resolves `#0` frame selector to bogus path — `GifsicleSettings.h` documents `#0` as legal input, man page defines it, but... | DONE | S22 | special input tokens (`#...`, `-`) now stay literal through CLI resolution/planning. Proof: `web/test/command.test.mjs` parity fixtures +... | - |
 | U-61 | `output = -` treated as file → false failure rc=1 — man page `-o - means stdout`; CLI streams GIF to stdout correctly but `verify_output("-")` reports missing file and returns rc=1. | DONE | S22 | stream output is now normalized before path resolution, planning, and verification. Proof: `web/test/command.test.mjs` pins `-o -`;... | - |
@@ -107,9 +107,9 @@ hand-fudged roll-up fails the gate.
 | U-67 | `serveStatic()` served the whole `web/` tree — server source, test suite and docs were world-readable (narrowed by S21 measurement; two of the three original sub-claims did not survive it — see §2F F-10). | DONE | S22 | allow-list `/`, `/index.html`, `/style.css`, `/app.js`, `/command.mjs`; everything else under `web/` 404; `assertContainedPath()` reused as defence... | - |
 | U-68 | Oversized bodies 400 not 413, /run cap ~48MB not 64MB — `readBody` rejects generic Error, `handleRun` maps to bad JSON;... | PARTIAL | S22 | 413 mapping shipped, re-proven and now automated: `readBody` rejects with a typed `BodyTooLargeError` (413) and stops accumulating without destroying... | P2-16: Web static hygiene and 413 mapping — NEW F:NF-10/11/12 — fable 5.1 low — WINNER. |
 | U-69 | After failed run previous After stays under Failed status — `revokeResults()`/hide only on success and queue change; setting... | DONE | S23 | the failure branch now calls the same `clearResults()` the success path uses (revoke, hide #outputs, clear #after/#savings) via... | - |
-| U-70 | Preview engine check bypasses UTF-8 boundary — `ensureEngine()` wraps `u8path_compat()`, `startPreview()` passes... | PARTIAL | S35 | source fix landed, Qt proof outstanding. `startPreview()`'s engine re-probe now goes through `gs::u8path_compat()` exactly like `ensureEngine()`... | P1-42: Preview UTF-8 boundary and cancelling lifetime — NEW F:NF-13/15 — fable 5.1 low — WINNER. |
+| U-70 | Preview engine check bypasses UTF-8 boundary — `ensureEngine()` wraps `u8path_compat()`, `startPreview()` passes... | DONE | S36 | `startPreview()`'s engine re-probe now wraps `gs::u8path_compat()` exactly like `ensureEngine()`. Proven by the new offscreen case **T23** (engine... | - |
 | U-71 | Windows exit masked `&0xff` collapses NTSTATUS crash to success — `ProcessRunner.h` Windows `code &0xff`; crash NTSTATUS like... | DONE | S35 | `classify_windows_exit_code()` (new, pure logic, no Win32 types — the same discipline as `win_quote_arg` beside it) replaces the mask in... | - |
-| U-72 | cancelling_ cleared after 3s wait → spurious failure dialog after Cancelled — `cancelRun()` resets flag right after `waitForFinished(3000)`; if engine dies later, `finished()` arrives with `cancelling_==false` and shows error after Cancelled. | PARTIAL | S35 | source fix landed, Qt proof outstanding. `cancelling_` becomes a LATCH with exactly one owner: `cancelRun()` arms it only when a process was ACTUALLY... | P1-42: Preview UTF-8 boundary and cancelling lifetime — NEW F:NF-13/15 — fable 5.1 low — WINNER. |
+| U-72 | cancelling_ cleared after 3s wait → spurious failure dialog after Cancelled — `cancelRun()` resets flag right after... | DONE | S36 | `cancelling_` is a latch with one owner: armed only when a process was actually running, consumed once at the top of `onProcessFinished()`... | - |
 | U-73 | resolve_path CWD fallback contradicts CWD-independent contract — relative input missing next to conf but exists in CWD picked... | DONE | S23 | CWD fallback still honoured but never silent: names each CWD-resolved input on stderr and `--strict` refuses (rc=3); smoke 12j; `resolve_path_mode`... | - |
 | U-74 | Batch + output + N>1 passes planner in merge shape, engine semantics undocumented — GS-201 refuses Batch WITHOUT output; WITH... | DONE | S23 | `--run` refuses Batch with >1 input and one output (rc=2) — measured `gifsicle -b a.gif b.gif -o out.gif` exits 0 with out.gif == b.gif and a.gif's... | - |
 | U-75 | `-E` exposed but `--name` not, several engine options absent — without `--name` `-E` vs `-e` differs only if input already... | DONE | S23 | documented remedy (the scoped action's OR): README table of engine options the layer does not model + `-E` checkbox explains the `--name` dependency... | - |
@@ -314,11 +314,11 @@ finished?"* without hand-reading (U-88 / P2-21).
 | P1-35 | U-55 | OPEN | 1 member(s); OPEN: U-55 | close the OPEN member(s): U-55 |
 | P1-36 | U-56 | DONE | 1 member(s) - all DONE | - |
 | P1-37 | U-57 | DONE | 1 member(s) - all DONE | - |
-| P1-38 | U-58 | PARTIAL | 1 member(s); PARTIAL: U-58 | close the PARTIAL member(s): U-58 |
+| P1-38 | U-58 | DONE | 1 member(s) - all DONE | - |
 | P1-39 | U-60,U-61 | DONE | 2 member(s) - all DONE | - |
 | P1-40 | U-62,U-63 | DONE | 2 member(s) - all DONE | - |
 | P1-41 | U-64,U-65,U-66 | DONE | 3 member(s) - all DONE | - |
-| P1-42 | U-70,U-72 | PARTIAL | 2 member(s); PARTIAL: U-70,U-72 | close the PARTIAL member(s): U-70,U-72 |
+| P1-42 | U-70,U-72 | DONE | 2 member(s) - all DONE | - |
 | P1-43 | U-73,U-74,U-76 | PARTIAL | 3 member(s); PARTIAL: U-76 | close the PARTIAL member(s): U-76 |
 | P1-44 | U-78,U-87 | DONE | 2 member(s) - all DONE | - |
 | P1-45 | U-95 | DONE | 1 member(s) - all DONE | - |

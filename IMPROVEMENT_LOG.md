@@ -4,6 +4,90 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S36 — 2026-10-06: the three S35 Qt rows CLOSED — U-58/U-70/U-72 flipped to FIXED with executed RED→GREEN proof; the 0005 sentinel fixed, extended to U-70 and wired into CI; Qt6 built from source here (the "no Qt6 in this sandbox" constraint was wrong)
+
+**Changed:**
+
+- **Qt6 now runs in this sandbox — the S35 blocker was a provisioning mistake, not a
+  platform limit.** `scripts/build_qt6_local.sh` (new) shallow-clones qtbase `v6.8.3` and
+  builds Core + Gui + Widgets, the host tools (`moc`/`rcc`/`uic`), the offscreen platform
+  plugin and the **`qgif` image-format plugin** with bundled zlib/pcre/freetype/libpng/
+  harfbuzz — no apt, no root, ~15 minutes on 2 cores. The harness then compiles and runs
+  here: `cmake -S . -B build-cmake -DBUILD_GUI=ON -DCMAKE_PREFIX_PATH=<qtbuild>` and
+  `LD_LIBRARY_PATH=<qtbuild>/lib QT_PLUGIN_PATH=<qtbuild>/plugins QT_QPA_PLATFORM=offscreen
+  GS_TEST_REF_DIR="$(./scripts/fixtures.sh)" ./build-cmake/test_gui_offscreen`.
+  **Two traps are in the script's header:** a module build produces neither the offscreen
+  plugin nor `qgif` unless their targets are named; without `qgif`, QMovie cannot decode a
+  GIF at all, so T12/T20/T23 fail on the *environment* (6 failures) while the fixed tree
+  passes with it (0). The script also had to learn where qtbase's `configure` writes: it
+  builds in the **current directory**, and running it from the repo dropped ~1150 Qt build
+  files into `working_code/gifscythe` (cleaned; the script now `cd`s into the build tree
+  first, and the incident is recorded in its comments).
+- **The three missing behavioural cases are written and executed.**
+  `tests/test_gui_offscreen.cpp` grows **T22** (cancel-latch honesty), **T23** (non-ASCII
+  `GS_ENGINE`), **T24** (mid-batch settings mutation) on the new argv-logging fixture
+  `tests/fake_engine_argv_sleep.cpp` (`GS_FAKE_ARGV_LOG` appends one TAB-joined argv line per
+  run before sleeping; `GS_FAKE_SLEEP_MS`, `GS_FAKE_EXIT`). Measured here: **404 runtime
+  checks, 0 failures** (Qt 6.8.3 from source, offscreen, `GS_TEST_REF_DIR` from
+  `scripts/fixtures.sh`), ~20 s. The README's site/runtime figures were re-measured with it
+  (284 `CHECK(` sites; the 271/398 numbers were stale).
+- **RED→GREEN is measured, not asserted.** T24, against the *real* pre-fix tree (a scratch
+  copy with `0005` reverse-applied by `patch -p1 -R`), fails exactly its three snapshot
+  assertions — "job 2 ran the BATCH-START -O3, not the mutated -O2" — and passes on the
+  fixed tree. That is the acceptance case the U-58 row named, and its mutation is asserted
+  live (the pane and `currentSettings()` both show the new level), so the case cannot pass
+  vacuously.
+- **U-70's teeth are the source invariant, and they are now platform-independent.** T23
+  copies the engine under `ünïcode-日本語-Ω-engine`, points `GS_ENGINE` at it and requires the
+  debounced preview to actually run; it is green here. But POSIX `u8path_compat` is the
+  identity, so a UTF-8-clean host cannot distinguish the wrapped call from the bare one —
+  which is why the sentinel now carries **S3** (3 wrapped probes, `startPreview()` wrapped
+  once, zero bare `path_is_executable(fs::path(enginePath_.toStdString()))` forms), executed
+  PASS on the fixed tree and **RED on a `0004`-reversed tree** with S1/S2 still green there.
+  On Windows T23 also asserts the premise itself (`#ifdef _WIN32`: the bare conversion must
+  fail for that path, else the case would silently stop covering the boundary) and the same
+  case runs in the `windows` GUI job. Residual kept in the row: no legacy-ACP host has been
+  observed by anyone in this repo.
+- **U-72: the race is not constructible on Qt 6.8.3 — and the fix is still falsifiable.**
+  Read in the real source (`qtbase` v6.8.3): `QProcessPrivate::waitForFinished()` polls the
+  forkfd and calls `processFinished()` **synchronously** when the child dies
+  (`qprocess_unix.cpp:1242-1277`); `processFinished()` emits `finished()` after reading the
+  channels (`qprocess.cpp:1201-1251`); and `kill()` is SIGKILL — final, unblockable. So on
+  this path a `finished()` cannot arrive after `cancelRun()` returns, which is why the
+  `0003`-reversed tree keeps T22 **green**: pre-fix and post-fix are observationally equal
+  here. T22 was therefore restructured to run its legs in **one window** (a fresh window per
+  leg reset the member and tested nothing) and given teeth against the two plausible wrong
+  fixes, both built and executed: keeping the latch without consuming it → T22 RED ×2;
+  arming it unconditionally (ignoring `engineWasRunning`) → T22 RED ×4. The invariant itself
+  is CI-enforced by sentinel **S2** (no clear in `cancelRun()`, one arm inside
+  `if (engineWasRunning) {`, one clear file-wide, read-before-clear in `onProcessFinished()`),
+  **RED on the `0003`-reversed tree**. The literal "slow kill" leg the finding describes is
+  recorded in the row as not constructible; U-12 stays OPEN (this removes the race, not the
+  bounded waits), and the S35 constraint stands: **do not** add `cancelling_ = false;` to
+  `runCommand()`.
+- **The 0005 sentinel defect is fixed by removing the defect, not by relaxing the check.**
+  `grep -c currentSettings()` counted the patch's own comment (it names the call to explain
+  what must NOT happen there). The replacement `scripts/test_u58_u70_u72_sentinels.sh` strips
+  comments before every check, covers all three rows (S1/S2/S3, each with a vacuity guard on
+  its function extraction), and is mutation-tested **inside itself**: S4 rebuilds the pre-fix
+  U-58 re-read, the early `cancelling_ = false;` after the 3 s wait, the consume-after-verdict
+  pit, and a bare preview probe — and fails if any sentinel accepts its mutant. Re-run against
+  all three real reversed patches: S1 red on `0005`, S2 red on `0003`, S3 red on `0004`, each
+  with the other sentinels green in that tree. Wired into `build.yml` **and** the byte mirror
+  as its own step ("Qt source sentinels (U-58 batch snapshot, U-70 preview boundary, U-72
+  cancel latch)"), so a red names the rows rather than a suite; `lint_workflow.mjs` clean.
+- **Register: 160/14/21/0 → 163/11/21/0 = 195** (three PARTIAL → DONE; P1-38 and P1-42 both
+  DONE). The audit rows and their §5 proof paragraphs carry the executed commands and the
+  exact failures the pre-fix trees produced, and the §17.2 acceptance-case list marks NF-01 /
+  NF-13 / NF-15 **WRITTEN (S36)**.
+
+**Not verifiable here (stated, not hidden):** the **Windows** legs themselves — T23's premise
+guard and the whole `windows` GUI job run only on a Windows runner (the source sentinel is the
+part that is platform-independent, and it is the one that discriminates on this host); no
+legacy-ACP Windows host exists anywhere in this repo's CI; and T22's pre-fix race has no
+runtime reproduction on Qt 6.8.3 at all (proven above), so its proof is the mutation-tested
+source invariant plus the two wrong-fix mutants, never a red harness on the pre-fix tree.
+
 ## S35 — 2026-10-06: five-patch audit intake — three malformed patches repaired, 100% of the fix content salvaged, U-57/U-71 CLOSED with executed proof, U-58/U-70/U-72 moved to PARTIAL (source landed, Qt proof outstanding), both new proofs wired into CI, G10 re-anchored
 
 **Changed:**
