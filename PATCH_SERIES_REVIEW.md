@@ -200,13 +200,37 @@ commits lists only `web/` and `working_code/` sources):
 * `G15` — `core.hooksPath` is not `.githooks` in this fresh clone
   (`scripts/bootstrap_hooks.sh` not run).
 
-**Not verifiable here, and not verified:** the three Qt6 hunks were never
-compiled. There is no Qt6 in this sandbox and no root for `apt-get install
-qt6-base-dev`. What I did instead is type-check the two hunks that introduce a
+**The three Qt6 hunks could not be compiled in this sandbox — and CI has now
+compiled them.** There is no Qt6 here and no root for `apt-get install
+qt6-base-dev`, so locally I could only type-check the two hunks that introduce a
 new type or expression against the real Qt-independent headers, and read the
-control-flow hunk (U-72) line by line. A `cmake` GUI build plus the offscreen
-harness is still the outstanding proof for U-72/U-70/U-58, exactly as the
-patches themselves say ("proof: Qt CI").
+control-flow hunk (U-72) line by line.
+
+PR CI run **37406097117** closed that gap: **all six jobs green**, and
+specifically
+
+| job | step | result |
+|---|---|---|
+| `linux` | Build engine, CLI, tests, and GUI | success |
+| `linux` | GUI offscreen tests (COMPILED_AUDIT 6.B harness) | success |
+| `windows` | Build GUI (CMake) + windeployqt | success |
+| `windows` | GUI offscreen tests (Windows) | success |
+| `linux` | Windows exit-code classifier proof (U-71 / P2-17) | success |
+| `portability` | Windows exit-code classifier on a 4-byte-long target (U-71, LLP64) | success |
+| `windows` | Windows exit-code classifier proof, native (U-71 / P2-17) | success |
+| `linux` | WASM stale-output guard (U-57 / P1-37) | success |
+
+So all four steps this review added to `build.yml` ran and passed on real
+runners, and U-58/U-70/U-72 **compile on both platforms with both offscreen
+harnesses green**.
+
+**They stay PARTIAL anyway, and that is deliberate.** A green build plus an
+unchanged harness proves the hunks compile and regress nothing; it does not
+prove the fix, because no offscreen case exercises any of the three behaviours.
+Contrast U-57 and U-71, whose proofs fail without the fix. The repo has form for
+accepting build + offscreen as proof of a GUI row (U-59 was closed on run
+36227237540) — but U-59 shipped T4/T8/T9 written *for it*. These three rows have
+no such case, so each names the one that is still unwritten.
 
 SESSION_HANDOFF.md lines 448-456 independently agrees with that split, and
 names these exact rows: this sandbox is "g++ 12.2, node v22, gh, curl — no
