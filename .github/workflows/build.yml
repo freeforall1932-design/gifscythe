@@ -119,7 +119,21 @@ jobs:
       # sha256 and fails on drift, deletion OR an added file.
       - name: Vendored upstream identity pins (U-10 / A-09)
         working-directory: working_code/gifscythe
-        run: ./scripts/verify_reference_pins.sh
+        run: |
+          set +e
+          log="${RUNNER_TEMP:-/tmp}/reference_pins.log"
+          ./scripts/verify_reference_pins.sh 2>&1 | tee "$log"
+          status=${PIPESTATUS[0]}
+          set -e
+          # Self-reporting: this step FAILED its first CI run (the pin caught an
+          # intended edit to config.native.h that had not been re-pinned) and the
+          # only thing the annotation said was "exit code 1" - whose file, which
+          # hash, was invisible. Publish the FAIL lines, same rule as the harness.
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r line; do echo "::error::$line"; done < <(grep -a '^FAIL' "$log" | head -20 || true)
+            echo "::error::verify_reference_pins.sh exited $status (drift lines above; re-pin deliberately if intended)"
+          fi
+          exit "$status"
 
       - name: CLI smoke tests
         working-directory: working_code/gifscythe
