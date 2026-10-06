@@ -329,6 +329,16 @@ Based on `main` commit `76392da` (PR #11's merge commit — the tip this branch 
   all **eleven** `web/test/*.test.mjs` suites green (the new `stem` suite is the
   eleventh, and CI's suite list now names it); `check_docs.sh`/`sweep_stale.sh` green
   after `--emit`; register **168 DONE / 10 PARTIAL / 17 OPEN = 195**.
+- **The `windows` job caught two real portability bugs in this batch, and CI is green
+  after both:** (1) T25's `std::ifstream` needed an explicit `<fstream>` (Linux's
+  libstdc++ supplies it transitively, MinGW's does not); (2) the new
+  `tests/test_input_admission.cpp` used `<unistd.h>`/`::geteuid()`/`::chmod` unguarded for
+  its one POSIX-only leg, and CMake builds that target on Windows too. Both reds arrived as
+  "exit code 1" only, so the windows **GUI build step now tees its output and annotates the
+  compiler's error lines** — the harness steps already did. **CI: run `37480581369`, all
+  six jobs green** (gate/linux/docs/windows/portability/csharp-spike); the windows GUI build
+  ran 40 s and the windows offscreen harness 22 s, so T8, T13 and T25 all execute on
+  Windows too. Artifacts: `gifscythe-windows` (51 MB) on that run.
 - **Sandbox note (recurring):** this session's sandbox was rebuilt mid-run and lost
   `build/`, `~/.local/bin` and the Qt tree — the repo was restored from `origin`
   (`7c02981`) and this turn's edits re-applied from a saved copy before continuing.

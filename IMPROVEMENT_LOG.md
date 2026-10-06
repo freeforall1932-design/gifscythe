@@ -58,6 +58,19 @@ eleven `web/test/*.test.mjs` suites green (the new `stem` suite included in CI's
 named list); `build.sh` runs both unit suites now. Register **168 DONE / 10 PARTIAL /
 17 OPEN / 0 UNTRIAGED = 195** (from 163/11/21/0).
 
+**The windows job found two real portability bugs in this batch, and a third of the
+lesson:** (1) the harness's new T25 reads a file with `std::ifstream` and never included
+`<fstream>` — Linux's libstdc++ supplies it transitively, MinGW's does not; (2)
+`tests/test_input_admission.cpp` used `<unistd.h>`/`<sys/stat.h>`/`::geteuid()`/`::chmod`
+UNGUARDED for its one POSIX-only leg, and CMake builds that target on Windows too. Both
+were red **at the GUI BUILD step** (15 s), and both reported only "Process completed with
+exit code 1" — so the step now tees its output and re-emits the compiler's own error lines
+as `::error::` annotations, the same rule the harness steps already followed. The two reds
+are the argument for that: the first one cost a guess-and-push cycle that fixed the wrong
+thing. **CI after both fixes: run `37480581369`, all six jobs green** — the windows GUI
+build 40 s, the windows offscreen harness 22 s (T8's admission refusals, T13's disposal
+4..7 and T25's 18 Qt naming rows all run there now).
+
 **Sandbox note:** the sandbox was rebuilt mid-session (snapshot-excluded `build/`,
 `~/.local/bin`, and the Qt tree were gone; the repo came back at base `76392da` with
 the pushed work as uncommitted diffs). Recovery: `git fetch` + `git reset --hard
