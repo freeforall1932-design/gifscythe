@@ -589,6 +589,11 @@ jobs:
             while IFS= read -r line; do echo "::error::$line"; done < <(grep -a 'FAIL' "$log" | head -20 || true)
             echo "::error::test_gui_offscreen.exe exited $status (FAIL lines above; a crash prints none)"
           fi
+          # U-12 / P1-24: T26's event-loop gaps are the one measurement this project cannot
+          # take on this runner's behalf from a Linux sandbox (a kill-first wait's cost on
+          # Windows is unmeasurable there), and job log blobs are not always retrievable.
+          # Annotations are, so publish the numbers on every run, pass or fail.
+          while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\([A-E]\)' "$log" | head -10 || true)
           exit "$status"
 
       - name: Package portable (Windows)
