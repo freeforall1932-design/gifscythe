@@ -125,6 +125,18 @@ jobs:
         working-directory: working_code/gifscythe
         run: ./scripts/smoke_cli.sh
 
+      # U-14 / P2-3 remainder: the audit's own gate existed but NEVER ran in CI, so
+      # "green CI" could not speak for the 34 claims verify_audit.sh checks (web
+      # parity, transport, oracle matrix, parser suite, sentinels). Measured before
+      # adding it: 119 s wall here, 34 passed / 0 failed / 3 skipped (the skips are
+      # the two things no Linux runner can do - Actions-job inspection and a clean
+      # Windows machine). Cheap enough to be a gate; the alternative was naming an
+      # unmeasured exclusion.
+      - name: Audit gate (verify_audit.sh - U-14)
+        timeout-minutes: 10
+        working-directory: working_code/gifscythe
+        run: ./scripts/verify_audit.sh
+
       # U-71 / P2-17 (F:NF-14). run_argv()'s Windows branch returned `code & 0xff`, so an
       # NTSTATUS whose low byte is zero - 0xC0000100 among them - came back as exit 0: a crash
       # reported as SUCCESS, the top false-success class this repo audits for. The mask rule is a

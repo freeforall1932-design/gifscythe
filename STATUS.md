@@ -29,7 +29,7 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 173 DONE · 8 PARTIAL · 14 OPEN · 0 UNTRIAGED · 195 total
+**Counts (generated - do not edit by hand):** 174 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 195 total
 **Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 2 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
 **Last regenerated:** S37 · 2026-10-06 · by scripts/check_docs.sh --emit
 
@@ -51,7 +51,7 @@ hand-fudged roll-up fails the gate.
 | U-11 | Malformed booleans degrade silently. | DONE | S8 | `parse_bool_strict` warns, leaves field unchanged | - |
 | U-12 | "Fully async" GUI still blocks the UI thread in 5 places — up to 5 s per run start. | DONE | S37 | scoped as P1-24 (S11) and dispositioned by MEASUREMENT, not by a rewrite: the owner's evidence-scoped rule was to show the heartbeat RED first, fix... | - |
 | U-13 | Drag-and-drop accepts any existing file. | DONE | S8 | drop filter `&&`; empty comments skipped (C++ + JS) | - |
-| U-14 | Green CI does not enforce the claims used as release gates. | PARTIAL | S8 | packaging negatives + manifest assert + the doc gate run in CI; verify_audit itself stays out by design (job time) — S24: workflows scope is no... | P2-1: Run `verify_audit.sh` in CI. |
+| U-14 | Green CI does not enforce the claims used as release gates. | DONE | S37 | the last gap is closed with a MEASUREMENT instead of an assumption: the S8-era note said verify_audit "stays out by design (job time)" and nothing... | - |
 | U-15 | CMake writes into the source tree. | DONE | S11 | build-tree-only configure_file (`build_support/version.h.in`); generated-first includes; gate C9 + read-only-src repro flipped FAIL->PASS | - |
 | U-16 | Settings persistence is non-atomic (Truncate + write). | DONE | S10 | `save_settings_file` is tmp+fsync+rename; GUI save is QSaveFile; unit test 32 + T19 no-stray check ; harness: T19 + unit test 32 (offscreen) | - |
 | U-17 | Explode mode never verifies any frame was written. | DONE | S11 | `src/core/ExplodeVerify.h` snapshot-diff (CLI+GUI); lying engine (rc=0, 0 frames) refused: unit 33, smoke 9-11, harness T7, wine rc=1 | - |
@@ -323,7 +323,7 @@ finished?"* without hand-reading (U-88 / P2-21).
 | P1-44 | U-78,U-87 | DONE | 2 member(s) - all DONE | - |
 | P1-45 | U-95 | DONE | 1 member(s) - all DONE | - |
 | P1-46 | U-81 | DONE | 1 member(s) - all DONE | - |
-| P2-1 | U-14,U-38 | PARTIAL | 2 member(s); PARTIAL: U-14 | close the PARTIAL member(s): U-14 |
+| P2-1 | U-14,U-38 | DONE | 2 member(s) - all DONE | - |
 | P2-2 | U-15 | DONE | 1 member(s) - all DONE | - |
 | P2-3 | U-10 | DONE | 1 member(s) - all DONE | - |
 | P2-4 | U-18 | DONE | 1 member(s) - all DONE | - |
