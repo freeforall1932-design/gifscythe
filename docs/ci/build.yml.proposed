@@ -283,14 +283,6 @@ jobs:
   # csharp-spike chain, which is the longest path - so it adds no wall-clock time. Any non-zero
   # exit fails it, including a runner's "SKIPPED" exit 3 (and GS_REQUIRE_PROOF=1 below turns a
   # skipped Python suite into a failure): a skipped proof must never read as a passed one.
-  portability:
-    name: portability (32-bit long, wasm32 bar)
-    needs: gate
-    if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-
       # U-14 / P2-3: the audit gate runs LAST in this job ON PURPOSE. Its first CI run
       # failed B1-B20 - "0 test blocks, 0 checks" - because it exercises the offscreen
       # GUI harness and this job builds that harness later (build-cmake/ is created by
@@ -323,6 +315,15 @@ jobs:
             echo "::error::verify_audit.sh exited $status (failing checks above; full log in the job output)"
           fi
           exit "$status"
+
+  portability:
+    name: portability (32-bit long, wasm32 bar)
+    needs: gate
+    if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+
       - uses: actions/checkout@v4
 
       # A venv: 24.04's system pip refuses to install into the system Python (PEP 668).
