@@ -112,6 +112,15 @@ jobs:
         working-directory: working_code/gifscythe
         run: ./scripts/test_engine.sh
 
+      # U-10 / A-09: the vendored upstream trees were verified by HAND in S11 and never
+      # watched again - and the prose got two things wrong (a local edit to Makefile.w32
+      # that the manifest called upstream-identical, and repo-wide CRLF->LF drift from the
+      # 2026-09-22 web re-creation). This pins every file of the three vendored sets by
+      # sha256 and fails on drift, deletion OR an added file.
+      - name: Vendored upstream identity pins (U-10 / A-09)
+        working-directory: working_code/gifscythe
+        run: ./scripts/verify_reference_pins.sh
+
       - name: CLI smoke tests
         working-directory: working_code/gifscythe
         run: ./scripts/smoke_cli.sh

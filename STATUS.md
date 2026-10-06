@@ -29,7 +29,7 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 171 DONE · 10 PARTIAL · 14 OPEN · 0 UNTRIAGED · 195 total
+**Counts (generated - do not edit by hand):** 172 DONE · 9 PARTIAL · 14 OPEN · 0 UNTRIAGED · 195 total
 **Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 2 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
 **Last regenerated:** S37 · 2026-10-06 · by scripts/check_docs.sh --emit
 
@@ -47,7 +47,7 @@ hand-fudged roll-up fails the gate.
 | U-07 | Windows CLI execution is ANSI-only. | DONE | S11 | `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly | - |
 | U-08 | License set can ship incomplete, silently. | DONE | S19 | both packagers stage COPYING.lgplv3 + COPYING.gplv3 + GUI QT_NOTICE.txt; 36 packaging checks; CI manifest asserts the set | - |
 | U-09 | Banked Windows snapshot is 5 commits behind the SHA its own notes claim. | DONE | S37 | a fresh pre-release was cut the way the row demanded: **`snapshot-2026-10-06`**, tag at `6aaabcf`, whose notes pin that exact sha AND the evidence... | - |
-| U-10 | The "read-only, identical-to-upstream" vendored engine is neither. | PARTIAL | S13 | provenance and product-config relocation verified; `reference_code/gifsicle/` is now upstream-only and native build stages... | P2-3: Immutable + correctly-labelled upstream tree. |
+| U-10 | The "read-only, identical-to-upstream" vendored engine is neither. | DONE | S37 | the missing CI hash-pinning is implemented AND it immediately proved the S11 prose wrong: `scripts/verify_reference_pins.sh` pins all **108** files... | - |
 | U-11 | Malformed booleans degrade silently. | DONE | S8 | `parse_bool_strict` warns, leaves field unchanged | - |
 | U-12 | "Fully async" GUI still blocks the UI thread in 5 places — up to 5 s per run start. | DONE | S37 | scoped as P1-24 (S11) and dispositioned by MEASUREMENT, not by a rewrite: the owner's evidence-scoped rule was to show the heartbeat RED first, fix... | - |
 | U-13 | Drag-and-drop accepts any existing file. | DONE | S8 | drop filter `&&`; empty comments skipped (C++ + JS) | - |
@@ -325,7 +325,7 @@ finished?"* without hand-reading (U-88 / P2-21).
 | P1-46 | U-81 | DONE | 1 member(s) - all DONE | - |
 | P2-1 | U-14,U-38 | PARTIAL | 2 member(s); PARTIAL: U-14 | close the PARTIAL member(s): U-14 |
 | P2-2 | U-15 | DONE | 1 member(s) - all DONE | - |
-| P2-3 | U-10 | PARTIAL | 1 member(s); PARTIAL: U-10 | close the PARTIAL member(s): U-10 |
+| P2-3 | U-10 | DONE | 1 member(s) - all DONE | - |
 | P2-4 | U-18 | DONE | 1 member(s) - all DONE | - |
 | P2-5 | U-42 | DONE | 1 member(s) - all DONE | - |
 | P2-5 | U-30 | DONE | 1 member(s) - all DONE | - |
