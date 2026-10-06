@@ -29,7 +29,7 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 172 DONE · 9 PARTIAL · 14 OPEN · 0 UNTRIAGED · 195 total
+**Counts (generated - do not edit by hand):** 173 DONE · 8 PARTIAL · 14 OPEN · 0 UNTRIAGED · 195 total
 **Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 2 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
 **Last regenerated:** S37 · 2026-10-06 · by scripts/check_docs.sh --emit
 
@@ -222,7 +222,7 @@ Triage scoped them; it did not fix them. **S16 closed `GS-201` (P0-5); S17 close
 | GS-207 | An invalid GS_ENGINE override could silently select another engine | DONE | S17 | P1-29: structured resolution; CLI print/run exit 1, web APIs 503 on invalid override; source logs; smoke 30/30 and web 63/63 on Linux; old CLI accepts all 5 invalid cases | - |
 | GS-208 | Main is release-red (run 34705247115 failed the Linux documentation gate) while status docs claimed a green open PR #15 and the pending marker described an applied change | DONE | S24 | fixed-doc half landed S14 (`ddc4194`); the missing workflow-copy-sync half landed S24: proposed copy re-synced to the maintainer-fixed live line (`414f5fc`) and the marker deleted in the same commit (P2-7). Main green at `3c67e14` (run 35112077599, 2026-09-16) | - |
 | GS-209 | Native linux/mac engine build uses a fixed Linux/glibc config (headers, `random()`, type sizes, SIMD, gettimeofday) | OPEN | S15 | `working_code/gifscythe/build_support/gifsicle/config.native.h`; `scripts/build_engine.sh:6` (intake A.9) | **P2-12** — Generate config from feature checks per target, or narrow the advertised targets to x86_64 glibc |
-| GS-210 | Strict build arguments, GUI build-tool selection and version integration | PARTIAL | S17 | Both entry points parse all args before writes/tools; unknown rc=2, help rc=0; 12 isolated parser cases pass and native build 296/0. qmake-first dispatch and hardcoded .pro VERSION are unchanged | **P2-13** — Qt-equipped agent implements/tests CMake-first or CMake-only dispatch and version consistency |
+| GS-210 | Strict build arguments, GUI build-tool selection and version integration | DONE | S37 | S17 fixed the parsing half (both entry points validate before writes/tools; unknown rc=2, help rc=0; 12 isolated cases, all failing against the originals). S37 finished the row: dispatch is **CMake-first** with qmake as the documented fallback (`build_gui()` — the old order ran qmake first, so the preferred CI-verified path could be skipped on any host with qmake), and the `.pro` VERSION is **parity-guarded** against `VERSION.md`. RED executed before the fix: with the old order inside the new seam the three dispatch cases fail (`order=qmake rc=0`); GREEN 7/7 after. The test sources `build.sh` (new execution guard; a no-side-effects case asserts a source stays inert) and exercises the real dispatcher with recorder stubs — behaviour, not source text. `./build.sh` re-run end-to-end (415 + 35 checks); GUI branch driven with a stub `cmake` in this Qt-less sandbox | **P2-13** — closed; re-run `python3 -m unittest tests.test_build_options` after any change to the dispatch or the `.pro` |
 | DS-06 | `threads <= 0` emits a bare `-j`, so the `-1` unset sentinel now means 8 threads instead of the engine default; no way to emit no flag | DONE | S23 | `GifsicleCommand.h` + `web/command.mjs`: `<0` emits nothing, `0` bare `-j`, `>0` `-jN`; sentinels named `GS_THREADS_UNSET/AUTO` in `GifsicleSettings.h`; save guard still writes 0 so "auto" survives a round trip. Proof: unit 21 (+ `!has(-j)` for -1), web command parity fixtures for -1/0, smoke 12g | - |
 | DS-07 | GUI Threads spinner spans 0..64 and always writes a value; the no-flag/unchanged state is unrepresentable | DONE | S23 | Closed by the same edit as N-09: range is `gs::GS_THREADS_UNSET..64`, the minimum reads "Unchanged (engine default)", `applyToUi` sets it unconditionally, and an offscreen harness case asserts a `-1` conf survives save/close/reopen as absence rather than becoming `0`. Agrees with DS-06 as **P1-30** required. CI-compiled proof only — no Qt6 in the S23 sandbox | - |
 | DS-08 | Non-strict print mode returns 0 even when validation warned, so scripts cannot tell valid from warned | DONE | S23 | advisory contract documented in `print_usage` and honoured exactly (a warning still exits 0), plus one greppable `WARNING-SUMMARY: parse=N validation=M mode=advisory outcome=print\|run-continued` line printed after the strict refusal. Proof: smoke 12m (present on warned print+run, absent when clean and under --strict) | - |
@@ -336,7 +336,7 @@ finished?"* without hand-reading (U-88 / P2-21).
 | P2-10 | U-50 | DONE | 1 member(s) - all DONE | - |
 | P2-11 | U-41 | DONE | 1 member(s) - all DONE | - |
 | P2-12 | GS-209 | OPEN | 1 member(s); OPEN: GS-209 | close the OPEN member(s): GS-209 |
-| P2-13 | GS-210 | PARTIAL | 1 member(s); PARTIAL: GS-210 | close the PARTIAL member(s): GS-210 |
+| P2-13 | GS-210 | DONE | 1 member(s) - all DONE | - |
 | P2-14 | DS-11 | DONE | 1 member(s) - all DONE | - |
 | P2-15 | N-07 | DONE | 1 member(s) - all DONE | - |
 | P2-16 | U-67,U-68,U-69 | PARTIAL | 3 member(s); PARTIAL: U-68 | close the PARTIAL member(s): U-68 |

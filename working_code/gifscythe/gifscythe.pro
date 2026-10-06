@@ -1,6 +1,8 @@
 # gifscythe.pro - qmake project for the Gifscythe Qt6 GUI (secondary to CMake).
 #
-# Preferred build path is CMake (see CMakeLists.txt / build.sh --all).
+# Preferred build path is CMake (see CMakeLists.txt / build.sh --all) — and since
+# GS-210 (S37) build.sh dispatches CMake FIRST, falling back to qmake only when
+# CMake is unavailable or fails.
 # This .pro is kept for environments that only have qmake.
 #
 #   qmake6 gifscythe.pro && make
@@ -14,6 +16,9 @@ TARGET = gifscythe
 TEMPLATE = app
 
 # Version is informational here; runtime uses src/core/version.h (from VERSION.md).
+# GS-210 (S37): this line cannot drift silently — tests/test_build_options.py
+# parses it and VERSION.md and fails when they disagree (with a mutation leg that
+# proves the guard bites). qmake is the FALLBACK build path: build.sh tries CMake first.
 VERSION = 0.1.0
 
 SOURCES += \
