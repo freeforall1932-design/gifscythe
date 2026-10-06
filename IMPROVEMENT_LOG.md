@@ -57,7 +57,7 @@ Chronological log of decisions and changes. **Newest at the top.**
 eleven `web/test/*.test.mjs` suites green (the new `stem` suite included in CI's
 named list); `build.sh` runs both unit suites now. Register **169 DONE / 10 PARTIAL /
 16 OPEN / 0 UNTRIAGED = 195** (from 163/11/21/0; R-02 closed after the unshallow) — S37 ended at
-**175 DONE / 6 PARTIAL / 14 OPEN / 0 UNTRIAGED = 195**: U-09 closed by the snapshot cut and U-12 by the
+**176 DONE / 6 PARTIAL / 13 OPEN / 0 UNTRIAGED = 195**: U-09 closed by the snapshot cut and U-12 by the
 T26 measurement (owner decision `OD-19 = a`; the P1-24 rewrite is declined).
 
 **U-09 / P0-4 closed by cutting the snapshot the row demanded (owner: "cut a snapshot pre-release").**
@@ -3599,7 +3599,7 @@ starting; the two stale `414f5fc` mentions (G10) were re-synced first.
   `wmain` (reference_code read-only). Gifscythe's own chain is lossless
   (proven byte-exact to the child's UTF-16 line); the residual is documented
   in `WinUnicode.h`, §8 and the U-07 row.
-* **PUSHED, PR #14 OPEN, CI GREEN.** Branch `arena/s11-gifscythe` pushed
+* **PUSHED, PR #13 OPEN, CI GREEN.** Branch `arena/s11-gifscythe` pushed
   after the push-time gate run; **PR #14** opened against `main`. The FIRST
   CI run (`34671814580` on `f655987`) failed windows-only, and the failure
   was a real (cosmetic) portability finding in the new T7 assertion:

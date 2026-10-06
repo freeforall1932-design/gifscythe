@@ -1,7 +1,14 @@
 /* config.native.h - product-owned native build configuration for gifsicle.
    This header is staged as config.h in a temporary build directory; it is
    deliberately outside reference_code so the vendored upstream snapshot
-   remains immutable. */
+   remains immutable.
+
+   TARGET (GS-209, S37): this is a fixed configuration for **x86_64 glibc
+   Linux** - glibc headers, glibc random(), LP64 type sizes, gettimeofday. It is
+   NOT a portable unix config: macOS, 32-bit Linux and musl targets were never
+   supported, and build_engine.sh now says so and warns on such hosts instead of
+   advertising "linux/mac". Generating this from per-target feature checks is the
+   audit's untaken alternative (P2-12). */
 
 #ifndef GIFSICLE_CONFIG_H
 #define GIFSICLE_CONFIG_H
