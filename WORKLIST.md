@@ -403,9 +403,10 @@ Still open from the audit intake (state lives in `STATUS.md`):
    `g++` on the windows job. **U-57 (P1-37) is CLOSED (S35)** on
    `node web/test/u57-stale-output.test.mjs`; the wasm TRACK itself stays not
    shippable (OD-16 / N-32) — closing a correctness finding is not a promotion.
-   **Still unprovable from here, named in the rows:** T23's Windows-only premise
-   (the `windows` GUI job runs it), any legacy-ACP host, and real-machine
-   Windows smoke (W-18/W-19).
+   **Still unprovable from here, named in the rows:** any legacy-ACP host (the CI
+   Windows runner measured T23's premise as toolchain-dependent — its bare
+   conversion works there — so U-70's discriminating proof is the source
+   sentinel, not behaviour), and real-machine Windows smoke (W-18/W-19).
 6. **The S24 web-intake batch** — P1-44 first (U-78/U-87, closed S26), then the
    P2/P3 rows above; all are provable with node alone except where noted.
    **S28 closed the node/CLI batch**: U-92/P2-19, U-93/P2-20, U-85/P3-13,

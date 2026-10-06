@@ -44,16 +44,20 @@ Chronological log of decisions and changes. **Newest at the top.**
   which is why the sentinel now carries **S3** (3 wrapped probes, `startPreview()` wrapped
   once, zero bare `path_is_executable(fs::path(enginePath_.toStdString()))` forms), executed
   PASS on the fixed tree and **RED on a `0004`-reversed tree** with S1/S2 still green there.
-  On Windows T23 also asserts the premise itself (`#ifdef _WIN32`: the bare conversion must
-  fail for that path, else the case would silently stop covering the boundary) and the same
-  case runs in the `windows` GUI job. **The Windows job's first run caught a real case bug:**
-  the guard handled only the documented "bytewise widening resolves to a bogus name" mode,
-  while the row's own text says the bare form "throws or splits" — a codecvt throw there
-  aborts the harness with no FAIL lines. The guard now accepts BOTH modes (try/catch, with the
-  caught message printed) and T23 additionally proves the window is really using the copied
-  engine before it judges the preview, so the next red names its own cause. Both GUI harness
-  steps also capture their output and publish `::error::` annotations for the FAIL lines — a
-  400-check harness that dies on one assertion must not report only "exit 1" (S34's rule). Residual kept in the row: no legacy-ACP host has been
+  On Windows T23 runs in the `windows` GUI job, and **its first run there measured the
+  finding's premise to be toolchain-dependent**: the bare `fs::path(std::string)` conversion
+  *resolved* the non-ASCII engine correctly on MinGW GCC 13.1 (x86_64-posix-seh), where the
+  original gcc 12-win32 measurement under Wine showed bytewise widening. An assertion built on
+  the premise turned the whole Windows job red for a reason the case was not about, so T23 now
+  **prints** which conversion mode the host is in and proves instead that the window is really
+  using the engine copy under the non-ASCII directory before it judges the preview. The
+  consequence is stated wherever the row is: no runner available to this repo discriminates
+  the two call forms behaviourally — the falsifiable proof is the source invariant. Two
+  process fixes came out of that red run and stay: both GUI harness steps now capture their
+  output and publish every FAIL line as a `::error::` annotation (a 400-check harness that dies
+  on one assertion must not report only "exit 1" — S34's rule), and T22's live-cancel leg
+  sleeps 3 s instead of 0.9 s so a loaded runner cannot close the window in which the engine
+  must be provably alive. Residual kept in the row: no legacy-ACP host has been
   observed by anyone in this repo.
 - **U-72: the race is not constructible on Qt 6.8.3 — and the fix is still falsifiable.**
   Read in the real source (`qtbase` v6.8.3): `QProcessPrivate::waitForFinished()` polls the
@@ -88,12 +92,14 @@ Chronological log of decisions and changes. **Newest at the top.**
   exact failures the pre-fix trees produced, and the §17.2 acceptance-case list marks NF-01 /
   NF-13 / NF-15 **WRITTEN (S36)**.
 
-**Not verifiable here (stated, not hidden):** the **Windows** legs themselves — T23's premise
-guard and the whole `windows` GUI job run only on a Windows runner (the source sentinel is the
-part that is platform-independent, and it is the one that discriminates on this host); no
-legacy-ACP Windows host exists anywhere in this repo's CI; and T22's pre-fix race has no
-runtime reproduction on Qt 6.8.3 at all (proven above), so its proof is the mutation-tested
-source invariant plus the two wrong-fix mutants, never a red harness on the pre-fix tree.
+**Not verifiable here (stated, not hidden):** a **legacy-ACP Windows host** — none exists
+anywhere in this repo's CI, and the CI Windows runner measured the U-70 premise to be
+toolchain-dependent (the bare conversion works there), so the discriminating proof for U-70 is
+the source sentinel, not behaviour; the `windows` GUI job itself runs only on Windows (it did
+run this branch: the harness's own FAIL annotation is what identified the T23 guard); and
+T22's pre-fix race has no runtime reproduction on Qt 6.8.3 at all (proven above), so its proof
+is the mutation-tested source invariant plus the two wrong-fix mutants, never a red harness on
+the pre-fix tree.
 
 ## S35 — 2026-10-06: five-patch audit intake — three malformed patches repaired, 100% of the fix content salvaged, U-57/U-71 CLOSED with executed proof, U-58/U-70/U-72 moved to PARTIAL (source landed, Qt proof outstanding), both new proofs wired into CI, G10 re-anchored
 

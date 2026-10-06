@@ -2024,11 +2024,13 @@ int main(int argc, char** argv) {
   // "engine not found - preview unavailable". ensureEngine() already obeyed
   // the u8path_compat rule; the preview re-probe now does too.
   //
-  // Windows-teeth case by construction: on POSIX the two conversions are
-  // identical (narrow strings ARE the native filename bytes), so the guard
-  // below asserts - on Windows only - that the BARE conversion really fails
-  // for this path. If the test directory ever went ASCII, that guard fails
-  // instead of letting the case pass without covering the boundary.
+  // Teeth: on POSIX the two conversions are identical (narrow strings ARE the
+  // native filename bytes) and on the CI Windows toolchain the bare form also
+  // resolves correctly (measured - see the printout below), so NO runner this
+  // repo has can tell the wrapped call from the bare one by behaviour. The
+  // platform-independent discrimination is the source sentinel
+  // (scripts/test_u58_u70_u72_sentinels.sh S3); this case is the end-to-end
+  // proof that the preview really reaches an engine under a non-ASCII path.
   {
     g_stage = "T23"; std::printf("== T23 non-ASCII engine path (U-70) ==\n");
     QTemporaryDir tmp;
@@ -2055,16 +2057,29 @@ int main(int argc, char** argv) {
     // guard that only handles the first mode would abort the harness with an
     // uncaught exception on the second. Both mean the same thing: the bare form
     // does not find the file.
+    // MEASUREMENT, not an assertion - and the first Windows CI run of this case
+    // is why. The finding was filed on the premise that the bare form cannot
+    // find a non-ASCII path on Windows; measured on the windows runner
+    // (MinGW GCC 13.1, x86_64-posix-seh) the bare conversion RESOLVES the file
+    // correctly, so the premise is toolchain-dependent, not universal. The
+    // bytewise-widening behaviour WinUnicode.h records is real (it was measured
+    // under Wine with gcc 12-win32) but it is not what this runner does, and
+    // asserting it here turned the whole job red for a reason the case was not
+    // about. So: report which mode this host is in, and let the source sentinel
+    // (platform-independent by construction) carry the discrimination.
     bool bareProbe = false;
+    const char* bareMode = "resolution";
     try {
       bareProbe = gs::path_is_executable(fs::path(engineUtf8));
     } catch (const std::exception& e) {
-      std::printf("  (bare conversion threw, as the row documents: %s)\n", e.what());
+      bareMode = "throw";
+      std::printf("  (bare conversion THREW: %s)\n", e.what());
       bareProbe = false;
     }
-    CHECK_MSG(!bareProbe,
-              "guard: the BARE conversion does not find the non-ASCII engine on "
-              "Windows (if this fails the finding's premise must be re-read)");
+    std::printf("  (measured here: the bare fs::path(std::string) conversion %s "
+                "the non-ASCII engine - %s mode; the wrapped call below is what "
+                "the fix guarantees)\n",
+                bareProbe ? "RESOLVES" : "does not resolve", bareMode);
 #endif
     CHECK_MSG(gs::path_is_executable(gs::u8path_compat(engineUtf8)),
               "the u8path_compat boundary resolves the non-ASCII engine path");
