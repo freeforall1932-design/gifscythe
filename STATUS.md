@@ -29,8 +29,8 @@ hand-fudged roll-up fails the gate.
 **Session** = last session that touched the item, or `-` if untouched.
 **Proof / Blocker** is never blank. **Next action** is `-` only for DONE.
 
-**Counts (generated - do not edit by hand):** 169 DONE · 10 PARTIAL · 16 OPEN · 0 UNTRIAGED · 195 total
-**Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 4 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
+**Counts (generated - do not edit by hand):** 170 DONE · 10 PARTIAL · 15 OPEN · 0 UNTRIAGED · 195 total
+**Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 3 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
 **Last regenerated:** S37 · 2026-10-06 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
@@ -46,7 +46,7 @@ hand-fudged roll-up fails the gate.
 | U-06 | Web demo binds `0.0.0.0` with no auth, no concurrency cap, 64 MB bodies, 120 s engine runs. | DONE | S23 | loopback bind (S8) + engine semaphore `GS_MAX_CONCURRENT`/`GS_MAX_QUEUED` + `GS_RATE_LIMIT_PER_MIN` window + configurable `GS_ENGINE_TIMEOUT_MS`; 429... | - |
 | U-07 | Windows CLI execution is ANSI-only. | DONE | S11 | `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly | - |
 | U-08 | License set can ship incomplete, silently. | DONE | S19 | both packagers stage COPYING.lgplv3 + COPYING.gplv3 + GUI QT_NOTICE.txt; 36 packaging checks; CI manifest asserts the set | - |
-| U-09 | Banked Windows snapshot is 5 commits behind the SHA its own notes claim. | OPEN | - | not started; scoped as P0-4 in COMPILED_AUDIT.md §6 | P0-4: Re-cut release evidence. |
+| U-09 | Banked Windows snapshot is 5 commits behind the SHA its own notes claim. | DONE | S37 | a fresh pre-release was cut the way the row demanded: **`snapshot-2026-10-06`**, tag at `6aaabcf`, whose notes pin that exact sha AND the evidence... | - |
 | U-10 | The "read-only, identical-to-upstream" vendored engine is neither. | PARTIAL | S13 | provenance and product-config relocation verified; `reference_code/gifsicle/` is now upstream-only and native build stages... | P2-3: Immutable + correctly-labelled upstream tree. |
 | U-11 | Malformed booleans degrade silently. | DONE | S8 | `parse_bool_strict` warns, leaves field unchanged | - |
 | U-12 | "Fully async" GUI still blocks the UI thread in 5 places — up to 5 s per run start. | OPEN | S11 | not started; scoped as P1-24 in COMPILED_AUDIT.md §6 | P1-24: Async run/cancel state machine (scoped S11; deliberately NOT yet implemented). |
@@ -162,7 +162,7 @@ preserved verbatim by `--emit`. Same schema, same vocabulary, same rules.
 | W-15 | Windows engine + CLI proven under Wine | DONE | S4 | `gifsicle.exe` reports `1.96 (Windows)`; CLI E2E with `C:\` paths, spaces, honest exit 1 | - |
 | W-16 | Valid push token | DONE | S4 | PR #5 merged into `main` as `0ad1ff5` | - |
 | W-17 | Windows CI job green with downloadable artifact | DONE | S8 | PR #11 run `34471563229`: windows pass 2m56s, linux pass 1m14s | - |
-| W-18 | Clean-machine portable smoke (gates C4/D3/D4) | OPEN | - | needs a clean Windows VM with no Qt/MinGW/dev tools; blocked by U-09 because the banked artifact predates S7 | re-cut artifacts (U-09, plus the U-95 release-notes legality edit), then run the clean-Windows smoke in `docs/ci/README.md` §2 against the published zip |
+| W-18 | Clean-machine portable smoke (gates C4/D3/D4) | OPEN | - | needs a clean Windows VM with no Qt/MinGW/dev tools. **The asset now exists (S37):** pre-release `snapshot-2026-10-06` (tag `6aaabcf`, notes pin the sha + evidence run, sha256 `add856c8…096e`); `U-09` is closed and the U-95-era licence problem does not apply to it | run the five steps of `docs/ci/README.md` §2 against the release zip on a clean machine, then record the evidence and tick this row |
 | W-19 | One-time real-desktop GUI probes B5/B6/B14 | OPEN | - | needs a physical desktop: the offscreen harness cannot kill the engine mid-run, physically drop a file, or show the engine-missing dialog | run the three probes on a real desktop and record the evidence |
 | W-20 | Input / Actions / Output tab flow (XNConvert feel) | DONE | S4b | harness T1; CI green on both jobs | - |
 | W-21 | Debounced async before/after preview | DONE | S7 | harness T8/T14 (T8 rewritten in S8 — CI-compiled only, no Qt6 here) | - |
@@ -273,7 +273,7 @@ finished?"* without hand-reading (U-88 / P2-21).
 | P0-1 | U-01,U-45,U-21 | DONE | 3 member(s) - all DONE | - |
 | P0-2 | U-03,DS-06 | DONE | 2 member(s) - all DONE | - |
 | P0-3 | U-02 | DONE | 1 member(s) - all DONE | - |
-| P0-4 | U-09 | OPEN | 1 member(s); OPEN: U-09 | close the OPEN member(s): U-09 |
+| P0-4 | U-09 | DONE | 1 member(s) - all DONE | - |
 | P0-5 | GS-201 | DONE | 1 member(s) - all DONE | - |
 | P0-6 | GS-202 | DONE | 1 member(s) - all DONE | - |
 | P0-7 | U-59 | DONE | 1 member(s) - all DONE | - |

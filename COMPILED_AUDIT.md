@@ -1123,8 +1123,21 @@ Attach artifacts from that SHA's green run and record artifact digests and run I
 release tag at the exact build commit and add build provenance/attestation. Run the clean-Windows
 checklist against that new published zip, not the S4-era asset.
 
-**Status:** ⬜ **OPEN** — confirmed by execution (C:U-09). Release `snapshot-2026-09-07` is
-from `5934339`, not `8190c08`.
+**Status:** ✅ **FIXED (S37)** — register §5 `U-09`. Two findings in one:
+1. **The defective release is gone.** An API check in S37 returns **no releases and no tags** in
+   this repo: `snapshot-2026-09-07` died with the 2026-09-22 re-creation (the same event as U-97).
+   There is nothing left to repair retroactively — and equally nothing left that can mislead.
+2. **The forward half was executed.** `snapshot-2026-10-06` (pre-release, tag `6aaabcf`) was cut by
+   the `release-snapshot` job in the tag's own run `37490183737`: it takes THIS run's
+   `gifscythe-windows` artifact (the one the `windows` job manifest-asserted and harness-tested),
+   zips the portable folder, writes `SHA256SUMS`, and generates notes that interpolate the sha, the
+   tag and the run id from the environment — so the notes cannot drift from the asset, which was
+   the original defect. Assets: `Gifscythe-0.1.0-windows-portable.zip` (23 777 470 bytes,
+   `add856c850076b2bf3a37ad01b25d4c5d8ab8d0d60890f4f591be60e90d8096e`) and `SHA256SUMS`.
+   Deliberately **not** added: a tag-time manifest gate (offered with the cut, declined by the
+   owner — a new gate needs an exception to the U-89 freeze).
+3. **What has NOT happened:** nobody has run the clean-machine checklist against this zip. That is
+   `W-18`, still OPEN, and its asset is now the release above instead of a login-walled artifact.
 
 ---
 
@@ -2033,7 +2046,7 @@ Deduplicated across A/B/C/D/E/F. "Src" = which audit(s) raised it.
 | **U-06** | A:GS-005 · D:GS-102 | **Web demo binds `0.0.0.0` with no auth, no concurrency cap, 64 MB bodies, 120 s engine runs.** Concurrent requests can race on temp dirs. | ✅ **EXEC** | ✅ FIXED (S23) — loopback bind (S8) + engine semaphore `GS_MAX_CONCURRENT`/`GS_MAX_QUEUED` + `GS_RATE_LIMIT_PER_MIN` window + configurable `GS_ENGINE_TIMEOUT_MS`; 429 past the cap, refusals cost no capacity |
 | **U-07** | A:GS-006 | **Windows CLI execution is ANSI-only.** `CreateProcessA` + `std::string` cmdline ⇒ non-ASCII paths cannot be passed to the engine. | ✅ **EXEC** (wine 8, mingw 12) | ✅ FIXED (S11) — `CreateProcessW` + argv/env re-fetch + u8path boundaries; wine E2E: é paths rc=0 (old build rc=1), CJK reaches the child losslessly |
 | **U-08** | A:GS-007 | **License set can ship incomplete, silently.** Root has `LICENSE` + `COPYING.gifsicle` but **no `COPYING`**; every license copy is `if [[ -f ]]`-guarded. | ✅ **EXEC**+SRC | ✅ FIXED (S19) — both packagers stage COPYING.lgplv3 + COPYING.gplv3 + GUI QT_NOTICE.txt; 36 packaging checks; CI manifest asserts the set |
-| **U-09** | A:GS-008 | **Banked Windows snapshot is 5 commits behind the SHA its own notes claim.** Release body pins `d3544b1`; main is `8190c08`. | ✅ **EXEC** | ⬜ OPEN |
+| **U-09** | A:GS-008 | **Banked Windows snapshot is 5 commits behind the SHA its own notes claim.** Release body pins `d3544b1`; main is `8190c08`. | ✅ **EXEC** (S37 API check: the bad release no longer exists — `releases` returns none, tags none; the 2026-09-22 re-creation lost it) | ✅ FIXED (S37) — a fresh pre-release was cut the way the row demanded: **`snapshot-2026-10-06`**, tag at `6aaabcf`, whose notes pin that exact sha AND the evidence run, with a per-asset sha256 (`Gifscythe-0.1.0-windows-portable.zip` 23 777 470 B `add856c8…096e`). Built by the tag's own run (`37490183737`): `windows` job → `release-snapshot` job, which downloads THAT run's artifact (no rebuild) so the published bytes are the ones the manifest assert and the offscreen harness just passed. Pre-release, version stays 0.1.0 (`OD-11 = a`). **Remainder, tracked elsewhere:** executing C4/D3/D4 against this zip is `W-18` (clean Windows machine), which stays OPEN — this row closed the *evidence*, not the smoke. |
 | **U-10** | A:GS-009 | **The "read-only, identical-to-upstream" vendored engine is neither.** Carries a handwritten `config.h` (Linux values), a functional patch, and an extra test. | ✅ **EXEC** (S11 re-clone; S13 relocation) | ◐ PARTIAL (S13) — provenance and product-config relocation verified; `reference_code/gifsicle/` is now upstream-only and native build stages `build_support/gifsicle/config.native.h`. MISSING: CI hash-pinning (not blocked: it was written as "needs workflows scope", and pushes to `.github/workflows/` work — S18, re-verified S34) |
 
 ### Medium

@@ -58,6 +58,22 @@ eleven `web/test/*.test.mjs` suites green (the new `stem` suite included in CI's
 named list); `build.sh` runs both unit suites now. Register **169 DONE / 10 PARTIAL /
 16 OPEN / 0 UNTRIAGED = 195** (from 163/11/21/0; R-02 closed after the unshallow).
 
+**U-09 / P0-4 closed by cutting the snapshot the row demanded (owner: "cut a snapshot pre-release").**
+The old release is gone (2026-09-22 re-creation), so the fix is forward-looking: a `release-snapshot`
+job in `build.yml`, tag-only (`refs/tags/snapshot-*`; `ci_gate.sh` never skips a tag), `needs: windows`,
+which downloads THIS run's `gifscythe-windows` artifact — no rebuild, so the published bytes are the
+ones the manifest assert and the offscreen harness just passed — zips the portable folder, writes
+`SHA256SUMS`, and generates notes that interpolate the sha, tag and run id so **notes and asset cannot
+disagree**, which is exactly what U-09 found. Live at
+<https://github.com/freeforall1932-design/gifscythe/releases/tag/snapshot-2026-10-06> (tag `6aaabcf`,
+pre-release, v0.1.0 per `OD-11 = a`, asset sha256 `add856c8…096e`). Two deliberate exclusions: **no
+tag-time manifest gate** (offered with the cut, declined — it would need an exception to the U-89
+freeze), and **no claim of clean-machine proof** — the notes say outright that W-18/W-19 have never run.
+Also recorded: **`OD-16 = b`** (wasm may ship) **conditional on counsel-approved terms that do not exist
+yet**, so the track stays unshipped and nothing about it changed today; and `R-02` was closed by
+unshallowing the clone, which also re-armed the pre-push hook (`.git/config` is not snapshotted — R-04's
+lesson, again).
+
 **Two "environment" rows turned out to be work, not fate.** (1) **R-02 was fixable in one
 command**: the session's clone was depth-1, so G11 skipped; `git fetch --unshallow` pulled
 the remote's full 115 commits (4.9 MB) and G11 now RUNS and passes — the register row is
