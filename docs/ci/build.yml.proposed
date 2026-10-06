@@ -200,6 +200,16 @@ jobs:
       - name: WASM stale-output guard (U-57 / P1-37)
         run: node web/test/u57-stale-output.test.mjs
 
+      # The page's own glue (web/wasm/wasm.js), end to end: stub DOM + a fake module that shells
+      # out to the REAL engine just built above. This needs no emcc and no browser, so the whole
+      # engine-less-audit story of the wasm track is exercised on every run: settings -> argv,
+      # FS write/callMain/read round-trip, the GIF magic check, savings/download rendering and the
+      # invalid-settings refusal. It was the only wasm-track layer with NO CI step (the guard test
+      # covers fs_run_guard.mjs, the oracle test covers comparison logic with a fake module) - the
+      # glue is where U-57 actually lived. Measured locally: PASS in 0.4 s.
+      - name: WASM page glue, end to end (no emcc needed - glue_harness.mjs)
+        run: node web/wasm/glue_harness.mjs
+
       - name: Seeded engine-oracle conformance (U-94 / P2-18)
         run: node working_code/gifscythe/scripts/oracle_fuzz.mjs --full
 

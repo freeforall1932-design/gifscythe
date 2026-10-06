@@ -4,6 +4,53 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S37 — 2026-10-07: the wasm claim re-derived (a `.wasm` IS built on every CI run), the page glue wired into CI without emcc, and a Windows build path that runs on your own machine
+
+**Changed:**
+
+- **N-32 re-derived against measurement, not memory.** The register said "no Emscripten build
+  run through it"; the honest correction is narrower and it is now written down:
+  - a real `.wasm` **is built and executed on every CI run** — the `portability` job's zig
+    wasm32-wasi engine under Node's WASI, byte-compared to a musl-native build (9/9, green run
+    `37518884447`). "No `.wasm` has ever been built anywhere" was **false**;
+  - what has never existed is the **Emscripten MODULARIZE module** (`web/wasm/dist/gifsicle.js`
+    + `.wasm`) that `wasm.js` loads, so `prove_wasm.mjs --oracle` has still never run against a
+    real module;
+  - the suggested lighter route was **re-measured and does not unblock it**: the npm package
+    `emsdk` exists (0.4.0, bins for emcc/em++, darwin+linux), but it downloads from
+    `storage.googleapis.com`, which is still unreachable from the sandbox (`curl` HTTP 000;
+    `npm install emsdk` dies with *"Client network socket disconnected before secure TLS
+    connection was established"*), `emscripten.org` likewise, and its own README's
+    `npm install emsdk@4.0.23` is an **E404** (the registry holds only 0.0.1 and 0.4.0);
+  - the "is the oracle even worth it" question was **checked, not assumed**: zero
+    `__EMSCRIPTEN__`/EMSCRIPTEN conditionals across the engine sources, so the residual risk is
+    the JS glue + Emscripten's libc, not the C. Skipping emcc stays defensible — because
+    `OD-16` keeps the track unshippable, not because the C is portable.
+- **The one wasm-track layer with no CI step now has one.** `node web/wasm/glue_harness.mjs`
+  (stub DOM + a fake module shelling out to the REAL native engine) runs in the **linux** job
+  after `build.sh`. Measured locally: **PASS in 0.4 s**. It covers `wasm.js` end to end —
+  settings → argv, FS write/`callMain`/read round-trip, GIF magic check, savings/download
+  rendering, out-of-range refusal — which is precisely where U-57 lived. No emcc, no browser,
+  no 1 GB download.
+- **A Windows build path the owner can run: `scripts/build_portable_windows.ps1` (+ a
+  double-clickable `.bat`).** It provisions Qt 6.7.3 + MinGW via `aqt`, cmake/ninja via pip,
+  builds the engine, a `-static` CLI, the CMake/Ninja GUI with `windeployqt`, stages the
+  portable folder through the repo's own fail-closed stager, asserts the same manifest CI
+  asserts, and zips it with a sha256. `-EngineCliOnly` skips Qt; `-Smoke` runs the §1–§2 checks.
+  **Provenance, stated in the file itself:** every command is transcribed from the green
+  `windows` CI job, and the `.ps1` has never been executed — the sandbox that wrote it has no
+  Windows and no PowerShell. What *was* verified: the bash each here-string expands to
+  (three blocks, all `bash -n` clean, including the two error-prone lines `exec gcc "$@"` and
+  `#define GS_VERSION \"$version\"`).
+- **`docs/ci/WINDOWS_TEST_RUNSHEET.md` now offers three routes** to the zip — download the
+  published snapshot, have CI build one from a tag, or build it locally with the new script —
+  with the clean-machine caveat intact (`-Smoke` passing on a dev box is **not** W-18 evidence).
+
+**Register:** unchanged in count — 177 DONE · 6 PARTIAL · 13 OPEN · 0 UNTRIAGED = 196 (N-32 and
+U-68 were re-derived in place, U-98 was added earlier this session).
+
+---
+
 ## S37 — 2026-10-06: five rows closed on the owner's "cheaper path" instruction — DS-10, GS-205, U-55, U-96 (and U-76 via OD-18 = a); the Qt naming probe refuted the assumed semantics
 
 **Changed:**

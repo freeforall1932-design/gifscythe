@@ -51,8 +51,9 @@ back to enforcing byte-equality with no standing exception.
   smokes, the offscreen GUI harness, the Windows unit-test exe
   (`build/test_gifsicle_command.exe` — relevant to `U-71`/`U-94`-class rows:
   pure Win32 rule cases can be proven in CI without a VM), all **eight** Node
-  web suites, packaging + manifest assertion (Windows ships; linux is the test
-  battery since S20/OD-17), artifact upload (`gifscythe-windows`, 14-day
+  web suites, the wasm-track proofs that need no Emscripten (`u57-stale-output.test.mjs` and, since
+  2026-10-07, the page glue end to end in `web/wasm/glue_harness.mjs`), packaging + manifest
+  assertion (Windows ships; linux is the test battery since S20/OD-17), artifact upload (`gifscythe-windows`, 14-day
   retention; binaries are banked on Releases), the csharp-spike job (parked
   track, still CI-run), and the doc gate (its own `docs` job). The Windows GUI
   build and its offscreen harness (S34) run even when the CLI/unit-test step

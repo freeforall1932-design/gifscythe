@@ -31,7 +31,7 @@ hand-fudged roll-up fails the gate.
 
 **Counts (generated - do not edit by hand):** 177 DONE · 6 PARTIAL · 13 OPEN · 0 UNTRIAGED · 196 total
 **Release bar (derived - do not edit by hand):** open P0/P1 fix-order ids: 2 · DONE rows proven offscreen-only (`harness:` without `desktop:`): 13
-**Last regenerated:** S37 · 2026-10-06 · by scripts/check_docs.sh --emit
+**Last regenerated:** S37 · 2026-10-07 · by scripts/check_docs.sh --emit
 
 ## Register, part 1 - derived from `COMPILED_AUDIT.md` §5
 

@@ -11,7 +11,31 @@ was lost to exactly that.
 
 ---
 
-## 0. What to fetch
+## 0. Three ways to get the zip — pick one
+
+There is nothing to build by hand unless you want to; all three produce the same portable tree
+(engine + CLI + Qt6 GUI + windeployqt runtime + licences).
+
+| route | what to do | why / why not |
+|---|---|---|
+| **A. Download the published one** | <https://github.com/freeforall1932-design/gifscythe/releases> → the newest `snapshot-*` → asset `Gifscythe-0.1.0-windows-portable.zip` | Fastest, login-free. It is built and asserted by CI. Use the newest snapshot: a newer tag means a newer commit, and the notes pin the exact sha it was built from. |
+| **B. Make CI build it (no local toolchain)** | push a `snapshot-YYYY-MM-DD` tag → the `release-snapshot` job zips the **same run's** Windows artifact and publishes it with its sha256 | The only route that needs nothing installed locally. Costs one full CI run (~15 min). Ask and it is one command. |
+| **C. Build it on your own machine** | `cd working_code\gifscythe` then double-click `scripts\build_portable_windows.bat` (or `powershell -ExecutionPolicy Bypass -File .\scripts\build_portable_windows.ps1`) | Needs Git for Windows + Python 3; it pip-installs Qt/MinGW/cmake/ninja (~1.5 GB first run) and zips the result to `%USERPROFILE%\gifscythe-build\dist\`. Add `-EngineCliOnly` for a quick no-Qt build, `-Smoke` to run the §1–§2 checks automatically. |
+
+Route **C** is a transcription of the `windows` CI job, which is green on `windows-latest`; the
+`.ps1`/`.bat` pair itself has never been executed (no Windows in the sandbox that wrote it), so if
+a step fails, send the text back verbatim — the fix belongs in the script and the workflow at once.
+Route **B** is what the maintainer should use when the diff matters: the published bytes are then
+asserted by the same run that built them.
+
+Whatever you use, **verify the hash first** (§0 below) and prefer the *newest* snapshot: an older
+tag is an older commit, and its notes are honest about which one.
+
+---
+
+## 0b. What to fetch
+
+
 
 * Release: **`snapshot-2026-10-06`** — <https://github.com/freeforall1932-design/gifscythe/releases/tag/snapshot-2026-10-06>
 * Asset: **`Gifscythe-0.1.0-windows-portable.zip`**
