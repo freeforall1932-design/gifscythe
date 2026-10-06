@@ -55,8 +55,20 @@ Chronological log of decisions and changes. **Newest at the top.**
 **427 checks, 0 failures** (285 `CHECK(` sites; T25 re-measured 18 Qt rows);
 `build/test_gifsicle_command` **415/0**; `build/test_input_admission` **35/0**;
 eleven `web/test/*.test.mjs` suites green (the new `stem` suite included in CI's
-named list); `build.sh` runs both unit suites now. Register **168 DONE / 10 PARTIAL /
-17 OPEN / 0 UNTRIAGED = 195** (from 163/11/21/0).
+named list); `build.sh` runs both unit suites now. Register **169 DONE / 10 PARTIAL /
+16 OPEN / 0 UNTRIAGED = 195** (from 163/11/21/0; R-02 closed after the unshallow).
+
+**Two "environment" rows turned out to be work, not fate.** (1) **R-02 was fixable in one
+command**: the session's clone was depth-1, so G11 skipped; `git fetch --unshallow` pulled
+the remote's full 115 commits (4.9 MB) and G11 now RUNS and passes — the register row is
+closed with that executed proof, and the honest skip remains only for CI's deliberate
+depth-1 checkout (N-31). The same round trip exposed that `.git/config` is not snapshotted,
+so `core.hooksPath` was lost and G15 was red until `scripts/bootstrap_hooks.sh` re-armed it
+(the R-04 row's lesson, re-learned). (2) **U-09's subject does not exist any more**: the
+"banked Windows snapshot" release it complains about was lost in the 2026-09-22 repo
+re-creation — `gh api .../releases` returns **0** releases and 0 tags. So there is nothing
+to repair retroactively; what remains is P0-4's forward half (cut fresh evidence at an exact
+SHA), which is an owner decision, not a fix.
 
 **The windows job found two real portability bugs in this batch, and a third of the
 lesson:** (1) the harness's new T25 reads a file with `std::ifstream` and never included
