@@ -63,7 +63,7 @@ diff --git a/working_code/gifscythe/src/core/ProcessRunner.h b/working_code/gifs
 index 1111111..2222222 100644
 --- a/working_code/gifscythe/src/core/ProcessRunner.h
 +++ b/working_code/gifscythe/src/core/ProcessRunner.h
-@@ -66,6 +66,25 @@ inline std::string win_quote_arg(const std::string& a) {
+@@ -66,7 +66,26 @@ inline std::string win_quote_arg(const std::string& a) {
    out += '"';
    return out;
  }

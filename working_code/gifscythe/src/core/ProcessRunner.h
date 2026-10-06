@@ -67,6 +67,25 @@ inline std::string win_quote_arg(const std::string& a) {
   return out;
 }
 
+// Audit U-71 (F:NF-14 — fix-order P2-17): classify a raw Windows process
+// exit code (a full DWORD) so an NTSTATUS crash can never alias to success.
+// The old return path masked with 0xff: 0xC0000100 (low byte zero) collapsed
+// to 0 — a crash reported as SUCCESS. A code we hand to our own caller's
+// shell can only carry 0..255, so anything wider maps to a fixed failure and
+// is reported on stderr with its full value. Pure logic, no Win32 types
+// (same discipline as win_quote_arg above): unit-testable on every CI
+// platform, including the 32-bit-long portability target.
+struct WinExitClass {
+  int deliverable;     // what run_argv returns: in 0..255, never aliased to 0
+  bool abnormal;      // the raw code did not fit 0..255 (crash/NTSTATUS class)
+  unsigned long raw;  // the full raw code, kept for diagnostics
+};
+inline WinExitClass classify_windows_exit_code(unsigned long raw) {
+  if (raw == 0) return {0, false, raw};
+  if (raw <= 255UL) return {static_cast<int>(raw), false, raw};
+  return {255, true, raw};
+}
+
 // Run program + args (args[0] should be the program path). Returns the child's
 // exit code 0..255. If the child was killed by a signal the shell convention
 // 128+signum is returned (audit U-32). 127 means the binary could not be
@@ -120,7 +139,23 @@ inline int run_argv(const std::vector<std::string>& args) {
   CloseHandle(pi.hProcess);
   CloseHandle(pi.hThread);
   if (!ok) return 1;
-  return static_cast<int>(code) & 0xff;
+  // U-71 / P2-17: never mask with 0xff — an NTSTATUS crash (e.g. an access
+  // violation midway through writing a frame) whose low byte happens to be 0
+  // must not come back as "exit 0". Ordinary codes (0..255) pass through
+  // unchanged; anything wider is named with its full value and collapses to
+  // an unmissable failure.
+  const WinExitClass cls =
+      classify_windows_exit_code(static_cast<unsigned long>(code));
+  if (cls.abnormal) {
+    std::fprintf(stderr,
+                 "ERROR: process '%s' exited abnormally (raw exit code "
+                 "0x%08lX%s)\n",
+                 args[0].c_str(), cls.raw,
+                 (cls.raw & 0xC0000000UL) == 0xC0000000UL
+                     ? " — NTSTATUS severity ERROR (crash)"
+                     : "");
+  }
+  return cls.deliverable;
 #else
   std::vector<char*> argv;
   argv.reserve(args.size() + 1);

@@ -842,6 +842,12 @@ void MainWindow::runCommand() {
         gs::partial_output_path(pendingOutput_.toStdString()));
     gs::discard_partial(pendingPartial_.toStdString());  // self-heal a prior hard kill
     partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
+    // U-58 / P1-38: freeze the settings for the WHOLE batch at start —
+    // every continuation job (onProcessFinished) builds its argv from this
+    // snapshot, never from a live currentSettings() re-read. The output
+    // plan above was computed and collision-checked against `settings`;
+    // the jobs must run with exactly those values.
+    batchSettings_ = settings;
     gs::Settings one = settings;
     one.mode = gs::Mode::Auto;  // single-file, no -b needed
     one.inputs = {in.toStdString()};
@@ -939,12 +945,22 @@ void MainWindow::cancelRun() {
   // kill() makes gifsicle exit with a non-zero/crash status, which normally
   // routes through the "optimization failed" branch. Mark the cancellation so
   // onProcessFinished doesn't surface a spurious error dialog mid-cancel.
-  cancelling_ = true;
-  if (process_ && process_->state() != QProcess::NotRunning) {
+  // U-72 / P1-42: the flag is LATCHED — arming and clearing live in two
+  // different places now. The old code cleared it right after
+  // waitForFinished(3000), but that wait can time out, and even when it
+  // succeeds the finished() signal can be queued-but-undelivered; a
+  // finished() that arrived after the clear took the failure branch and
+  // popped a spurious "Optimization failed" QMessageBox immediately after
+  // "Cancelled.". The latch is armed only when a process was ACTUALLY
+  // running (it can never outlive the killed run's own notification) and is
+  // consumed once by onProcessFinished — see there.
+  const bool engineWasRunning =
+      (process_ && process_->state() != QProcess::NotRunning);
+  if (engineWasRunning) {
+    cancelling_ = true;
     process_->kill();
     process_->waitForFinished(3000);
   }
-  cancelling_ = false;
 
   // N-11: the engine may have already exited successfully in the gap between
   // the last event-loop turn and this call. pendingPartial_ then holds VERIFIED
@@ -983,8 +999,16 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
   // Drain stdout so it doesn't fill the pipe (we don't use it when -o is set).
   process_->readAllStandardOutput();
 
+  // U-72 / P1-42: read-and-consume the cancel latch for THIS completion,
+  // whatever the verdict turns out to be. Simply KEEPING the flag (the naive
+  // fix for the early clear) would let it outlive one finished() and
+  // silently swallow the NEXT run's genuine failure — a new pit of exactly
+  // the class this finding belongs to. One completion, one consumption.
+  const bool wasCancelling = cancelling_;
+  cancelling_ = false;
+
   if (status != QProcess::NormalExit || exitCode != 0) {
-    if (cancelling_) {
+    if (wasCancelling) {
       // A user-initiated cancel (or window close) kills the engine, which then
       // reports a non-zero exit. That's expected, not a failure to alarm about;
       // cancelRun() finishes the cleanup and sets the "Cancelled." status.
@@ -1079,8 +1103,12 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
           gs::partial_output_path(pendingOutput_.toStdString()));
       gs::discard_partial(pendingPartial_.toStdString());
       partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
-      auto settings = currentSettings();
-      gs::Settings one = settings;
+      // U-58 / P1-38: continuation jobs MUST come from the batch-start
+      // snapshot frozen into batchSettings_ (runCommand), never from a
+      // live currentSettings() — the plan was computed and collision-
+      // checked against THOSE settings; re-reading here rebuilds argv
+      // from state the plan never saw.
+      gs::Settings one = batchSettings_;
       one.mode = gs::Mode::Auto;
       one.inputs = {in.toStdString()};
       one.output = pendingPartial_.toStdString();
@@ -1179,7 +1207,13 @@ void MainWindow::startPreview() {
     previewPanel_->clearAfter(QStringLiteral("select an existing file to preview"));
     return;
   }
-  if (!gs::path_is_executable(enginePath_.toStdString())) {
+  // U-70 / P1-42 (F:NF-13): the preview path re-probed the engine with a
+  // bare toStdString(), bypassing the u8path_compat boundary that
+  // ensureEngine() wraps — the one std::string -> fs::path conversion this
+  // codebase allows at API edges (it exists for legacy-ACP Windows hosts,
+  // where the bare form throws or splits). One rule everywhere: every
+  // fs::path boundary goes through u8path_compat.
+  if (!gs::path_is_executable(gs::u8path_compat(enginePath_.toStdString()))) {
     previewPanel_->clearAfter(QStringLiteral("engine not found — preview unavailable"));
     return;
   }

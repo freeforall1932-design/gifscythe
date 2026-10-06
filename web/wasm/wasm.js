@@ -14,6 +14,7 @@
 
 import { buildArgs, shellQuote } from "../command.mjs";
 import { validate } from "../validate.mjs";
+import { clearRunArtifacts, readVerifiedGif } from "./fs_run_guard.mjs";
 
 const $ = (id) => document.getElementById(id);
 
@@ -141,6 +142,14 @@ async function run() {
   try {
     const M = await ensureEngine();
     const inputBytes = new Uint8Array(await currentFile.arrayBuffer());
+    // U-57 / P1-37 (E:NA-05): the engine module is a singleton, so its
+    // virtual FS survives run to run — a previous success leaves /out.gif
+    // behind, and the next exit-0/no-write run would read those STALE bytes
+    // and report success for the wrong input (the desktop guards this class
+    // with U-59 snapshots; this page guarded nothing). Both fixed paths are
+    // removed BEFORE the call, so anything readable after callMain was
+    // necessarily written by THIS run.
+    clearRunArtifacts(M.FS, ["/in.gif", "/out.gif"]);
     M.FS.writeFile("/in.gif", inputBytes);
     // Same argv the live pane shows, except the fixed virtual-FS paths.
     const args = buildArgs({ ...s, mode: "auto", inputs: ["/in.gif"], output: "/out.gif" });
@@ -161,17 +170,19 @@ async function run() {
       return;
     }
     let outBytes;
-    try {
-      outBytes = M.FS.readFile("/out.gif");
-    } catch (e) {
-      setStatus("engine exited 0 but produced no output — refusing to claim success.");
+    // U-57: with the pre-run clear above, a readable /out.gif here is THIS
+    // run's product. The guard re-checks existence, non-emptiness and GIF
+    // magic — the same admission bar as the server's U-92 upload gate.
+    const result = readVerifiedGif(M.FS, "/out.gif");
+    if (!result.ok) {
+      if (result.reason === "missing") {
+        setStatus("engine exited 0 but produced no output — refusing to claim success.");
+      } else {
+        setStatus("engine output is not a GIF — refusing to claim success.");
+      }
       return;
     }
-    const magic = String.fromCharCode(...outBytes.slice(0, 6));
-    if (outBytes.length === 0 || (magic !== "GIF87a" && magic !== "GIF89a")) {
-      setStatus("engine output is not a GIF — refusing to claim success.");
-      return;
-    }
+    outBytes = result.bytes;
     const blob = new Blob([outBytes], { type: "image/gif" });
     revoke(afterUrl);
     afterUrl = URL.createObjectURL(blob);

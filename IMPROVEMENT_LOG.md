@@ -4,6 +4,111 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S35 — 2026-10-06: five-patch audit intake — three malformed patches repaired, 100% of the fix content salvaged, U-57/U-71 CLOSED with executed proof, U-58/U-70/U-72 moved to PARTIAL (source landed, Qt proof outstanding), both new proofs wired into CI, G10 re-anchored
+
+**Changed:**
+
+- **Three of the five submitted patches could not be applied at all.** The series
+  (`0001` U-71, `0002` U-57, `0003` U-72, `0004` U-70, `0005` U-58) arrived in the repo
+  root. `git apply --check` rejected `0001`, `0004` and `0005` outright:
+  `patch fragment without header at line 93`, `corrupt patch at line 65`, `corrupt patch
+  at line 116`. All three were the same defect class — the `@@ -old,n +new,m @@` count
+  fields did not match the lines the hunk actually carries, so git stopped short and
+  tripped over the next header. Three single-field corrections, patch bodies byte-identical
+  (`diff` against the originals shows only those three lines), committed on their own so
+  the repair and the fixes stay distinguishable:
+
+      0001 line  66   @@ -66,6  +66,25 @@  ->  @@ -66,7  +66,26 @@
+      0004 line  49   @@ -617,7 +617,14 @@ ->  @@ -617,7 +617,13 @@
+      0005 line 100   @@ -164,6 +164,15 @@ ->  @@ -164,6 +164,14 @@
+
+  Cosmetic residue, harmless and recorded: the `--stat` blocks in `0004`/`0005` still
+  carry the pre-correction counts (8 insertions claimed vs 7 landed; 21 vs 20), and
+  `0002`'s `--stat` overstates `wasm.js` by 2/2 even though its hunks were correct.
+- **Nothing was lost — the salvage is measured, not assumed.** Every `+` line the three
+  rejected patches wanted to add was extracted and checked against the applied tree:
+  **182/182 present**, and all 7 `-` lines are gone from their own sites. (One apparent
+  miss was the check's own limit, not a real one: `gs::Settings one = settings;` still
+  exists in the file, but only in `refreshCommand` and `runCommand`'s batch branch — the
+  `onProcessFinished` copy the patch removed is now `= batchSettings_`.)
+- **The series is anchored on a commit this clone does not contain.** `git cat-file -t
+  fe4f0a7` → `fatal: Not a valid object name`; the whole history here is the single
+  squashed commit `4430a28`. Every hunk therefore landed at an offset (+14 for `wasm.js`,
+  +436/+435 and +387/+508 in `MainWindow.cpp`, +562 for `startPreview`, +25 in
+  `MainWindow.h`). Two of those pairs differ *within the same file*, which is only possible
+  if the anchors were reconstructed rather than taken from a real file — consistent with
+  `0005`'s own disclosure about its `runCommand` hunk. `git apply` runs at fuzz 0, so an
+  offset alone cannot mis-apply anything, but each anchor site was read in the file rather
+  than trusted. `0005`'s self-declared "reconstructed, apply by hand if it rejects" hunk is
+  in fact correct in this tree; no manual fallback was needed.
+- **U-71 CLOSED (P2-17).** `classify_windows_exit_code()` replaces `code & 0xff` in
+  `run_argv()`'s Windows branch: 0 → 0, 1..255 pass through, anything wider names its full
+  8-hex-digit value on stderr (flagged `NTSTATUS severity ERROR (crash)` when bits 31:30 ==
+  11) and delivers a fixed 255 that cannot alias to success. Blast radius measured: `run_argv`
+  has exactly one caller (`src/cli/main.cpp`, `return rc; // honest 0..255`) and nothing
+  in-tree special-cases 255; the POSIX path and U-32's 128+signum convention are untouched.
+  GN-14 was right — pure function, no VM needed.
+- **U-57 CLOSED (P1-37).** New `web/wasm/fs_run_guard.mjs`: `clearRunArtifacts()` unlinks
+  `/in.gif` and `/out.gif` BEFORE `callMain()`, `readVerifiedGif()` admits the read-back only
+  on exists + non-empty + GIF87a/GIF89a magic (the server's U-92 bar). `wasm.js` keeps its two
+  original status strings verbatim, so no UI wording drifted. The wasm TRACK stays not
+  shippable (OD-16 / N-32): this closes a correctness finding, it does not promote the track.
+- **U-58, U-70, U-72 moved OPEN → PARTIAL, not FIXED.** All three have their source fix in
+  the tree and were verified as far as a no-Qt sandbox can: U-58 has no live `currentSettings()`
+  left in `onProcessFinished` and `batchIndex_ = 0` (the continuation's gate) has exactly one
+  site, immediately after the new write, so the snapshot is always written before it is read;
+  U-70 counts 3 wrapped `gs::u8path_compat(enginePath_.toStdString())` and 0 bare
+  `path_is_executable(enginePath_`, and the expression compiles against the real
+  `EngineLocator.h` + `WinUnicode.h`; U-72's second delivery channel was checked —
+  `onProcessError` acts only on `FailedToStart`, so a kill cannot pop a dialog past the latch.
+  None of that is Qt proof, so each row names the behavioural case that is still unwritten
+  (U-58 mid-batch settings mutation, U-70 `GS_ENGINE` under a non-ASCII directory, U-72 a
+  `waitForFinished` timeout). The repo's own rule was followed: PARTIAL with the gap named,
+  never DONE on a source diff.
+- **A hardening I offered and then withdrew.** The obvious belt-and-braces for U-72's residual
+  (latch armed, `finished()` never delivered) is `cancelling_ = false;` at the top of
+  `runCommand()`. **It is wrong and was NOT applied**: it re-opens the exact race U-72 fixes,
+  because the stale `finished()` then arrives with the flag already cleared and the failure
+  dialog comes back. Working the interleaving through, the harmful case is unreachable anyway
+  — a new run cannot start until the old process has exited, and exit ⇒ `finished()` ⇒
+  consumption. The real fix is U-12's state machine, which stays OPEN.
+- **Both new proofs wired into `build.yml` and its byte mirror (gate G7).** Neither ran in CI
+  as submitted: `build.yml` names its scripts explicitly and hardcodes its web-suite list. Four
+  steps added — `linux` host c++ for U-71; `linux` `u57-stale-output` as its own step so a red
+  names U-57 rather than "web suite …" (S34's naming discipline); `portability`
+  `CXX="python3 -m ziglang c++ -target x86-linux-musl"`; `windows` `CXX=g++` (pinned because
+  MinGW ships no `c++` alias, which is the script's default).
+- **G10 re-anchored, and the second re-creation recorded.** This clone's `origin/main` is
+  `4430a28`, one squashed "Add files via upload" commit, so the `fe4f0a7` base line the S34
+  docs carried was unresolvable and G10 was red on arrival. The TREE is nonetheless the one
+  those docs describe, verified by markers rather than trust: zero image files anywhere in
+  `4430a28` (what `fe4f0a7`'s delete produced — N-36) and all five root license files present
+  (U-97's restoration survived). Both base lines now name `4430a28` and keep `fe4f0a7` as a
+  labelled historical record, the way S27 recorded the identical event.
+
+**Proof (executed here, not claimed):**
+
+- `scripts/test_u71_exit_codes.sh` — **PASS**, three legs, at BOTH `long` widths:
+  host `c++` (`sizeof(long)==8`) and `CXX="python3 -m ziglang c++ -target x86-linux-musl"`
+  on the pinned `ziglang==0.16.0` the `portability` job installs, measured `sizeof(long)==4`
+  — the LLP64 width class the finding actually lives in. S1 sentinel (old mask absent,
+  classifier present) · S2 semantic (`11/11 table rows; 0 aliases in 0xC0000000..0xC000FFFF`)
+  · S3 mutation (the old-mask mutant is caught, so the table has teeth).
+- `node web/test/u57-stale-output.test.mjs` — **5/5**, including the T1 RED leg that replays
+  the ORIGINAL sequence against a fake MEMFS and asserts run 2 (exit 0, writes nothing) really
+  does serve run 1's bytes, so the finding stays falsifiable.
+- `g++ -std=c++17 -Wall -Wextra` on U-70's exact expression and U-58's exact member/copy
+  against the repo's real headers — clean, no warnings.
+- `scripts/review_change.sh --range 4430a28..HEAD` — 4 passed, 0 failed, 1 skipped.
+- `node scripts/lint_workflow.mjs` — `actionlint: clean`; `--selftest` OK.
+- `scripts/check_docs.sh --emit` then plain — register **160/14/21/0 = 195**, which is exactly
+  the five flips (2 OPEN→DONE, 3 OPEN→PARTIAL) applied to S34's 158/11/26/0.
+- **Not run, and named as such:** the three Qt6 hunks were never compiled — no cmake/Qt6 and no
+  root for `apt-get` here. The windows CI step is likewise unrun. Both are CI's job, per the
+  handoff's own capability triage.
+
+---
+
 ## S34 — 2026-10-03 (started 2026-10-02 UTC; the UTC date rolled during the session and G11 compares UTC-stamped commits, so the entry is dated to the close day, as S33's was): CI un-masked — N-30 was a real 32-bit-`long` bug (fixed test-first, proven on Windows CI), N-26's "flaky linux job" was the doc gate, and agent sessions can push workflows; then the owner's four open decisions implemented (runner pin, push/PR de-duplication, a 32-bit CI job, the wasm proof bar)
 
 **Changed:**

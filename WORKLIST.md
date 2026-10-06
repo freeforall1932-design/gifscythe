@@ -385,9 +385,18 @@ Still open from the audit intake (state lives in `STATUS.md`):
    these.
 4. **GS-203 / P1-25 GUI half** — wire the shared output verifier into the Qt
    run lifecycle (execution detail: `docs/planning/PLANNING.md` §4).
-5. **The Qt/platform rows** — U-12 (P1-24 async state machine), U-58 (P1-38
-   batch settings snapshot), U-59's GUI half, U-70/U-72 (P1-42), DS-10, GS-205,
-   U-71 (now CI-testable per P2-17's S24 note).
+5. **The Qt/platform rows** — U-12 (P1-24 async state machine), U-59's GUI
+   half, DS-10, GS-205, and the three rows S35 moved to PARTIAL: U-58 (P1-38
+   batch settings snapshot), U-70/U-72 (P1-42). **S35 landed the source fix for
+   all three but could not prove any of them** (no cmake/Qt6 in the sandbox), so
+   each row names the behavioural case that is still unwritten — write those
+   cases on a Qt-enabled runner before flipping them to FIXED. **U-71 (P2-17) is
+   CLOSED (S35)**: GN-14 was right that the mask rule is a pure function, so it
+   needed no VM — `scripts/test_u71_exit_codes.sh` ran green at both `long`
+   widths (host c++, and `x86-linux-musl` where `sizeof(long)==4`) plus native
+   `g++` on the windows job. **U-57 (P1-37) is CLOSED (S35)** on
+   `node web/test/u57-stale-output.test.mjs`; the wasm TRACK itself stays not
+   shippable (OD-16 / N-32) — closing a correctness finding is not a promotion.
 6. **The S24 web-intake batch** — P1-44 first (U-78/U-87, closed S26), then the
    P2/P3 rows above; all are provable with node alone except where noted.
    **S28 closed the node/CLI batch**: U-92/P2-19, U-93/P2-20, U-85/P3-13,

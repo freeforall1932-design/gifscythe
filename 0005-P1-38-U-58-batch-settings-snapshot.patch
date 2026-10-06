@@ -97,7 +97,7 @@ diff --git a/working_code/gifscythe/src/qtui/MainWindow.h b/working_code/gifscyt
 index 1111111..2222222 100644
 --- a/working_code/gifscythe/src/qtui/MainWindow.h
 +++ b/working_code/gifscythe/src/qtui/MainWindow.h
-@@ -164,6 +164,15 @@ class MainWindow : public QMainWindow {
+@@ -164,6 +164,14 @@ class MainWindow : public QMainWindow {
    QStringList batchTargets_;           // planned per-file outputs (audit U-01)
    int batchIndex_ = -1;
    QStringList batchQueue_;

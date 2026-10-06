@@ -189,6 +189,14 @@ class MainWindow : public QMainWindow {
   QStringList batchTargets_;           // planned per-file outputs (audit U-01)
   int batchIndex_ = -1;
   QStringList batchQueue_;
+  // U-58 / P1-38 (F:NF-01): the settings the batch was STARTED with. Batch
+  // continuation jobs (onProcessFinished) used to call currentSettings()
+  // live, so any Actions-tab state that changed mid-batch silently altered
+  // every job after the first — the settings-twin of U-45's closed
+  // destination hole: an unplanned mutation of a job plan that was computed
+  // and collision-checked against DIFFERENT values. Written once in
+  // runCommand()'s batch branch, read only while batchIndex_ >= 0.
+  gs::Settings batchSettings_;
   gs::Mode batchMode_ = gs::Mode::Batch;
   // Explode frame verification (audit U-17 / P1-19): pre-run snapshot of the
   // files under the frame prefix, so onProcessFinished can tell frames THIS
