@@ -174,7 +174,14 @@ if command -v cmake >/dev/null 2>&1 && (command -v qmake6 >/dev/null 2>&1 || [[ 
     # measured figure (324 checks over 20 blocks, STATUS.md R-01) so a normal
     # run has headroom; each T-block is worth roughly 16 checks, so losing one
     # block trips it.
-    gui_out="$(GS_ENGINE="$ENGINE" GS_TEST_REF_DIR="$self/../../reference_code/gifsicle" \
+    # GS_TEST_REF_DIR must be the MATERIALISED fixtures dir, not the vendored tree:
+    # the repo carries no images (N-36), so reference_code/gifsicle holds no
+    # logo.gif and the harness aborted at ref discovery - "0 test blocks, 0
+    # checks", an environment failure that looked like a harness failure. The CI
+    # harness step has used $FIXDIR all along; this check was never updated, and
+    # nothing noticed because it only runs where Qt exists (CI), where this gate
+    # had never run. $FIXDIR is computed once at the top of this script.
+    gui_out="$(GS_ENGINE="$ENGINE" GS_TEST_REF_DIR="$FIXDIR" \
        QT_QPA_PLATFORM=offscreen "$work/gui/test_gui_offscreen" 2>&1)"
     gui_blocks="$(grep -c '^== T' <<<"$gui_out")"
     gui_checks="$(grep -oE '==> [0-9]+ checks' <<<"$gui_out" | grep -oE '[0-9]+' | tail -1)"
