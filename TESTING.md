@@ -54,11 +54,14 @@ The GUI and engine must come from the same portable build folder.
 5. Add a small animated GIF by using the add button or dragging it onto the
    Input queue.
 6. Confirm the Before preview shows the selected source GIF.
-7. Confirm the Preview controls are visible: `Preview changes`, `Play`, `Stop`,
+7. Confirm the Input tab contains the **File name pattern** control and a
+   prominent **Start** button. The naming pattern should not be hidden in the
+   Output tab.
+8. Confirm the Preview controls are visible: `Preview changes`, `Play`, `Stop`,
    and `Auto-play previews`.
-8. Turn off autoplay, change an Action, click `Preview changes`, and confirm
+9. Turn off autoplay, change an Action, click `Preview changes`, and confirm
    that the preview is generated without starting playback automatically.
-9. Click `Play` and `Stop` and confirm that both preview panes respond.
+10. Click `Play` and `Stop` and confirm that both preview panes respond.
 
 ## 3. Settings and Guide test
 

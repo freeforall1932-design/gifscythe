@@ -516,8 +516,9 @@ int main(int argc, char** argv) {
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
     CHECK(x.list && x.pane && x.mode && x.optimize && x.lossy && x.output &&
-          x.run && x.cancel && x.remove && x.clear && x.progress && x.process &&
-          x.tabs && x.countLabel && x.outputSummary && x.previewCaption);
+          x.run && x.run->text() == QStringLiteral("Start") && x.cancel &&
+          x.remove && x.clear && x.progress && x.process && x.tabs &&
+          x.countLabel && x.outputSummary && x.previewCaption);
     CHECK(byName<QPlainTextEdit>(w, "logPane") != nullptr);
     CHECK(byName<QListWidget>(w, "outputFilesList") != nullptr);
     CHECK(byName<QPushButton>(w, "previewPlayButton") != nullptr);
@@ -535,7 +536,9 @@ int main(int argc, char** argv) {
       CHECK(x.tabs->tabText(0) == QStringLiteral("Input"));
       CHECK(x.tabs->tabText(1) == QStringLiteral("Actions"));
       CHECK(x.tabs->tabText(2) == QStringLiteral("Output"));
-      CHECK(x.tabs->tabText(3) == QStringLiteral("Guide"));
+      CHECK(x.tabs->tabText(3) == QStringLiteral("Guide") && tmplEdit &&
+            x.tabs->widget(0)->isAncestorOf(tmplEdit) &&
+            !x.tabs->widget(2)->isAncestorOf(tmplEdit));
     }
     if (x.mode) {
       CHECK(x.mode->currentIndex() == 0);

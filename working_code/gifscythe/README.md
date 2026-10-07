@@ -197,14 +197,14 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
 
 ## GUI layout (S4b retrofit + S7 polish)
 - **Input** tab — queue with drag-drop, per-file size, count/total label,
-  **Move Up/Move Down reorder** (merge order = queue order).
+  **Move Up/Move Down reorder** (merge order = queue order), the Batch file-name
+  pattern, and the prominent **Start** button.
 - **Actions** tab — every whole-GIF gifsicle control (value lists taken from
   the engine source: dither/resize/color methods, disposal, gamma), with
   plain-language descriptions beside the unfamiliar controls.
-- **Output** tab — Save-as, batch output folder, **name template** (default
-  `{name}_opt.gif`; `{name}` = input base name; collision runs refused),
-  verified files-on-disk list, Open-file/Open-folder actions, and an honest
-  per-mode summary. The list is the real destination; the preview is not a
+- **Output** tab — Save-as, batch output folder, verified files-on-disk list,
+  Open-file/Open-folder actions, and an honest per-mode summary. Naming belongs
+  to the Input workflow; this tab is for destinations and results. The list is the real destination; the preview is not a
   substitute for writing a file.
 - **Guide** tab — an in-app glossary explaining optimization, lossy
   compression, palettes, dithering, resizing, timing, looping, disposal,

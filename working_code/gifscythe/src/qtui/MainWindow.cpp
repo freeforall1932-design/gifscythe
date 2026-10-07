@@ -269,6 +269,36 @@ QWidget* MainWindow::buildInputTab() {
   orderRow->addWidget(moveDownButton_);
   orderRow->addStretch();
   left->addLayout(orderRow);
+
+  // XNConvert-style workflow: the input tab owns the decision that determines
+  // the files' names, and it owns the action that starts processing. Output is
+  // reserved for destinations and verified files that already exist.
+  auto* namingBox = new QGroupBox(QStringLiteral("Output naming"), page);
+  namingBox->setObjectName(QStringLiteral("inputNamingGroup"));
+  auto* namingForm = new QFormLayout(namingBox);
+  nameTemplateEdit_ = new QLineEdit(namingBox);
+  nameTemplateEdit_->setObjectName(QStringLiteral("nameTemplateEdit"));
+  nameTemplateEdit_->setText(QString::fromLatin1(kDefaultNameTemplate));
+  nameTemplateEdit_->setToolTip(QStringLiteral(
+      "Batch auto-naming template.\n"
+      "{name} = the input file's base name (required when batching >1 file).\n"
+      "Path separators are stripped; \".gif\" is appended if missing."));
+  namingForm->addRow(QStringLiteral("File name pattern"), nameTemplateEdit_);
+  auto* tmplHint = new QLabel(QStringLiteral(
+      "{name} becomes the source name. Example: {name}_optimized.gif → clip_optimized.gif. "
+      "A multi-file Batch without {name} is refused to prevent overwriting results."), namingBox);
+  tmplHint->setObjectName(QStringLiteral("nameTemplateHint"));
+  tmplHint->setWordWrap(true);
+  namingForm->addRow(QString(), tmplHint);
+  left->addWidget(namingBox);
+
+  runButton_ = new QPushButton(QStringLiteral("Start"), page);
+  runButton_->setObjectName(QStringLiteral("runButton"));
+  runButton_->setMinimumHeight(38);
+  runButton_->setToolTip(QStringLiteral("Start processing the queued GIF files"));
+  runButton_->setEnabled(false);
+  connect(runButton_, &QPushButton::clicked, this, &MainWindow::runCommand);
+  left->addWidget(runButton_);
   return page;
 }
 
@@ -314,23 +344,6 @@ QWidget* MainWindow::buildOutputTab() {
   batchHint->setWordWrap(true);
   batchHint->setObjectName(QStringLiteral("batchFolderHint"));
   form->addRow(QString(), batchHint);
-
-  // Naming template (S3-25). Default renders the historical <name>_opt.gif
-  // (audit E4); {name} is replaced with the input's base name.
-  nameTemplateEdit_ = new QLineEdit(box);
-  nameTemplateEdit_->setObjectName(QStringLiteral("nameTemplateEdit"));
-  nameTemplateEdit_->setText(QString::fromLatin1(kDefaultNameTemplate));
-  nameTemplateEdit_->setToolTip(QStringLiteral(
-      "Batch auto-naming template.\n"
-      "{name} = the input file's base name (required when batching >1 file).\n"
-      "Path separators are stripped; \".gif\" is appended if missing."));
-  form->addRow(QStringLiteral("Batch name pattern"), nameTemplateEdit_);
-  auto* tmplHint = new QLabel(QStringLiteral(
-      "{name} becomes the source name. Example: {name}_optimized.gif → clip_optimized.gif. "
-      "A multi-file Batch without {name} is refused to prevent overwriting results."), box);
-  tmplHint->setObjectName(QStringLiteral("nameTemplateHint"));
-  tmplHint->setWordWrap(true);
-  form->addRow(QString(), tmplHint);
 
   lay->addWidget(box);
 
@@ -395,7 +408,7 @@ QWidget* MainWindow::buildGuideTab() {
 
   auto* intro = new QLabel(QStringLiteral(
       "A plain-language map of the terms behind Gifscythe. You do not need to know gifsicle "
-      "commands to get a good result: start on Input, choose a few Actions, then press Optimize GIF."),
+      "commands to get a good result: start on Input, choose a few Actions, then press Start."),
       content);
   intro->setWordWrap(true);
   intro->setObjectName(QStringLiteral("guideIntro"));
@@ -405,7 +418,7 @@ QWidget* MainWindow::buildGuideTab() {
       "2. Leave Optimization level at 3 for a lossless size reduction.\n"
       "3. If the file is still too large, try Lossy compression around 20–60 and check the written output.\n"
       "4. Use Resize only when you also want to change dimensions.\n"
-      "5. Optimize GIF writes a real file. The Output tab shows its exact path; the preview is only a viewer."));
+      "5. Start writes a real file. The Output tab shows its exact path; the preview is only a viewer."));
   addSection(QStringLiteral("Compression terms"), QStringLiteral(
       "Optimization level (-O): removes redundant pixels and improves the GIF layout. Higher levels can take longer, "
       "but normally do not change the picture. Level 0 turns this pass off.\n\n"
@@ -483,15 +496,10 @@ void MainWindow::buildBottomBar(QWidget* central, QVBoxLayout* root) {
   root->addWidget(progressBar_);
 
   auto* actions = new QHBoxLayout();
-  runButton_ = new QPushButton(QStringLiteral("Optimize GIF"), central);
-  runButton_->setObjectName(QStringLiteral("runButton"));
-  runButton_->setEnabled(false);
-  connect(runButton_, &QPushButton::clicked, this, &MainWindow::runCommand);
   cancelButton_ = new QPushButton(QStringLiteral("Cancel"), central);
   cancelButton_->setObjectName(QStringLiteral("cancelButton"));
   cancelButton_->setEnabled(false);
   connect(cancelButton_, &QPushButton::clicked, this, &MainWindow::cancelRun);
-  actions->addWidget(runButton_);
   actions->addWidget(cancelButton_);
   actions->addStretch();
   statusLabel_ = new QLabel(central);

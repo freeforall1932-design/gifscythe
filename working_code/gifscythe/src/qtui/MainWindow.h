@@ -2,15 +2,14 @@
 //
 // Layout (XNConvert-style flow):
 //   Tab 1 "Input"   — animation queue (add / drag-drop / remove / clear /
-//                     move up-down, per-file size, total count/size label)
+//                     move up-down), batch file-name pattern, and prominent Start
 //   Tab 2 "Actions" — SettingsPanel: every whole-GIF control gifsicle has
 //   Tab 3 "Output"  — Save-as (Merge/single-file Batch), batch output
-//                     folder, name template ({name}_opt.gif default),
-//                     verified files-on-disk list, open-file/folder actions
+//                     folder, verified files-on-disk list, open-file/folder actions
 //   Tab 4 "Guide"   — plain-language glossary and workflow help
 //   Right pane      — PreviewPanel: before/after, explicit Play/Stop, and a
 //                     debounced settings preview (large GIFs opt out by default)
-//   Bottom          — live one-way command pane, activity log, progress, run/cancel, status
+//   Bottom          — live one-way command pane, activity log, progress, Cancel, status
 //
 // Run semantics are UNCHANGED from the verified MVP (COMPILED_AUDIT §6.B):
 //   * Batch default (E4): N inputs -> N outputs, auto <name>_opt.gif next to
