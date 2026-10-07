@@ -1627,7 +1627,7 @@ void MainWindow::appendLog(const QString& message) {
   for (const QString& line : lines) {
     if (!line.isEmpty()) logPane_->appendPlainText(QStringLiteral("[%1] %2").arg(stamp, line));
   }
-  const auto* bar = logPane_->verticalScrollBar();
+  auto* bar = logPane_->verticalScrollBar();
   if (bar) bar->setValue(bar->maximum());
 }
 
