@@ -10,6 +10,10 @@ full gifsicle terminal control underneath.
 This folder is the **working source code**. Reference material lives in the repo
 root `reference_code/` (read-only).
 
+Installation and current-branch Qt build instructions are in the repo root:
+[`INSTALL.md`](../../INSTALL.md). The desktop verification checklist is
+[`TESTING.md`](../../TESTING.md).
+
 ## Status (2026-09-10, session S9)
 - **Status register:** `../../STATUS.md` — the roll-up of everything this repo
   tracks, in four states. This file is the product-level summary; `STATUS.md` is
