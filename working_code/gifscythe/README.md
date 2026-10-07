@@ -218,9 +218,11 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
 - Bottom bar — one-way live command pane, bounded activity log, determinate
   per-file Batch progress or an honest indeterminate bar for one large engine
   run, run/cancel, and status.
-- Windows engine subprocesses are started with `CREATE_NO_WINDOW`/hidden
-  startup flags, so gifsicle never opens a second console window beside the
-  app. The same headless flag is used by the CLI process runner.
+- The Windows desktop target uses the GUI subsystem, so double-clicking
+  `gifscythe.exe` does not create a console window. Engine and preview
+  subprocesses are also started with `CREATE_NO_WINDOW`/hidden startup flags,
+  so gifsicle never opens a second console window beside the app. The same
+  headless flag is used by the CLI process runner.
 - **Session persistence (S7)** — Actions state + batch folder + name
   template are saved on close to `gifscythe.conf` in the standard app-config
   location (`%APPDATA%\Gifscythe\` on Windows); override the path with

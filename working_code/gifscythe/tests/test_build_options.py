@@ -95,6 +95,20 @@ class GuiBuilderDispatch(unittest.TestCase):
             self.assertEqual(before, sorted(p.name for p in PRODUCT.iterdir()))
 
 
+class WindowsGuiSubsystem(unittest.TestCase):
+    """The desktop app and its qmake fallback must not create a console window."""
+
+    def test_gui_targets_are_not_console_subsystem(self):
+        cmake = (PRODUCT / "CMakeLists.txt").read_text()
+        pro = (PRODUCT / "gifscythe.pro").read_text()
+        main_window = (PRODUCT / "src/qtui/MainWindow.cpp").read_text()
+        self.assertIn("qt_add_executable(gifscythe WIN32", cmake)
+        self.assertIn("win32:CONFIG += windows", pro)
+        self.assertIn("CREATE_NO_WINDOW", main_window)
+        self.assertIn("STARTF_USESHOWWINDOW", main_window)
+        self.assertIn("SW_HIDE", main_window)
+
+
 class QmakeProjectVersion(unittest.TestCase):
     """GS-210: the .pro's hardcoded VERSION is guarded against VERSION.md drift.
 

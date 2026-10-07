@@ -74,7 +74,11 @@ if(BUILD_GUI)
   if(Qt6_FOUND)
     message(STATUS "Qt6 found -> building Gifscythe GUI")
     qt_standard_project_setup()
-    qt_add_executable(gifscythe
+    # The desktop executable is a GUI-subsystem application. Without WIN32,
+    # MinGW marks it as a console-subsystem executable and Windows opens a
+    # command window even when the user double-clicks Gifscythe. The engine
+    # child is hidden separately in MainWindow::configureHeadless().
+    qt_add_executable(gifscythe WIN32
       src/qtui/main.cpp
       src/qtui/MainWindow.cpp
       src/qtui/MainWindow.h
