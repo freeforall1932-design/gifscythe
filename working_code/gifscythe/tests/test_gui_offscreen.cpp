@@ -84,6 +84,7 @@
 #include <QIODevice>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QListWidgetItem>
 #include <QMessageBox>
 #include <QMimeData>
@@ -93,6 +94,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QScrollArea>
 #include <QSpinBox>
 #include <QStandardPaths>
 #include <QTabWidget>
@@ -516,6 +518,12 @@ int main(int argc, char** argv) {
     CHECK(x.list && x.pane && x.mode && x.optimize && x.lossy && x.output &&
           x.run && x.cancel && x.remove && x.clear && x.progress && x.process &&
           x.tabs && x.countLabel && x.outputSummary && x.previewCaption);
+    CHECK(byName<QPlainTextEdit>(w, "logPane") != nullptr);
+    CHECK(byName<QListWidget>(w, "outputFilesList") != nullptr);
+    CHECK(byName<QPushButton>(w, "previewPlayButton") != nullptr);
+    CHECK(byName<QPushButton>(w, "previewStopButton") != nullptr);
+    CHECK(byName<QPushButton>(w, "previewGenerateButton") != nullptr);
+    CHECK(byName<QScrollArea>(w, "guideScroll") != nullptr);
     // S7 additions: reorder buttons + naming template (default = historical
     // <name>_opt.gif behavior, audit E4).
     CHECK(byName<QPushButton>(w, "moveUpButton") != nullptr);
@@ -523,10 +531,11 @@ int main(int argc, char** argv) {
     auto* tmplEdit = byName<QLineEdit>(w, "nameTemplateEdit");
     CHECK(tmplEdit && tmplEdit->text() == QStringLiteral("{name}_opt.gif"));
     if (x.tabs) {
-      CHECK(x.tabs->count() == 3);
+      CHECK(x.tabs->count() == 4);
       CHECK(x.tabs->tabText(0) == QStringLiteral("Input"));
       CHECK(x.tabs->tabText(1) == QStringLiteral("Actions"));
       CHECK(x.tabs->tabText(2) == QStringLiteral("Output"));
+      CHECK(x.tabs->tabText(3) == QStringLiteral("Guide"));
     }
     if (x.mode) {
       CHECK(x.mode->currentIndex() == 0);

@@ -16,7 +16,9 @@
 #include <QAbstractItemView>
 #include <QAction>
 #include <QApplication>
+#include <QBrush>
 #include <QCloseEvent>
+#include <QColor>
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDesktopServices>
@@ -25,18 +27,23 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QFrame>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QKeySequence>
+#include <QListWidget>
+#include <QListWidgetItem>
+#include <QScrollArea>
+#include <QSizePolicy>
 #include <QLabel>
 #include <QLineEdit>
-#include <QListWidgetItem>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QSaveFile>
+#include <QScrollBar>
 #include <QSplitter>
 #include <QStandardPaths>
 #include <QTabWidget>
@@ -51,7 +58,29 @@
 #include <string>
 #include <vector>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 namespace {
+
+// Gifsicle is a console executable, but the desktop app is not a console
+// workflow. Without this modifier Windows creates a second console window for
+// every optimization/preview process, which looks like Gifscythe is opening a
+// terminal and is especially distracting for large files. Keep the subprocess
+// fully observable through QProcess while hiding its console window.
+void configureHeadless(QProcess* process) {
+  if (!process) return;
+  process->setProcessChannelMode(QProcess::SeparateChannels);
+#ifdef Q_OS_WIN
+  process->setCreateProcessArgumentsModifier(
+      [](QProcess::CreateProcessArguments* args) {
+        args->flags |= CREATE_NO_WINDOW;
+        args->startupInfo->dwFlags |= STARTF_USESHOWWINDOW;
+        args->startupInfo->wShowWindow = SW_HIDE;
+      });
+#endif
+}
 
 QString humanSize(qint64 bytes) {
   if (bytes >= 1024 * 1024)
@@ -77,9 +106,14 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
   process_ = new QProcess(this);
   process_->setObjectName(QStringLiteral("engineProcess"));
+  configureHeadless(process_);
   connect(process_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
           this, &MainWindow::onProcessFinished);
   connect(process_, &QProcess::errorOccurred, this, &MainWindow::onProcessError);
+  connect(process_, &QProcess::readyReadStandardError, this,
+          &MainWindow::captureProcessOutput);
+  connect(process_, &QProcess::readyReadStandardOutput, this,
+          &MainWindow::captureProcessOutput);
 
   // previewProcess_ is created fresh per preview run (see startPreview) so a
   // killed stale run can never be misread as the newest run's completion.
@@ -120,10 +154,15 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   settingsPanel_->setObjectName(QStringLiteral("settingsPanel"));
   tabs_->addTab(settingsPanel_, QStringLiteral("Actions"));
   tabs_->addTab(buildOutputTab(), QStringLiteral("Output"));
+  tabs_->addTab(buildGuideTab(), QStringLiteral("Guide"));
   splitter->addWidget(tabs_);
 
   previewPanel_ = new PreviewPanel(splitter);
   previewPanel_->setObjectName(QStringLiteral("previewPanel"));
+  connect(previewPanel_, &PreviewPanel::previewRequested, this, [this]() {
+    forcePreview_ = true;
+    schedulePreview();
+  });
   splitter->addWidget(previewPanel_);
   splitter->setStretchFactor(0, 3);
   splitter->setStretchFactor(1, 2);
@@ -135,19 +174,24 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   // ---- Wiring: everything that changes settings refreshes the live pane,
   //      the output summary, and (debounced) the preview. ----
   connect(settingsPanel_, &SettingsPanel::changed, this, [this]() {
+    forcePreview_ = false;
+    lastOutputPaths_.clear();
     refreshCommand();
     refreshOutputSummary();
     schedulePreview();
   });
   connect(outputEdit_, &QLineEdit::textChanged, this, [this]() {
+    lastOutputPaths_.clear();
     refreshCommand();
     refreshOutputSummary();
   });
   connect(batchDirEdit_, &QLineEdit::textChanged, this, [this]() {
+    lastOutputPaths_.clear();
     refreshCommand();
     refreshOutputSummary();
   });
   connect(nameTemplateEdit_, &QLineEdit::textChanged, this, [this]() {
+    lastOutputPaths_.clear();
     refreshCommand();
     refreshOutputSummary();
   });
@@ -232,7 +276,7 @@ QWidget* MainWindow::buildOutputTab() {
   auto* page = new QWidget(tabs_);
   auto* lay = new QVBoxLayout(page);
 
-  auto* box = new QGroupBox(QStringLiteral("Output"), page);
+  auto* box = new QGroupBox(QStringLiteral("Where files are saved"), page);
   box->setObjectName(QStringLiteral("outputGroup"));
   auto* form = new QFormLayout(box);
 
@@ -247,6 +291,12 @@ QWidget* MainWindow::buildOutputTab() {
   outputRow->addWidget(outputEdit_);
   outputRow->addWidget(outputBrowse_);
   form->addRow(QStringLiteral("Save as"), outputRow);
+  auto* outputHint = new QLabel(QStringLiteral(
+      "Use this for one final GIF. Merge always needs a destination; Batch uses it only "
+      "when exactly one file is queued."), box);
+  outputHint->setWordWrap(true);
+  outputHint->setObjectName(QStringLiteral("outputSaveHint"));
+  form->addRow(QString(), outputHint);
 
   auto* batchRow = new QHBoxLayout();
   batchDirEdit_ = new QLineEdit(box);
@@ -258,7 +308,12 @@ QWidget* MainWindow::buildOutputTab() {
   connect(batchDirBrowse_, &QPushButton::clicked, this, &MainWindow::chooseBatchDir);
   batchRow->addWidget(batchDirEdit_);
   batchRow->addWidget(batchDirBrowse_);
-  form->addRow(QStringLiteral("Batch outputs"), batchRow);
+  form->addRow(QStringLiteral("Batch folder"), batchRow);
+  auto* batchHint = new QLabel(QStringLiteral(
+      "Optional folder for Batch results. Leave empty to save beside each source GIF."), box);
+  batchHint->setWordWrap(true);
+  batchHint->setObjectName(QStringLiteral("batchFolderHint"));
+  form->addRow(QString(), batchHint);
 
   // Naming template (S3-25). Default renders the historical <name>_opt.gif
   // (audit E4); {name} is replaced with the input's base name.
@@ -269,18 +324,13 @@ QWidget* MainWindow::buildOutputTab() {
       "Batch auto-naming template.\n"
       "{name} = the input file's base name (required when batching >1 file).\n"
       "Path separators are stripped; \".gif\" is appended if missing."));
-  form->addRow(QStringLiteral("Name template"), nameTemplateEdit_);
+  form->addRow(QStringLiteral("Batch name pattern"), nameTemplateEdit_);
   auto* tmplHint = new QLabel(QStringLiteral(
-      "{name} = input base name · used for batch auto-naming · runs that would "
-      "overwrite one file are refused"), box);
+      "{name} becomes the source name. Example: {name}_optimized.gif → clip_optimized.gif. "
+      "A multi-file Batch without {name} is refused to prevent overwriting results."), box);
   tmplHint->setObjectName(QStringLiteral("nameTemplateHint"));
   tmplHint->setWordWrap(true);
   form->addRow(QString(), tmplHint);
-
-  openDirButton_ = new QPushButton(QStringLiteral("Open output folder"), box);
-  openDirButton_->setObjectName(QStringLiteral("openDirButton"));
-  connect(openDirButton_, &QPushButton::clicked, this, &MainWindow::openOutputFolder);
-  form->addRow(QString(), openDirButton_);
 
   lay->addWidget(box);
 
@@ -288,22 +338,147 @@ QWidget* MainWindow::buildOutputTab() {
   outputSummaryLabel_->setObjectName(QStringLiteral("outputSummary"));
   outputSummaryLabel_->setWordWrap(true);
   lay->addWidget(outputSummaryLabel_);
+
+  auto* filesBox = new QGroupBox(QStringLiteral("Files on disk"), page);
+  filesBox->setObjectName(QStringLiteral("outputFilesGroup"));
+  auto* filesLay = new QVBoxLayout(filesBox);
+  auto* filesHint = new QLabel(QStringLiteral(
+      "This is the real destination, not the temporary preview. Double-click a file to open it, "
+      "or select one and choose Open file."), filesBox);
+  filesHint->setWordWrap(true);
+  filesHint->setObjectName(QStringLiteral("outputFilesHint"));
+  filesLay->addWidget(filesHint);
+  outputFiles_ = new QListWidget(filesBox);
+  outputFiles_->setObjectName(QStringLiteral("outputFilesList"));
+  outputFiles_->setMinimumHeight(110);
+  outputFiles_->setToolTip(QStringLiteral("Verified output files and their full paths"));
+  connect(outputFiles_, &QListWidget::itemDoubleClicked, this,
+          [this](QListWidgetItem*) { openSelectedOutput(); });
+  filesLay->addWidget(outputFiles_, 1);
+  auto* fileButtons = new QHBoxLayout();
+  openDirButton_ = new QPushButton(QStringLiteral("Open output folder"), filesBox);
+  openDirButton_->setObjectName(QStringLiteral("openDirButton"));
+  connect(openDirButton_, &QPushButton::clicked, this, &MainWindow::openOutputFolder);
+  openSelectedOutputButton_ = new QPushButton(QStringLiteral("Open selected file"), filesBox);
+  openSelectedOutputButton_->setObjectName(QStringLiteral("openSelectedOutputButton"));
+  connect(openSelectedOutputButton_, &QPushButton::clicked, this,
+          &MainWindow::openSelectedOutput);
+  fileButtons->addWidget(openSelectedOutputButton_);
+  fileButtons->addWidget(openDirButton_);
+  fileButtons->addStretch();
+  filesLay->addLayout(fileButtons);
+  lay->addWidget(filesBox, 1);
+  return page;
+}
+
+QWidget* MainWindow::buildGuideTab() {
+  auto* page = new QWidget(tabs_);
+  auto* outer = new QVBoxLayout(page);
+  outer->setContentsMargins(0, 0, 0, 0);
+  auto* scroll = new QScrollArea(page);
+  scroll->setObjectName(QStringLiteral("guideScroll"));
+  scroll->setWidgetResizable(true);
+  scroll->setFrameShape(QFrame::NoFrame);
+  auto* content = new QWidget(scroll);
+  auto* lay = new QVBoxLayout(content);
+
+  auto addSection = [content, lay](const QString& title, const QString& text) {
+    auto* box = new QGroupBox(title, content);
+    auto* boxLay = new QVBoxLayout(box);
+    auto* label = new QLabel(text, box);
+    label->setWordWrap(true);
+    label->setTextFormat(Qt::PlainText);
+    label->setObjectName(QStringLiteral("guideDescription"));
+    boxLay->addWidget(label);
+    lay->addWidget(box);
+  };
+
+  auto* intro = new QLabel(QStringLiteral(
+      "A plain-language map of the terms behind Gifscythe. You do not need to know gifsicle "
+      "commands to get a good result: start on Input, choose a few Actions, then press Optimize GIF."),
+      content);
+  intro->setWordWrap(true);
+  intro->setObjectName(QStringLiteral("guideIntro"));
+  lay->addWidget(intro);
+  addSection(QStringLiteral("Recommended first run"), QStringLiteral(
+      "1. Add one or more GIFs on Input.\n"
+      "2. Leave Optimization level at 3 for a lossless size reduction.\n"
+      "3. If the file is still too large, try Lossy compression around 20–60 and check the written output.\n"
+      "4. Use Resize only when you also want to change dimensions.\n"
+      "5. Optimize GIF writes a real file. The Output tab shows its exact path; the preview is only a viewer."));
+  addSection(QStringLiteral("Compression terms"), QStringLiteral(
+      "Optimization level (-O): removes redundant pixels and improves the GIF layout. Higher levels can take longer, "
+      "but normally do not change the picture. Level 0 turns this pass off.\n\n"
+      "Lossy compression: allows small color/detail changes so the file can become much smaller. 0 means lossless; "
+      "higher numbers trade more visual fidelity for size. Inspect the After preview and the size report.\n\n"
+      "Reduce colors: limits the palette used by each frame. Fewer colors usually mean a smaller file, but gradients "
+      "can look banded. Dither adds a patterned blend of nearby colors to hide that banding."));
+  addSection(QStringLiteral("Resize and image quality"), QStringLiteral(
+      "Fit inside keeps the aspect ratio and never exceeds W×H. Touch W×H keeps the aspect ratio while fitting the "
+      "requested box. Exact uses both dimensions and may stretch the animation. Width only and Height only change one "
+      "dimension. Scale uses independent X and Y percentages.\n\n"
+      "Resampling method is the algorithm used for new pixels. Point is sharp and fast; Lanczos and Mitchell are "
+      "smoother, higher-quality choices that can take longer."));
+  addSection(QStringLiteral("Animation terms"), QStringLiteral(
+      "Frame delay is measured in 1/100 of a second because that is the GIF format unit: 10 means 0.10 seconds, not 10 ms.\n\n"
+      "Loop forever repeats the animation. Play once removes the loop extension so players stop after one pass. "
+      "Disposal says what a player should do with the previous frame; Keep original is the safest default.\n\n"
+      "Threads controls parallel work, not the number of frames. Unchanged lets gifsicle choose its default; Auto asks "
+      "for its automatic thread count."));
+  addSection(QStringLiteral("Modes and outputs"), QStringLiteral(
+      "Batch creates one optimized GIF per input, using the name pattern. Merge concatenates the queued GIFs into one "
+      "animation and needs Save as. Explode writes individual frame GIFs under a prefix. Auto is the low-level mode for "
+      "one explicit output.\n\n"
+      "Output is not just a preview: Gifscythe verifies the file before saying Done. If Windows or another program keeps "
+      "a destination open, the status and log say what happened and preserve verified work where possible."));
+  addSection(QStringLiteral("Activity log and command"), QStringLiteral(
+      "The command panel is a read-only, copyable view of the exact argv that will be executed. It is for transparency, "
+      "not a second way to edit settings. The Activity log below it records start, progress, warnings, cancellation and "
+      "engine errors. A moving progress bar means the engine is still working; for Batch, the bar advances once per file."));
+  addSection(QStringLiteral("Preview controls"), QStringLiteral(
+      "Before is the selected source. After is either a settings preview or, after a successful run, the actual file "
+      "written to disk. Play and Stop only control playback; they never start another optimization. Turn off Auto-play "
+      "if you are working with a very large GIF."));
   lay->addStretch();
+  scroll->setWidget(content);
+  outer->addWidget(scroll);
   return page;
 }
 
 void MainWindow::buildBottomBar(QWidget* central, QVBoxLayout* root) {
-  root->addWidget(new QLabel(QStringLiteral("Generated engine command (one-way: controls → command)"),
-                             central));
+  auto* commandTitle = new QLabel(QStringLiteral(
+      "Command preview · read-only · controls → exact engine arguments"), central);
+  commandTitle->setObjectName(QStringLiteral("commandTitle"));
+  root->addWidget(commandTitle);
   commandPane_ = new QPlainTextEdit(central);
   commandPane_->setObjectName(QStringLiteral("commandPane"));
   commandPane_->setReadOnly(true);
+  commandPane_->setMaximumHeight(92);
   commandPane_->setPlaceholderText(QStringLiteral("Add a GIF to generate a command…"));
-  root->addWidget(commandPane_, 1);
+  root->addWidget(commandPane_);
+
+  auto* logHeader = new QHBoxLayout();
+  auto* logTitle = new QLabel(QStringLiteral("Activity log"), central);
+  logTitle->setObjectName(QStringLiteral("logTitle"));
+  logHeader->addWidget(logTitle);
+  auto* clearLog = new QPushButton(QStringLiteral("Clear"), central);
+  clearLog->setObjectName(QStringLiteral("clearLogButton"));
+  logHeader->addWidget(clearLog);
+  logHeader->addStretch();
+  root->addLayout(logHeader);
+  logPane_ = new QPlainTextEdit(central);
+  logPane_->setObjectName(QStringLiteral("logPane"));
+  logPane_->setReadOnly(true);
+  logPane_->setMaximumBlockCount(250);
+  logPane_->setMaximumHeight(92);
+  logPane_->setPlaceholderText(QStringLiteral("Run messages will appear here…"));
+  connect(clearLog, &QPushButton::clicked, this, [this]() { resetRunLog(); });
+  root->addWidget(logPane_);
 
   progressBar_ = new QProgressBar(central);
   progressBar_->setObjectName(QStringLiteral("progressBar"));
-  progressBar_->setRange(0, 0);  // indeterminate while running
+  progressBar_->setRange(0, 0);  // indeterminate for one large engine run
+  progressBar_->setFormat(QStringLiteral("Working…"));
   progressBar_->setVisible(false);
   root->addWidget(progressBar_);
 
@@ -321,7 +496,9 @@ void MainWindow::buildBottomBar(QWidget* central, QVBoxLayout* root) {
   actions->addStretch();
   statusLabel_ = new QLabel(central);
   statusLabel_->setObjectName(QStringLiteral("statusLabel"));
-  actions->addWidget(statusLabel_);
+  statusLabel_->setWordWrap(true);
+  statusLabel_->setMinimumWidth(260);
+  actions->addWidget(statusLabel_, 1);
   root->addLayout(actions);
 }
 
@@ -384,6 +561,7 @@ void MainWindow::appendInputs(const QStringList& files) {
     ++added;
   }
   if (added > 0) {
+    lastOutputPaths_.clear();
     runButton_->setEnabled(!busy_ && ensureEngine() && !inputs_.isEmpty());
     refreshQueueLabel();
     refreshCommand();
@@ -455,6 +633,7 @@ void MainWindow::removeSelected() {
     if (row >= 0) rows.append(row);
   }
   std::sort(rows.begin(), rows.end(), std::greater<int>());
+  lastOutputPaths_.clear();
   for (int row : rows) {
     if (row >= 0 && row < inputs_.size()) inputs_.removeAt(row);
     delete inputList_->takeItem(row);
@@ -468,6 +647,7 @@ void MainWindow::removeSelected() {
 }
 
 void MainWindow::clearQueue() {
+  lastOutputPaths_.clear();
   inputs_.clear();
   inputList_->clear();
   runButton_->setEnabled(false);
@@ -518,12 +698,74 @@ void MainWindow::openOutputFolder() {
     const QString out = outputEdit_->text().trimmed();
     if (!out.isEmpty()) {
       dir = QFileInfo(out).absolutePath();
+    } else if (!lastOutputPaths_.isEmpty()) {
+      dir = QFileInfo(lastOutputPaths_.front()).absolutePath();
     } else if (!inputs_.isEmpty()) {
       dir = QFileInfo(inputs_.front()).absolutePath();
     }
   }
   if (dir.isEmpty()) return;
   QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
+}
+
+void MainWindow::openSelectedOutput() {
+  if (!outputFiles_) return;
+  auto* item = outputFiles_->currentItem();
+  if (!item) return;
+  const QString path = item->data(Qt::UserRole).toString();
+  if (path.isEmpty()) return;
+  QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+}
+
+QStringList MainWindow::plannedOutputPaths() const {
+  if (!inputs_.isEmpty() && settingsPanel_->mode() == gs::Mode::Batch)
+    return plannedBatchTargets();
+
+  const QString explicitOut = outputEdit_ ? outputEdit_->text().trimmed() : QString();
+  if (!explicitOut.isEmpty()) return {explicitOut};
+  if (!inputs_.isEmpty() && settingsPanel_->mode() == gs::Mode::Explode) {
+    const QFileInfo fi(inputs_.front());
+    return {fi.absolutePath() + QLatin1Char('/') + fi.completeBaseName()
+            + QStringLiteral("_frame.*")};
+  }
+  return {};
+}
+
+void MainWindow::refreshOutputFiles() {
+  if (!outputFiles_) return;
+  outputFiles_->clear();
+
+  const QStringList paths = lastOutputPaths_.isEmpty() ? plannedOutputPaths() : lastOutputPaths_;
+  if (paths.isEmpty()) {
+    auto* item = new QListWidgetItem(QStringLiteral("No output planned yet."), outputFiles_);
+    item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
+    if (openSelectedOutputButton_) openSelectedOutputButton_->setEnabled(false);
+    return;
+  }
+
+  bool anyExisting = false;
+  for (const QString& path : paths) {
+    const bool prefix = path.endsWith(QStringLiteral(".*"));
+    const QString actualPath = prefix ? path.left(path.size() - 2) : path;
+    const QFileInfo fi(actualPath);
+    QString label;
+    if (prefix) {
+      label = QStringLiteral("Planned frame prefix: %1").arg(actualPath);
+    } else if (fi.exists() && fi.isFile()) {
+      label = QStringLiteral("✓ %1  ·  %2").arg(fi.fileName(), humanSize(fi.size()));
+      anyExisting = true;
+    } else {
+      label = QStringLiteral("Planned: %1").arg(path);
+    }
+    auto* item = new QListWidgetItem(label, outputFiles_);
+    item->setData(Qt::UserRole, actualPath);
+    item->setToolTip(path);
+    if (!prefix && fi.exists() && fi.isFile())
+      item->setForeground(QBrush(QColor(80, 190, 150)));
+  }
+  if (openSelectedOutputButton_)
+    openSelectedOutputButton_->setEnabled(anyExisting);
+  if (outputFiles_->count() > 0 && anyExisting) outputFiles_->setCurrentRow(0);
 }
 
 QString MainWindow::renderedOutputName(const QFileInfo& fi) const {
@@ -590,6 +832,7 @@ void MainWindow::moveCurrent(int delta) {
   if (row < 0 || row >= inputs_.size()) return;
   const int target = row + delta;
   if (target < 0 || target >= inputs_.size()) return;
+  lastOutputPaths_.clear();
   QListWidgetItem* item = inputList_->takeItem(row);
   if (!item) return;
   inputList_->insertItem(target, item);
@@ -680,6 +923,7 @@ void MainWindow::refreshOutputSummary() {
       break;
   }
   outputSummaryLabel_->setText(text);
+  refreshOutputFiles();
 }
 
 gs::Settings MainWindow::currentSettings() const {
@@ -769,6 +1013,14 @@ void MainWindow::setBusy(bool busy) {
   nameTemplateEdit_->setEnabled(!busy);
   progressBar_->setVisible(busy);
   if (busy) {
+    if (batchMode_ == gs::Mode::Batch && !batchQueue_.isEmpty()) {
+      progressBar_->setRange(0, batchQueue_.size());
+      progressBar_->setValue(std::max(0, batchIndex_));
+      progressBar_->setFormat(QStringLiteral("File %v of %m  ·  %p%"));
+    } else {
+      progressBar_->setRange(0, 0);
+      progressBar_->setFormat(QStringLiteral("Working…"));
+    }
     previewTimer_->stop();
     // P1-10: invalidate BEFORE killing so the kill's finished() signal is
     // recognized as stale — otherwise it passes the seq guard and paints
@@ -818,6 +1070,15 @@ void MainWindow::runCommand() {
   }
 
   batchMode_ = settings.mode;
+  resetRunLog();
+  lastOutputPaths_.clear();
+  refreshOutputFiles();
+  appendLog(QStringLiteral("Starting %1 run with %2 input file(s).")
+                .arg(settings.mode == gs::Mode::Batch ? QStringLiteral("Batch")
+                     : settings.mode == gs::Mode::Merge ? QStringLiteral("Merge")
+                     : settings.mode == gs::Mode::Explode ? QStringLiteral("Explode")
+                                                          : QStringLiteral("Auto"))
+                .arg(inputs_.size()));
 
   if (settings.mode == gs::Mode::Batch) {
     // A constant template (no {name}) with multiple inputs would write every
@@ -883,6 +1144,8 @@ void MainWindow::runCommand() {
     for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
     process_->setProgram(enginePath_);
     process_->setArguments(qargs);
+    appendLog(QStringLiteral("Optimizing %1/%2: %3")
+                  .arg(batchIndex_ + 1).arg(batchQueue_.size()).arg(in));
     process_->start();
     if (!process_->waitForStarted(5000)) {
       gs::discard_partial(pendingPartial_.toStdString());
@@ -954,6 +1217,9 @@ void MainWindow::runCommand() {
 
   setBusy(true);
   updateStatus(QStringLiteral("Running…"));
+  appendLog(QStringLiteral("Optimizing %1 → %2")
+                .arg(QString::fromStdString(settings.inputs.empty() ? std::string() : settings.inputs.front()),
+                     QString::fromStdString(settings.output)));
   process_->setProgram(enginePath_);
   process_->setArguments(qargs);
   process_->start();
@@ -968,6 +1234,7 @@ void MainWindow::runCommand() {
 }
 
 void MainWindow::cancelRun() {
+  appendLog(QStringLiteral("Cancellation requested."));
   // kill() makes gifsicle exit with a non-zero/crash status, which normally
   // routes through the "optimization failed" branch. Mark the cancellation so
   // onProcessFinished doesn't surface a spurious error dialog mid-cancel.
@@ -1021,9 +1288,10 @@ void MainWindow::cancelRun() {
 }
 
 void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
-  const QString err = QString::fromLocal8Bit(process_->readAllStandardError());
-  // Drain stdout so it doesn't fill the pipe (we don't use it when -o is set).
-  process_->readAllStandardOutput();
+  // readyRead signals normally drained these streams already; drain once more
+  // here for the final bytes and use the captured text in the failure dialog.
+  captureProcessOutput();
+  const QString err = processStderr_;
 
   // U-72 / P1-42: read-and-consume the cancel latch for THIS completion,
   // whatever the verdict turns out to be. Simply KEEPING the flag (the naive
@@ -1045,6 +1313,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     setBusy(false);
     batchQueue_.clear();
     batchIndex_ = -1;
+    appendLog(QStringLiteral("Engine failed with exit code %1.").arg(exitCode));
     updateStatus(QStringLiteral("Optimization failed (exit %1).").arg(exitCode));
     QMessageBox::warning(this, QStringLiteral("Gifscythe"),
         err.isEmpty() ? QStringLiteral("The GIF engine returned an error (exit %1).").arg(exitCode)
@@ -1069,10 +1338,16 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
           QString::fromStdString(vr.describe()));
       return;
     }
+    lastOutputPaths_.clear();
+    const QString frameDir = QFileInfo(pendingOutput_).absolutePath();
+    for (const std::string& frame : vr.frames)
+      lastOutputPaths_ << QDir(frameDir).filePath(QString::fromStdString(frame));
+    refreshOutputFiles();
     setBusy(false);
+    appendLog(QStringLiteral("Explode verified %1 frame(s) on disk.").arg(vr.frames.size()));
     updateStatus(QStringLiteral("Explode complete — %1 frame(s) written.")
                      .arg(vr.frames.size()));
-    schedulePreview();
+    previewPanel_->clearAfter(QStringLiteral("Explode wrote frame files; see Output for the folder and names"));
     return;
   }
 
@@ -1120,6 +1395,10 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
   if (batchIndex_ >= 0 && batchMode_ == gs::Mode::Batch) {
     ++batchIndex_;
     if (batchIndex_ < batchQueue_.size()) {
+      if (progressBar_) progressBar_->setValue(batchIndex_);
+      appendLog(QStringLiteral("Finished file %1/%2; continuing with %3.")
+                    .arg(batchIndex_).arg(batchQueue_.size())
+                    .arg(batchQueue_.at(batchIndex_)));
       updateStatus(QStringLiteral("Optimizing %1/%2…")
                        .arg(batchIndex_ + 1)
                        .arg(batchQueue_.size()));
@@ -1143,22 +1422,34 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
       process_->setProgram(enginePath_);
       process_->setArguments(qargs);
+      appendLog(QStringLiteral("Optimizing %1/%2: %3")
+                    .arg(batchIndex_ + 1).arg(batchQueue_.size()).arg(in));
       process_->start();
       return;
     }
     // Batch complete.
     const int n = batchQueue_.size();
+    lastOutputPaths_ = batchTargets_;
     batchQueue_.clear();
     batchIndex_ = -1;
+    if (progressBar_) progressBar_->setValue(n);
+    refreshOutputFiles();
     setBusy(false);
-    updateStatus(QStringLiteral("Optimization complete — %1 file(s).").arg(n));
-    schedulePreview();  // refresh preview with final settings
+    appendLog(QStringLiteral("Batch verified %1 output file(s) on disk.").arg(n));
+    updateStatus(QStringLiteral("Optimization complete — %1 file(s). See Output for the verified paths.").arg(n));
+    // Do not re-encode a large GIF just to make the After pane. Show the exact
+    // verified output produced by this run instead; settings previews remain
+    // available when the user changes an Action.
+    showWrittenOutputPreview();
     return;
   }
 
+  lastOutputPaths_ = {pendingOutput_};
+  refreshOutputFiles();
   setBusy(false);
-  updateStatus(QStringLiteral("Optimization complete."));
-  schedulePreview();
+  appendLog(QStringLiteral("Output verified and written to disk: %1").arg(pendingOutput_));
+  updateStatus(QStringLiteral("Optimization complete. See Output for the verified path."));
+  showWrittenOutputPreview();
 }
 
 void MainWindow::onProcessError(QProcess::ProcessError error) {
@@ -1168,6 +1459,7 @@ void MainWindow::onProcessError(QProcess::ProcessError error) {
     setBusy(false);
     batchQueue_.clear();
     batchIndex_ = -1;
+    appendLog(QStringLiteral("Could not start the GIF engine: %1").arg(process_->errorString()));
     updateStatus(QStringLiteral("Failed to start the GIF engine."));
   }
   // Crashes are also reported via finished().
@@ -1182,6 +1474,7 @@ QString MainWindow::selectedInput() const {
 }
 
 void MainWindow::onSelectionChanged() {
+  forcePreview_ = false;
   const QString sel = selectedInput();
   previewPanel_->setBefore(sel);
   previewPanel_->clearAfter(sel.isEmpty() ? QStringLiteral("select a file to preview")
@@ -1196,7 +1489,11 @@ void MainWindow::schedulePreview() {
   // debounce window (or after an Explode/clear early-return) still passed the
   // seq guard and displayed a result for settings that no longer exist.
   invalidatePreview();
-  if (busy_) return;  // main run active; preview resumes after it finishes
+  // Never leave an old animation under a new setting while the debounce timer
+  // is waiting. The status text has its own caption area; it cannot overlay the
+  // GIF canvas.
+  previewPanel_->clearAfter(QStringLiteral("waiting for changes…"));
+  if (busy_) return;  // main run active; preview is replaced by the real output
   previewTimer_->start();  // restart debounce
 }
 
@@ -1233,6 +1530,17 @@ void MainWindow::startPreview() {
     previewPanel_->clearAfter(QStringLiteral("select an existing file to preview"));
     return;
   }
+  // Re-encoding a 64 MB animation just because a spin box changed makes the
+  // UI feel stuck and duplicates the real run. Large files therefore opt out
+  // of automatic settings previews; the explicit Preview changes button is
+  // still available when the user really wants one.
+  constexpr qint64 kLargePreviewBytes = 32LL * 1024LL * 1024LL;
+  if (QFileInfo(input).size() > kLargePreviewBytes && !forcePreview_) {
+    previewPanel_->clearAfter(QStringLiteral(
+        "large GIF: automatic preview is paused to keep the UI responsive — click Preview changes or run"));
+    return;
+  }
+  forcePreview_ = false;
   // U-70 / P1-42 (F:NF-13): the preview path re-probed the engine with a
   // bare toStdString(), bypassing the u8path_compat boundary that
   // ensureEngine() wraps — the one std::string -> fs::path conversion this
@@ -1266,6 +1574,7 @@ void MainWindow::startPreview() {
   // killed stale process can never be misread as the newest run's completion.
   auto* p = new QProcess(this);
   p->setObjectName(QStringLiteral("previewProcess"));
+  configureHeadless(p);
   previewProcess_ = p;
   connect(p, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
           [this, p, seq, input, outPath](int exitCode, QProcess::ExitStatus status) {
@@ -1309,8 +1618,82 @@ void MainWindow::startPreview() {
   p->start(enginePath_, qargs);
 }
 
+void MainWindow::appendLog(const QString& message) {
+  if (!logPane_ || message.isEmpty()) return;
+  QString text = message;
+  text.replace(QChar('\r'), QChar());
+  const QStringList lines = text.split(QChar('\n'), Qt::KeepEmptyParts);
+  const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("HH:mm:ss"));
+  for (const QString& line : lines) {
+    if (!line.isEmpty()) logPane_->appendPlainText(QStringLiteral("[%1] %2").arg(stamp, line));
+  }
+  const auto* bar = logPane_->verticalScrollBar();
+  if (bar) bar->setValue(bar->maximum());
+}
+
+void MainWindow::captureProcessOutput() {
+  if (!process_) return;
+  const QByteArray err = process_->readAllStandardError();
+  const QByteArray out = process_->readAllStandardOutput();
+  if (!err.isEmpty()) {
+    const QString text = QString::fromLocal8Bit(err);
+    processStderr_ += text;
+    // Keep diagnostics bounded even if a malformed input makes the engine very
+    // chatty. The final dialog still names that the log was truncated.
+    constexpr int kMaxCaptured = 64 * 1024;
+    if (processStderr_.size() > kMaxCaptured) {
+      processStderr_.truncate(kMaxCaptured);
+      if (!processStderr_.endsWith(QStringLiteral("[stderr truncated]")))
+        processStderr_ += QStringLiteral("\n[stderr truncated]");
+    }
+    appendLog(QStringLiteral("engine: ") + text);
+  }
+  if (!out.isEmpty()) {
+    const QString text = QString::fromLocal8Bit(out);
+    processStdout_ += text;
+    constexpr int kMaxCaptured = 16 * 1024;
+    if (processStdout_.size() > kMaxCaptured) {
+      processStdout_.truncate(kMaxCaptured);
+      if (!processStdout_.endsWith(QStringLiteral("[stdout truncated]")))
+        processStdout_ += QStringLiteral("\n[stdout truncated]");
+    }
+    appendLog(QStringLiteral("engine output: ") + text);
+  }
+}
+
+void MainWindow::resetRunLog() {
+  processStderr_.clear();
+  processStdout_.clear();
+  if (logPane_) logPane_->clear();
+}
+
+void MainWindow::showWrittenOutputPreview() {
+  if (batchMode_ == gs::Mode::Explode) {
+    previewPanel_->clearAfter(QStringLiteral("Explode wrote frame files; see Output for the folder and names"));
+    return;
+  }
+  QString output;
+  if (batchMode_ == gs::Mode::Batch && !batchTargets_.isEmpty()) {
+    const int row = inputList_ ? inputList_->currentRow() : 0;
+    output = batchTargets_.value(row >= 0 ? row : 0);
+  } else {
+    output = pendingOutput_;
+  }
+  const QFileInfo outInfo(output);
+  if (!outInfo.exists() || !outInfo.isFile()) {
+    previewPanel_->clearAfter(QStringLiteral("run finished, but no output file is available to preview"));
+    return;
+  }
+  const QString input = selectedInput();
+  const qint64 before = input.isEmpty() ? 0 : QFileInfo(input).size();
+  previewPanel_->setAfter(
+      output, before, outInfo.size(),
+      QStringLiteral("After = the verified file written to disk. Play/Stop only control playback."));
+}
+
 void MainWindow::updateStatus(const QString& message) {
   if (statusLabel_) statusLabel_->setText(message);
+  if (previewPanel_ && !busy_) previewPanel_->setStatus(message);
 }
 
 // ===================== Session persistence (S7) =====================

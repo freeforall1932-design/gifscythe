@@ -195,21 +195,35 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
 - **Input** tab — queue with drag-drop, per-file size, count/total label,
   **Move Up/Move Down reorder** (merge order = queue order).
 - **Actions** tab — every whole-GIF gifsicle control (value lists taken from
-  the engine source: dither/resize/color methods, disposal, gamma).
+  the engine source: dither/resize/color methods, disposal, gamma), with
+  plain-language descriptions beside the unfamiliar controls.
 - **Output** tab — Save-as, batch output folder, **name template** (default
   `{name}_opt.gif`; `{name}` = input base name; collision runs refused),
-  Open-folder, honest per-mode summary of what will be written.
-- **Preview** pane — before/after movies of the selected file; the "after"
-  is a debounced (1.2 s), fully async single-file re-encode; captions stay
-  honest (single-file semantics, Explode refusal, failure reasons).
-- Bottom bar — one-way live command pane, progress, run/cancel, status.
+  verified files-on-disk list, Open-file/Open-folder actions, and an honest
+  per-mode summary. The list is the real destination; the preview is not a
+  substitute for writing a file.
+- **Guide** tab — an in-app glossary explaining optimization, lossy
+  compression, palettes, dithering, resizing, timing, looping, disposal,
+  threads, modes and output verification.
+- **Preview** pane — separate Before/After canvases (status text never paints
+  over a GIF), Play/Stop controls, optional autoplay, and a debounced (1.2 s)
+  async settings preview. Automatic re-encoding is paused for GIFs over 32 MB;
+  **Preview changes** is available when the user explicitly wants one. After a
+  successful run shows the verified file written to disk, avoiding a second
+  full encode of a large GIF.
+- Bottom bar — one-way live command pane, bounded activity log, determinate
+  per-file Batch progress or an honest indeterminate bar for one large engine
+  run, run/cancel, and status.
+- Windows engine subprocesses are started with `CREATE_NO_WINDOW`/hidden
+  startup flags, so gifsicle never opens a second console window beside the
+  app. The same headless flag is used by the CLI process runner.
 - **Session persistence (S7)** — Actions state + batch folder + name
   template are saved on close to `gifscythe.conf` in the standard app-config
   location (`%APPDATA%\Gifscythe\` on Windows); override the path with
   `GS_SETTINGS_PATH`. The queue and Save-as field are deliberately *not*
   restored. Corrupt files apply their valid keys and warn in the status bar.
 - Regression net: `tests/test_gui_offscreen.cpp` — T1–T24 plus the S23 desktop
-  round-trip block, 286 `CHECK(` sites in source (which is more runtime
+  round-trip block, 293 `CHECK(` sites in source (which is more runtime
   assertions than sites, because several groups loop). T21 (S31, finding N-10)
   asserts that cancelling an Explode run reports the frame set as possibly
   incomplete; T22–T24 (S36) are the behavioural cases for the three S35 patch
