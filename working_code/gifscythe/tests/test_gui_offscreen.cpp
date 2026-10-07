@@ -1319,7 +1319,8 @@ int main(int argc, char** argv) {
               "preview produced after-image with size comparison");
     CHECK(x.previewAfter->movie() != nullptr);
     // Caption stays honest about single-file semantics
-    CHECK(x.previewCaption->text().contains(QStringLiteral("SELECTED")));
+    CHECK_MSG(x.previewCaption->text().contains(QStringLiteral("selected"), Qt::CaseInsensitive),
+              "temporary preview caption identifies the selected file");
 
     // Changing a control re-triggers the debounced preview (savings updates)
     x.optimize->setValue(1);
