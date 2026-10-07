@@ -12,6 +12,9 @@
 
 QT += widgets
 CONFIG += c++17
+# GUI subsystem on Windows: do not create a console when the app is launched
+# by double-click. The engine child is hidden separately by QProcess.
+win32:CONFIG += windows
 TARGET = gifscythe
 TEMPLATE = app
 

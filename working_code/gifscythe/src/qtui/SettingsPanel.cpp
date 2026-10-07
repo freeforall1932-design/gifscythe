@@ -38,6 +38,22 @@ QGroupBox* makeGroup(const QString& title, const QString& objectName,
   return box;
 }
 
+// XNConvert-style inline help: tooltips are useful for discovery, but a user
+// should not have to hover over every unfamiliar gifsicle term. These labels
+// stay in the Actions tab and explain the practical trade-off in one sentence.
+QLabel* addDescription(QFormLayout* form, QWidget* parent, const QString& text,
+                       const QString& objectName = QString()) {
+  auto* label = new QLabel(text, parent);
+  if (!objectName.isEmpty()) label->setObjectName(objectName);
+  label->setProperty("role", "description");
+  label->setWordWrap(true);
+  label->setTextFormat(Qt::PlainText);
+  label->setStyleSheet(QStringLiteral("QLabel[role=description] { color: palette(mid); "
+                                      "font-size: 11px; margin-bottom: 3px; }"));
+  form->addRow(QString(), label);
+  return label;
+}
+
 }  // namespace
 
 SettingsPanel::SettingsPanel(QWidget* parent) : QWidget(parent) {
@@ -58,6 +74,15 @@ void SettingsPanel::buildUi() {
   auto* content = new QWidget(scroll);
   auto* lay = new QVBoxLayout(content);
 
+  auto* intro = new QLabel(QStringLiteral(
+      "Actions are grouped by purpose. Start with Optimize level and Lossy compression; "
+      "leave the other groups at their defaults until you need them. Hovering a control "
+      "still shows the exact gifsicle option."), content);
+  intro->setObjectName(QStringLiteral("actionsIntro"));
+  intro->setWordWrap(true);
+  intro->setTextFormat(Qt::PlainText);
+  lay->addWidget(intro);
+
   // ================= Mode =================
   QFormLayout* form = nullptr;
   auto* modeBox = makeGroup(QStringLiteral("Mode"), QStringLiteral("modeGroup"), &form);
@@ -77,10 +102,17 @@ void SettingsPanel::buildUi() {
       "Merge concatenates all queued GIFs into ONE animation.\n"
       "Explode writes every frame as a separate file."));
   form->addRow(QStringLiteral("Queue mode"), modeCombo_);
+  addDescription(form, modeBox,
+                 QStringLiteral("Batch makes one result per input; Merge combines the queue; "
+                                "Explode writes one GIF per frame; Auto is the low-level one-file mode."),
+                 QStringLiteral("modeDescription"));
 
   explodeByNameCheck_ = new QCheckBox(QStringLiteral("Name frames after input files (-E)"), modeBox);
   explodeByNameCheck_->setObjectName(QStringLiteral("explodeByNameCheck"));
   form->addRow(QString(), explodeByNameCheck_);
+  addDescription(form, modeBox,
+                 QStringLiteral("-E keeps names already stored inside a GIF. It does not invent names for unnamed frames."),
+                 QStringLiteral("explodeDescription"));
   lay->addWidget(modeBox);
 
   // ================= Optimize / quantize =================
@@ -95,6 +127,10 @@ void SettingsPanel::buildUi() {
       "Engine -O level. 0 = off, 1–3 = smaller output (slower).\n"
       "(-O0 is a real setting: 'no optimization' — VP-2.)"));
   form->addRow(QStringLiteral("Optimization level"), optimizeSpin_);
+  addDescription(form, optBox,
+                 QStringLiteral("Removes redundant pixels and improves the file layout. Higher levels can take longer; "
+                                "level 0 turns this pass off without changing colors."),
+                 QStringLiteral("optimizationDescription"));
 
   lossySpin_ = new QSpinBox(optBox);
   lossySpin_->setObjectName(QStringLiteral("lossySpin"));
@@ -105,6 +141,10 @@ void SettingsPanel::buildUi() {
       "--lossy=N: allow small color errors for much smaller files.\n"
       "Typical: 20–80. 0 = lossless."));
   form->addRow(QStringLiteral("Lossy compression"), lossySpin_);
+  addDescription(form, optBox,
+                 QStringLiteral("Allows small visual changes for a smaller GIF. 0 is lossless; start around 20–60 "
+                                "when file size matters more than exact pixels."),
+                 QStringLiteral("lossyDescription"));
 
   colorsCheck_ = new QCheckBox(QStringLiteral("Reduce colors"), optBox);
   colorsCheck_->setObjectName(QStringLiteral("colorsCheck"));
@@ -118,6 +158,10 @@ void SettingsPanel::buildUi() {
   colorsRow->addWidget(colorsSpin_);
   colorsRow->addStretch();
   form->addRow(QStringLiteral("Colormap"), colorsRow);
+  addDescription(form, optBox,
+                 QStringLiteral("Limits the palette per frame. Fewer colors reduce size but can create banding in "
+                                "gradients; enable Dither to hide some of that banding."),
+                 QStringLiteral("colorsDescription"));
 
   ditherCombo_ = new QComboBox(optBox);
   ditherCombo_->setObjectName(QStringLiteral("ditherCombo"));
@@ -130,6 +174,10 @@ void SettingsPanel::buildUi() {
       "set_dither_type(): floyd-steinberg, atkinson, o3x3…ro64, diag45,\n"
       "halftone, sqhalftone. 'Default' emits bare -f."));
   form->addRow(QStringLiteral("Dither method"), ditherCombo_);
+  addDescription(form, optBox,
+                 QStringLiteral("Dithering mixes nearby palette colors in a pattern so gradients look smoother. "
+                                "It can add detail and may make encoding slower."),
+                 QStringLiteral("ditherDescription"));
 
   colorMethodCombo_ = new QComboBox(optBox);
   colorMethodCombo_->setObjectName(QStringLiteral("colorMethodCombo"));
@@ -137,12 +185,20 @@ void SettingsPanel::buildUi() {
   for (const char* m : kColorMethods)
     colorMethodCombo_->addItem(QString::fromLatin1(m), QString::fromLatin1(m));
   form->addRow(QStringLiteral("Color method"), colorMethodCombo_);
+  addDescription(form, optBox,
+                 QStringLiteral("Chooses how colors are sampled when reducing a palette. Engine default is the "
+                                "safe starting point; the named methods are advanced tuning."),
+                 QStringLiteral("colorMethodDescription"));
 
   carefulCheck_ = new QCheckBox(QStringLiteral("Careful (slightly larger, safer output)"), optBox);
   carefulCheck_->setObjectName(QStringLiteral("carefulCheck"));
   carefulCheck_->setToolTip(QStringLiteral(
       "--careful: avoids some common software compatibility issues."));
   form->addRow(QString(), carefulCheck_);
+  addDescription(form, optBox,
+                 QStringLiteral("Careful favors compatibility with older or strict GIF players over the smallest "
+                                "possible output."),
+                 QStringLiteral("carefulDescription"));
   lay->addWidget(optBox);
 
   // ================= Resize / scale =================
@@ -158,6 +214,10 @@ void SettingsPanel::buildUi() {
   resizeKindCombo_->addItem(QStringLiteral("Width only"), static_cast<int>(gs::ResizeKind::Width));
   resizeKindCombo_->addItem(QStringLiteral("Height only"), static_cast<int>(gs::ResizeKind::Height));
   form->addRow(QStringLiteral("Resize"), resizeKindCombo_);
+  addDescription(form, resizeBox,
+                 QStringLiteral("Fit and Touch keep the aspect ratio. Exact may stretch. Width/Height change one "
+                                "axis; Scale uses independent X and Y percentages."),
+                 QStringLiteral("resizeDescription"));
 
   resizeWSpin_ = new QSpinBox(resizeBox);
   resizeWSpin_->setObjectName(QStringLiteral("resizeWSpin"));
@@ -174,6 +234,10 @@ void SettingsPanel::buildUi() {
   whRow->addWidget(resizeHSpin_);
   whRow->addStretch();
   form->addRow(QStringLiteral("Size (px)"), whRow);
+  addDescription(form, resizeBox,
+                 QStringLiteral("The target box in pixels. Width and height are used by Fit, Touch and Exact; "
+                                "unused numbers are ignored."),
+                 QStringLiteral("resizeSizeDescription"));
 
   scaleXSpin_ = new QDoubleSpinBox(resizeBox);
   scaleXSpin_->setObjectName(QStringLiteral("scaleXSpin"));
@@ -192,6 +256,10 @@ void SettingsPanel::buildUi() {
   scaleRow->addWidget(scaleYSpin_);
   scaleRow->addStretch();
   form->addRow(QStringLiteral("Scale X / Y"), scaleRow);
+  addDescription(form, resizeBox,
+                 QStringLiteral("100% keeps the current size. 50% makes each axis half as large; values can be "
+                                "different when you intentionally want non-uniform scaling."),
+                 QStringLiteral("scaleDescription"));
 
   resizeMethodCombo_ = new QComboBox(resizeBox);
   resizeMethodCombo_->setObjectName(QStringLiteral("resizeMethodCombo"));
@@ -202,7 +270,11 @@ void SettingsPanel::buildUi() {
       "Resampling algorithm (--resize-method). Values from the engine's\n"
       "RESIZE_METHOD_TYPE list: point, mix, box, catrom, lanczos2,\n"
       "lanczos3, mitchell."));
-  form->addRow(QStringLiteral("Method"), resizeMethodCombo_);
+  form->addRow(QStringLiteral("Resampling method"), resizeMethodCombo_);
+  addDescription(form, resizeBox,
+                 QStringLiteral("Controls how new pixels are calculated. Point is fastest and sharp; Lanczos/Mitchell "
+                                "are smoother quality choices."),
+                 QStringLiteral("resizeMethodDescription"));
   lay->addWidget(resizeBox);
 
   // ================= Geometry =================
@@ -215,6 +287,9 @@ void SettingsPanel::buildUi() {
   rotateCombo_->addItem(QStringLiteral("Rotate 180°"), static_cast<int>(gs::Rotation::R180));
   rotateCombo_->addItem(QStringLiteral("Rotate 270° clockwise"), static_cast<int>(gs::Rotation::R270));
   form->addRow(QStringLiteral("Rotate"), rotateCombo_);
+  addDescription(form, geoBox,
+                 QStringLiteral("Rotates every frame around the animation canvas."),
+                 QStringLiteral("rotateDescription"));
 
   flipHCheck_ = new QCheckBox(QStringLiteral("Flip horizontal"), geoBox);
   flipHCheck_->setObjectName(QStringLiteral("flipHCheck"));
@@ -225,6 +300,9 @@ void SettingsPanel::buildUi() {
   flipRow->addWidget(flipVCheck_);
   flipRow->addStretch();
   form->addRow(QStringLiteral("Flip"), flipRow);
+  addDescription(form, geoBox,
+                 QStringLiteral("Mirrors the frames horizontally or vertically."),
+                 QStringLiteral("flipDescription"));
 
   positionCheck_ = new QCheckBox(QStringLiteral("Set frame position"), geoBox);
   positionCheck_->setObjectName(QStringLiteral("positionCheck"));
@@ -244,10 +322,18 @@ void SettingsPanel::buildUi() {
   posXSpin_->setEnabled(false);
   posYSpin_->setEnabled(false);
   form->addRow(QStringLiteral("Position"), posRow);
+  addDescription(form, geoBox,
+                 QStringLiteral("Moves the frame origin inside the logical screen. Leave this off unless you need "
+                                "to preserve a specific canvas position."),
+                 QStringLiteral("positionDescription"));
 
   interlaceCheck_ = new QCheckBox(QStringLiteral("Interlace (progressive loading)"), geoBox);
   interlaceCheck_->setObjectName(QStringLiteral("interlaceCheck"));
   form->addRow(QString(), interlaceCheck_);
+  addDescription(form, geoBox,
+                 QStringLiteral("Interlacing lets some players display a rough preview while the GIF downloads. "
+                                "It is not a compression setting."),
+                 QStringLiteral("interlaceDescription"));
   lay->addWidget(geoBox);
 
   // ================= Crop =================
@@ -255,6 +341,10 @@ void SettingsPanel::buildUi() {
   cropCheck_ = new QCheckBox(QStringLiteral("Crop to rectangle"), cropBox);
   cropCheck_->setObjectName(QStringLiteral("cropCheck"));
   form->addRow(QString(), cropCheck_);
+  addDescription(form, cropBox,
+                 QStringLiteral("Crop removes pixels outside a rectangle. It is useful before resizing when the "
+                                "source has unwanted borders."),
+                 QStringLiteral("cropDescription"));
 
   cropXSpin_ = new QSpinBox(cropBox);
   cropXSpin_->setObjectName(QStringLiteral("cropXSpin"));
@@ -281,6 +371,10 @@ void SettingsPanel::buildUi() {
   cropRow->addWidget(cropHSpin_);
   cropRow->addStretch();
   form->addRow(QStringLiteral("Rectangle"), cropRow);
+  addDescription(form, cropBox,
+                 QStringLiteral("X and Y are the top-left corner; W and H are width and height in pixels. "
+                                "The engine uses its X,Y+WxH syntax under the hood."),
+                 QStringLiteral("cropRectangleDescription"));
   auto* cropHint = new QLabel(QStringLiteral("Emitted as --crop X,Y+WxH (engine plus-form)."), cropBox);
   cropHint->setObjectName(QStringLiteral("cropHintLabel"));
   cropHint->setWordWrap(true);
@@ -289,6 +383,10 @@ void SettingsPanel::buildUi() {
   cropTransparencyCheck_ = new QCheckBox(QStringLiteral("Crop transparent edges afterwards"), cropBox);
   cropTransparencyCheck_->setObjectName(QStringLiteral("cropTransparencyCheck"));
   form->addRow(QString(), cropTransparencyCheck_);
+  addDescription(form, cropBox,
+                 QStringLiteral("After cropping, trim transparent edges too. This can make the logical canvas "
+                                "tighter but may change frame positioning."),
+                 QStringLiteral("cropTransparencyDescription"));
   for (QSpinBox* s : {cropXSpin_, cropYSpin_, cropWSpin_, cropHSpin_}) s->setEnabled(false);
   cropTransparencyCheck_->setEnabled(false);
   lay->addWidget(cropBox);
@@ -311,6 +409,9 @@ void SettingsPanel::buildUi() {
   auto* delayLabel = new QLabel(QStringLiteral("Frame delay (1/100 s)"), animBox);
   delayLabel->setObjectName(QStringLiteral("delayLabel"));
   form->addRow(delayLabel, delayRow);
+  addDescription(form, animBox,
+                 QStringLiteral("GIF timing is in hundredths of a second: 10 means 0.10 s. It is not milliseconds."),
+                 QStringLiteral("delayDescription"));
 
   loopCombo_ = new QComboBox(animBox);
   loopCombo_->setObjectName(QStringLiteral("loopCombo"));
@@ -322,6 +423,10 @@ void SettingsPanel::buildUi() {
   // (and every saved-conf expectation) addresses items 0-2 by index.
   loopCombo_->addItem(QStringLiteral("Play once (no loop)"), 3);
   form->addRow(QStringLiteral("Looping"), loopCombo_);
+  addDescription(form, animBox,
+                 QStringLiteral("Forever repeats the animation; Play once removes the loop extension; Keep original "
+                                "does not change the source's loop behavior."),
+                 QStringLiteral("loopDescription"));
 
   loopSpin_ = new QSpinBox(animBox);
   loopSpin_->setObjectName(QStringLiteral("loopSpin"));
@@ -329,6 +434,9 @@ void SettingsPanel::buildUi() {
   loopSpin_->setValue(3);
   loopSpin_->setEnabled(false);
   form->addRow(QStringLiteral("Loop count"), loopSpin_);
+  addDescription(form, animBox,
+                 QStringLiteral("Only used for Loop N times. The number means total plays, not extra repeats."),
+                 QStringLiteral("loopCountDescription"));
 
   disposalCombo_ = new QComboBox(animBox);
   disposalCombo_->setObjectName(QStringLiteral("disposalCombo"));
@@ -355,10 +463,18 @@ void SettingsPanel::buildUi() {
       "DISPOSAL_TYPE parser (none/asis/background/previous, or 0..7).\n"
       "4..7 are reserved by the GIF spec and passed to the engine as-is."));
   form->addRow(QStringLiteral("Disposal"), disposalCombo_);
+  addDescription(form, animBox,
+                 QStringLiteral("Tells a player what to do with the previous frame. Keep original is safest; "
+                                "reserved values are for advanced GIF compatibility work."),
+                 QStringLiteral("disposalDescription"));
 
   unoptimizeCheck_ = new QCheckBox(QStringLiteral("Unoptimize (expand to full frames, -U)"), animBox);
   unoptimizeCheck_->setObjectName(QStringLiteral("unoptimizeCheck"));
   form->addRow(QString(), unoptimizeCheck_);
+  addDescription(form, animBox,
+                 QStringLiteral("Expands optimized frames back to full frames. Use this when another tool needs "
+                                "simple, self-contained frames; it usually increases size."),
+                 QStringLiteral("unoptimizeDescription"));
 
   threadsSpin_ = new QSpinBox(animBox);
   threadsSpin_->setObjectName(QStringLiteral("threadsSpin"));
@@ -375,6 +491,10 @@ void SettingsPanel::buildUi() {
       "0: auto — passes a bare -j, i.e. the engine's thread count\n"
       "N>0: passes -jN"));
   form->addRow(QStringLiteral("Threads"), threadsSpin_);
+  addDescription(form, animBox,
+                 QStringLiteral("Parallelizes some work. Unchanged uses the engine default; Auto asks the engine for "
+                                "its automatic count. More threads can use more memory on very large GIFs."),
+                 QStringLiteral("threadsDescription"));
   lay->addWidget(animBox);
 
   // ================= Colors / gamma / transparency =================
@@ -390,13 +510,21 @@ void SettingsPanel::buildUi() {
       "Color math for quantization (--gamma). Engine accepts srgb, oklab\n"
       "(when built with cbrtf) or a numeric gamma. VP-3: nothing is emitted\n"
       "unless you choose a value here."));
-  form->addRow(QStringLiteral("Gamma"), gammaCombo_);
+  form->addRow(QStringLiteral("Gamma / color math"), gammaCombo_);
+  addDescription(form, colorBox,
+                 QStringLiteral("Changes how colors are compared while quantizing. Keep original is the least "
+                                "surprising choice; sRGB and Oklab are advanced color-space options."),
+                 QStringLiteral("gammaDescription"));
 
   gammaEdit_ = new QLineEdit(colorBox);
   gammaEdit_->setObjectName(QStringLiteral("gammaEdit"));
   gammaEdit_->setPlaceholderText(QStringLiteral("e.g. 2.2"));
   gammaEdit_->setEnabled(false);
-  form->addRow(QStringLiteral("Gamma value"), gammaEdit_);
+  form->addRow(QStringLiteral("Custom gamma value"), gammaEdit_);
+  addDescription(form, colorBox,
+                 QStringLiteral("Only used for Custom value. A common starting value is 2.2; leave it empty unless "
+                                "you know the source's color assumptions."),
+                 QStringLiteral("gammaValueDescription"));
 
   auto makeColorRow = [colorBox, this](const QString& name, QLineEdit** editOut) {
     auto* edit = new QLineEdit(colorBox);
@@ -417,8 +545,14 @@ void SettingsPanel::buildUi() {
     *editOut = edit;
     return row;
   };
-  form->addRow(QStringLiteral("Background"), makeColorRow(QStringLiteral("backgroundEdit"), &backgroundEdit_));
-  form->addRow(QStringLiteral("Transparent"), makeColorRow(QStringLiteral("transparentEdit"), &transparentEdit_));
+  form->addRow(QStringLiteral("Background color"), makeColorRow(QStringLiteral("backgroundEdit"), &backgroundEdit_));
+  addDescription(form, colorBox,
+                 QStringLiteral("Color used when a frame disposes to the background. Empty leaves the source unchanged."),
+                 QStringLiteral("backgroundDescription"));
+  form->addRow(QStringLiteral("Transparent color"), makeColorRow(QStringLiteral("transparentEdit"), &transparentEdit_));
+  addDescription(form, colorBox,
+                 QStringLiteral("Color treated as transparent. Use a picker or #rrggbb; empty means unchanged."),
+                 QStringLiteral("transparentDescription"));
   lay->addWidget(colorBox);
 
   // ================= Metadata =================
@@ -432,6 +566,10 @@ void SettingsPanel::buildUi() {
   form->addRow(QString(), removeCommentsCheck_);
   form->addRow(QString(), removeNamesCheck_);
   form->addRow(QString(), removeExtensionsCheck_);
+  addDescription(form, metaBox,
+                 QStringLiteral("Metadata is not visible picture content. Removing it can make files cleaner or "
+                                "smaller, while comments can be useful for provenance."),
+                 QStringLiteral("metadataDescription"));
 
   commentEdit_ = new QLineEdit(metaBox);
   commentEdit_->setObjectName(QStringLiteral("commentEdit"));

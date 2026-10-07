@@ -2,13 +2,14 @@
 //
 // Layout (XNConvert-style flow):
 //   Tab 1 "Input"   — animation queue (add / drag-drop / remove / clear /
-//                     move up-down, per-file size, total count/size label)
+//                     move up-down), batch file-name pattern, and prominent Start
 //   Tab 2 "Actions" — SettingsPanel: every whole-GIF control gifsicle has
 //   Tab 3 "Output"  — Save-as (Merge/single-file Batch), batch output
-//                     folder, name template ({name}_opt.gif default),
-//                     open-folder action, honest per-mode summary
-//   Right pane      — PreviewPanel: debounced async before/after preview
-//   Bottom          — live one-way command pane, progress, run/cancel, status
+//                     folder, verified files-on-disk list, open-file/folder actions
+//   Tab 4 "Guide"   — plain-language glossary and workflow help
+//   Right pane      — PreviewPanel: before/after, explicit Play/Stop, and a
+//                     debounced settings preview (large GIFs opt out by default)
+//   Bottom          — live one-way command pane, activity log, progress, Cancel, status
 //
 // Run semantics are UNCHANGED from the verified MVP (COMPILED_AUDIT §6.B):
 //   * Batch default (E4): N inputs -> N outputs, auto <name>_opt.gif next to
@@ -58,6 +59,7 @@
 
 class QLabel;
 class QLineEdit;
+class QListWidget;
 class QFileInfo;
 class QPlainTextEdit;
 class QProgressBar;
@@ -112,6 +114,7 @@ class MainWindow : public QMainWindow {
   // UI construction
   QWidget* buildInputTab();
   QWidget* buildOutputTab();
+  QWidget* buildGuideTab();
   void buildBottomBar(class QWidget* central, class QVBoxLayout* root);
 
   // Queue helpers
@@ -133,7 +136,16 @@ class MainWindow : public QMainWindow {
   bool ensureEngine();
   void refreshQueueLabel();
   void refreshOutputSummary();
+  void refreshOutputFiles();
+  QStringList plannedOutputPaths() const;
+  void openSelectedOutput();
   QString batchDir() const;
+
+  // Run log / progress helpers
+  void appendLog(const QString& message);
+  void captureProcessOutput();
+  void resetRunLog();
+  void showWrittenOutputPreview();
 
   // Preview pipeline
   void schedulePreview();
@@ -168,8 +180,11 @@ class MainWindow : public QMainWindow {
   QLabel* outputSummaryLabel_ = nullptr;
   PreviewPanel* previewPanel_ = nullptr;
   QPlainTextEdit* commandPane_ = nullptr;
+  QPlainTextEdit* logPane_ = nullptr;
+  QListWidget* outputFiles_ = nullptr;
   QPushButton* runButton_ = nullptr;
   QPushButton* cancelButton_ = nullptr;
+  QPushButton* openSelectedOutputButton_ = nullptr;
   QPushButton* removeButton_ = nullptr;
   QPushButton* clearButton_ = nullptr;
   QPushButton* moveUpButton_ = nullptr;
@@ -187,6 +202,9 @@ class MainWindow : public QMainWindow {
   QString pendingPartial_;             // U-59: guarded same-directory write path; empty for Explode
   gs::OutputSnapshot partialSnapshot_; // pre-run baseline for U-59 verification
   QStringList batchTargets_;           // planned per-file outputs (audit U-01)
+  QStringList lastOutputPaths_;        // files from the last verified successful run
+  QString processStderr_;              // stderr captured while the engine is running
+  QString processStdout_;              // bounded stdout capture for the activity log
   int batchIndex_ = -1;
   QStringList batchQueue_;
   // U-58 / P1-38 (F:NF-01): the settings the batch was STARTED with. Batch
@@ -207,6 +225,7 @@ class MainWindow : public QMainWindow {
   QProcess* previewProcess_ = nullptr;  // objectName "previewProcess"
   QTimer* previewTimer_ = nullptr;      // single-shot debounce (1200 ms)
   int previewSeq_ = 0;                  // stale-completion guard
+  bool forcePreview_ = false;           // explicit button may preview large GIFs
   QString previewDir_;                  // temp dir for preview outputs
   QString lastPreviewPath_;             // file currently shown as After (never swept)
 };

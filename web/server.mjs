@@ -232,6 +232,10 @@ function run(argv) {
     const settleOnce = (value) => { if (!settled) { settled = true; resolvePromise(value); } };
     const child = spawn(argv[0], argv.slice(1), {
       stdio: ["ignore", "ignore", "pipe"],
+      // The web surface can also run on Windows. Keep the engine subprocess
+      // headless there just like the Qt desktop; stderr still flows through the
+      // bounded capture below, so hiding the console does not hide diagnostics.
+      windowsHide: true,
     });
     // U-93 / P2-20: stderr was accumulated without bound and then echoed whole
     // in 422 bodies, so a chatty engine (or a batch that warns per frame) turned

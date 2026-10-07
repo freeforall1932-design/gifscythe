@@ -29,6 +29,9 @@ time-sensitive read `STATUS.md`.
 
 ## Quick start
 
+- **Install/build the current Qt GUI:** read [`INSTALL.md`](INSTALL.md).
+- **Run the desktop verification checklist:** read [`TESTING.md`](TESTING.md).
+
 ```bash
 cd working_code/gifscythe
 ./build.sh                  # engine + CLI + unit tests
@@ -63,6 +66,8 @@ gifscythe/                        (repo root)
   LICENSE / COPYING.ms-pl / COPYING.gifsicle / COPYING.lgplv3 / COPYING.gplv3
                                   license notices (Ms-PL UI + GPLv2 engine + LGPLv3 Qt)
   README.md                       this file
+  INSTALL.md                      current-source installation and Qt build guide
+  TESTING.md                      desktop and offscreen GUI verification checklist
   docs/
     archive/AUDIT_HISTORY.md      condensed index of the seven dated audit snapshots
     ci/README.md                  workflow status + clean-Windows smoke + desktop probes

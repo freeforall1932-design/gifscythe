@@ -125,9 +125,14 @@ inline int run_argv(const std::vector<std::string>& args) {
   PROCESS_INFORMATION pi;
   ZeroMemory(&si, sizeof(si)); si.cb = sizeof(si);
   ZeroMemory(&pi, sizeof(pi));
+  // The CLI can also be launched from the GUI/package. gifsicle is a console
+  // executable, so ask Windows not to create a second console window for the
+  // child; stdout/stderr remain inherited for the caller's diagnostics.
+  si.dwFlags |= STARTF_USESHOWWINDOW;
+  si.wShowWindow = SW_HIDE;
 
   if (!CreateProcessW(nullptr, wcmd.data(), nullptr, nullptr,
-                      TRUE /*inherit std handles*/, 0, nullptr, nullptr,
+                      TRUE /*inherit std handles*/, CREATE_NO_WINDOW, nullptr, nullptr,
                       &si, &pi)) {
     std::fprintf(stderr, "ERROR: failed to start '%s' (Win32 error %lu)\n",
                  args[0].c_str(), static_cast<unsigned long>(GetLastError()));
