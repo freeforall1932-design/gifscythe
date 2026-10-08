@@ -726,6 +726,44 @@ jobs:
       - name: Build spike
         run: dotnet build csharp/spike/spike.csproj -c Release
 
+      # S38: Gifscythe.Core - the C# port of the Qt-independent control layer
+      # (settings, command builder, conf writer). Two lanes in one runner:
+      #   unit   - always; mirrors the audit rules the C++ suite pins (U-03 /
+      #            P0-2 tri-state threads, U-63 four-state loopcount, U-13/U-48
+      #            empty comments, U-42 asymmetric scale, U-60/U-61 literal
+      #            `#0`/`-` tokens, DS-12 quoting, U-51 newline fold).
+      #   parity - hands the SAME settings to the real C++ gifscythe-cli from
+      #            the windows artifact, in print mode, and compares the argv
+      #            tokens (and the display line where separators allow). That is
+      #            the check the JS mirror gets from web/test/command.test.mjs
+      #            on the linux job; this is its C# counterpart, on the
+      #            platform we actually ship (OD-17).
+      # GS_REQUIRE_PROOF=1 makes a missing CLI a FAILURE, never a silent skip -
+      # a skipped proof must not read as a passed one.
+      - name: Gifscythe.Core unit + CLI parity (S38)
+        run: |
+          set -euo pipefail
+          cli="$(find spike-deps -name 'gifscythe-cli.exe' -print -quit)"
+          if [[ -z "$cli" ]]; then
+            echo "::error::gifscythe-cli.exe is not in the windows artifact - the parity lane has no oracle"
+            find spike-deps -maxdepth 6 -name 'gifscythe*' >&2 || true
+            exit 1
+          fi
+          export GS_CLI="$(cygpath -w "$PWD/$cli")"
+          # The real engine from the same artifact: print mode echoes the token
+          # it was given (resolve_path leaves absolute paths alone) and the
+          # comparison starts after it, but a real path keeps the run honest if
+          # the CLI ever starts checking the engine in print mode too.
+          engine="$(find spike-deps -name 'gifsicle.exe' -print -quit)"
+          if [[ -z "$engine" ]]; then
+            echo "::error::gifsicle.exe is not in the windows artifact"
+            find spike-deps -maxdepth 6 -name 'gifsicle*' >&2 || true
+            exit 1
+          fi
+          export GS_PARITY_ENGINE="$(cygpath -m "$PWD/$engine")"
+          export GS_REQUIRE_PROOF=1
+          dotnet run --project csharp/Gifscythe.Core.Tests -c Release
+
       - name: Spike stage files
         run: |
           set -euo pipefail

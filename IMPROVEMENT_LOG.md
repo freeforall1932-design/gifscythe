@@ -4,6 +4,103 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S38 — 2026-10-08: the C# lane resumed on the owner's direction — `Gifscythe.Core` ported with a CLI-parity lane, the missing PR #14 post-merge sync landed, and the README's release claim corrected (N-37)
+
+**Changed:**
+
+- **The owner resumed the parked C# shell** (S19's `OD-C7 = park` reversed by the
+  owner's own words, 2026-10-08: *"im planning to pursue windows first and that
+  wpf .net"*). Phase 2 starts where the plan said it must: the Qt-independent
+  control layer, with the C++ CLI as the oracle, before any window exists.
+- **`csharp/Gifscythe.Core/` (new, net9.0, zero NuGet dependencies).** `Settings.cs`
+  is the port of `GifsicleSettings.h` (same field names and sentinels: threads
+  `-1`/`0`/`N`, loopcount `-2`/`-1`/`0`/`N`, delay in 1/100 s); `CommandBuilder.cs`
+  is the port of `GifsicleCommand.h` with identical option order, ranges and
+  "emit nothing" branches, and every audit id kept in the comment; `SettingsWriter.cs`
+  ports `saveSettingsLines()`/`encode_line_value()` (U-51 newline fold, DS-12
+  quoting) so the conf format stays one format; `ExitCodes.cs` defines the one
+  exit-code contract `U-91`/`P3-17` asked for (0/1/2/3, the CLI's documented
+  codes) and maps the shell's failure kinds onto it by test.
+- **`csharp/Gifscythe.Core.Tests/` (new)** — house-style runner: a CHECK counter
+  and a non-zero exit, like `tests/test_gifsicle_command.cpp`, and no test
+  framework to restore. Lane 1 mirrors the audit rules (P0-2 threads tri-state,
+  U-63 loopcount four-state, U-13/U-48 empty comments, U-42 asymmetric scale,
+  U-60/U-61 literal `#0`/`-`, DS-12 quoting, U-51 newline fold, the exit-code
+  contract). Lane 2 is PARITY: the same settings are written to a conf and handed
+  to the **real C++ `gifscythe-cli`** in print mode, and the argv tokens behind
+  the command line it prints must equal the C# builder's (token by token; path
+  separator flavour is the one tolerated difference). `GS_REQUIRE_PROOF=1` makes a missing CLI a
+  FAILURE, never a silent skip.
+- **CI: the parity lane runs on the shipped platform.** A new step in the
+  existing `csharp-spike` job (windows-latest, .NET 9) locates
+  `gifscythe-cli.exe` in the `gifscythe-windows` artifact and runs the tests
+  against it — no new job, no new runner. Both workflow copies updated
+  byte-identically (G7).
+- **PR #14's missing post-merge sync** (its merge landed with no doc sync — the
+  exact case `pr_preflight.sh` P6 exists for): ledger row #14 added, row #13's
+  *Merged as* cell filled with `df219c0`, both enforced base lines re-anchored
+  `7f29347` → `c3ce59f` (PR #14's merge commit: main's tip now, and legal as the
+  next merge's first parent), handoff header moved to PR #14.
+- **N-37 found and fixed:** the README's honesty paragraph still said "There is
+  no published release" while `U-09` is DONE and two pre-releases exist
+  (`snapshot-2026-10-06`, `snapshot-2026-10-07`, verified against the releases API
+  this session). The paragraph now names them.
+- **Owner asks recorded, not guessed:** `OD-20` (video → GIF via an FFmpeg
+  sidecar, and the `PROJECT_VISION.md` amendment it needs) is OPEN and awaiting
+  the owner's explicit answer — the message asked *"should we add ffmpeg too"*,
+  and the vision gate says stills-import and video-endpoint work do not start
+  before an explicit answer. The XNConvert four-tab UI ask (Input = explorer-like
+  file management with filter/sort; Actions; Output = per-format settings and
+  folder; **Status tab** = per-file processing log with size change and
+  fail/success totals) is recorded as the shell's UI requirement, with what
+  exists today named beside it.
+
+**Partial:**
+
+- The core port is a SLICE: `Validate.h`, `OutputPlan.h`, `OutputName.h`,
+  `ProcessRunner.h`, `ExplodeVerify.h` and the settings *reader* are not ported
+  yet, and there is no shell UI (WPF) and no packaging. `U-91` stays OPEN until
+  the spike itself is pointed at `ExitCodes.cs`.
+
+**Left:**
+
+- The WPF shell (plan Phase 3), packaging (Phase 4) and the Phase-5 cutover
+  decision (`OD-C5`) — untouched by design; the phases are cumulative.
+- `OD-20`'s answer (the owner's), and any code for video/stills before it.
+
+**Verified:**
+
+- `check_docs.sh` — all gates green after the re-anchor (the two failures found
+  on arrival are fixed: G10 stale base, G15 hooks not bootstrapped), and
+  `sweep_stale.sh` clean.
+- Both workflow copies byte-identical after the CI edit (G7); the workflow parses
+  as YAML (`js-yaml`).
+- The C# sources parse with a real C# grammar (tree-sitter) with no error or
+  missing nodes — a syntax check, NOT a build.
+
+**Not verifiable here:**
+
+- **Anything about the C# build's verdict.** There is no .NET SDK in this sandbox
+  (`which dotnet` → not found) and none is installable (the toolchain hosts are
+  not reachable), so these sources have never been compiled here. The
+  `csharp-spike` CI run is the first compiler, and the parity lane's first
+  verdict comes from it. Any claim that this port "works" before that run is
+  exactly the kind of claim this repo's rules forbid.
+- The WPF shell (needs Windows + Visual Studio tooling) and any Windows-only
+  behaviour of the core.
+
+**Docs touched:** `SESSION_HANDOFF.md` (header, base lines, S38 entry, ledger
+rows #13–#14, the parked→resumed wording in the map/constraints),
+`IMPROVEMENT_LOG.md`, `STATUS.md` (W-31, N-37), `WORKLIST.md` (N-37 pending
+line, the U-91 note, the deferred bucket's `OD-20`, constraints note),
+`README.md` (N-37 + the map's OD range and "parked C# plan" wording),
+`COMPILED_AUDIT.md` (base line), `docs/planning/PLANNING.md` (§2 header +
+state, §6.1/§6.2 wording), `docs/planning/OWNER_DECISIONS.md` (OD-20,
+`OD-C7 = resume`), `csharp/README.md`, `docs/ci/README.md` (csharp-spike now
+described as the resumed lane), `docs/ci/build.yml.proposed`.
+
+---
+
 ## S37 — 2026-10-07: the wasm claim re-derived (a `.wasm` IS built on every CI run), the page glue wired into CI without emcc, and a Windows build path that runs on your own machine
 
 **Changed:**

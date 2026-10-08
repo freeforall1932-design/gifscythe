@@ -22,10 +22,14 @@ Windows bundle on a real clean machine (W-18) and three physical-desktop GUI
 behaviors (W-19) — Wine and the offscreen harness are emulation/CI signals, not
 Windows proof. The one registered data-loss row (U-59/P0-7: a cancel could
 truncate a file over a previous good output) is closed — CLI S28, GUI S30,
-Explode S31. There is no published release: the repo has no GitHub Releases or
-tags yet (the re-cut, P0-4, is still to do), so build from source (Quick start
-below) or take a CI artifact. This paragraph is a dated snapshot; for anything
-time-sensitive read `STATUS.md`.
+Explode S31. **Two pre-releases are published** (corrected 2026-10-08, S38,
+finding N-37 — this paragraph had claimed there were none while the re-cut
+`P0-4`/`U-09` had already landed): `snapshot-2026-10-06` and `snapshot-2026-10-07`,
+each carrying `Gifscythe-0.1.0-windows-portable.zip` and a `SHA256SUMS` file
+(login-free; the newer one is cut from the post-PR-#12 main tip and is the
+artifact to run the W-18 checklist against). You can also build from source
+(Quick start below) or take a CI artifact. This paragraph is a dated snapshot;
+for anything time-sensitive read `STATUS.md`.
 
 ## Quick start
 
@@ -73,8 +77,8 @@ gifscythe/                        (repo root)
     ci/README.md                  workflow status + clean-Windows smoke + desktop probes
     legal/README.md               licence single source of truth (Ms-PL why, copying
                                   rules, the wasm OD-16 question)
-    planning/OWNER_DECISIONS.md   open owner questions (OD-01..OD-18)
-    planning/PLANNING.md          direction review, parked C# plan, SkillOpt query,
+    planning/OWNER_DECISIONS.md   open owner questions (OD-01..OD-20)
+    planning/PLANNING.md          direction review, C# shell plan (resumed S38), SkillOpt query,
                                   sequential-work handoff, next-session prompt
     release/RELEASE_PROCEDURE.md  how to cut snapshots/releases
     screenshots/                  UI shots + re-shoot recipe
@@ -108,8 +112,9 @@ gifscythe/                        (repo root)
 2. **`SESSION_HANDOFF.md`** — current state + constraints (header block first).
 3. **`WORKLIST.md`** — the task board + the six status rules.
 4. **`docs/planning/PLANNING.md`** — direction of record (offline-only, stay
-   C++17/Qt6 through 1.0.0), the parked C# plan, the SkillOpt query, the
-   sequential-work handoff, and the copy-paste next-session prompt.
+   C++17/Qt6 through 1.0.0), the C# shell plan (resumed 2026-10-08), the
+   SkillOpt query, the sequential-work handoff, and the copy-paste next-session
+   prompt.
 5. **`web/WEB_PLAN_TEMPLATE.md`** — the web surface is a **product alternative**
    (self-hosted, S14): split rules, phases and the slots owner drafts are
    refitted into. Background: `web/README.md` §History.

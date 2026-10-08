@@ -51,12 +51,34 @@ if a trigger fires, spiked separately. Known gaps noted at the time: no
 icon/logo (`assets/` empty, cosmetic); the dated archive snapshots still mention
 the removed `scripts/build_gifsicle.sh` shim (historical, left as-is by policy).
 
-## 2. C# shell plan — PARKED (S19, `OD-C7 = park`)
+## 2. C# shell plan — RESUMED (S38, `OD-C7 = resume`; parked at S19)
 
-**State:** parked 2026-09-14 by owner direction — the exe stays C++17/Qt6, no
-rewrite, until 1.0.0 ships on the current stack. The Phase-1 spike stays
-CI-run and inert; this section is the designated **resume point** after 1.0.0
-(a park, not a cancellation). `csharp/README.md` carries the tree notice.
+**State: RESUMED 2026-10-08 (S38) by the owner** — *"im planning to pursue
+windows first and that wpf .net"* — reversing S19's park (`OD-C7 = park`). The
+resume point was this section, and **Phase 2 has started the way the plan
+demanded: the control layer first, the C++ CLI as the oracle, no window yet.**
+`csharp/Gifscythe.Core/` holds the settings, the command builder, the conf writer
+and the one exit-code contract (`U-91`/`P3-17`); `csharp/Gifscythe.Core.Tests/`
+runs a unit lane plus a **parity lane** that hands the same settings to the real
+`gifscythe-cli` in print mode and compares the argv tokens it would exec (token
+by token, separator flavour the one tolerated difference) as a step of the
+existing `csharp-spike` CI job. Still to port before Phase 3: `Validate.h`, `OutputPlan.h`, `OutputName.h`,
+`ProcessRunner.h`, `ExplodeVerify.h`, the conf reader — and then the WPF shell
+itself. **There is no .NET SDK in the agent sandboxes, so CI is the only
+compiler**; nothing in this lane may be called working before its run id is
+named. `csharp/README.md` carries the tree notice.
+
+**UI requirement (owner, 2026-10-08):** the shell must have the XNConvert
+four-tab shape — Input (explorer-like file management: drag and drop, filter,
+sort), Actions (the formatting controls, adapted to this repo's scope), Output
+(per-format settings once APNG/WebP land, destination folder) and a **Status tab**
+(per-file processing log with the size change, plus fail/success totals). Today's
+Qt surface has Input/Actions/Output/Guide plus an activity log and an output
+summary; the Status tab exists in neither surface yet, so it is new work, not a
+port. **Video/FFmpeg:** the owner has asked about an FFmpeg sidecar for
+video → GIF; that is `OD-20`, OPEN, and the `PROJECT_VISION.md` amendment rule at
+its line 45–48 still forbids starting stills-import/video-endpoint work before an
+explicit answer.
 
 **Goal (when resumed):** a portable, click-and-run Windows `.exe` in C#/WPF
 with a custom Gifscythe UI/UX, driving the *unchanged* gifsicle subprocess with
@@ -263,8 +285,11 @@ that S32 corrected):
 
 ### 6.1 EXE track — finish, don't rewrite
 
-**Decision:** stay on C++17 + Qt6. A rewrite (Tauri, or the parked C# shell)
+**Decision:** stay on C++17 + Qt6. A rewrite (Tauri, or the C# shell)
 discards ~250 already-verified tests and CI for a marginal ergonomics gain.
+*(S38: the C# shell is resumed, but as an ADDITIVE lane behind the CLI
+oracle — the EXE track still finishes on C++17/Qt6, and nothing here re-opens
+this decision.)*
 `OFFLINE_BUILD_REVIEW.md`'s own weighted scoring already settled this
 (C++/Qt6 ≈258 vs Tauri ≈205 vs Electron ≈174) — nothing since has changed
 that math. *(S32: that scoring now lives in §1; the original file is the S24
@@ -289,9 +314,10 @@ ones are done). ~~1. Finish the GUI's partial-write safety (U-59/P0-7)~~ —
 8. Owner decisions: OD-16 (see §6.3), OD-18, the version-bump call.
 
 **Already done, don't redo:** Qt LGPL notice (U-08, closed S19). U-59/P0-7
-including the Explode hole (S28/S30/S31). C# spike is
-parked (`OD-C7`) — inert but kept CI-running so it doesn't rot; no further
-investment until the list above ships.
+including the Explode hole (S28/S30/S31). The C# lane's Phase 1 (spike) runs in
+CI and Phase 2 (`Gifscythe.Core` + the parity lane) started 2026-10-08
+(`OD-C7 = resume`, S38) — additive, CI-only so far, and not on the 1.0.0
+critical path: nothing in it should displace the list above.
 
 ### 6.2 Web track — minimal wasm, additive, not a replacement
 
