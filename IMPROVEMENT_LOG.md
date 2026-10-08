@@ -4,7 +4,7 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
-## S38 — 2026-10-08: the C# lane resumed on the owner's direction — `Gifscythe.Core` ported with a CLI-parity lane, the missing PR #14 post-merge sync landed, and the README's release claim corrected (N-37)
+## S38 — 2026-10-08: the C# lane resumed on the owner's direction — `Gifscythe.Core` ported with a CI-proven CLI-parity lane, `OD-20` answered (`= a`) and the vision amended, the missing PR #14 post-merge sync landed, and the README's release claim corrected (N-37)
 
 **Changed:**
 
@@ -45,11 +45,18 @@ Chronological log of decisions and changes. **Newest at the top.**
   no published release" while `U-09` is DONE and two pre-releases exist
   (`snapshot-2026-10-06`, `snapshot-2026-10-07`, verified against the releases API
   this session). The paragraph now names them.
-- **Owner asks recorded, not guessed:** `OD-20` (video → GIF via an FFmpeg
-  sidecar, and the `PROJECT_VISION.md` amendment it needs) is OPEN and awaiting
-  the owner's explicit answer — the message asked *"should we add ffmpeg too"*,
-  and the vision gate says stills-import and video-endpoint work do not start
-  before an explicit answer. The XNConvert four-tab UI ask (Input = explorer-like
+- **`OD-20` was asked and answered the same day: `= a`.** The owner chose
+  "amend the vision now and scope ONE FFmpeg sidecar strictly as a conversion
+  endpoint". `PROJECT_VISION.md` now carries that as an **adopted amendment**
+  (dated, attributed): photos and video are **conversion-endpoint inputs only**;
+  the sidecar **decodes** — gifsicle still does all the GIF work and stays the
+  only GIF encoder; no editing/timeline/capture/playback; **argv subprocess
+  only**, never linked into the Ms-PL UI; the FFmpeg build's licence (LGPL or GPL
+  per configuration) identified at build time with its notices shipped
+  (`docs/legal/README.md` §5); and not on the 1.0.0 critical path. **The
+  amendment is not a work order**: `U-90` stays OPEN until `P3-19` adds the
+  deferred rows that own this scope by name, so no stills/video code starts yet.
+  The XNConvert four-tab UI ask (Input = explorer-like
   file management with filter/sort; Actions; Output = per-format settings and
   folder; **Status tab** = per-file processing log with size change and
   fail/success totals) is recorded as the shell's UI requirement, with what
@@ -66,7 +73,10 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 - The WPF shell (plan Phase 3), packaging (Phase 4) and the Phase-5 cutover
   decision (`OD-C5`) — untouched by design; the phases are cumulative.
-- `OD-20`'s answer (the owner's), and any code for video/stills before it.
+- The deferred rows `P3-19`/`U-90` that turn `OD-20 = a` into schedulable
+  work (the vision blocker is gone; the register one is not), and any code for
+  video/stills before those rows exist. The FFmpeg build licence is also still
+  to be identified at build time.
 
 **Verified:**
 
@@ -106,9 +116,13 @@ rows #13–#14, the parked→resumed wording in the map/constraints),
 line, the U-91 note, the deferred bucket's `OD-20`, constraints note),
 `README.md` (N-37 + the map's OD range and "parked C# plan" wording),
 `COMPILED_AUDIT.md` (base line), `docs/planning/PLANNING.md` (§2 header +
-state, §6.1/§6.2 wording), `docs/planning/OWNER_DECISIONS.md` (OD-20,
-`OD-C7 = resume`), `csharp/README.md`, `docs/ci/README.md` (csharp-spike now
-described as the resumed lane), `docs/ci/build.yml.proposed`.
+state, §6.1/§6.2 wording), `docs/planning/OWNER_DECISIONS.md` (OD-20 asked **and answered `= a`**,
+`OD-C7 = resume`), `PROJECT_VISION.md` (the adopted conversion-endpoint
+amendment + the hard-scope bullet + the resumed C# lane), `docs/legal/README.md`
+(new §5: the FFmpeg sidecar's three-licence rules), `COMPILED_AUDIT.md` (the
+`U-90` and `P3-19` rows re-stated around the answered question),
+`csharp/README.md`, `docs/ci/README.md` (csharp-spike now described as the
+resumed lane), `docs/ci/build.yml.proposed`.
 
 ---
 

@@ -145,3 +145,40 @@ the answer lands, it is recorded here (§3 — this file is updated, not deleted
 and the `OD-16` row points at it — the same pattern as the `OD-09` answer and
 §1. Do not extend the in-process pattern anywhere else
 (`SESSION_HANDOFF.md` product constraints).
+
+## 5. The FFmpeg sidecar — three licences, one package (`OD-20 = a`, 2026-10-08)
+
+**What the owner approved.** `PROJECT_VISION.md`'s amendment: photos and video
+are **conversion inputs only**, handled by **ONE FFmpeg sidecar** that decodes
+into frames; gifsicle still does all the GIF work. No editing, timeline, capture
+or playback — this is a converter, not ScreenToGif's recorder/editor scope.
+
+**Why this section exists.** FFmpeg is not one licence. A build is **LGPL or GPL
+depending on how it was configured** (GPL builds are what you get when
+GPL-only components such as x264/x265 are enabled; LGPL builds exclude them). So
+the sidecar is a **third, separately-licensed piece** beside the GPLv2-only
+gifsicle engine and the Ms-PL first-party UI, and its obligations travel with the
+binary that is shipped — they cannot be satisfied by a note in this repo.
+
+**The rules (these are the compliance conditions, not aspirations):**
+1. **Subprocess only — argv, never a link.** The sidecar is invoked exactly like
+   gifsicle: a separate executable, an argv array, no shell. Nothing here extends
+   the in-process carve-out of §3; that one belongs to `web/wasm/` alone.
+2. **Identify the build's licence before shipping it**, from the binary's own
+   configuration (not from a download page's description), and write it down with
+   the build recipe. "FFmpeg is LGPL" is not a claim this project gets to make
+   about an arbitrary build.
+3. **Ship its notices beside it.** The package carries the applicable licence
+   text and FFmpeg's own attribution/notices with the sidecar binary — the same
+   discipline `COPYING.gifsicle` already gets. For a **GPL** build this also
+   means the corresponding source offer; pick the **LGPL** build unless a GPL
+   component is genuinely required, precisely to avoid that.
+4. **Keep the boundary honest in the UI.** The sidecar is a *decoder*: frames in,
+   gifsicle encodes. If a future change makes it produce a shipped output format
+   directly, that is a new licence question and a new owner decision, not a
+   refactor.
+
+**Not yet done.** No sidecar exists, no build is chosen, and no code may start
+until `P3-19`/`U-90` add the deferred rows that own this scope by name. This
+section records the conditions that code will have to meet; it is not
+permission.

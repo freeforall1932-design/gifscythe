@@ -57,14 +57,21 @@ Based on `main` commit `c3ce59f` (PR #14's merge commit — the tip this branch 
   published release" while `U-09` is DONE and two pre-releases exist
   (`snapshot-2026-10-06`, `snapshot-2026-10-07`; re-checked with `gh release list`
   on 2026-10-08). The paragraph now names them.
-- **Owner asks recorded, not guessed:** `OD-20` (FFmpeg sidecar for video → GIF,
-  and the `PROJECT_VISION.md` amendment first) is OPEN and awaiting the owner's
-  explicit answer — the question was asked in the owner's own message, and the
-  vision gate says stills-import and video-endpoint work do not start before an
-  explicit answer. The XNConvert four-tab UI ask is recorded as the shell's UI
-  requirement; today's surface is Input/Actions/Output/Guide tabs + an activity log
-  + an output summary, and the **Status tab** (per-file size deltas, fail/success
-  totals) does not exist in either surface yet.
+- **`OD-20` ANSWERED by the owner: `= a`** (2026-10-08, asked and answered the
+  same session). **The vision is amended in the owner's name**: photos and video
+  are **conversion-endpoint inputs only, never the subject** — ONE FFmpeg sidecar,
+  decode-only (gifsicle still does all the GIF work), argv subprocess never a
+  link, no editing/timeline/capture/playback, its own licence note, and not on the
+  1.0.0 critical path. `PROJECT_VISION.md` carries the adopted amendment;
+  `docs/legal/README.md` §5 carries the licence conditions (FFmpeg is LGPL **or**
+  GPL per build configuration — identify it at build time, ship its notices with
+  the binary). **What the answer does NOT unlock: code today.** `U-90` stays OPEN
+  for the register half — the deferred rows (`P3-19`) that own this scope by name
+  must exist before a line of it is written.
+- The XNConvert four-tab UI ask is recorded as the shell's UI requirement;
+  today's surface is Input/Actions/Output/Guide tabs + an activity log + an output
+  summary, and the **Status tab** (per-file size deltas, fail/success totals)
+  does not exist in either surface yet.
 
 ### S36 — what changed (previous session; S37's changes are in its log entry and ledger row)
 

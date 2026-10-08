@@ -77,10 +77,13 @@ sort), Actions (the formatting controls, adapted to this repo's scope), Output
 (per-file processing log with the size change, plus fail/success totals). Today's
 Qt surface has Input/Actions/Output/Guide plus an activity log and an output
 summary; the Status tab exists in neither surface yet, so it is new work, not a
-port. **Video/FFmpeg:** the owner has asked about an FFmpeg sidecar for
-video → GIF; that is `OD-20`, OPEN, and the `PROJECT_VISION.md` amendment rule at
-its line 45–48 still forbids starting stills-import/video-endpoint work before an
-explicit answer.
+port. **Video/FFmpeg (`OD-20 = a`, answered by the owner 2026-10-08):** an
+FFmpeg sidecar for video → GIF is **approved as a conversion endpoint** and
+`PROJECT_VISION.md` now carries the adopted amendment — decode in via one
+subprocess sidecar, gifsicle still does all the GIF work, no editing/timeline/
+capture, its own licence note, and not on the 1.0.0 critical path. **What still
+gates the code:** `U-90`/`P3-19` — the deferred rows that own this scope by name
+must exist (and name their preconditions) before a line of it is written.
 
 **Goal (when resumed):** a portable, click-and-run Windows `.exe` in C#/WPF
 with a custom Gifscythe UI/UX, driving the *unchanged* gifsicle subprocess with
@@ -112,13 +115,18 @@ three-client parity run.
 collections → animated (ezgif-maker-class, owner request 2026-09-14: global speed
 + per-frame delay in 1/100 s + reorder); (4) video ↔ animated-picture conversion
 strictly as endpoints (no editing/timeline/capture); (5) ezgif-class frame ops.
-**Mission-amendment precondition:** `PROJECT_VISION.md` says "Not photos, not
-video" — items 3–4 narrow that to *conversion endpoints only*, and **the vision
-doc must be amended before any stills/video work starts** (no code until the
-words change). Engine precondition: gifsicle reads GIF inputs only, so stills and
-video need a decode step (FFmpeg sidecar candidate — its own feasibility +
-LGPL/GPL licence note required). This scope is registered as `U-90` (it must not
-be read as pre-approved just because it lives in a parked plan).
+**Mission-amendment precondition — MET 2026-10-08 (`OD-20 = a`).** Items 3–4
+narrow the vision's "Not photos, not video" to *conversion endpoints only*, and
+the owner adopted exactly that amendment on 2026-10-08: `PROJECT_VISION.md` now
+says photos and video are **inputs to a conversion endpoint, never the subject**
+(one FFmpeg sidecar, decode-only, argv subprocess, its own licence note, not on
+the 1.0.0 path). The "words change first" rule is satisfied. Engine precondition
+still stands: gifsicle reads GIF inputs only, so stills and video need a decode
+step — the FFmpeg sidecar, with **its licence identified at build time**
+(`docs/legal/README.md` §5). **The scope is registered as `U-90`, still OPEN for
+a different reason:** the vision blocker is gone, but the deferred rows that own
+this work by name (`P3-19`) do not exist yet, and a session must not read the
+amendment as pre-approved work.
 
 **Phase-0 decision record (S18):** OD-C1 = a (fork reference-only — superseded
 same day by OD-C6) · OD-C2 = c (phased: sidecar through Phase 2, commit at
