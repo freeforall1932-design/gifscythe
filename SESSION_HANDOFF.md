@@ -42,7 +42,9 @@ Based on `main` commit `c3ce59f` (PR #14's merge commit — the tip this branch 
      also proves the base-line re-anchor on a clean checkout (`docs` + `linux`
      green where main's last run was red). Nuance: the byte-for-byte display-line
      comparison is conditional (SKIP when the platform echoes separators); the
-     argv-token comparison is not, and that is what the pass certifies.
+     argv-token comparison is not, and that is what the pass certifies. Docs-only
+     commits after `cc94ed1` do not change what that run certifies — the tip's own
+     runs live on the PR page (PR #15).
   **Read this before touching the C# lane: there is still no .NET SDK in this
   sandbox** (`dotnet: command not found`), so **CI is the only compiler** — the
   local check is a C# grammar parse (tree-sitter), which is not a build and was
