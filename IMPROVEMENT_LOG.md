@@ -77,15 +77,26 @@ Chronological log of decisions and changes. **Newest at the top.**
   as YAML (`js-yaml`).
 - The C# sources parse with a real C# grammar (tree-sitter) with no error or
   missing nodes — a syntax check, NOT a build.
+- **The port's first CI verdict is GREEN** — run `37813051817` (2026-10-08, head
+  `cc94ed1`), **every job success** (gate/windows/portability/linux/docs/
+  csharp-spike), including the new step **"Gifscythe.Core unit + CLI parity
+  (S38)"** on windows-latest. That step is the C# port's first compiler, and it
+  passed with `GS_REQUIRE_PROOF=1`, so the parity lane could not have skipped
+  itself: the unit lane and the argv-token comparison against the real
+  `gifscythe-cli.exe` both ran, and `dotnet run` exited 0. The same run proves
+  the base-line re-anchor on a clean CI checkout — `docs` and `linux` (whose
+  verify_audit F1 wraps the doc gate) are green where main's last run was red.
 
 **Not verifiable here:**
 
-- **Anything about the C# build's verdict.** There is no .NET SDK in this sandbox
-  (`which dotnet` → not found) and none is installable (the toolchain hosts are
-  not reachable), so these sources have never been compiled here. The
-  `csharp-spike` CI run is the first compiler, and the parity lane's first
-  verdict comes from it. Any claim that this port "works" before that run is
-  exactly the kind of claim this repo's rules forbid.
+- **The local C# build.** There is no .NET SDK in this sandbox (`which dotnet` →
+  not found) and none is installable (the toolchain hosts are not reachable), so
+  the compile that certifies this port is CI's, not this session's — run
+  `37813051817` above. One nuance the green step does not settle on its own:
+  the byte-for-byte *display-line* comparison inside the parity lane is
+  conditional (it reports a SKIP when the platform echoes path separators back),
+  while the argv-token comparison is unconditional — the pass certifies the
+  argv, which the port's comment already names as the contract.
 - The WPF shell (needs Windows + Visual Studio tooling) and any Windows-only
   behaviour of the core.
 

@@ -62,7 +62,9 @@ Licence: Ms-PL like the rest of the first-party code (`LICENSE`,
 spike, runs `Gifscythe.Core.Tests` against `gifscythe-cli.exe` from that artifact
 (new in S38), then stages the engine and runs the spike's own scenarios.
 A failing step there is a valid, decision-grade outcome; the job is not
-allowed to pass by skipping the parity lane.
+allowed to pass by skipping the parity lane. **First verdict: run `37813051817`
+(2026-10-08, head `cc94ed1`) — all six jobs success, the parity step included,
+with `GS_REQUIRE_PROOF=1`.**
 
 **No .NET SDK exists in the agent sandboxes** (`dotnet: command not found`), so
 the compile and the parity verdict are CI's to give, exactly as the Qt harness

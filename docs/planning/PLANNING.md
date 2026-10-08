@@ -66,7 +66,9 @@ existing `csharp-spike` CI job. Still to port before Phase 3: `Validate.h`, `Out
 `ProcessRunner.h`, `ExplodeVerify.h`, the conf reader — and then the WPF shell
 itself. **There is no .NET SDK in the agent sandboxes, so CI is the only
 compiler**; nothing in this lane may be called working before its run id is
-named. `csharp/README.md` carries the tree notice.
+named — the first verdict is in: CI run `37813051817` (2026-10-08, head
+`cc94ed1`) is green on all six jobs, the parity step included. `csharp/README.md`
+carries the tree notice.
 
 **UI requirement (owner, 2026-10-08):** the shell must have the XNConvert
 four-tab shape — Input (explorer-like file management: drag and drop, filter,
