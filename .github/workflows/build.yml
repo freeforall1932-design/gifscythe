@@ -1018,6 +1018,24 @@ jobs:
           set -e
           cat "$work/fl.log"
           [[ "$rc" == 4 ]] || { echo "FAIL: engine exited 7 want rc=4 got rc=$rc" >&2; exit 1; }
+
+          # AUD-04: exit 0 WITHOUT writing, over a pre-existing valid GIF. The
+          # old spike verified the destination and reported the stale file as
+          # this run's success (rc 0). Must be rc 5 with the old bytes intact
+          # and no staging file left behind.
+          noop="$work/noop.gif"
+          cp "$work/in.gif" "$noop"
+          noop_before="$(sha256sum < "$noop")"
+          unset FAKE_EXIT
+          export FAKE_MODE=flood FAKE_FLOOD_BYTES=0
+          set +e
+          "$SPIKE_EXE" "$FAKE_ENGINE" "$work/in.gif" "$noop" >"$work/noop.log" 2>&1
+          rc=$?
+          set -e
+          cat "$work/noop.log"
+          [[ "$rc" == 5 ]] || { echo "FAIL: no-write over existing GIF want rc=5 got rc=$rc" >&2; exit 1; }
+          [[ "$(sha256sum < "$noop")" == "$noop_before" ]] || { echo "FAIL: existing output was modified" >&2; exit 1; }
+          if ls -A "$work" | grep -q 'gs-partial'; then echo "FAIL: staging file left behind" >&2; ls -la "$work" >&2; exit 1; fi
           echo OK
 
       - name: Publish self-contained single file

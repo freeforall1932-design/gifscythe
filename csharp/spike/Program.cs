@@ -61,7 +61,54 @@ static class Spike
             return 2;
         }
 
-        var argv = BuildArgs(new Settings(), input, output);
+        // AUD-04: the engine writes a FRESH staging file this run created
+        // exclusively (CreateNew, zero bytes). Verifying the staging file -
+        // never the destination - proves THIS run wrote the GIF: an engine that
+        // exits 0 without writing leaves it empty, so a pre-existing good
+        // output can no longer be reported as this run's success. The
+        // destination is only replaced after verification passes; every
+        // failure path leaves it untouched (same contract as OutputVerify.h).
+        var staging = ClaimStaging(output);
+        if (staging is null)
+        {
+            Console.Error.WriteLine($"cannot create a staging file beside the output (engine not started): {output}");
+            return 2;
+        }
+        try
+        {
+            return await RunStagedAsync(engine, input, output, staging);
+        }
+        finally
+        {
+            // Only reached with the file still present on failure paths (a
+            // successful promotion has already moved it). We created it, so
+            // deleting it can never destroy user data.
+            try { if (File.Exists(staging)) File.Delete(staging); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    private static string? ClaimStaging(string output)
+    {
+        var full = Path.GetFullPath(output);
+        var dir = Path.GetDirectoryName(full) ?? ".";
+        var name = Path.GetFileName(full);
+        for (var i = 0; i < 16; i++)
+        {
+            var cand = Path.Combine(dir, $".{name}.{Environment.ProcessId}.{Guid.NewGuid():N}.gs-partial");
+            try
+            {
+                using (new FileStream(cand, FileMode.CreateNew, FileAccess.Write)) { }
+                return cand;
+            }
+            catch (IOException) when (File.Exists(cand)) { /* collision: try another name */ }
+            catch (Exception) { return null; }
+        }
+        return null;
+    }
+
+    private static async Task<int> RunStagedAsync(string engine, string input, string output, string staging)
+    {
+        var argv = BuildArgs(new Settings(), input, staging);
         Console.WriteLine(Quote(engine) + " " + string.Join(" ", argv.Select(Quote)));
 
         var (code, capture) = await StartAsync(engine, argv, TimeoutMs());
@@ -82,11 +129,24 @@ static class Spike
             return 4;
         }
 
-        var problem = VerifyGif(output);
+        var problem = VerifyGif(staging);
         if (problem is not null)
         {
-            Console.Error.WriteLine($"engine exited 0 but {problem}: {output}");
+            Console.Error.WriteLine($"engine exited 0 but {problem} (destination left untouched): {output}");
             return 5;
+        }
+        try
+        {
+            File.Move(staging, output, overwrite: true);
+        }
+        catch (Exception ex)
+        {
+            // Keep the verified bytes: the finally in RunAsync would delete
+            // them, so move them aside under a name we report.
+            var kept = staging + ".verified";
+            try { File.Move(staging, kept); } catch (Exception) { kept = staging; }
+            Console.Error.WriteLine($"verified output could not replace {output} ({ex.GetType().Name}: {ex.Message}); verified file kept at {kept}");
+            return 6;
         }
 
         var (inBytes, outBytes) = (new FileInfo(input).Length, new FileInfo(output).Length);

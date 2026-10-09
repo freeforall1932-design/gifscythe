@@ -639,8 +639,15 @@ int main(int argc, char** argv) {
       !s.output.empty() && !stream_output && s.mode != gs::Mode::Explode;
   std::string output_partial;
   if (guard_output) {
-    output_partial = gs::partial_output_path(s.output);
-    gs::discard_partial(output_partial);  // a partial left by an earlier crash
+    // AUD-01: never delete whatever already sits at the staging name (it may
+    // be an input, or an unrelated user file) — claim a free name instead.
+    output_partial = gs::claim_partial_output_path(s.output);
+    if (output_partial.empty()) {
+      std::fprintf(stderr,
+                   "ERROR: refusing to run: no free staging path beside %s\n",
+                   s.output.c_str());
+      return 1;
+    }
     // N-15: snapshot the PARTIAL (just discarded, so it does not exist yet),
     // never the target. See the comment at output_before's declaration.
     if (verify_file) {

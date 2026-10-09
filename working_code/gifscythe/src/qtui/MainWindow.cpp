@@ -1134,8 +1134,15 @@ void MainWindow::runCommand() {
     QString in = batchQueue_.at(0);
     pendingOutput_ = batchTargets_.value(0);  // from the plan, not re-derived
     pendingPartial_ = QString::fromStdString(
-        gs::partial_output_path(pendingOutput_.toStdString()));
-    gs::discard_partial(pendingPartial_.toStdString());  // self-heal a prior hard kill
+        gs::claim_partial_output_path(pendingOutput_.toStdString()));  // AUD-01: never delete a file we do not own
+    if (pendingPartial_.isEmpty()) {
+      batchQueue_.clear();
+      batchIndex_ = -1;
+      setBusy(false);
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QStringLiteral("Batch stopped — no free staging path beside %1").arg(pendingOutput_));
+      return;
+    }
     partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
     // U-58 / P1-38: freeze the settings for the WHOLE batch at start —
     // every continuation job (onProcessFinished) builds its argv from this
@@ -1200,8 +1207,12 @@ void MainWindow::runCommand() {
   pendingOutput_ = QString::fromStdString(settings.output);
   if (settings.mode != gs::Mode::Explode) {
     pendingPartial_ = QString::fromStdString(
-        gs::partial_output_path(pendingOutput_.toStdString()));
-    gs::discard_partial(pendingPartial_.toStdString());  // self-heal a prior hard kill
+        gs::claim_partial_output_path(pendingOutput_.toStdString()));  // AUD-01: never delete a file we do not own
+    if (pendingPartial_.isEmpty()) {
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QStringLiteral("Refusing to run — no free staging path beside %1").arg(pendingOutput_));
+      return;
+    }
     partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
     settings.output = pendingPartial_.toStdString();
   } else {
@@ -1413,8 +1424,15 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       QString in = batchQueue_.at(batchIndex_);
       pendingOutput_ = batchTargets_.value(batchIndex_);  // from the plan
       pendingPartial_ = QString::fromStdString(
-          gs::partial_output_path(pendingOutput_.toStdString()));
-      gs::discard_partial(pendingPartial_.toStdString());
+          gs::claim_partial_output_path(pendingOutput_.toStdString()));  // AUD-01: never delete a file we do not own
+      if (pendingPartial_.isEmpty()) {
+        batchQueue_.clear();
+        batchIndex_ = -1;
+        setBusy(false);
+        QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+            QStringLiteral("Batch stopped — no free staging path beside %1").arg(pendingOutput_));
+        return;
+      }
       partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
       // U-58 / P1-38: continuation jobs MUST come from the batch-start
       // snapshot frozen into batchSettings_ (runCommand), never from a
