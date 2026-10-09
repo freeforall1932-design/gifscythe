@@ -365,7 +365,7 @@ Based on `main` commit `c3ce59f` (PR #14's merge commit — the tip this branch 
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 178 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 199 total (at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 178 DONE · 8 PARTIAL · 14 OPEN · 0 UNTRIAGED · 200 total (at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -972,6 +972,86 @@ fixing them is the next session's P-lane work). The register-mechanics asks
 them mid-consolidation would have been the doc-machine-churn the intake itself
 warns about.
 
+## S39 — the DiscordChatExporter handoff: W-33 fixed, W-32 contract proposed (2026-10-09)
+
+**What arrived.** `GUI_REUSE_REVIEW.md` (113 lines) at
+`/home/user/gifscythe-handoff/` — **outside the repo, never committed, and the
+reviewing session touched no repo file.** It reviewed this branch at `bec17d2`
+against `freeforall1932-design/DiscordChatExporter` @ `66a9c45` as a reference,
+and asked seven things of the receiving agent.
+
+**Freshness verdict:** `git rev-parse origin/arena/8eef3ffc-gifscythe` ==
+`bec17d2` — the reviewed SHA was **still the tip**, so zero commits had landed
+since the review was written. Nothing in it was stale.
+
+**Sandbox repair first (do not skip this next session).** The local HEAD sat at
+the base `c3ce59f` with all of the branch's content as uncommitted work and
+`csharp/Gifscythe.Core*` untracked — so `git status` lied about what was
+committed. Repaired with `git checkout -f -B arena/8eef3ffc-gifscythe
+origin/arena/8eef3ffc-gifscythe` **after** backing up every changed file and
+diffing each one back: byte-identical, nothing lost. `bootstrap_hooks.sh` also
+had to be re-run (`core.hooksPath` was unset). **Re-check `git rev-parse HEAD`
+against the remote before doing anything else in a fresh sandbox.**
+
+### Disposition (the review's seven asks answered)
+
+1. **Fetched and compared** — see the freshness verdict above.
+2. **The spike timeout finding: CONFIRMED and fixed.** `csharp/spike/Program.cs`
+   called `child.StandardError.ReadToEnd()` *before* `child.WaitForExit(120_000)`.
+   `ReadToEnd()` blocks until the engine **closes** stderr, so an engine that
+   hangs with the pipe open blocks there forever and the timeout — and the only
+   `Kill()` — is never reached. Now: the drain runs **concurrently and bounded**
+   (32,768 chars, overflow counted *and reported*), `WaitForExitAsync(cts.Token)`
+   owns the deadline, and the timeout path does kill-tree → reap → stop-drain so
+   no child outlives the caller. Registered as **W-33**, pinned by a new
+   env-driven `csharp/testdoubles/FakeEngine/` and three `csharp-spike` CI steps.
+   **PARTIAL, not DONE: `dotnet` is not installed here, so nothing is compiled
+   or runtime-proven yet.** CI is the proof channel; close the row with its run id.
+3. **The four patterns, assessed selectively** — table below.
+4. **W-32 contract proposed** — `docs/planning/W32_RESULT_CONTRACT.md`. It is a
+   *proposal*: the owner's gate is research → walkable draft → confirmation →
+   implementation, and no Status tab is built before that.
+5. **Reported here** — see below and `COMPILED_AUDIT.md` §22.
+
+### The four DiscordChatExporter patterns, one by one
+
+| Pattern | Call | Reason |
+| --- | --- | --- |
+| Run identity / state / timestamps / snapshots | **Defer** | Right shape, but adopting a job record before the result model is agreed bakes in the wrong fields. W-32's proposed `Run` already carries the useful parts. |
+| Incremental log reads + bounded history | **Reject** | `web/request-guard.mjs` already caps engine stderr and owns a concurrency policy. Discord's *single-run* policy would be a downgrade. |
+| Session diagnostics | **Adopt the idea, not the code** | Offline, bounded, no telemetry. Engine path/version + the real argv + settings snapshot — already in the W-32 `Run` proposal. |
+| Preset application / matching | **Gated** | Blocked on **OD-21** (per-format preset wording). The standing rule forbids touching presets before the owner answers. |
+| GUI interaction regression harness | **Adopt the approach** | W-32 §8's R1–R14 *are* that harness, written against Gifscythe's own modes. No Discord DOM ids imported. |
+
+Also **rejected as transplants**, and the review agreed: the text-based
+percentage detector (a size reduction is not progress), the custom-command parser
+(structured settings/argv only), `exitCode == 0` as the success rule, and the
+whole web server (Gifscythe has one, with admission limits and output
+verification).
+
+**Provenance:** no code was imported. Patterns and test-case shapes only, in
+prose. Zero bytes of MIT DiscordChatExporter source entered this repo, so no MIT
+notice arises and nothing is presented as first-party Ms-PL that is not.
+
+### Two corrections to the review, both from this repo's source
+
+- **"batch is one input to one output"** is true for batch only. Merge and Auto
+  are **N → 1**; explode is **1 → N** (Qt refuses N > 1 outright). A contract
+  that assumes 1→1 double-counts the totals.
+- **Exit codes were left alone on purpose.** The spike says 2/3/4/5 (+124/127);
+  `Gifscythe.Core.ExitCodes` says 0/1/2/3. Merging them is **U-91**, an OPEN
+  owner-facing decision — not a bug to fix in passing. Folding the numbers here
+  would have broken six CI assertions and pre-empted the owner.
+
+### Still open after this session
+
+`OD-21` (preset wording) and `OD-22` (XnView/XnConvert material in the repo)
+still await the owner — no GUI work proceeds on them. **W-33** awaits CI.
+**W-32** awaits the owner's confirmation of the columns. The spike's `Quote()`
+(POSIX vs MSVCRT) trap remains — a display-contract change, so an owner call.
+
+---
+
 ## Session history (condensed — full detail in `IMPROVEMENT_LOG.md`, per-session)
 
 - **S4–S8 (2026-09-07→10):** Windows engine recipe + Wine proofs; XNConvert UI
@@ -1290,7 +1370,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 178 DONE · 7 PARTIAL · 14 OPEN · 0
+   its generated counts line (currently: 178 DONE · 8 PARTIAL · 14 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High

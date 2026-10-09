@@ -894,6 +894,132 @@ jobs:
           [[ "$rc" == 5 ]] || { echo "FAIL: want rc=5 got rc=$rc" >&2; exit 1; }
           echo OK
 
+      - name: Build the fake-engine test double
+        run: |
+          set -euo pipefail
+          # csharp/testdoubles/, not csharp/spike/: the SDK globs **/*.cs under a
+          # project directory, so a second Program.cs inside csharp/spike/ would
+          # be compiled into the spike itself.
+          dotnet build csharp/testdoubles/FakeEngine/FakeEngine.csproj -c Release
+          fake="$PWD/csharp/testdoubles/FakeEngine/bin/Release/net9.0/FakeEngine.exe"
+          [[ -f "$fake" ]] || { echo "FAIL: FakeEngine.exe not built at $fake" >&2; exit 1; }
+          echo "FAKE_ENGINE=$fake" >> "$GITHUB_ENV"
+          mkdir -p "$SPIKE_WORK/fake"
+          cp "$SPIKE_WORK/plain/in.gif" "$SPIKE_WORK/fake/in.gif"
+
+      # Regression for the static finding in csharp/spike/Program.cs: the runner
+      # read stderr to EOF *before* it waited, so an engine that stalls while
+      # holding the pipe open blocked forever and the timeout - and with it the
+      # only kill branch - was never reached.
+      - name: Fake engine - a hanging run is killed at the deadline
+        timeout-minutes: 5
+        env:
+          GIFSCYTHE_SPIKE_TIMEOUT_MS: "4000"
+        run: |
+          set -euo pipefail
+          work="$SPIKE_WORK/fake"
+          good="$work/good.gif"
+
+          # 1. A known-good output, so we can prove a later failed run leaves it alone.
+          FAKE_MODE=ok FAKE_SRC="$work/in.gif" FAKE_OUT="$good" \
+            "$SPIKE_EXE" "$FAKE_ENGINE" "$work/in.gif" "$good" >"$work/ok.log" 2>&1
+          [[ -s "$good" ]] || { echo "FAIL: fake ok mode produced no output" >&2; cat "$work/ok.log" >&2; exit 1; }
+          before="$(sha256sum < "$good")"
+
+          # 2. Stalling with stderr held OPEN must hit the deadline, not hang.
+          export FAKE_MODE=stall
+          start_s="$(date +%s)"
+          set +e
+          "$SPIKE_EXE" "$FAKE_ENGINE" "$work/in.gif" "$good" >"$work/stall.log" 2>&1
+          rc=$?
+          set -e
+          end_s="$(date +%s)"
+          cat "$work/stall.log"
+          [[ "$rc" == 124 ]] || { echo "FAIL: want rc=124 (timed out) got rc=$rc" >&2; exit 1; }
+          elapsed=$(( end_s - start_s ))
+          echo "hanging engine returned after ${elapsed}s against a 4s deadline"
+          [[ "$elapsed" -lt 120 ]] || { echo "FAIL: took ${elapsed}s - the deadline was not enforced" >&2; exit 1; }
+
+          # 3. The stalled run must not have damaged the good output.
+          after="$(sha256sum < "$good")"
+          [[ "$before" == "$after" ]] || { echo "FAIL: pre-existing good output was modified" >&2; exit 1; }
+
+          # 4. No child left behind - the kill is real, not just a cancelled await.
+          if tasklist //FI "IMAGENAME eq FakeEngine.exe" //NH 2>/dev/null | grep -qi fakeengine; then
+            echo "FAIL: FakeEngine child is still running after the kill" >&2
+            tasklist //FI "IMAGENAME eq FakeEngine.exe" >&2 || true
+            exit 1
+          fi
+          echo OK
+
+      - name: Fake engine - excessive stderr is captured with a bound
+        timeout-minutes: 5
+        env:
+          GIFSCYTHE_SPIKE_TIMEOUT_MS: "20000"
+        run: |
+          set -euo pipefail
+          work="$SPIKE_WORK/fake"
+          export FAKE_MODE=flood FAKE_FLOOD_BYTES=67108864
+
+          # 3a. 64 MiB of stderr, exits 0, writes nothing -> rc 5, and promptly.
+          unset FAKE_EXIT
+          start_s="$(date +%s)"
+          set +e
+          "$SPIKE_EXE" "$FAKE_ENGINE" "$work/in.gif" "$work/flood.gif" >"$work/flood.log" 2>&1
+          rc=$?
+          set -e
+          end_s="$(date +%s)"
+          cat "$work/flood.log"
+          [[ "$rc" == 5 ]] || { echo "FAIL: flood+no-output want rc=5 got rc=$rc" >&2; exit 1; }
+          echo "64 MiB flood handled in $(( end_s - start_s ))s"
+
+          # 3b. Same flood, non-zero exit -> the drop must be reported, not silent.
+          export FAKE_EXIT=7
+          set +e
+          "$SPIKE_EXE" "$FAKE_ENGINE" "$work/in.gif" "$work/flood2.gif" >"$work/flood2.log" 2>&1
+          rc=$?
+          set -e
+          cat "$work/flood2.log"
+          [[ "$rc" == 4 ]] || { echo "FAIL: flood+exit 7 want rc=4 got rc=$rc" >&2; exit 1; }
+          grep -q "character(s) dropped" "$work/flood2.log" \
+            || { echo "FAIL: stderr capture did not report a bounded drop" >&2; exit 1; }
+          echo OK
+
+      - name: Fake engine - start failure, non-zero exit and zero-exit garbage stay distinct
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          work="$SPIKE_WORK/fake"
+
+          # Start failure: a file that exists but is not a runnable image.
+          printf 'this is not an executable\n' > "$work/notanexe.bin"
+          set +e
+          "$SPIKE_EXE" "$work/notanexe.bin" "$work/in.gif" "$work/startfail.gif" >"$work/sf.log" 2>&1
+          rc=$?
+          set -e
+          cat "$work/sf.log"
+          [[ "$rc" == 127 ]] || { echo "FAIL: start failure want rc=127 got rc=$rc" >&2; exit 1; }
+
+          # Exit 0 but the output is not a GIF - rc 0 alone is not success.
+          export FAKE_MODE=garbage FAKE_OUT="$work/garbage.gif"
+          set +e
+          "$SPIKE_EXE" "$FAKE_ENGINE" "$work/in.gif" "$work/garbage.gif" >"$work/gb.log" 2>&1
+          rc=$?
+          set -e
+          cat "$work/gb.log"
+          [[ "$rc" == 5 ]] || { echo "FAIL: zero-exit invalid output want rc=5 got rc=$rc" >&2; exit 1; }
+
+          # Plain non-zero exit.
+          unset FAKE_OUT
+          export FAKE_MODE=fail FAKE_EXIT=7
+          set +e
+          "$SPIKE_EXE" "$FAKE_ENGINE" "$work/in.gif" "$work/fail.gif" >"$work/fl.log" 2>&1
+          rc=$?
+          set -e
+          cat "$work/fl.log"
+          [[ "$rc" == 4 ]] || { echo "FAIL: engine exited 7 want rc=4 got rc=$rc" >&2; exit 1; }
+          echo OK
+
       - name: Publish self-contained single file
         run: |
           set -euo pipefail

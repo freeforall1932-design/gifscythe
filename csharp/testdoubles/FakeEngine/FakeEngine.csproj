@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Test double for the spike's execution layer. NOT a product surface, NOT
+       shipped. Lives in csharp/testdoubles/ rather than under csharp/spike/ on
+       purpose: the SDK globs **/*.cs under a project directory, so a second
+       Program.cs inside csharp/spike/ would be compiled into the spike itself. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>FakeEngine</AssemblyName>
+    <RootNamespace>Gifscythe.TestDoubles</RootNamespace>
+  </PropertyGroup>
+
+</Project>

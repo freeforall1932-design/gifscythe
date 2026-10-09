@@ -4,6 +4,95 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S39 — 2026-10-09: the DiscordChatExporter handoff received — the spike's unreachable engine deadline fixed and pinned by a hostile-engine CI regression (W-33), and the W-32 per-file result contract written out as a proposal
+
+**What arrived.** A read-only review, `GUI_REUSE_REVIEW.md`, handed off from the
+DiscordChatExporter session. It lives **outside the repo**
+(`/home/user/gifscythe-handoff/`) and its author touched no repo file, so there
+is nothing to delete — consistent with how §20/§21 intakes were handled. It
+reviewed this branch at `bec17d2`; re-checked, that SHA was still the tip, so
+**nothing in the review was stale**. Its conclusions are incorporated in
+`COMPILED_AUDIT.md` §22.
+
+**Changed:**
+
+- **Sandbox git state repaired first.** HEAD sat at the base `c3ce59f` with the
+  whole branch's content as uncommitted work and `csharp/Gifscythe.Core*`
+  untracked, so `git status` misrepresented what was committed. Backed up every
+  changed file, moved the branch with
+  `git checkout -f -B arena/8eef3ffc-gifscythe origin/arena/8eef3ffc-gifscythe`,
+  then diffed every file back: byte-identical, nothing lost.
+  `bootstrap_hooks.sh` re-run (`core.hooksPath` was unset).
+
+- **W-33 — the C# spike's engine deadline could not be reached.** Confirmed by
+  source: `csharp/spike/Program.cs` called `child.StandardError.ReadToEnd()`
+  *before* `child.WaitForExit(120_000)`. `ReadToEnd()` blocks until the engine
+  **closes** stderr, so an engine that hangs with the pipe open blocks there
+  forever and the timeout — and the only `Kill()` branch, below it — is never
+  reached. The read was also unbounded. Fixed in the same session:
+  - stderr is drained **concurrently** with the wait, and **with a bound**
+    (32,768 chars); overflow is counted *and reported* (`[gifscythe: N stderr
+    character(s) dropped …]`), so a truncated log can never pose as a complete
+    one. The notice is appended **after** trimming, so it survives a long log.
+  - `WaitForExitAsync(cts.Token)` owns the deadline.
+  - The timeout path is kill-tree → reap (bounded) → stop-drain, so the stalled
+    engine cannot outlive the caller and no reader task is leaked.
+  - rc **124** (timeout) and **127** (not startable) now return distinctly
+    instead of collapsing into 4 — both were already in P3-17's proposed contract.
+  - `GIFSCYTHE_SPIKE_TIMEOUT_MS` lets CI prove the deadline in 4 s rather than
+    waiting out 120 s.
+  - P3-17's other trap, the `Stream.Read` under-fill in the 6-byte magic probe,
+    fixed in the same pass (`ReadExactly`).
+
+- **`csharp/testdoubles/FakeEngine/` (new)** — an env-driven hostile-engine test
+  double (`stall` holds stderr open forever, `flood` emits 64 MiB, `garbage`
+  exits 0 leaving a non-GIF, `fail` exits N, `ok` copies a real GIF). Driven by
+  environment variables, not argv, because the spike owns the argv it passes to
+  the engine — a double should not have to impersonate the real engine's
+  argument grammar in order to misbehave. It lives in `csharp/testdoubles/`,
+  **not** under `csharp/spike/`, because the SDK globs `**/*.cs` under a project
+  directory and a second `Program.cs` there would be compiled into the spike.
+
+- **Three new `csharp-spike` CI steps**, each with a 5-minute outer watchdog:
+  the hanging run must return rc 124 **promptly**, leave no `FakeEngine.exe`
+  behind, and leave a pre-existing good output byte-identical; a 64 MiB stderr
+  flood must be bounded and the drop reported; start-failure (127), non-zero
+  exit (4) and zero-exit-invalid-output (5) must stay distinguishable. Both
+  workflow copies updated byte-identically (gate G7).
+
+- **W-32 contract proposed** — `docs/planning/W32_RESULT_CONTRACT.md`. Written
+  *before* any GUI redesign, as the review asked. It defines `Run` / `Operation`
+  / `ResultRow`, the six states (with `skipped` = **never attempted**, kept
+  distinct from `failed`), named failure reasons, and 14 test cases R1–R14.
+  **Proposed, not approved** — the owner's gate is research → walkable draft →
+  confirmation → implementation.
+
+- **Two corrections to the review, from this repo's own source:**
+  - Its "batch is one input to one output" holds for batch only. Merge and Auto
+    are **N → 1**; explode is **1 → N** (Qt refuses N > 1 outright). A contract
+    that assumes 1→1 double-counts the totals, so cardinality is now named per
+    mode.
+  - The exit-code *numbers* were **deliberately not merged**. The spike says
+    2/3/4/5 (+124/127); `Gifscythe.Core.ExitCodes` says 0/1/2/3. Reconciling
+    them is **U-91**, an OPEN owner-facing decision, and folding it in here
+    would have broken six CI assertions and pre-empted the owner. Only the
+    `ReadExactly` and timeout traps were taken; the `Quote()` POSIX-vs-MSVCRT
+    trap is left alone because it changes a display contract.
+
+**Not done, and why:** no WPF shell, no GUI redesign, no resolution of
+`OD-21`/`OD-22`, no DiscordChatExporter code imported (patterns and test-case
+shapes only, in prose — zero bytes, so no MIT notice arises).
+
+**Honest limit:** `dotnet` is **not installed** in this sandbox, so **no C# in
+this change has been compiled or executed.** W-33 is therefore PARTIAL, not
+DONE: the fix is a source reading, and CI is the only proof channel. It must be
+closed with a run id, and if a 5-minute watchdog fires, the fix is incomplete —
+not the test. The six Node suites named by the review were re-run and are green
+(`request-guard`, `numeric-honesty`, `device-names`, `stem`, `static-hygiene`,
+`body-limit`); that is a regression signal, not proof of the new behaviour.
+
+---
+
 ## S38 — 2026-10-08: the C# lane resumed on the owner's direction — `Gifscythe.Core` ported with a CI-proven CLI-parity lane, `OD-20` answered (`= a`) and the vision amended, the missing PR #14 post-merge sync landed, and the README's release claim corrected (N-37)
 
 **Changed:**

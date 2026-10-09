@@ -3009,6 +3009,61 @@ U-34/U-47/U-16/U-01/U-45 — those rows cite per-test ids; the gate fix stayed r
 
 ---
 
+## 22. External review intake — 2026-10-09 (`GUI_REUSE_REVIEW.md`, handoff from the DiscordChatExporter session)
+
+**What arrived.** A 113-line handoff at `/home/user/gifscythe-handoff/GUI_REUSE_REVIEW.md` —
+**outside the repo, never committed, no repo files touched by its author.** It is a read-only
+review plus a proposed work order, produced by the DiscordChatExporter session, that reviewed
+`freeforall1932-design/gifscythe` at `bec17d2` against
+`freeforall1932-design/DiscordChatExporter` @ `66a9c45` as a reference implementation.
+
+The review labelled itself explicitly as **not** a replacement GUI, **not** approval of pending
+designs, and **not** a claim that new product code exists. That framing is correct and is
+preserved here.
+
+**Freshness, re-checked by the receiving session (S39).** `git rev-parse
+origin/arena/8eef3ffc-gifscythe` == `bec17d2fd1a6db32ae95d1610771a755b438cb94` — the reviewed
+SHA was still the tip, so **zero commits had landed since the review was written** and no
+finding was stale on arrival. (S39 also had to repair its own local git state: the sandbox HEAD
+sat at the base `c3ce59f` with the branch content as uncommitted work. Repaired by
+`git checkout -f -B arena/8eef3ffc-gifscythe origin/arena/8eef3ffc-gifscythe`; every byte was
+diffed against a pre-repair backup first — nothing was lost.)
+
+**How it was verified.** Claims about *this* repo were re-derived from source. The one concrete
+code finding was reproduced by reading the file and is fixed here. **No C# was compiled or run
+in this sandbox — `dotnet` is not installed**, so the fix's proof channel is CI
+(`csharp-spike`, windows-latest), exactly as it was for S38's `Gifscythe.Core` lane. Any claim
+of a *runtime-proven* C# fix before that run is false and must not be made.
+
+**Disposition of every finding:**
+
+| Review item | Verdict | Action / evidence |
+|---|---|---|
+| §3 Spike reads stderr to EOF before waiting, so the timeout is unreachable (`Program.cs:78` before `:79`) | **CONFIRMED by source** | Fixed S39 — see **W-33**. Root cause is exactly as stated: `ReadToEnd()` blocks until the engine *closes* stderr, so an engine that stalls with the pipe open never reaches the `WaitForExit(120_000)` / `Kill()` branch below it |
+| Same synchronous capture has no size bound | **CONFIRMED by source** | Fixed S39: capture capped at 32,768 chars, overflow counted and **reported** (`[gifscythe: N stderr character(s) dropped …]`), so a truncated log never poses as a complete one |
+| §4 Run identity / state / timestamps / snapshots (`GuiRun.cs`, `GuiContracts.cs`, `GuiRunManager.cs`) | **ASSESS — deferred** | Useful, and it is the same shape as the W-32 `Run` object (§8 of `docs/planning/W32_RESULT_CONTRACT.md`). Not adopted now: W-32's contract is proposed and unconfirmed, and adopting a job record before the result model is agreed would bake in the wrong fields |
+| §4 Incremental log reads + bounded history (`GuiRun.Snapshot` / `PollAsync`) | **REJECTED as a transplant** | Gifscythe already caps engine stderr and has its own concurrency policy in `web/request-guard.mjs`. Discord's *single-run* policy would be a downgrade |
+| §4 Session diagnostics (`GuiDebugLog.cs`) | **ASSESS — adopt the idea, not the code** | W-32's proposed `Run` already carries engine path/version + the real argv. Offline, bounded, no telemetry |
+| §4 Preset application/matching (`GuiPresetDto`, `applyPreset`, `markActivePreset`) | **DEFERRED — gated** | Blocked on **OD-21** (per-format preset wording). The owner's research-first rule forbids touching presets before that decision |
+| §4 GUI interaction regression harness (`ui-test/test.mjs`) | **ASSESS — adopt the approach** | R1–R14 in `docs/planning/W32_RESULT_CONTRACT.md` §8 are that harness's test cases, written against Gifscythe's own modes. No Discord DOM ids or assertions imported |
+| §5 W-32 result contract | **ADOPTED AS PROPOSAL** | Written to `docs/planning/W32_RESULT_CONTRACT.md`. **Proposed, not approved** — the owner's gate is research → walkable draft → confirmation → implementation |
+| §5 "batch is one input to one output" | **CORRECTED** | True for batch only. Merge and Auto are **N → 1**; explode is **1 → N** (and Qt refuses N > 1 outright). The contract names cardinality per mode or the totals double-count |
+| §5 Browser batch stops on first failure; do not change it for a nicer table | **CONFIRMED** (`web/server.mjs`: `for (let i = 0; i < files.length && done; i += 1)`) | Preserved, and given a name: files after the failure are `skipped` (never attempted), not `failed` |
+| §5 `AbortController` ≠ the server's subprocess stopped | **CONFIRMED** | Recorded in the contract §6. A Cancel control may be labelled **Cancelling** only once it is wired to run identity + server-side termination + cleanup |
+| §5 Keep `web/request-guard.mjs` and its stale-result rules | **CONFIRMED — unchanged** | No edit made |
+| §6 Six Node suites re-ran green | **RE-RUN S39 — green** | `request-guard`, `numeric-honesty`, `device-names`, `stem`, `static-hygiene`, `body-limit` — all pass. Regression signal only; not proof of new behaviour |
+| Reference code is MIT; do not present imported MIT as first-party Ms-PL | **NOT APPLICABLE — no code imported** | This session copied **patterns and test-case shapes only**, described in prose. Zero bytes of DiscordChatExporter source entered this repo, so no MIT notice arises. If code is ever imported, §4's provenance rule stands |
+
+**What this session did NOT do, and why:** it did not start a WPF shell, did not change the
+spike's exit-code *numbers*, did not resolve OD-21/OD-22, and did not redesign the GUI. Each
+is gated (see the standing product constraints in `SESSION_HANDOFF.md`).
+
+**Originals:** the handoff lives outside the repo and was never committed, so there is nothing
+to delete — consistent with the §20/§21 pattern of not leaving scattered review copies at the
+repo root.
+
+---
+
 *End of compiled audit v4 — 96 findings, 10 reviews merged. v5 (2026-09-29, S32) incorporated the
 2026-09-27 "space bunny" external audit (§21: verified S31 claim-by-claim, 15 new N-rows
 N-10..N-26 registered across S31/S32, originals deleted S32), and folded the owner's S31
