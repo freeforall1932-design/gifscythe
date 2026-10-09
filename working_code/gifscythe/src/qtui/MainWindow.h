@@ -111,6 +111,9 @@ class MainWindow : public QMainWindow {
   void onFilesDropped(const QStringList& files);
 
  private:
+  // AUD-02: remove THIS run's staging output - the partial file, or for
+  // Explode the partial frame set (pendingPartial_ is then a prefix).
+  void discardPendingPartial();
   // UI construction
   QWidget* buildInputTab();
   QWidget* buildOutputTab();

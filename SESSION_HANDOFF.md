@@ -365,7 +365,7 @@ Based on `main` commit `c3ce59f` (PR #14's merge commit — the tip this branch 
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 181 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 202 total (at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 183 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 204 total (at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -415,7 +415,7 @@ Based on `main` commit `c3ce59f` (PR #14's merge commit — the tip this branch 
      instead of an open question. No code change — that is the point.
 - **Measured here after all of it:** GUI harness **436 checks, 0 failures** (292
   `CHECK(` sites, Qt 6.8.3 from source, offscreen, T25 re-measuring 18 Qt rows on every
-  run); `build/test_gifsicle_command` **415/0**; `build/test_input_admission` **35/0**;
+  run); `build/test_gifsicle_command` **421/0**; `build/test_input_admission` **35/0**;
   all **eleven** `web/test/*.test.mjs` suites green (the new `stem` suite is the
   eleventh, and CI's suite list now names it); `check_docs.sh`/`sweep_stale.sh` green
   after `--emit`; register **177 DONE / 6 PARTIAL / 13 OPEN = 196** (U-12 closed after T26).
@@ -1216,7 +1216,7 @@ count (**G9** compares like with like).
 
 | Check | Result |
 |---|---|
-| `./build.sh` | ✅ engine `LCDF Gifsicle 1.96` + CLI + **415 checks, 0 failures** + **35 admission checks** (S37 added the GS-205 suite; 396 at S34; 384 before the N-30 width cases, 372 before the N-27/N-29 cases) |
+| `./build.sh` | ✅ engine `LCDF Gifsicle 1.96` + CLI + **421 checks, 0 failures** + **35 admission checks** (S40 added 6 AUD-02 claim checks; 415 at S37; S37 added the GS-205 suite; 396 at S34; 384 before the N-30 width cases, 372 before the N-27/N-29 cases) |
 | `scripts/smoke_cli.sh` | ✅ **63 passed, 0 failed** |
 | `scripts/test_output_verify.sh` | ✅ **25 assertions, 0 failures** |
 | `scripts/test_engine.sh` · `scripts/test_package.sh` | ✅ 5/5 · **36/36** |
@@ -1375,7 +1375,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 181 DONE · 7 PARTIAL · 14 OPEN · 0
+   its generated counts line (currently: 183 DONE · 7 PARTIAL · 14 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High

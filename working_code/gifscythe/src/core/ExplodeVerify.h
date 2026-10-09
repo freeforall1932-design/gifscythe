@@ -100,6 +100,43 @@ inline void discard_explode_frames(const std::string& partial_prefix) {
   ec.clear();
 }
 
+// AUD-02: claim a partial prefix this run can OWN. The old callers ran
+// discard_explode_frames(<prefix>.gs-partial) first, deleting every file named
+// "<prefix>.gs-partial.*" - including user files or inputs that merely share
+// the name. This deletes nothing: it returns the first of
+// `<prefix>.gs-partial`, `<prefix>.gs-partial.1`, ... with NO file at that
+// exact path and NO file named "<candidate>.*" (so promotion and cleanup,
+// which match on that pattern, only ever see frames this run wrote). Returns
+// "" when nothing is free or the directory cannot be listed; refuse then.
+inline std::string claim_partial_explode_prefix(const std::string& prefix) {
+  if (prefix.empty()) return {};
+  const std::string base = prefix + ".gs-partial";
+  std::error_code ec;
+  fs::path dir = u8path_compat(base).parent_path();
+  if (dir.empty()) dir = fs::path(".");
+  if (!fs::is_directory(dir, ec)) return {};
+  for (int i = 0; i < 1000; ++i) {
+    const std::string cand = i ? base + "." + std::to_string(i) : base;
+    ec.clear();
+    const auto st = fs::symlink_status(u8path_compat(cand), ec);
+    if (ec && ec != std::errc::no_such_file_or_directory) return {};
+    if (st.type() != fs::file_type::not_found) continue;
+    // Any entry (not only regular files) named "<cand>.*" makes it occupied.
+    bool taken = false;
+    const std::string match = path_u8string(u8path_compat(cand).filename()) + ".";
+    for (const auto& e : fs::directory_iterator(dir, ec)) {
+      const std::string name = path_u8string(e.path().filename());
+      if (name.size() > match.size() && name.compare(0, match.size(), match) == 0) {
+        taken = true;
+        break;
+      }
+    }
+    if (ec) return {};
+    if (!taken) return cand;
+  }
+  return {};
+}
+
 struct ExplodeFileState {
   std::string name;  // file NAME (not full path): comparison key
   std::uintmax_t size = 0;

@@ -955,6 +955,24 @@ else
   bad "AUD-01 input named <output>.gs-partial was damaged or the run failed (rc=$a01_rc)"
 fi
 
+# AUD-02 (data loss): an existing file named "<prefix>.gs-partial.000" used to
+# be deleted by explode's pre-run partial cleanup. It must survive untouched,
+# the frames must land under the real prefix, and no staging frames remain.
+A02_DIR="$WORK/aud02"; mkdir -p "$A02_DIR"
+printf 'user data\n' > "$A02_DIR/fr.gs-partial.000"
+printf 'mode = explode\ninput = %s\noutput = %s\n' "$SRC_GIF" "$A02_DIR/fr" > "$A02_DIR/s.conf"
+set +e
+"$CLI" "$A02_DIR/s.conf" --run --engine "$ENGINE" >"$A02_DIR/out" 2>"$A02_DIR/err"
+a02_rc=$?
+set -e
+if [[ "$a02_rc" == 0 && -s "$A02_DIR/fr.000" ]] \
+   && [[ "$(cat "$A02_DIR/fr.gs-partial.000")" == "user data" ]] \
+   && [[ -z "$(ls "$A02_DIR" | grep -E '^fr\.gs-partial\.1')" ]]; then
+  ok "AUD-02 explode keeps a user file named <prefix>.gs-partial.000"
+else
+  bad "AUD-02 explode damaged <prefix>.gs-partial.000 or left staging frames (rc=$a02_rc)"
+fi
+
 # U-81 / P1-46: the explode frame verifier must honour the same exemptions the
 # ordinary output verifier documents. `-o -` streams and `--info` writes text, so
 # there are no frames to count — ungated, both were downgraded to rc=1 "engine

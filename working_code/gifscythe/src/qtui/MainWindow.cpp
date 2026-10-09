@@ -1163,7 +1163,7 @@ void MainWindow::runCommand() {
                   .arg(batchIndex_ + 1).arg(batchQueue_.size()).arg(in));
     process_->start();
     if (!process_->waitForStarted(5000)) {
-      gs::discard_partial(pendingPartial_.toStdString());
+      discardPendingPartial();
       pendingPartial_.clear();
       setBusy(false);
       QMessageBox::critical(this, QStringLiteral("Gifscythe"),
@@ -1216,7 +1216,19 @@ void MainWindow::runCommand() {
     partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
     settings.output = pendingPartial_.toStdString();
   } else {
-    pendingPartial_.clear();
+    // AUD-02 / N-10 parity with the CLI: the engine opens every <prefix>.NNN
+    // with truncating semantics, so writing the user's prefix directly let a
+    // cancel or failure leave the PREVIOUS frame set short or half-written.
+    // Write under a claimed partial prefix (nothing is deleted to get it) and
+    // promote only after the frames verify.
+    pendingPartial_ = QString::fromStdString(
+        gs::claim_partial_explode_prefix(pendingOutput_.toStdString()));
+    if (pendingPartial_.isEmpty()) {
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QStringLiteral("Refusing to run — no free staging prefix beside %1").arg(pendingOutput_));
+      return;
+    }
+    settings.output = pendingPartial_.toStdString();
   }
   batchIndex_ = -1;
   batchQueue_.clear();
@@ -1225,7 +1237,7 @@ void MainWindow::runCommand() {
   // least one NEW or CHANGED real GIF frame instead of trusting rc=0 (and so
   // stale frames from an earlier run cannot fake a success).
   if (settings.mode == gs::Mode::Explode) {
-    explodeSnapshot_ = gs::snapshot_explode_candidates(pendingOutput_.toStdString());
+    explodeSnapshot_ = gs::snapshot_explode_candidates(pendingPartial_.toStdString());
   } else {
     explodeSnapshot_.clear();
   }
@@ -1243,13 +1255,21 @@ void MainWindow::runCommand() {
   process_->setArguments(qargs);
   process_->start();
   if (!process_->waitForStarted(5000)) {
-    gs::discard_partial(pendingPartial_.toStdString());
+    discardPendingPartial();
     pendingPartial_.clear();
     setBusy(false);
     QMessageBox::critical(this, QStringLiteral("Gifscythe"),
         QStringLiteral("Could not start the GIF engine: %1").arg(process_->errorString()));
     return;  // U-28: the batch path returns here; this one has to as well
   }
+}
+
+void MainWindow::discardPendingPartial() {
+  if (pendingPartial_.isEmpty()) return;
+  if (batchMode_ == gs::Mode::Explode)
+    gs::discard_explode_frames(pendingPartial_.toStdString());
+  else
+    gs::discard_partial(pendingPartial_.toStdString());
 }
 
 void MainWindow::cancelRun() {
@@ -1288,22 +1308,17 @@ void MainWindow::cancelRun() {
     return;
   }
 
-  gs::discard_partial(pendingPartial_.toStdString());
+  discardPendingPartial();
   pendingPartial_.clear();
   batchQueue_.clear();
   batchIndex_ = -1;
   invalidatePreview();  // P1-10: a cancelled run invalidates any preview state
   setBusy(false);
-  // N-10: this front end has no partial-output guard for Explode — the engine
-  // opens each <prefix>.NNN with truncating semantics, so a cancelled explode
-  // can leave a frame set that is short or half-written. A flat "Cancelled."
-  // reads as though nothing happened; say what the state actually is.
-  if (batchMode_ == gs::Mode::Explode) {
-    updateStatus(QStringLiteral(
-        "Cancelled - frames already written may be incomplete."));
-  } else {
-    updateStatus(QStringLiteral("Cancelled."));
-  }
+  // AUD-02: Explode now writes a partial frame set too (discarded above), so
+  // the previous frames are untouched and the flat message is accurate for
+  // every mode. (N-10's "may be incomplete" warning described the old,
+  // unguarded write.)
+  updateStatus(QStringLiteral("Cancelled."));
 }
 
 void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
@@ -1327,7 +1342,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       // cancelRun() finishes the cleanup and sets the "Cancelled." status.
       return;
     }
-    gs::discard_partial(pendingPartial_.toStdString());
+    discardPendingPartial();
     pendingPartial_.clear();
     setBusy(false);
     batchQueue_.clear();
@@ -1346,9 +1361,11 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
   // or CHANGED real GIF under the prefix, and name the prefix on failure.
   if (batchMode_ == gs::Mode::Explode) {
     const gs::ExplodeResult vr =
-        gs::verify_explode_frames(pendingOutput_.toStdString(), explodeSnapshot_);
+        gs::verify_explode_frames(pendingPartial_.toStdString(), explodeSnapshot_);
     explodeSnapshot_.clear();
     if (!vr.ok) {
+      discardPendingPartial();
+      pendingPartial_.clear();
       setBusy(false);
       batchQueue_.clear();
       batchIndex_ = -1;
@@ -1357,10 +1374,32 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
           QString::fromStdString(vr.describe()));
       return;
     }
+    // Only now do the user's frames change (AUD-02 / N-10).
+    const std::string perr = gs::promote_explode_frames(
+        pendingPartial_.toStdString(), pendingOutput_.toStdString());
+    if (!perr.empty()) {
+      discardPendingPartial();
+      pendingPartial_.clear();
+      setBusy(false);
+      updateStatus(QStringLiteral("Explode failed while replacing frames."));
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QStringLiteral("Could not promote the exploded frames: %1\n\n"
+                         "Some frames under %2 may have been replaced.")
+              .arg(QString::fromStdString(perr), pendingOutput_));
+      return;
+    }
+    // vr.frames are named under the partial prefix; report the promoted names.
+    const QString partialBase = QFileInfo(pendingPartial_).fileName();
+    const QString outBase = QFileInfo(pendingOutput_).fileName();
+    pendingPartial_.clear();
     lastOutputPaths_.clear();
     const QString frameDir = QFileInfo(pendingOutput_).absolutePath();
-    for (const std::string& frame : vr.frames)
-      lastOutputPaths_ << QDir(frameDir).filePath(QString::fromStdString(frame));
+    for (const std::string& frame : vr.frames) {
+      QString name = QString::fromStdString(frame);
+      if (name.startsWith(partialBase + QLatin1Char('.')))
+        name = outBase + name.mid(partialBase.size());
+      lastOutputPaths_ << QDir(frameDir).filePath(name);
+    }
     refreshOutputFiles();
     setBusy(false);
     appendLog(QStringLiteral("Explode verified %1 frame(s) on disk.").arg(vr.frames.size()));
@@ -1375,7 +1414,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     const std::string verificationError =
         gs::verify_output(pendingPartial_.toStdString(), partialSnapshot_);
     if (!verificationError.empty()) {
-      gs::discard_partial(pendingPartial_.toStdString());
+      discardPendingPartial();
       pendingPartial_.clear();
       setBusy(false);
       batchQueue_.clear();
@@ -1480,7 +1519,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
 
 void MainWindow::onProcessError(QProcess::ProcessError error) {
   if (error == QProcess::FailedToStart) {
-    gs::discard_partial(pendingPartial_.toStdString());
+    discardPendingPartial();
     pendingPartial_.clear();
     setBusy(false);
     batchQueue_.clear();

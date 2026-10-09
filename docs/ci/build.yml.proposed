@@ -405,17 +405,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # AUD-08: the aqt download flaked (one run died here with exit 254 and
+      # skipped every later step). Cache the install, and retry the downloads
+      # with backoff. Not a gate: it changes no pass/fail rule (U-89 freeze).
+      - name: Cache Qt6 + MinGW (aqt)
+        id: qtcache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/qt
+          key: aqt-qt6.7.3-win64_mingw-tools_mingw1310-v1
+
       - name: Install Qt6 (aqt) + MinGW toolchain
         id: provision
         run: |
           set -euo pipefail
-          pip install aqtinstall
-          aqt install-qt windows desktop 6.7.3 win64_mingw -O "$RUNNER_TEMP/qt"
-          # MinGW from aqt tools (try common packages; ignore failures)
-          aqt install-tool windows desktop tools_mingw1310 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
-          aqt install-tool windows desktop tools_mingw1120 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
-          aqt install-tool windows desktop tools_mingw90 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
-          choco install mingw -y --no-progress
+          retry() {  # retry <attempts> <cmd...>: backoff 15s, 30s, 60s...
+            local n="$1"; shift; local i=1 wait=15
+            until "$@"; do
+              if (( i >= n )); then echo "::error::failed after $n attempts: $*"; return 1; fi
+              echo "::warning::attempt $i failed: $* - retrying in ${wait}s"
+              sleep "$wait"; i=$((i + 1)); wait=$((wait * 2))
+            done
+          }
+          if [[ "${{ steps.qtcache.outputs.cache-hit }}" == "true" ]] \
+             && ls -d "$RUNNER_TEMP/qt"/6.*/mingw_64/bin >/dev/null 2>&1 \
+             && ls -d "$RUNNER_TEMP/qt"/Tools/mingw*/bin >/dev/null 2>&1; then
+            echo "Qt6 + MinGW restored from cache"
+          else
+            retry 3 pip install aqtinstall
+            retry 3 aqt install-qt windows desktop 6.7.3 win64_mingw -O "$RUNNER_TEMP/qt"
+            # MinGW from aqt tools (try common packages; each one retried)
+            retry 3 aqt install-tool windows desktop tools_mingw1310 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
+            aqt install-tool windows desktop tools_mingw1120 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
+            aqt install-tool windows desktop tools_mingw90 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
+            retry 3 choco install mingw -y --no-progress
+          fi
 
           # Put every bin dir aqt created on PATH
           while IFS= read -r d; do

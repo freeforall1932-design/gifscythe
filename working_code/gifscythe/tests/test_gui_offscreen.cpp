@@ -45,8 +45,8 @@
 //       clearing the queue or switching to Explode invalidates the in-flight
 //       preview, and superseded/stale preview files are swept from the
 //       temp dir instead of leaking for the session
-//   T21 explode cancel honesty (N-10): a cancelled Explode says frames
-//       already written may be incomplete; a guarded mode keeps the flat
+//   T21 explode cancel (N-10 -> AUD-02): Explode is now partial-guarded, so
+//       a cancel reports the flat "Cancelled." and keeps the frames; a guarded mode keeps the flat
 //       "Cancelled."
 //   T22 cancel-latch honesty (U-72 / P1-42): an idle Cancel arms nothing, a
 //       cancelled run's own completion consumes the latch (no spurious
@@ -781,6 +781,11 @@ int main(int argc, char** argv) {
     // (logo.gif = 12 frames), not just the word "complete".
     CHECK_MSG(x.status->text().contains(QStringLiteral("12 frame")),
               "explode completion reports the verified frame count");
+    // AUD-02: frames are written under a partial prefix and PROMOTED; nothing
+    // of the staging set may be left behind after a successful run.
+    CHECK_MSG(QDir(tmp.path()).entryList({QStringLiteral("*.gs-partial*")},
+                                         QDir::Files).isEmpty(),
+              "explode leaves no .gs-partial frames after promotion");
     delete w;
 
     // ---- N-05: multi-input explode is REFUSED before the engine starts ----
@@ -1981,10 +1986,13 @@ int main(int argc, char** argv) {
     x.cancel->setEnabled(true);
     x.cancel->click();
     spinEvents(60);
-    CHECK_MSG(x.status->text().contains(QStringLiteral("incomplete")),
-              "explode cancel warns that frames already written may be incomplete");
-    CHECK_MSG(x.status->text().trimmed() != QStringLiteral("Cancelled."),
-              "explode cancel does not use the flat 'Cancelled.' status");
+    // AUD-02: Explode is now guarded by a partial frame set like every other
+    // mode, so a cancel changes nothing and the flat message is accurate; the
+    // frames the completed run promoted must still be intact.
+    CHECK_MSG(x.status->text().trimmed() == QStringLiteral("Cancelled."),
+              "explode cancel reports a flat 'Cancelled.' (frames are guarded)");
+    CHECK_MSG(QFileInfo(tmp.path() + QStringLiteral("/a_frame.011")).size() > 0,
+              "explode cancel leaves the previously promoted frames intact");
     delete w;
 
     // (b) A guarded mode keeps the flat message: its output goes through a
