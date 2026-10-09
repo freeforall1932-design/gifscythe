@@ -63,10 +63,11 @@ reads them in a file, not in a conversation.
   the pipe open blocked forever and the 120 s timeout — and the only `Kill()`
   branch — was never reached. Fixed in source the same session (concurrent
   bounded drain + the wait owns the deadline + kill-tree/reap/stop-drain), and a
-  `FakeEngine` test double with three CI steps now pins it. **NOT YET COMPILED
-  OR RUN**: `dotnet` is absent from this sandbox, so the row is PARTIAL until the
-  `csharp-spike` CI job reports the three new steps green. Close it with that run
-  id, not with a reading of the diff.
+  `FakeEngine` test double with three CI steps now pins it. **CLOSED S39 on executed RED→GREEN CI evidence:** with the pre-fix `ReadToEnd()`
+  restored (`eebad01`, run 37895354665) the hanging-engine step hung until its
+  5-minute watchdog fired and FAILED, while pre-existing steps 1–15 stayed green;
+  with the fix back (`65efd7a`, run 37896421078) all three steps are green. W-33 is
+  DONE on that pair.
 - **N-37** (S38, found while answering the owner's ScreenToGif question): the README's honesty
   paragraph still claimed "There is no published release" while `U-09` is DONE and two
   pre-releases exist. Fixed in the same session (row N-37, `STATUS.md`); re-check with

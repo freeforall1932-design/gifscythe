@@ -365,7 +365,7 @@ Based on `main` commit `c3ce59f` (PR #14's merge commit — the tip this branch 
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 178 DONE · 8 PARTIAL · 14 OPEN · 0 UNTRIAGED · 200 total (at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 179 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 200 total (at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -1005,8 +1005,9 @@ against the remote before doing anything else in a fresh sandbox.**
    owns the deadline, and the timeout path does kill-tree → reap → stop-drain so
    no child outlives the caller. Registered as **W-33**, pinned by a new
    env-driven `csharp/testdoubles/FakeEngine/` and three `csharp-spike` CI steps.
-   **PARTIAL, not DONE: `dotnet` is not installed here, so nothing is compiled
-   or runtime-proven yet.** CI is the proof channel; close the row with its run id.
+   Proven RED→GREEN on CI (see above), so the row is **DONE**: `dotnet` is absent
+   here, so the fix was proven by reverting it and watching the new step fail, then
+   reverting the revert and watching it pass — not by reading the diff.
 3. **The four patterns, assessed selectively** — table below.
 4. **W-32 contract proposed** — `docs/planning/W32_RESULT_CONTRACT.md`. It is a
    *proposal*: the owner's gate is research → walkable draft → confirmation →
@@ -1046,7 +1047,11 @@ notice arises and nothing is presented as first-party Ms-PL that is not.
 ### Still open after this session
 
 `OD-21` (preset wording) and `OD-22` (XnView/XnConvert material in the repo)
-still await the owner — no GUI work proceeds on them. **W-33** awaits CI.
+still await the owner — no GUI work proceeds on them. **W-33 is closed** on executed RED→GREEN CI evidence: pre-fix (`eebad01`, run
+37895354665) the hanging-engine step hung to its 5-minute watchdog and failed
+while steps 1–15 stayed green; post-fix (`65efd7a`, run 37896421078) all three
+steps pass. **U-91** (spike 2/3/4/5/124/127 vs `Gifscythe.Core.ExitCodes`
+0/1/2/3) is the one decision this work deliberately hands back.
 **W-32** awaits the owner's confirmation of the columns. The spike's `Quote()`
 (POSIX vs MSVCRT) trap remains — a display-contract change, so an owner call.
 
@@ -1370,7 +1375,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 178 DONE · 8 PARTIAL · 14 OPEN · 0
+   its generated counts line (currently: 179 DONE · 7 PARTIAL · 14 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High

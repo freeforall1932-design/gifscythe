@@ -83,13 +83,25 @@ reviewed this branch at `bec17d2`; re-checked, that SHA was still the tip, so
 `OD-21`/`OD-22`, no DiscordChatExporter code imported (patterns and test-case
 shapes only, in prose — zero bytes, so no MIT notice arises).
 
-**Honest limit:** `dotnet` is **not installed** in this sandbox, so **no C# in
-this change has been compiled or executed.** W-33 is therefore PARTIAL, not
-DONE: the fix is a source reading, and CI is the only proof channel. It must be
-closed with a run id, and if a 5-minute watchdog fires, the fix is incomplete —
-not the test. The six Node suites named by the review were re-run and are green
+**How it was proven, given that `dotnet` is not installed here.** A test that has
+only ever run against fixed code proves nothing about whether it catches the bug,
+so the RED half was executed rather than argued:
+
+- **RED** — commit `eebad01` restored only the pre-fix blocking `ReadToEnd()`.
+  Run **37895354665**: the hanging-engine step **FAILED**, hanging until its
+  5-minute watchdog fired (steps 18/19 then skipped), **while every pre-existing
+  spike step 1–15 stayed green** — so the failure is the finding and nothing else.
+- **GREEN** — commit `65efd7a` reverted that. Run **37896421078**: all three
+  fake-engine steps pass.
+
+That pair is what closes **W-33** as DONE. The temporary revert is left in
+history rather than force-pushed away, so the red run is auditable.
+
+The six Node suites the review named were re-run and are green
 (`request-guard`, `numeric-honesty`, `device-names`, `stem`, `static-hygiene`,
-`body-limit`); that is a regression signal, not proof of the new behaviour.
+`body-limit`), plus `command`, `validate`, `transport`, `server-bounds` and
+`u57-stale-output` — 11 suites. That is a regression signal, not proof of the new
+behaviour; it says the existing surfaces did not break.
 
 ---
 
