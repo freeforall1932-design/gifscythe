@@ -917,20 +917,42 @@ else
 fi
 
 # (d) the partial a hard kill cannot clean up (the CLI was SIGTERM'd, so it ran
-#     no cleanup) must be swept by the NEXT guarded run, and must never be
-#     mistaken for an output: the run still produces the real target.
+#     no cleanup) must never be mistaken for an output: the next run still
+#     produces the real target. AUD-01: it is also NOT deleted — a file at that
+#     name is indistinguishable from user data (even an input named
+#     `<target>.gs-partial`), so the next run stages beside it instead.
 if [[ -e "$U59_PARTIAL" ]]; then
   set +e
   "$CLI" "$WORK/u59.conf" --run --engine "$ENGINE" >"$WORK/u59d.out" 2>"$WORK/u59d.err"
   u59_rc=$?
   set -e
-  if [[ "$u59_rc" == 0 ]] && [[ ! -e "$U59_PARTIAL" ]] && [[ -s "$U59_TARGET" ]]; then
-    ok "U-59 next run sweeps the partial a hard kill left behind"
+  if [[ "$u59_rc" == 0 ]] && [[ -e "$U59_PARTIAL" ]] && [[ -s "$U59_TARGET" ]] \
+     && ! cmp -s "$U59_PARTIAL" "$U59_TARGET"; then
+    ok "U-59/AUD-01 next run succeeds without deleting the leftover partial"
   else
-    bad "U-59 stale partial survived the next run (rc=$u59_rc partial=$([[ -e "$U59_PARTIAL" ]] && echo left || echo gone))"
+    bad "U-59/AUD-01 next run after a hard kill (rc=$u59_rc partial=$([[ -e "$U59_PARTIAL" ]] && echo left || echo DELETED))"
   fi
 else
   ok "U-59 cancel left no partial behind at all"
+fi
+
+# AUD-01 (P0 data loss): an INPUT literally named `<output>.gs-partial` used to
+# be deleted by the staging cleanup before the engine ran. It must survive
+# byte-for-byte and the run must still produce the output.
+A01_DIR="$WORK/aud01"; mkdir -p "$A01_DIR"
+cp "$SRC_GIF" "$A01_DIR/result.gif.gs-partial"
+a01_sum="$(cksum < "$A01_DIR/result.gif.gs-partial")"
+printf 'mode = auto\noptimize = 3\ninput = %s\noutput = %s\n' \
+  "$A01_DIR/result.gif.gs-partial" "$A01_DIR/result.gif" > "$A01_DIR/s.conf"
+set +e
+"$CLI" "$A01_DIR/s.conf" --run --engine "$ENGINE" >"$A01_DIR/out" 2>"$A01_DIR/err"
+a01_rc=$?
+set -e
+if [[ "$a01_rc" == 0 && -s "$A01_DIR/result.gif" && -e "$A01_DIR/result.gif.gs-partial" ]] \
+   && [[ "$(cksum < "$A01_DIR/result.gif.gs-partial")" == "$a01_sum" ]]; then
+  ok "AUD-01 input named <output>.gs-partial survives and the run succeeds"
+else
+  bad "AUD-01 input named <output>.gs-partial was damaged or the run failed (rc=$a01_rc)"
 fi
 
 # U-81 / P1-46: the explode frame verifier must honour the same exemptions the
