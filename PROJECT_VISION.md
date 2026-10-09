@@ -40,15 +40,36 @@ Desktop stays the 1.0.0 release artifact. Split rules + plan template:
 `web/WEB_PLAN_TEMPLATE.md` (state line mirrored in `SESSION_HANDOFF.md`, gate
 **G16**).
 
-**Proposed amendment (NOT approved — registered as U-90/P3-19, S24):** the
-parked C# plan's scope list (`docs/planning/PLANNING.md` §2) contains an owner
-request (2026-09-14) for still-image collections → animated, and video strictly
-as conversion endpoints. That would narrow "Not photos, not video" to *"photos
-and video only as conversion endpoints/inputs, never as the subject."* **No
-stills-import or video-endpoint work may start until the owner explicitly
-adopts this amendment** — the words change first, then code. Both also need a
-non-gifsicle decoder story (FFmpeg sidecar or platform codecs) with its own
-licence note.
+**Adopted amendment 2026-10-08 (owner, `OD-20 = a` — S38; proposed S24 and
+registered as `U-90`/`P3-19`):** the C# plan's scope list
+(`docs/planning/PLANNING.md` §2) carried an owner request (2026-09-14) for
+still-image collections → animated, and video strictly as conversion endpoints.
+The owner has now adopted it, so **"Not photos, not video" is narrowed to
+"photos and video only as CONVERSION ENDPOINTS / inputs — never as the
+subject."** The words changed first, which was the gate; code may now follow the
+boundaries below.
+
+**The adopted boundary (`OD-20 = a`, in force):**
+1. **One** FFmpeg sidecar, scoped strictly as a conversion endpoint. It
+   **decodes in** (video → frames, stills → frames); **gifsicle still does all
+   the GIF work** and remains the only encoder for GIF outputs. No editing,
+   timeline, capture or playback UI — this is a converter, not an editor, and
+   ScreenToGif's recorder/editor scope is explicitly OUT.
+2. **Subprocess only.** The sidecar is a separate executable invoked over argv,
+   exactly like gifsicle — never linked into the Ms-PL UI, never vendored
+   in-process. (The in-process carve-out in this file belongs to the
+   experimental `web/wasm/` track alone and does not extend here.)
+3. **Its own licence note ships with it.** FFmpeg builds are LGPL **or** GPL
+   depending on configuration, so the build's licence must be identified, its
+   text staged beside the binary, and its notices carried in the package —
+   per `docs/legal/README.md` §5. The engine stays GPLv2-only and the first-party
+   UI stays Ms-PL; the sidecar adds a third, separately-licensed piece.
+4. **Not on the 1.0.0 critical path.** The shipped 1.0.0 artifact is still the
+   Windows GIF tool (`OD-17 = a`); this is additive scope with its own rows.
+
+**Still gated after the amendment:** `U-90` stays OPEN until the deferred rows
+this scope needs actually exist (P3-19) — the amendment removes the
+vision blocker, not the register one.
 
 ## Audience
 
@@ -68,16 +89,19 @@ want the full gifsicle terminal control underneath.
   third-party files. Rationale: `docs/legal/README.md` §1.
 - Model the layout/feel on **XNConvert** for ease of use. Workflow imitation
   uses no third-party files; no branding copied.
-- **Desktop UI direction (S19/OD-C7):** the shipped exe stays **C++17/Qt6
-  through 1.0.0**; the C#/WPF shell is **PARKED** (resume point:
-  `docs/planning/PLANNING.md` §2). One direction, one task list — do not start
-  a second UI workstream.
+- **Desktop UI direction (S19/OD-C7, resumed S38):** the shipped exe stays
+  **C++17/Qt6 through 1.0.0**; the C#/WPF shell is **RESUMED** (`OD-C7 = resume`,
+  owner 2026-10-08) as an additive lane behind the CLI oracle — Phase 2
+  (`Gifscythe.Core` + the CLI-parity gate) is in progress and CI-proven, the WPF
+  shell is not started (resume point / plan: `docs/planning/PLANNING.md` §2). The
+  1.0.0 artifact still finishes on C++17/Qt6; the C# lane must not displace it.
 
 ## Hard scope constraints
 
-- **Exclusively** animated GIF, APNG, and WebP. Not photos, not video —
-  only "moving picture" / GIF-type features (see the proposed amendment above;
-  it is NOT adopted).
+- **Exclusively** animated GIF, APNG, and WebP — the *subject* is the moving
+  picture. Photos and video are **inputs to a conversion endpoint only**, never
+  the subject (adopted 2026-10-08, `OD-20 = a`: one FFmpeg sidecar, decode-only,
+  subprocess, its own licence note — see the amendment above).
 - Portable, click-and-run (no installer, no admin). Windows-first (S20/OD-17:
   the shipped product is the Windows exe + the web app; Linux is the CI/sandbox
   test battery and ships nothing).

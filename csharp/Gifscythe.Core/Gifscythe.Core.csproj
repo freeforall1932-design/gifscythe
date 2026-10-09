@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Gifscythe.Core - the C# port of the Qt-independent control layer.
+       Source of truth being ported, line by line:
+         working_code/gifscythe/src/core/GifsicleSettings.h
+         working_code/gifscythe/src/core/GifsicleCommand.h
+         web/command.mjs            (the already-parity-proven JS mirror)
+       No NuGet dependencies on purpose: the CI job must run with nothing but the
+       .NET SDK, exactly like the C++ core needs nothing but a C++17 compiler.
+       TargetFramework is net9.0 even though the shell is Windows-only (OD-17):
+       the CORE is platform-neutral by construction and is what the parity test
+       compares against the C++ CLI oracle. -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Gifscythe.Core</RootNamespace>
+    <AssemblyName>Gifscythe.Core</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+</Project>

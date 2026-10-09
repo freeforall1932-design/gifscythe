@@ -1,17 +1,106 @@
 # Session Handoff
 
-**Session:** S37 · **Date:** 2026-10-06
-**Branch:** arena/0a711503-gifscythe
+**Session:** S38 · **Date:** 2026-10-08
+**Branch:** arena/8eef3ffc-gifscythe
 **Repo re-created 2026-09-22:** the GitHub repo was rebuilt from a zip upload; the old remote's history (S1–S26, PRs #1–#33, shas like `5c93680`) does not exist in this clone — every such sha below is an old-remote record kept for the written history. The new remote: `04a1cd4` (initial) → `60d3df4` (zip upload) → `ce5fd51` (unpack to root) → PR #1 merge `824bf20`, whose tree is the S26 state minus the four root license files (loss = finding **U-97**, restored in S27 with executed proof). The ledger carries a separator: rows #1–#33 are the OLD repo's; the new repo's numbering restarts at #1. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number. This records the merged baseline, not a claim about current CI health.
-**Docs synced through:** PR #13 · branch `arena/0a711503-gifscythe` · merged as: the merge commit of PR #13 (lookup in its ledger row — a PR pre-syncs itself)
+**Docs synced through:** PR #15 · branch `arena/8eef3ffc-gifscythe` · merged as: OPEN — this branch's own PR, pre-synced per the S34 rule; the merge sha lands in its ledger row when it merges
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. A PR **pre-syncs itself**: right after `gh pr create` it moves this line to its own number — P6 accepts the number of the branch's own open PR — so the owner can merge from the GitHub UI and continue with nothing left to edit. Move this line only after the writing is done.)*
-**S37 re-anchor (post-merge):** both enforced base lines now name `7f29347`, PR #12's merge commit — legal now (it IS main's tip) and legal after the next merge, because a merge sha is also its first parent (the S26 mechanic).
-Based on `main` commit `7f29347` (PR #12's merge commit — the tip this branch `arena/0a711503-gifscythe` was cut from. **S36 re-anchor:** every commit that lands on main moves its tip and G10 accepts only the tip or its first parent, so the base line moves with it; `4430a28`, the base S35 named, is PR #11's first parent and stays the history entry below. The tree was verified again the same way, by markers rather than trust.) PREVIOUS BASE, kept for the written history: `main` commit `4430a28` ("Add files via upload" — **a second re-creation of this repo.** The entire history of this clone is that one squashed commit, so the `fe4f0a7` lineage below does not resolve here at all, exactly as the S27 re-creation did not; S27's entry is the precedent for how that is recorded. The TREE is nevertheless the one these docs describe, verified by markers rather than trust: `4430a28` holds zero image files (what `fe4f0a7`'s delete produced — N-36) and all five root license files (U-97's restoration survived). Re-anchored in S35 because G10 accepts only `origin/main`'s tip or its first parent, and an unresolvable base sha keeps main red on every run. **Consequence for anyone reading the patch series:** the five audit-fix patches applied in S35 were anchored on `fe4f0a7`, so every hunk landed at an offset of +14 to +562 lines in this tree; the offsets are recorded line by line in `PATCH_SERIES_REVIEW.md`.) PREVIOUS BASE, kept for the written history: `main` commit `fe4f0a7` (the owner's direct web commit of 2026-10-02, "Deleted shot_actions_tab.png", which removed every image file in the repo — register row N-36; its parent `c999061` is PR #9's merge, 2026-10-02 — the S33 post-merge sync plus the N-31 fix that makes G11 skip in shallow clones — whose first parent `ad8f956` is PR #8's merge, whose own first parent `13d95a7` was the owner's 2026-09-29 direct upload. Re-anchored twice in S34, because every commit that lands on main moves its tip and G10 only accepts the tip or its first parent: an older sha here turns main red on the post-merge run — it did, for the old `13d95a7`, on PR #9's own merge run 36971588492, and the `c999061` this line named before the owner's direct commit went stale the same way; `scripts/sim_postmerge.sh` shows that before the merge instead of after it. Old-remote shas inside the historical sections are records this clone cannot resolve) ·
+**S38 re-anchor (post-merge):** both enforced base lines now name `c3ce59f`, PR #14's merge commit — legal now (it IS main's tip) and legal after the next merge, because a merge sha is also its first parent (the S26 mechanic). The value they replaced, `7f29347` (PR #12's merge), still resolves but stopped being main's tip when PR #14 merged on 2026-10-07; G10 accepts only the tip or the tip's first parent (`df219c0`, PR #13's merge). This session arrived to exactly that red and its PR carries the re-anchor — the #13/#9 post-merge pattern.
+Based on `main` commit `c3ce59f` (PR #14's merge commit — the tip this branch `arena/8eef3ffc-gifscythe` was cut from. **S37 re-anchor (kept for the written history):** both enforced base lines named `7f29347`, PR #12's merge commit — legal then, because it WAS main's tip. **S36 re-anchor:** every commit that lands on main moves its tip and G10 accepts only the tip or its first parent, so the base line moves with it; `4430a28`, the base S35 named, is PR #11's first parent and stays the history entry below. The tree was verified again the same way, by markers rather than trust.) PREVIOUS BASE, kept for the written history: `main` commit `4430a28` ("Add files via upload" — **a second re-creation of this repo.** The entire history of this clone is that one squashed commit, so the `fe4f0a7` lineage below does not resolve here at all, exactly as the S27 re-creation did not; S27's entry is the precedent for how that is recorded. The TREE is nevertheless the one these docs describe, verified by markers rather than trust: `4430a28` holds zero image files (what `fe4f0a7`'s delete produced — N-36) and all five root license files (U-97's restoration survived). Re-anchored in S35 because G10 accepts only `origin/main`'s tip or its first parent, and an unresolvable base sha keeps main red on every run. **Consequence for anyone reading the patch series:** the five audit-fix patches applied in S35 were anchored on `fe4f0a7`, so every hunk landed at an offset of +14 to +562 lines in this tree; the offsets are recorded line by line in `PATCH_SERIES_REVIEW.md`.) PREVIOUS BASE, kept for the written history: `main` commit `fe4f0a7` (the owner's direct web commit of 2026-10-02, "Deleted shot_actions_tab.png", which removed every image file in the repo — register row N-36; its parent `c999061` is PR #9's merge, 2026-10-02 — the S33 post-merge sync plus the N-31 fix that makes G11 skip in shallow clones — whose first parent `ad8f956` is PR #8's merge, whose own first parent `13d95a7` was the owner's 2026-09-29 direct upload. Re-anchored twice in S34, because every commit that lands on main moves its tip and G10 only accepts the tip or its first parent: an older sha here turns main red on the post-merge run — it did, for the old `13d95a7`, on PR #9's own merge run 36971588492, and the `c999061` this line named before the owner's direct commit went stale the same way; `scripts/sim_postmerge.sh` shows that before the merge instead of after it. Old-remote shas inside the historical sections are records this clone cannot resolve) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-### S36 — what just changed (current session)
+### S38 — what just changed (current session)
+
+- **The C# shell is UNPARKED on the owner's direction** (2026-10-08: *"im planning
+  to pursue windows first and that wpf .net"*) and Phase 2 of
+  `docs/planning/PLANNING.md` §2 started the way that plan demanded — the control
+  layer first, the C++ CLI as the oracle, no window yet.
+  1. **`csharp/Gifscythe.Core/`** (net9.0, zero NuGet deps): `Settings.cs`
+     (`GifsicleSettings.h`), `CommandBuilder.cs` (`GifsicleCommand.h` — same order,
+     same ranges, same "emit nothing" branches, audit ids in the comments),
+     `SettingsWriter.cs` (`saveSettingsLines()`: U-51 newline fold, DS-12 quoting),
+     and `ExitCodes.cs`, the ONE contract `U-91`/`P3-17` asks for (0/1/2/3, the
+     CLI's documented codes) with the shell's failure kinds mapped onto it by test.
+     **U-91 stays OPEN** until the spike itself is pointed at that class.
+  2. **`csharp/Gifscythe.Core.Tests/`** — house-style runner (a CHECK counter and a
+     non-zero exit, like `tests/test_gifsicle_command.cpp`; no test framework).
+     Unit lane = the audit rules (P0-2 threads, U-63 loopcount, U-13/U-48 comments,
+     U-42 scale, U-60/U-61 literal `#0`/`-`, DS-12, U-51). **Parity lane** = the
+     same settings written to a conf and handed to the real C++ `gifscythe-cli` in
+     print mode, the argv tokens behind its printed command line compared with
+     the C# builder's (token by token; separator flavour tolerated);
+     `GS_REQUIRE_PROOF=1` makes a missing CLI a FAILURE, never a skip.
+  3. **CI**: the parity lane is a new step in the existing `csharp-spike` job
+     (windows-latest, .NET 9) against `gifscythe-cli.exe` from the
+     `gifscythe-windows` artifact. Both workflow copies edited byte-identically (G7).
+  4. **The first verdict is GREEN**: run `37813051817` (2026-10-08, head `cc94ed1`)
+     — **every job success**, including "Gifscythe.Core unit + CLI parity (S38)" on
+     windows-latest: the port's first compiler, with `GS_REQUIRE_PROOF=1` so the
+     parity lane could not skip itself, and `dotnet run` exited 0. The same run
+     also proves the base-line re-anchor on a clean checkout (`docs` + `linux`
+     green where main's last run was red). Nuance: the byte-for-byte display-line
+     comparison is conditional (SKIP when the platform echoes separators); the
+     argv-token comparison is not, and that is what the pass certifies. Docs-only
+     commits after `cc94ed1` do not change what that run certifies — the tip's own
+     runs live on the PR page (PR #15).
+  **Read this before touching the C# lane: there is still no .NET SDK in this
+  sandbox** (`dotnet: command not found`), so **CI is the only compiler** — the
+  local check is a C# grammar parse (tree-sitter), which is not a build and was
+  not written as one. Quote run `37813051817` for the port as it stands; do not
+  extend that claim to a single line that has changed since.
+- **PR #14's missing post-merge sync landed** (P6's exact case): ledger row #14
+  added, row #13's *Merged as* cell filled with `df219c0`, both enforced base lines
+  re-anchored `7f29347` → `c3ce59f`, the handoff header moved to PR #14.
+- **N-37 found and fixed:** the README's honesty paragraph claimed "There is no
+  published release" while `U-09` is DONE and two pre-releases exist
+  (`snapshot-2026-10-06`, `snapshot-2026-10-07`; re-checked with `gh release list`
+  on 2026-10-08). The paragraph now names them.
+- **`OD-20` ANSWERED by the owner: `= a`** (2026-10-08, asked and answered the
+  same session). **The vision is amended in the owner's name**: photos and video
+  are **conversion-endpoint inputs only, never the subject** — ONE FFmpeg sidecar,
+  decode-only (gifsicle still does all the GIF work), argv subprocess never a
+  link, no editing/timeline/capture/playback, its own licence note, and not on the
+  1.0.0 critical path. `PROJECT_VISION.md` carries the adopted amendment;
+  `docs/legal/README.md` §5 carries the licence conditions (FFmpeg is LGPL **or**
+  GPL per build configuration — identify it at build time, ship its notices with
+  the binary). **What the answer does NOT unlock: code today.** `U-90` stays OPEN
+  for the register half — the deferred rows (`P3-19`) that own this scope by name
+  must exist before a line of it is written.
+- The XNConvert four-tab UI ask is recorded as the shell's UI requirement;
+  today's surface is Input/Actions/Output/Guide tabs + an activity log + an output
+  summary, and the **Status tab** (per-file size deltas, fail/success totals)
+  does not exist in either surface yet — now also register row **W-32** (OPEN).
+- **2026-10-09 (same session): the UI ask was researched and drafted, not coded.**
+  The owner pushed back — correctly — on being handed three XnConvert marketing
+  screenshots instead of the app's own interface, so this time the work was:
+  1. **A walkable draft of the proposed UI** (XnConvert's Input → Actions →
+     Output → Status shape; ScreenToGif's "file type and preset" idea for the
+     per-format settings). Input = drag-drop + filter + sort; Actions = an ordered
+     **action chain** with a **live preview beside it**; Output = *What to make*
+     (plain language: optimize each / combine / **split into separate frames**),
+     where to save, and **Format & preset** with a gear that opens the per-format
+     settings; Status = the spec, drawn as a ghost tab.
+  2. **The preview is real, not decorative**: it POSTs the file to the actual
+     engine (the web server on port 8000) and shows the true before/after bytes —
+     measured 8,637 → 5,549 B on the repo's own fixture when the preset moves from
+     *Best quality* to *Smallest file*. Clicking it opens the animation full size
+     at full quality.
+  3. **GIF has no "quality" slider** — it stores a palette — so the draft offers
+     **Color detail %** (→ `-k <colors>`) and **Extra compression %**
+     (→ `--lossy=<n>`), with the engine argument printed under each slider.
+     APNG/WebP panels are drawn but marked **PLANNED** and disabled: nothing
+     implements them (`D-01`…`D-03`, 2.0.0+).
+  4. **The draft lives outside the repo** (a scratch directory), because the rule
+     below says no GUI edit starts before the owner confirms. Nothing in
+     `src/qtui/` or `web/` was touched.
+  Open questions recorded from this: `OD-21` (confirm the preset wording) and
+  `OD-22` (may XnView/XnConvert material enter the repo — recommendation: no
+  binaries or screenshots; text-only reference notes, and use the ScreenToGif
+  fork instead, which is MS-PL and already yours).
+
+### S36 — what changed (previous session; S37's changes are in its log entry and ledger row)
 
 - **U-58, U-70 and U-72 are FIXED (S36), with executed proof. U-57 and U-71 stay FIXED (S35).**
   The three S35 PARTIAL rows were closed the way the S35 hand-off demanded — the behavioural
@@ -276,11 +365,11 @@ Based on `main` commit `7f29347` (PR #12's merge commit — the tip this branch 
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 177 DONE · 6 PARTIAL · 13 OPEN · 0 UNTRIAGED · 196 total (at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 179 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 200 total (at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
-### S37 — what just changed (current session)
+### S37 — what just changed (previous session; full detail in its log entry and ledger row)
 
 - **Five more rows closed, each with executed proof — and one refuted assumption.**
   Owner instruction: take the cheaper, already-shipped path where a decision is
@@ -473,7 +562,9 @@ this ledger exists to make obvious.
 | #10 | S34 | `arena/01a0f7ed-gifscythe` | merge commit of PR #10 — lookup: `git log --first-parent --merges --grep='pull request #10 from'` | Opened 2026-10-02, after PR #9 merged (`c999061`) — the first PR from this branch; nothing from #8 or #9 is repeated. **CI un-masked:** the doc gate is its own full-history `docs` job and no longer hides the web suites, oracle, GUI harness and packaging; the Windows GUI build + harness no longer depend on "Build CLI + unit tests"; two inert Windows diagnostics publish findings as annotations. **N-30 fixed** (the settings integer probes used a `long`, 4 bytes on Windows — a code bug, not MinGW; `to_llong` + unit block 37, RED 7 failures on a 32-bit-`long` build → GREEN; the Windows job is green in runs 36967608254 and 36974199294) and **N-26 closed** (the "flaky linux job" was the doc gate: 8 of 8 red mains). **N-32** (the wasm proof bar cannot pass: libc `qsort` and `random()` differ) and **N-34** (`ubuntu-latest` → Ubuntu 26.04 from 2026-10-19) registered and then **decided and implemented at the owner's call** — N-34 pinned to `ubuntu-24.04` (DONE); N-32's bar is a same-libc native oracle, enforced by `libc_parity.py --bar` and `prove_wasm.mjs --oracle` (PARTIAL: no emcc build has run through it); a `gate` job de-duplicates push vs PR runs and workflow `concurrency` cancels superseded runs; a parallel `portability` CI job runs the 32-bit-`long` unit suite and the wasm bar (tests `test_ci_gate.py` 14, `test_prove_wasm_oracle.py` 10, `test_libc_parity_bar.py` 8; `scripts/lint_workflow.mjs`); **N-33** (README honesty summary) fixed; **N-35** found by the PR's own final CI run and fixed the same session (the `linux` job's web-suite step went red once on a docs-only commit: a startup-banner race in `server-bounds.test.mjs`'s `startServer`, 1 failure in 15 locally, 45/45 clean after the fix, plus a deterministic regression group; the step now also names a failing suite as an annotation); the docs that said an agent cannot push workflows corrected. **Post-merge sync pre-included** (the owner merges from the UI and continues): this row, the header's Docs-synced-through line, and both base lines (`fe4f0a7`, the merge's first parent) are written to be true at the merge; P6 now accepts a PR's own open number (`tests/test_pr_preflight_p6.py`: 1 FAIL → 8/8) and the *Merged as* cell is a lookup, so nothing is left to edit afterwards (merge simulated: the docs gate stays 24/0/1, G10 and G11 PASS, also for a merge dated after UTC midnight and for a squash). **Tooling moved out of `/tmp`**: the 32-bit-`long` unit runner (`scripts/test_unit_32bit_long.sh`) and the N-32 probe (`scripts/libc_parity/`) are committed. Register **158/11/26/0 = 195**. **N-36 (DONE):** the owner's direct commit `fe4f0a7` deleted every image file, including the 4 gifsicle test GIFs that the engine tests, smoke, oracle (and so the pre-push hook), glue harness, libc probe and the Windows/C#/Qt CI steps read, so main went red. The owner skipped the question asked, so the option that respects the deletion was taken — **the repo stays binary-free**: the two test images are base64 text (`tests/fixtures/`, rebuilt byte-identically into `build/fixtures/` by `scripts/fixtures.sh`/`fixtures.mjs`) and every consumer and CI step was repointed; the base lines were re-anchored to `fe4f0a7`. Merging takes the owner's explicit yes — as a **merge commit**: `scripts/sim_postmerge.sh` measured that a squash fails G11 when merged on a later UTC day than the log entry's date, and a rebase is impossible for this PR. |
 | #11 | S35 | `arena/9c0b8a7f-gifscythe` | merge commit of PR #11 — lookup: `git log --first-parent --merges --grep='pull request #11 from'` | Opened 2026-10-06. **Five-patch audit intake.** The series `0001`–`0005` arrived as files in the repo root, anchored on `fe4f0a7` — a commit this clone does not contain (its whole history is the single squashed `4430a28`), so every hunk landed at an offset of +14 to +562 lines, recorded hunk by hunk in `PATCH_SERIES_REVIEW.md`. **Three of the five were structurally invalid as submitted** and `git apply --check` rejected them outright (`0001` `patch fragment without header at line 93`, `0004` `corrupt patch at line 65`, `0005` `corrupt patch at line 116`); all three were one wrong `@@` count field, corrected in their own commit so the repair and the fixes stay distinguishable. **The salvage is measured, not assumed: 182/182 added lines present in the tree, all 7 removed lines gone from their own sites** — only the count fields were ever wrong. **U-57 (P1-37) and U-71 (P2-17) CLOSED** with executed proof; **U-58 (P1-38), U-70 and U-72 (P1-42) moved to PARTIAL, not FIXED** — the source fix is in the tree but there is no cmake/Qt6 here, so those three hunks were never compiled, and each row names the behavioural case that is still unwritten. **Both proofs wired into `build.yml` and its byte mirror** (neither ran in CI before): U-71 on `linux`, on `windows` (`CXX=g++`, MinGW ships no `c++`) and on `portability` under `CXX="python3 -m ziglang c++ -target x86-linux-musl"` — measured `sizeof(long)==4`, the LLP64 width class the finding lives in, so the table is proven at both widths; `u57-stale-output` as its own `linux` step so a red names U-57 (S34's naming discipline). **G10 was red on arrival and is green**: both base lines re-anchored to `4430a28`, the tree verified against `fe4f0a7`'s description by markers rather than trust (zero image files — N-36's delete; all five root license files — U-97 survived), `fe4f0a7` kept as a labelled historical record, the S27 pattern. **A hardening offered and withdrawn:** `cancelling_ = false;` at the top of `runCommand()` re-opens the exact race U-72 fixes, so it is NOT applied and the S35 hand-off block says so. Proof executed here: `test_u71_exit_codes.sh` PASS at both `long` widths · `u57-stale-output` 5/5 incl. the T1 RED leg · `smoke_cli.sh` **63/0** (drives the real CLI through `run_argv`, the function U-71 rewrote) · `test_engine.sh` 5/0 · `test_output_verify.sh` 25/0 · `oracle_fuzz --quick` 24/24 · `test_unit_32bit_long.sh` **396/0** on a 4-byte `long` · `verify_audit.sh` **32/0/5** incl. E9 and F1 · `check_docs.sh` **23/0/2** · `review_change.sh` 4/0/1 with every R5 doc obligation `[touched]` · `lint_workflow.mjs` `actionlint: clean`. Register **160/14/21/0 = 195** (from 158/11/26/0: two OPEN→DONE, three OPEN→PARTIAL); P1-37→DONE, P1-38 and P1-42→PARTIAL; release bar 10→9 open P0/P1 ids. **Not in this PR:** the Qt6 proof for U-58/U-70/U-72 (cmake GUI build + offscreen harness), the three behavioural cases those PARTIAL rows name, the `0005` CI sentinel (it false-fails on the patch's own comment at `MainWindow.cpp:1108`, so it is not wired in), U-12's state machine, and any wasm-track promotion (OD-16 / N-32). |
 | #12 | S36/S37 | `arena/0a711503-gifscythe` | `7f29347` | Opened 2026-10-06, after PR #11 merged (`76392da`) — the first PR from this branch; nothing from #11 is repeated. **The three S35 Qt rows CLOSED.** **The S35 blocker was wrong:** Qt6 IS buildable here — `scripts/build_qt6_local.sh` (new) builds qtbase `v6.8.3` Core+Gui+Widgets, `moc`/`rcc`/`uic`, the offscreen platform plugin and the `qgif` image-format plugin with bundled third-party libs (no apt, no root, ~15 min on 2 cores); the offscreen harness then compiles and runs in this sandbox — **405 runtime checks, 0 failures** (S36's measurement; S37 re-measured 436/0 after T8/T25/DS-10/T26), and the README's stale 271/398 figures were re-measured with it (**293** `CHECK(` sites in S37 — 284 when S36 wrote that line, before T8/T25/DS-10 and 285 before T26). **The three missing cases exist:** `tests/test_gui_offscreen.cpp` **T22** (cancel-latch honesty — legs in ONE window, because a fresh window per leg reset the member and tested nothing), **T23** (non-ASCII `GS_ENGINE`; Windows reports the conversion mode it measures, after the runner measured the finding's premise toolchain-dependent), **T24** (mid-batch settings mutation), on the new argv-logging fixture `tests/fake_engine_argv_sleep.cpp`. **RED→GREEN is executed, not claimed:** T24 fails exactly its three snapshot checks on a scratch tree with `0005` reverse-applied ("job 2 ran the BATCH-START -O3, not the mutated -O2") and passes on the fixed tree; T22 bites both plausible wrong fixes (kept-latch mutant → RED ×2, arm-on-idle mutant → RED ×4). **U-70 has no POSIX-discriminating behaviour** (`u8path_compat` is the identity there), so its platform-independent proof is a source sentinel; **U-72's race is not constructible on Qt 6.8.3 at all** — `waitForFinished()` calls `processFinished()` synchronously on forkfd POLLIN (`qprocess_unix.cpp:1242-1277`) and `kill()` is final SIGKILL — so its falsifiable proof is the sentinel too, and both records say so instead of claiming a red harness. **The `0005` sentinel defect fixed and the set wired into CI:** `scripts/test_u58_u70_u72_sentinels.sh` (S1 U-58 / S2 U-72 / S3 U-70, comment-stripped so the patch's own prose cannot trip a grep, plus S4 a/b/c/d rebuilding every pre-fix shape and requiring rejection) runs as its own step in `build.yml` and the byte mirror; re-run against all three real reversed patches — S1 red on `0005`, S2 red on `0003`, S3 red on `0004`, each with the other sentinels green in that tree. Register **163/11/21/0 = 195** (from 160/14/21/0: three PARTIAL→DONE); P1-38 and P1-42 DONE. Proof executed here: GUI harness **405/0** · pre-fix trees red as above · sentinel PASS + four mutation legs · `test_u71_exit_codes.sh` PASS · `test_output_verify.sh` 25/0 · `test_engine.sh` 5/0 · `smoke_cli.sh` 63/0 · nine node web suites green · `check_docs.sh` (see its line in the session entry). The `windows` GUI job did run these cases and is green (run `37470942912`, on CI's Qt 6.7.3 / MinGW GCC 13.1); it measured T23's premise as **toolchain-dependent** (the bare conversion works there), which is why the discriminating proof for U-70 is the sentinel, not behaviour. **Not in this PR:** any legacy-ACP observation (none exists in this repo), U-12's state machine, and any wasm-track promotion (OD-16 / N-32). **S37 ADDED TO THE SAME PR (same branch, pushed before the merge):** DS-10 (P3-11) and GS-205 (P1-27) closed, plus U-55 (P1-35) and U-96 (P3-18) — one admission rule with its own suite, disposal 4..7 in the picker, an injectable Windows case rule pinned by Linux CI, and one MEASURED stem table whose Qt probe refuted the assumed dotfile semantics; U-76 also closed by owner decision `OD-18 = a`. Re-measured after: harness **436/0** (292 `CHECK(` sites, T26 included), unit **415/0**, admission **35/0**, eleven node web suites; register **177/6/13/0 = 196**; plus the S37 release (**`snapshot-2026-10-06`**, tag `6aaabcf`) and the U-12 measurement T26 carries. |
-| #13 | S37 | `arena/0a711503-gifscythe` | merge commit of PR #13 — lookup: `git log --first-parent --merges --grep='pull request #13 from'` | Opened 2026-10-07, immediately after PR #12 merged (`7f29347`). **The post-merge sync** (the #4/#9 pattern): row #12's *Merged as* cell filled with the real merge commit, the handoff header moved off the lookup form, and both enforced base lines re-anchored to `7f29347` — legal as main's tip at the time and as the next merge's first parent (the S26 mechanic). Main's post-merge push run `37526084455` is green on all seven jobs: the docs job in particular passed only because `sim_postmerge.sh --style merge` had reproduced `[G10] stale base commit … names base 4430a28` BEFORE the merge and the base was re-anchored first (the N-26 class — a PR's green run cannot see the merge's own G10/G11 verdicts). **And it publishes the artifact the owner asked for:** tag `snapshot-2026-10-07` at `7f29347`, run `37527057333`, `release snapshot (tag only)` green → `Gifscythe-0.1.0-windows-portable.zip`, 23 777 755 B, sha256 `158d551bfdbd214e1d7e4c91cdf0dcd8d682fdad2becac92316248289286a5fc`; the run-sheet, `docs/ci/README.md` §2 and the W-18 row now point at it. Also this session: the wasm claim re-derived (a `.wasm` IS built on every CI run; the npm `emsdk` route re-measured and still blocked; `glue_harness.mjs` wired into the linux job) and `scripts/build_portable_windows.ps1` + `.bat` added for local builds. No product code in this PR; version stays `0.1.0` (`OD-11 = a`). |
+| #13 | S37 | `arena/0a711503-gifscythe` | `df219c0` (lookup was: `git log --first-parent --merges --grep='pull request #13 from'`) | Opened 2026-10-07, immediately after PR #12 merged (`7f29347`). **The post-merge sync** (the #4/#9 pattern): row #12's *Merged as* cell filled with the real merge commit, the handoff header moved off the lookup form, and both enforced base lines re-anchored to `7f29347` — legal as main's tip at the time and as the next merge's first parent (the S26 mechanic). Main's post-merge push run `37526084455` is green on all seven jobs: the docs job in particular passed only because `sim_postmerge.sh --style merge` had reproduced `[G10] stale base commit … names base 4430a28` BEFORE the merge and the base was re-anchored first (the N-26 class — a PR's green run cannot see the merge's own G10/G11 verdicts). **And it publishes the artifact the owner asked for:** tag `snapshot-2026-10-07` at `7f29347`, run `37527057333`, `release snapshot (tag only)` green → `Gifscythe-0.1.0-windows-portable.zip`, 23 777 755 B, sha256 `158d551bfdbd214e1d7e4c91cdf0dcd8d682fdad2becac92316248289286a5fc`; the run-sheet, `docs/ci/README.md` §2 and the W-18 row now point at it. Also this session: the wasm claim re-derived (a `.wasm` IS built on every CI run; the npm `emsdk` route re-measured and still blocked; `glue_harness.mjs` wired into the linux job) and `scripts/build_portable_windows.ps1` + `.bat` added for local builds. No product code in this PR; version stays `0.1.0` (`OD-11 = a`). |
+| #14 | S38 | `arena/dde1f972-gifscythe` | `c3ce59f` (the merge commit of PR #14 - it IS main's tip) | Opened 2026-10-07, after PR #13 merged (`df219c0`). The GUI-workflow PR: the Windows desktop build made fully headless, Start + naming controls moved into the Input workflow, an activity-log scrollbar fix, GUI installation and testing guides (`INSTALL.md` / `TESTING.md` refresh), harness site counts realigned, and the preview caption test matched to user-facing text. **It merged with no doc sync**, so it left exactly the red `pr_preflight.sh` P6 exists for: the handoff still named PR #13, row #13's *Merged as* cell was still a lookup, and both enforced base lines named `7f29347`, which stopped being main's tip - G10 red on arrival for the next session (this one, S38, which carries the sync: header -> PR #14, row #13 cell filled, base lines re-anchored to `c3ce59f`, `df219c0` recorded as the tip's first parent). No product-code claim beyond that: the PR is CI-verified on its own run, and its tree is what S38 branched from. |
+| #15 | S38 + S39 | `arena/8eef3ffc-gifscythe` | merge commit of PR #15 — lookup: `git log --first-parent --merges --grep='pull request #15 from'` | Opened 2026-10-08, after PR #14 merged. **S38:** resumes the C# lane on the owner's direction (`OD-C7 = resume`): `csharp/Gifscythe.Core` (settings, command builder, conf writer, the shared exit-code contract `U-91`/`P3-17` asks for), `csharp/Gifscythe.Core.Tests` (unit lane + a parity lane the **real** `gifscythe-cli` adjudicates), a new step in the `csharp-spike` CI job that runs them against `gifscythe-cli.exe` from the windows artifact, plus the PR #14 post-merge doc sync (ledger #14, row #13's cell, base lines -> `c3ce59f`), N-37 (the README's "no published release" claim was false), W-31, and `OD-20` (FFmpeg sidecar - OPEN, awaiting the owner). The C# is uncompiled in the agent sandbox: this PR's own `csharp-spike` run was the first compiler, and it is GREEN — run `37813051817` (head `cc94ed1`), all six jobs success, the new parity step included. **S39 added to the same PR (same branch, pushed before the merge):** the `GUI_REUSE_REVIEW.md` handoff from the DiscordChatExporter session received and dispositioned (`COMPILED_AUDIT` §22) — **W-33** closed on executed RED→GREEN CI evidence (the Phase-1 spike read the engine's stderr to EOF *before* waiting, so a stalled engine never reached the timeout or the `Kill()`; pre-fix `eebad01` / run `37895354665` hung to its 5-minute watchdog and FAILED while pre-existing steps 1–15 stayed green; post-fix `65efd7a` / run `37896421078` is green), pinned by the new `csharp/testdoubles/FakeEngine/` double and three `csharp-spike` steps; P3-17's `ReadExactly` trap fixed in the same pass; and **W-32**'s per-file result contract proposed in `docs/planning/W32_RESULT_CONTRACT.md` (14 test cases R1–R14) — proposed, not approved, so no Status tab is built. **Not in this PR:** `OD-21`/`OD-22` (owner), the exit-code merge `U-91`, the `Quote()` MSVCRT trap, any GUI redesign. Register **179/7/14/0 = 200**. |
 
 **Maintenance rule (one row per PR; the merge itself leaves nothing to edit — S34):**
 The owner merges from the GitHub UI and continues, so everything a "post-merge sync" PR used to carry
@@ -881,6 +972,91 @@ fixing them is the next session's P-lane work). The register-mechanics asks
 them mid-consolidation would have been the doc-machine-churn the intake itself
 warns about.
 
+## S39 — the DiscordChatExporter handoff: W-33 fixed, W-32 contract proposed (2026-10-09)
+
+**What arrived.** `GUI_REUSE_REVIEW.md` (113 lines) at
+`/home/user/gifscythe-handoff/` — **outside the repo, never committed, and the
+reviewing session touched no repo file.** It reviewed this branch at `bec17d2`
+against `freeforall1932-design/DiscordChatExporter` @ `66a9c45` as a reference,
+and asked seven things of the receiving agent.
+
+**Freshness verdict:** `git rev-parse origin/arena/8eef3ffc-gifscythe` ==
+`bec17d2` — the reviewed SHA was **still the tip**, so zero commits had landed
+since the review was written. Nothing in it was stale.
+
+**Sandbox repair first (do not skip this next session).** The local HEAD sat at
+the base `c3ce59f` with all of the branch's content as uncommitted work and
+`csharp/Gifscythe.Core*` untracked — so `git status` lied about what was
+committed. Repaired with `git checkout -f -B arena/8eef3ffc-gifscythe
+origin/arena/8eef3ffc-gifscythe` **after** backing up every changed file and
+diffing each one back: byte-identical, nothing lost. `bootstrap_hooks.sh` also
+had to be re-run (`core.hooksPath` was unset). **Re-check `git rev-parse HEAD`
+against the remote before doing anything else in a fresh sandbox.**
+
+### Disposition (the review's seven asks answered)
+
+1. **Fetched and compared** — see the freshness verdict above.
+2. **The spike timeout finding: CONFIRMED and fixed.** `csharp/spike/Program.cs`
+   called `child.StandardError.ReadToEnd()` *before* `child.WaitForExit(120_000)`.
+   `ReadToEnd()` blocks until the engine **closes** stderr, so an engine that
+   hangs with the pipe open blocks there forever and the timeout — and the only
+   `Kill()` — is never reached. Now: the drain runs **concurrently and bounded**
+   (32,768 chars, overflow counted *and reported*), `WaitForExitAsync(cts.Token)`
+   owns the deadline, and the timeout path does kill-tree → reap → stop-drain so
+   no child outlives the caller. Registered as **W-33**, pinned by a new
+   env-driven `csharp/testdoubles/FakeEngine/` and three `csharp-spike` CI steps.
+   Proven RED→GREEN on CI (see above), so the row is **DONE**: `dotnet` is absent
+   here, so the fix was proven by reverting it and watching the new step fail, then
+   reverting the revert and watching it pass — not by reading the diff.
+3. **The four patterns, assessed selectively** — table below.
+4. **W-32 contract proposed** — `docs/planning/W32_RESULT_CONTRACT.md`. It is a
+   *proposal*: the owner's gate is research → walkable draft → confirmation →
+   implementation, and no Status tab is built before that.
+5. **Reported here** — see below and `COMPILED_AUDIT.md` §22.
+
+### The four DiscordChatExporter patterns, one by one
+
+| Pattern | Call | Reason |
+| --- | --- | --- |
+| Run identity / state / timestamps / snapshots | **Defer** | Right shape, but adopting a job record before the result model is agreed bakes in the wrong fields. W-32's proposed `Run` already carries the useful parts. |
+| Incremental log reads + bounded history | **Reject** | `web/request-guard.mjs` already caps engine stderr and owns a concurrency policy. Discord's *single-run* policy would be a downgrade. |
+| Session diagnostics | **Adopt the idea, not the code** | Offline, bounded, no telemetry. Engine path/version + the real argv + settings snapshot — already in the W-32 `Run` proposal. |
+| Preset application / matching | **Gated** | Blocked on **OD-21** (per-format preset wording). The standing rule forbids touching presets before the owner answers. |
+| GUI interaction regression harness | **Adopt the approach** | W-32 §8's R1–R14 *are* that harness, written against Gifscythe's own modes. No Discord DOM ids imported. |
+
+Also **rejected as transplants**, and the review agreed: the text-based
+percentage detector (a size reduction is not progress), the custom-command parser
+(structured settings/argv only), `exitCode == 0` as the success rule, and the
+whole web server (Gifscythe has one, with admission limits and output
+verification).
+
+**Provenance:** no code was imported. Patterns and test-case shapes only, in
+prose. Zero bytes of MIT DiscordChatExporter source entered this repo, so no MIT
+notice arises and nothing is presented as first-party Ms-PL that is not.
+
+### Two corrections to the review, both from this repo's source
+
+- **"batch is one input to one output"** is true for batch only. Merge and Auto
+  are **N → 1**; explode is **1 → N** (Qt refuses N > 1 outright). A contract
+  that assumes 1→1 double-counts the totals.
+- **Exit codes were left alone on purpose.** The spike says 2/3/4/5 (+124/127);
+  `Gifscythe.Core.ExitCodes` says 0/1/2/3. Merging them is **U-91**, an OPEN
+  owner-facing decision — not a bug to fix in passing. Folding the numbers here
+  would have broken six CI assertions and pre-empted the owner.
+
+### Still open after this session
+
+`OD-21` (preset wording) and `OD-22` (XnView/XnConvert material in the repo)
+still await the owner — no GUI work proceeds on them. **W-33 is closed** on executed RED→GREEN CI evidence: pre-fix (`eebad01`, run
+37895354665) the hanging-engine step hung to its 5-minute watchdog and failed
+while steps 1–15 stayed green; post-fix (`65efd7a`, run 37896421078) all three
+steps pass. **U-91** (spike 2/3/4/5/124/127 vs `Gifscythe.Core.ExitCodes`
+0/1/2/3) is the one decision this work deliberately hands back.
+**W-32** awaits the owner's confirmation of the columns. The spike's `Quote()`
+(POSIX vs MSVCRT) trap remains — a display-contract change, so an owner call.
+
+---
+
 ## Session history (condensed — full detail in `IMPROVEMENT_LOG.md`, per-session)
 
 - **S4–S8 (2026-09-07→10):** Windows engine recipe + Wine proofs; XNConvert UI
@@ -991,7 +1167,26 @@ only stick if they are in files a new session reads, not in a conversation.
 - Offline-only — no cloud, no auto-update, no telemetry. The `web/` app is
   self-hosted (loopback default) and supported since S14; its `/run` keeps the
   desktop honesty rules — do not fork the semantics.
-- Language stays C++17/Qt6 through 1.0.0 (triggers in `docs/planning/PLANNING.md` §1).
+- Language stays C++17/Qt6 through 1.0.0 (triggers in `docs/planning/PLANNING.md` §1). *(S38: the C# shell lane is resumed as an ADDITIVE track behind the CLI oracle - it does not change the shipped EXE; `OD-C7 = resume`.)*
+- **GUI changes: research first, then confirm with the owner, then code (owner rule, 2026-10-09).**
+  No further GUI edit may start on a session's own judgement. The sequence is:
+  research the reference (what it actually looks like / what its settings are, cited) →
+  put a **draft in front of the owner** (a walkable UI draft counts; a description does not) →
+  get the wording and the behaviour confirmed → *then* touch `src/qtui/` or `web/`.
+  The owner's complaint that produced this rule: earlier sessions answered a GUI question
+  with the three marketing screenshots on `xnview.com/en/xnconvert/` instead of doing the
+  research and showing the **app's own** UI. Standing sub-rules that came with it:
+  - **Preview belongs to the Actions tab only** — not a permanent panel on every tab. It
+    stays only while it is genuinely live (it re-runs the engine when you stop tuning); a
+    preview that does not track the settings gets deleted rather than kept as decoration.
+  - **Clicking the preview must show the animation full size at full quality**, not a
+    downscaled approximation.
+  - **Plain language, not engine jargon.** "Explode" is not user-facing vocabulary.
+  - **Per-format presets on the Output tab** (XnConvert's Format + gear shape; ScreenToGif's
+    "file type and preset" idea): a percentage slider a normal person understands, with the
+    real engine argument shown underneath it. GIF has no quality number — it stores a
+    palette — so "quality" is expressed as **color detail %** and **extra compression %**,
+    mapped to `-k <colors>` and `--lossy=<n>`.
 - The `scripts/build_gifsicle.sh` shim is gone (S7). Do not reintroduce it.
 - Settings file is core-SettingsIO format; GUI-only keys live in the
   unknown-key map (keep unit tests 20 + 31 green). Default name template
@@ -1164,7 +1359,7 @@ count (**G9** compares like with like).
 | `PROJECT_VISION.md` | Mission + hard constraints + architecture/flag map (absorbed FEASIBILITY_REVIEW) |
 | `README.md` | Public front page: pitch, quick start, layout, doc guide |
 | `docs/planning/OWNER_DECISIONS.md` | The active owner-question register (OD-01..OD-18) |
-| `docs/planning/PLANNING.md` | Direction review (§1), parked C# plan (§2), SkillOpt query (§3), sequential-work handoff (§4), next-session prompt (§5) |
+| `docs/planning/PLANNING.md` | Direction review (§1), C# shell plan - resumed S38, `OD-C7 = resume` (§2), SkillOpt query (§3), sequential-work handoff (§4), next-session prompt (§5) |
 | `docs/legal/README.md` | Licence single source of truth: Ms-PL rationale (§1), copying rules (§2), the wasm OD-16 question (§3–§4) |
 | `docs/ci/README.md` | Workflow status (§1), clean-Windows smoke (§2), desktop probes (§3) |
 | `docs/release/RELEASE_PROCEDURE.md` | How to cut snapshots/releases, incl. the doc gate + rollback policy |
@@ -1173,14 +1368,14 @@ count (**G9** compares like with like).
 | `reference_code/REFERENCE_MANIFEST.md` | Provenance: upstream SHAs, diff verdicts, digests, reproduce recipe |
 | `web/README.md` · `web/WEB_PLAN_TEMPLATE.md` | Web product surface (run/test/API + §History) · plan template (G16 state) |
 | `web/wasm/README.md` | Experimental track — NOT SHIPPABLE (OD-16) + third-party notices |
-| `csharp/README.md` | PARKED C# shell tree + spike record (exit-code collision noted, U-91) |
+| `csharp/README.md` | C# lane tree: `Gifscythe.Core` + tests (S38, `OD-C7 = resume`), the Phase-1 spike record, and the "no .NET SDK here - CI is the only compiler" note (U-91 still OPEN) |
 | `working_code/gifscythe/README.md` · `VERSION.md` | Product build/run docs · version source of truth |
 
 ## Prior-session orientation (the old TL;DR, condensed)
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 177 DONE · 6 PARTIAL · 13 OPEN · 0
+   its generated counts line (currently: 179 DONE · 7 PARTIAL · 14 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High

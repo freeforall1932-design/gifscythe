@@ -57,6 +57,21 @@ reads them in a file, not in a conversation.
 
 ## Found this session — pending lines (rule 2)
 
+- **W-33** (S39, found by the `GUI_REUSE_REVIEW.md` handoff from the
+  DiscordChatExporter session): the Phase-1 C# spike read the engine's stderr to
+  **EOF before** it waited on the process, so an engine that stalls while holding
+  the pipe open blocked forever and the 120 s timeout — and the only `Kill()`
+  branch — was never reached. Fixed in source the same session (concurrent
+  bounded drain + the wait owns the deadline + kill-tree/reap/stop-drain), and a
+  `FakeEngine` test double with three CI steps now pins it. **CLOSED S39 on executed RED→GREEN CI evidence:** with the pre-fix `ReadToEnd()`
+  restored (`eebad01`, run 37895354665) the hanging-engine step hung until its
+  5-minute watchdog fired and FAILED, while pre-existing steps 1–15 stayed green;
+  with the fix back (`65efd7a`, run 37896421078) all three steps are green. W-33 is
+  DONE on that pair.
+- **N-37** (S38, found while answering the owner's ScreenToGif question): the README's honesty
+  paragraph still claimed "There is no published release" while `U-09` is DONE and two
+  pre-releases exist. Fixed in the same session (row N-37, `STATUS.md`); re-check with
+  `gh release list` whenever the snapshot job runs.
 - **N-31** (S33, found by the post-merge sync CI red): G11's non-doc-date
   measurement degenerates in a shallow clone (depth-1 tip appears to add
   every file → the log is compared against the checkout date → daily
@@ -327,6 +342,9 @@ Still open from the audit intake (state lives in `STATUS.md`):
             **DONE (S28)** — all three comment/message truths corrected, and `run()`'s double-resolve is now an explicit `settleOnce` guard; the two transport assertions that pinned the old wording were re-pinned, not deleted.
       - [ ] **U-91** → **P3-17** — one shared exit-code contract (CLI vs C#
             spike collide on 3) + the spike's ReadExactly/quoting port traps.
+            **S38: the contract now exists on the C# side** (`csharp/Gifscythe.Core/ExitCodes.cs`,
+            0/1/2/3 + failure-kind mapping, pinned by unit block 15) — the row stays
+            OPEN until the spike itself is pointed at that class and CI proves it.
       - [x] **U-96** → **P3-18** — stemOf dotfile/extensionless parity vs Qt
             completeBaseName (probe + one shared helper + fixtures).
             **DONE (S37)** — the Qt 6.8.3 probe REFUTED the assumed semantics and
@@ -360,7 +378,10 @@ Still open from the audit intake (state lives in `STATUS.md`):
 - **Language: stay C++17 + Qt6 Widgets through 1.0.0**; revisit only on a
   documented trigger (`STATUS.md` D-08) — then spike Rust + Tauri. **Reaffirmed
   S19 (owner):** exe stays C++17/Qt6; the C# shell is parked (`OD-C7 = park`,
-  resume point `docs/planning/PLANNING.md` §2). S24 note: an external review
+  resume point `docs/planning/PLANNING.md` §2). **S38 (owner, 2026-10-08):** the
+  park is lifted — `OD-C7 = resume`; Phase 2 (`Gifscythe.Core` + the CLI-parity
+  lane) is in progress, additive and CI-only so far: the shipped EXE track still
+  finishes on C++17/Qt6. S24 note: an external review
   argues the web-tech trigger already fired — that is an owner re-decision
   (recorded in `COMPILED_AUDIT.md` §20.4), not a session call.
 - **Windows-only ship (S20, `OD-17 = a`):** Windows exe + web app ship; Linux
@@ -450,9 +471,11 @@ deliberately not started until GIF 1.0.0 ships.
   History of the option analysis: `web/README.md` §History.
 - **Language migration (only if a trigger fires):** Rust + Tauri spike —
   `docs/planning/PLANNING.md` §1 triggers.
-- **Stills → animated / video endpoints** (owner request 2026-09-14, parked
-  plan scope): gated by U-90/P3-19 — a PROJECT_VISION amendment + decoder +
-  licence story must land first.
+- **Stills → animated / video endpoints** (owner request 2026-09-14, asked again
+  2026-10-08: "should we add ffmpeg too"): gated by U-90/P3-19 and now tracked as
+  **`OD-20`** — a PROJECT_VISION amendment (the owner's words, in writing) + a decode
+  sidecar (FFmpeg, with its own LGPL/GPL licence note) must land before any code.
+  The parked C# plan's item (4) already sketches this as conversion-endpoint-only.
 
 ## Build commands
 

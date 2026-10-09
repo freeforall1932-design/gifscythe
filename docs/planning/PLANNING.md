@@ -51,12 +51,61 @@ if a trigger fires, spiked separately. Known gaps noted at the time: no
 icon/logo (`assets/` empty, cosmetic); the dated archive snapshots still mention
 the removed `scripts/build_gifsicle.sh` shim (historical, left as-is by policy).
 
-## 2. C# shell plan — PARKED (S19, `OD-C7 = park`)
+## 2. C# shell plan — RESUMED (S38, `OD-C7 = resume`; parked at S19)
 
-**State:** parked 2026-09-14 by owner direction — the exe stays C++17/Qt6, no
-rewrite, until 1.0.0 ships on the current stack. The Phase-1 spike stays
-CI-run and inert; this section is the designated **resume point** after 1.0.0
-(a park, not a cancellation). `csharp/README.md` carries the tree notice.
+**State: RESUMED 2026-10-08 (S38) by the owner** — *"im planning to pursue
+windows first and that wpf .net"* — reversing S19's park (`OD-C7 = park`). The
+resume point was this section, and **Phase 2 has started the way the plan
+demanded: the control layer first, the C++ CLI as the oracle, no window yet.**
+`csharp/Gifscythe.Core/` holds the settings, the command builder, the conf writer
+and the one exit-code contract (`U-91`/`P3-17`); `csharp/Gifscythe.Core.Tests/`
+runs a unit lane plus a **parity lane** that hands the same settings to the real
+`gifscythe-cli` in print mode and compares the argv tokens it would exec (token
+by token, separator flavour the one tolerated difference) as a step of the
+existing `csharp-spike` CI job. Still to port before Phase 3: `Validate.h`, `OutputPlan.h`, `OutputName.h`,
+`ProcessRunner.h`, `ExplodeVerify.h`, the conf reader — and then the WPF shell
+itself. **There is no .NET SDK in the agent sandboxes, so CI is the only
+compiler**; nothing in this lane may be called working before its run id is
+named — the first verdict is in: CI run `37813051817` (2026-10-08, head
+`cc94ed1`) is green on all six jobs, the parity step included. `csharp/README.md`
+carries the tree notice.
+
+**UI requirement (owner, 2026-10-08; specified 2026-10-09):** the shell must have
+the XNConvert four-tab shape — Input (explorer-like file management: drag and
+drop, filter, sort), Actions (the formatting controls, adapted to this repo's
+scope), Output (per-format settings once APNG/WebP land, destination folder) and a
+**Status tab** (per-file processing log with the size change, plus fail/success
+totals). Today's Qt surface has Input/Actions/Output/Guide plus an activity log and
+an output summary; the Status tab exists in neither surface yet, so it is new work,
+not a port — register row **W-32** (OPEN).
+
+**How the four tabs are meant to behave (drafted 2026-10-09, awaiting `OD-21`):**
+- **Input** — drag-and-drop + Add files / Add folder / Remove / Clear, a **filter**
+  box and a **sort** (name/size/date/type), a per-file info panel, and the queue
+  order made visible (order decides how a combined animation is built).
+- **Actions** — an **ordered chain of action cards** (XnConvert behaviour: they run
+  top → bottom, and order matters), each removable and reorderable. **The preview
+  belongs here and nowhere else**, and it stays only while it is genuinely live
+  (it re-runs the engine when tuning stops); clicking it opens the animation
+  **full size at full quality**.
+- **Output** — *What to make* in plain language (optimize each file / combine into
+  one animation / **split into separate frames** / let Gifscythe decide), then
+  *Where to save* (folder + a filename pattern that never overwrites the original),
+  then **Format & preset**: a format dropdown, a gear that opens **that format's**
+  settings, and a preset combobox that holds all of them (ScreenToGif's
+  "file type and preset" idea — `S.SaveAs.Type` in its MS-PL source, readable in
+  your own fork). **GIF has no quality number** — it stores a palette — so "quality"
+  is presented as **Color detail %** (→ `-k <colors>`) and **Extra compression %**
+  (→ `--lossy=<n>`), with the real engine argument printed under each slider.
+  APNG/WebP panels are drawn as **PLANNED and disabled** until `D-01`…`D-03` land.
+- **Status** — per-file rows (before → after → change) plus fail/success totals,
+  with named failure reasons. Tracked as **W-32**. **Video/FFmpeg (`OD-20 = a`, answered by the owner 2026-10-08):** an
+FFmpeg sidecar for video → GIF is **approved as a conversion endpoint** and
+`PROJECT_VISION.md` now carries the adopted amendment — decode in via one
+subprocess sidecar, gifsicle still does all the GIF work, no editing/timeline/
+capture, its own licence note, and not on the 1.0.0 critical path. **What still
+gates the code:** `U-90`/`P3-19` — the deferred rows that own this scope by name
+must exist (and name their preconditions) before a line of it is written.
 
 **Goal (when resumed):** a portable, click-and-run Windows `.exe` in C#/WPF
 with a custom Gifscythe UI/UX, driving the *unchanged* gifsicle subprocess with
@@ -88,13 +137,18 @@ three-client parity run.
 collections → animated (ezgif-maker-class, owner request 2026-09-14: global speed
 + per-frame delay in 1/100 s + reorder); (4) video ↔ animated-picture conversion
 strictly as endpoints (no editing/timeline/capture); (5) ezgif-class frame ops.
-**Mission-amendment precondition:** `PROJECT_VISION.md` says "Not photos, not
-video" — items 3–4 narrow that to *conversion endpoints only*, and **the vision
-doc must be amended before any stills/video work starts** (no code until the
-words change). Engine precondition: gifsicle reads GIF inputs only, so stills and
-video need a decode step (FFmpeg sidecar candidate — its own feasibility +
-LGPL/GPL licence note required). This scope is registered as `U-90` (it must not
-be read as pre-approved just because it lives in a parked plan).
+**Mission-amendment precondition — MET 2026-10-08 (`OD-20 = a`).** Items 3–4
+narrow the vision's "Not photos, not video" to *conversion endpoints only*, and
+the owner adopted exactly that amendment on 2026-10-08: `PROJECT_VISION.md` now
+says photos and video are **inputs to a conversion endpoint, never the subject**
+(one FFmpeg sidecar, decode-only, argv subprocess, its own licence note, not on
+the 1.0.0 path). The "words change first" rule is satisfied. Engine precondition
+still stands: gifsicle reads GIF inputs only, so stills and video need a decode
+step — the FFmpeg sidecar, with **its licence identified at build time**
+(`docs/legal/README.md` §5). **The scope is registered as `U-90`, still OPEN for
+a different reason:** the vision blocker is gone, but the deferred rows that own
+this work by name (`P3-19`) do not exist yet, and a session must not read the
+amendment as pre-approved work.
 
 **Phase-0 decision record (S18):** OD-C1 = a (fork reference-only — superseded
 same day by OD-C6) · OD-C2 = c (phased: sidecar through Phase 2, commit at
@@ -263,8 +317,11 @@ that S32 corrected):
 
 ### 6.1 EXE track — finish, don't rewrite
 
-**Decision:** stay on C++17 + Qt6. A rewrite (Tauri, or the parked C# shell)
+**Decision:** stay on C++17 + Qt6. A rewrite (Tauri, or the C# shell)
 discards ~250 already-verified tests and CI for a marginal ergonomics gain.
+*(S38: the C# shell is resumed, but as an ADDITIVE lane behind the CLI
+oracle — the EXE track still finishes on C++17/Qt6, and nothing here re-opens
+this decision.)*
 `OFFLINE_BUILD_REVIEW.md`'s own weighted scoring already settled this
 (C++/Qt6 ≈258 vs Tauri ≈205 vs Electron ≈174) — nothing since has changed
 that math. *(S32: that scoring now lives in §1; the original file is the S24
@@ -289,9 +346,10 @@ ones are done). ~~1. Finish the GUI's partial-write safety (U-59/P0-7)~~ —
 8. Owner decisions: OD-16 (see §6.3), OD-18, the version-bump call.
 
 **Already done, don't redo:** Qt LGPL notice (U-08, closed S19). U-59/P0-7
-including the Explode hole (S28/S30/S31). C# spike is
-parked (`OD-C7`) — inert but kept CI-running so it doesn't rot; no further
-investment until the list above ships.
+including the Explode hole (S28/S30/S31). The C# lane's Phase 1 (spike) runs in
+CI and Phase 2 (`Gifscythe.Core` + the parity lane) started 2026-10-08
+(`OD-C7 = resume`, S38) — additive, CI-only so far, and not on the 1.0.0
+critical path: nothing in it should displace the list above.
 
 ### 6.2 Web track — minimal wasm, additive, not a replacement
 

@@ -1,53 +1,79 @@
-# csharp/ — the C# shell (Phase 1+) — PARKED
+# csharp/ — the C# shell (Phase 2 in progress)
 
-**PARKED 2026-09-14 (S19, owner direction): no further work until 1.0.0
-ships on C++17/Qt6. This tree stays as-is; the spike stays CI-run.**
-
-Future home of `Gifscythe.Core` (settings/command/validate/output-planning
-port) and the WPF shell. Today it holds only the Phase-1 spike:
-
-- `spike/` — throwaway-allowed proof: hardcoded run, engine spawn, output
-  verify, single-file publish. Run by CI, decided by the C# shell plan
-  (`docs/planning/PLANNING.md` §2; formerly its own file until the S24
-  consolidation).
+**Resumed 2026-10-08 (S38) on the owner's direction** — *"im planning to pursue
+windows first and that wpf .net"*. The S19 park (`OD-C7 = park`, "no further
+work until 1.0.0 ships on C++17/Qt6") was the owner's call and is the owner's to
+reverse; `docs/planning/OWNER_DECISIONS.md` records the reversal. The plan
+itself is `docs/planning/PLANNING.md` §2.
 
 Licence: Ms-PL like the rest of the first-party code (`LICENSE`,
 `COPYING.ms-pl`). Copying rules for fork files: `docs/legal/README.md` §2.
 
-## Phase-1 spike (throwaway-allowed) — PARKED
+## What is here
 
-**PARKED 2026-09-14 (S19, owner direction): the exe stays C++17/Qt6, no
-rewrite — this spike is inert until 1.0.0 ships on the current stack. No
-further work here (no Phase 2 start, no edits beyond keeping this notice
-true). The spike stays CI-run as-is; that is parking, not progress. Record:
-`docs/planning/PLANNING.md` §2 decision table (`OD-C7 = park`).**
+- `Gifscythe.Core/` — the port of the Qt-independent control layer
+  (`working_code/gifscythe/src/core/*.h` + `web/command.mjs`). **Phase 2 is
+  deliberately core-first:** no window exists until the settings, the command
+  builder, the conf writer and the exit-code contract agree with the C++ CLI,
+  case for case. Ported so far:
+  - `Settings.cs` — `GifsicleSettings.h`: the same field names, the same
+    sentinels (threads `-1`/`0`/`N`; loopcount `-2`/`-1`/`0`/`N`; delay in
+    1/100 s), so the C#, C++ and JS layers stay one contract.
+  - `CommandBuilder.cs` — `GifsicleCommand.h`: identical option order, identical
+    ranges and identical "emit nothing" branches, with the audit id of each rule
+    kept in the comment (U-03/P0-2 threads, U-63 loopcount, U-13/U-48 comments,
+    U-42 scale, U-60/U-61 literal tokens…). NOT ported yet: `Validate.h`,
+    `OutputPlan.h`, `OutputName.h`, `ProcessRunner.h`, `ExplodeVerify.h` and the
+    settings *reader*.
+  - `SettingsWriter.cs` — `saveSettingsLines()` / `encode_line_value()`: the
+    U-51 newline fold and the DS-12 quoting rules, byte-compatible with the JS
+    writer the parity test already feeds to the C++ reader.
+  - `ExitCodes.cs` — the ONE exit-code contract `U-91` / `P3-17` demands
+    (0 ok · 1 engine/path/output failure · 2 usage or unsafe target · 3 --strict
+    refusal, the CLI's documented codes). The Phase-1 spike's own codes (3 =
+    engine missing, 4 = engine failed, 5 = invalid output) mapped the same
+    numbers to different meanings; the shell's failure kinds now map onto the
+    shared contract by test. **U-91 stays OPEN** until the spike itself is
+    pointed at this class.
+- `Gifscythe.Core.Tests/` — the check runner. House style, not xunit: a CHECK
+  counter and a non-zero exit, exactly like
+  `working_code/gifscythe/tests/test_gifsicle_command.cpp`, and no package to
+  restore. Two lanes:
+  - **unit** — always; the audit rules above, pinned case by case.
+  - **parity** — the same settings written to a conf and handed to the **real
+    C++ `gifscythe-cli`** in print mode; the argv tokens behind the command line
+    it prints must equal the C# builder's `Build()` output (compared token by
+    token, with path-separator flavour the only tolerated difference; the
+    display line itself is compared byte-for-byte wherever the platform echoes
+    no separators back). `GS_CLI` points at a built CLI, `GS_PARITY_ENGINE` at the
+    engine token to compare past (default `/opt/gifsicle`), and
+    `GS_REQUIRE_PROOF=1` turns "no CLI" into a FAILURE instead of a skip — a
+    skipped proof must never read as a passed one.
+  - Run: `dotnet run --project csharp/Gifscythe.Core.Tests -c Release`.
+- `spike/` — the Phase-1 record, unchanged and still CI-run: 117 lines proving
+  the toolchain, honest subprocess semantics (distinct exit codes),
+  Unicode-path behaviour and a self-contained single-file publish. Its exit
+  codes are the *legacy* shape described above.
 
-Smallest possible proof for the C# shell (Phase 1 of the plan): a C# console
-app that builds one argv from a hardcoded settings object, spawns the
-repo-built `gifsicle`, and verifies the output GIF.
+## Where it runs
 
-Exit codes (all honest — non-zero unless a verified GIF was produced; note
-these COLLIDE with the C++ CLI's code space — 3 = engine missing here vs
-3 = strict-validation refusal there — which is registered as U-91/P3-17, to
-be resolved by one shared exit-code contract when Phase 2 resumes):
+`.github/workflows/build.yml`, job **`csharp-spike`** (windows-latest, .NET 9,
+`needs: windows`): it downloads the `gifscythe-windows` artifact, builds the
+spike, runs `Gifscythe.Core.Tests` against `gifscythe-cli.exe` from that artifact
+(new in S38), then stages the engine and runs the spike's own scenarios.
+A failing step there is a valid, decision-grade outcome; the job is not
+allowed to pass by skipping the parity lane. **First verdict: run `37813051817`
+(2026-10-08, head `cc94ed1`) — all six jobs success, the parity step included,
+with `GS_REQUIRE_PROOF=1`.**
 
-| Code | Meaning |
-|---|---|
-| 0 | ok (prints `in -> out` byte counts) |
-| 2 | usage / caller error (bad args, missing input — engine never starts) |
-| 3 | engine missing |
-| 4 | engine failed (non-zero exit, start failure, timeout) |
-| 5 | engine exited 0 but output is missing/empty/not a GIF |
+**No .NET SDK exists in the agent sandboxes** (`dotnet: command not found`), so
+the compile and the parity verdict are CI's to give, exactly as the Qt harness
+was before `build_qt6_local.sh` existed. Local syntax is checked with a C#
+grammar before a push, but that is not a build and is not claimed as one.
 
-Run by the `csharp-spike` CI job (`.github/workflows/build.yml`): happy path,
-é + space paths, every failure code (the exit-5 cases use `true` as a
-lying engine that exits 0 without writing), then a self-contained single-file
-publish that must be one `.exe` and must run. CJK paths fail honestly
-(rc≠0) — the engine-ACP residual documented in `src/core/WinUnicode.h`,
-not a shell bug. First green run: `34804350470` (2026-09-14, S18).
+## Spoken to in the docs
 
-Deliberately not here (Phase 2+): settings parsing, validation, batch
-planning, naming templates, engine discovery, full output verification.
-Two port-time traps are registered as U-91 (S24 intake): `Stream.Read` may
-under-fill the 6-byte magic probe (use `ReadExactly`), and `Quote()` prints
-POSIX quoting on a Windows product (the desktop contract is MSVCRT quoting).
+- Plan and phases: `docs/planning/PLANNING.md` §2.
+- Owner decisions (park, resume, video scope): `docs/planning/OWNER_DECISIONS.md`.
+- Copying ScreenToGif fork files (licence-compatible, checklist):
+  `docs/legal/README.md` §2.

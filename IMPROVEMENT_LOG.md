@@ -4,6 +4,254 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S39 — 2026-10-09: the DiscordChatExporter handoff received — the spike's unreachable engine deadline fixed and pinned by a hostile-engine CI regression (W-33), and the W-32 per-file result contract written out as a proposal
+
+**What arrived.** A read-only review, `GUI_REUSE_REVIEW.md`, handed off from the
+DiscordChatExporter session. It lives **outside the repo**
+(`/home/user/gifscythe-handoff/`) and its author touched no repo file, so there
+is nothing to delete — consistent with how §20/§21 intakes were handled. It
+reviewed this branch at `bec17d2`; re-checked, that SHA was still the tip, so
+**nothing in the review was stale**. Its conclusions are incorporated in
+`COMPILED_AUDIT.md` §22.
+
+**Changed:**
+
+- **Sandbox git state repaired first.** HEAD sat at the base `c3ce59f` with the
+  whole branch's content as uncommitted work and `csharp/Gifscythe.Core*`
+  untracked, so `git status` misrepresented what was committed. Backed up every
+  changed file, moved the branch with
+  `git checkout -f -B arena/8eef3ffc-gifscythe origin/arena/8eef3ffc-gifscythe`,
+  then diffed every file back: byte-identical, nothing lost.
+  `bootstrap_hooks.sh` re-run (`core.hooksPath` was unset).
+
+- **W-33 — the C# spike's engine deadline could not be reached.** Confirmed by
+  source: `csharp/spike/Program.cs` called `child.StandardError.ReadToEnd()`
+  *before* `child.WaitForExit(120_000)`. `ReadToEnd()` blocks until the engine
+  **closes** stderr, so an engine that hangs with the pipe open blocks there
+  forever and the timeout — and the only `Kill()` branch, below it — is never
+  reached. The read was also unbounded. Fixed in the same session:
+  - stderr is drained **concurrently** with the wait, and **with a bound**
+    (32,768 chars); overflow is counted *and reported* (`[gifscythe: N stderr
+    character(s) dropped …]`), so a truncated log can never pose as a complete
+    one. The notice is appended **after** trimming, so it survives a long log.
+  - `WaitForExitAsync(cts.Token)` owns the deadline.
+  - The timeout path is kill-tree → reap (bounded) → stop-drain, so the stalled
+    engine cannot outlive the caller and no reader task is leaked.
+  - rc **124** (timeout) and **127** (not startable) now return distinctly
+    instead of collapsing into 4 — both were already in P3-17's proposed contract.
+  - `GIFSCYTHE_SPIKE_TIMEOUT_MS` lets CI prove the deadline in 4 s rather than
+    waiting out 120 s.
+  - P3-17's other trap, the `Stream.Read` under-fill in the 6-byte magic probe,
+    fixed in the same pass (`ReadExactly`).
+
+- **`csharp/testdoubles/FakeEngine/` (new)** — an env-driven hostile-engine test
+  double (`stall` holds stderr open forever, `flood` emits 64 MiB, `garbage`
+  exits 0 leaving a non-GIF, `fail` exits N, `ok` copies a real GIF). Driven by
+  environment variables, not argv, because the spike owns the argv it passes to
+  the engine — a double should not have to impersonate the real engine's
+  argument grammar in order to misbehave. It lives in `csharp/testdoubles/`,
+  **not** under `csharp/spike/`, because the SDK globs `**/*.cs` under a project
+  directory and a second `Program.cs` there would be compiled into the spike.
+
+- **Three new `csharp-spike` CI steps**, each with a 5-minute outer watchdog:
+  the hanging run must return rc 124 **promptly**, leave no `FakeEngine.exe`
+  behind, and leave a pre-existing good output byte-identical; a 64 MiB stderr
+  flood must be bounded and the drop reported; start-failure (127), non-zero
+  exit (4) and zero-exit-invalid-output (5) must stay distinguishable. Both
+  workflow copies updated byte-identically (gate G7).
+
+- **W-32 contract proposed** — `docs/planning/W32_RESULT_CONTRACT.md`. Written
+  *before* any GUI redesign, as the review asked. It defines `Run` / `Operation`
+  / `ResultRow`, the six states (with `skipped` = **never attempted**, kept
+  distinct from `failed`), named failure reasons, and 14 test cases R1–R14.
+  **Proposed, not approved** — the owner's gate is research → walkable draft →
+  confirmation → implementation.
+
+- **Two corrections to the review, from this repo's own source:**
+  - Its "batch is one input to one output" holds for batch only. Merge and Auto
+    are **N → 1**; explode is **1 → N** (Qt refuses N > 1 outright). A contract
+    that assumes 1→1 double-counts the totals, so cardinality is now named per
+    mode.
+  - The exit-code *numbers* were **deliberately not merged**. The spike says
+    2/3/4/5 (+124/127); `Gifscythe.Core.ExitCodes` says 0/1/2/3. Reconciling
+    them is **U-91**, an OPEN owner-facing decision, and folding it in here
+    would have broken six CI assertions and pre-empted the owner. Only the
+    `ReadExactly` and timeout traps were taken; the `Quote()` POSIX-vs-MSVCRT
+    trap is left alone because it changes a display contract.
+
+**Not done, and why:** no WPF shell, no GUI redesign, no resolution of
+`OD-21`/`OD-22`, no DiscordChatExporter code imported (patterns and test-case
+shapes only, in prose — zero bytes, so no MIT notice arises).
+
+**How it was proven, given that `dotnet` is not installed here.** A test that has
+only ever run against fixed code proves nothing about whether it catches the bug,
+so the RED half was executed rather than argued:
+
+- **RED** — commit `eebad01` restored only the pre-fix blocking `ReadToEnd()`.
+  Run **37895354665**: the hanging-engine step **FAILED**, hanging until its
+  5-minute watchdog fired (steps 18/19 then skipped), **while every pre-existing
+  spike step 1–15 stayed green** — so the failure is the finding and nothing else.
+- **GREEN** — commit `65efd7a` reverted that. Run **37896421078**: all three
+  fake-engine steps pass.
+
+That pair is what closes **W-33** as DONE. The temporary revert is left in
+history rather than force-pushed away, so the red run is auditable.
+
+The six Node suites the review named were re-run and are green
+(`request-guard`, `numeric-honesty`, `device-names`, `stem`, `static-hygiene`,
+`body-limit`), plus `command`, `validate`, `transport`, `server-bounds` and
+`u57-stale-output` — 11 suites. That is a regression signal, not proof of the new
+behaviour; it says the existing surfaces did not break.
+
+---
+
+## S38 — 2026-10-08: the C# lane resumed on the owner's direction — `Gifscythe.Core` ported with a CI-proven CLI-parity lane, `OD-20` answered (`= a`) and the vision amended, the missing PR #14 post-merge sync landed, and the README's release claim corrected (N-37)
+
+**Changed:**
+
+- **The owner resumed the parked C# shell** (S19's `OD-C7 = park` reversed by the
+  owner's own words, 2026-10-08: *"im planning to pursue windows first and that
+  wpf .net"*). Phase 2 starts where the plan said it must: the Qt-independent
+  control layer, with the C++ CLI as the oracle, before any window exists.
+- **`csharp/Gifscythe.Core/` (new, net9.0, zero NuGet dependencies).** `Settings.cs`
+  is the port of `GifsicleSettings.h` (same field names and sentinels: threads
+  `-1`/`0`/`N`, loopcount `-2`/`-1`/`0`/`N`, delay in 1/100 s); `CommandBuilder.cs`
+  is the port of `GifsicleCommand.h` with identical option order, ranges and
+  "emit nothing" branches, and every audit id kept in the comment; `SettingsWriter.cs`
+  ports `saveSettingsLines()`/`encode_line_value()` (U-51 newline fold, DS-12
+  quoting) so the conf format stays one format; `ExitCodes.cs` defines the one
+  exit-code contract `U-91`/`P3-17` asked for (0/1/2/3, the CLI's documented
+  codes) and maps the shell's failure kinds onto it by test.
+- **`csharp/Gifscythe.Core.Tests/` (new)** — house-style runner: a CHECK counter
+  and a non-zero exit, like `tests/test_gifsicle_command.cpp`, and no test
+  framework to restore. Lane 1 mirrors the audit rules (P0-2 threads tri-state,
+  U-63 loopcount four-state, U-13/U-48 empty comments, U-42 asymmetric scale,
+  U-60/U-61 literal `#0`/`-`, DS-12 quoting, U-51 newline fold, the exit-code
+  contract). Lane 2 is PARITY: the same settings are written to a conf and handed
+  to the **real C++ `gifscythe-cli`** in print mode, and the argv tokens behind
+  the command line it prints must equal the C# builder's (token by token; path
+  separator flavour is the one tolerated difference). `GS_REQUIRE_PROOF=1` makes a missing CLI a
+  FAILURE, never a silent skip.
+- **CI: the parity lane runs on the shipped platform.** A new step in the
+  existing `csharp-spike` job (windows-latest, .NET 9) locates
+  `gifscythe-cli.exe` in the `gifscythe-windows` artifact and runs the tests
+  against it — no new job, no new runner. Both workflow copies updated
+  byte-identically (G7).
+- **PR #14's missing post-merge sync** (its merge landed with no doc sync — the
+  exact case `pr_preflight.sh` P6 exists for): ledger row #14 added, row #13's
+  *Merged as* cell filled with `df219c0`, both enforced base lines re-anchored
+  `7f29347` → `c3ce59f` (PR #14's merge commit: main's tip now, and legal as the
+  next merge's first parent), handoff header moved to PR #14.
+- **N-37 found and fixed:** the README's honesty paragraph still said "There is
+  no published release" while `U-09` is DONE and two pre-releases exist
+  (`snapshot-2026-10-06`, `snapshot-2026-10-07`, verified against the releases API
+  this session). The paragraph now names them.
+- **`OD-20` was asked and answered the same day: `= a`.** The owner chose
+  "amend the vision now and scope ONE FFmpeg sidecar strictly as a conversion
+  endpoint". `PROJECT_VISION.md` now carries that as an **adopted amendment**
+  (dated, attributed): photos and video are **conversion-endpoint inputs only**;
+  the sidecar **decodes** — gifsicle still does all the GIF work and stays the
+  only GIF encoder; no editing/timeline/capture/playback; **argv subprocess
+  only**, never linked into the Ms-PL UI; the FFmpeg build's licence (LGPL or GPL
+  per configuration) identified at build time with its notices shipped
+  (`docs/legal/README.md` §5); and not on the 1.0.0 critical path. **The
+  amendment is not a work order**: `U-90` stays OPEN until `P3-19` adds the
+  deferred rows that own this scope by name, so no stills/video code starts yet.
+  The XNConvert four-tab UI ask (Input = explorer-like
+  file management with filter/sort; Actions; Output = per-format settings and
+  folder; **Status tab** = per-file processing log with size change and
+  fail/success totals) is recorded as the shell's UI requirement, with what
+  exists today named beside it.
+
+**2026-10-09 (same session) — the GUI ask was researched and drafted, not coded.**
+The owner pushed back on being handed three XnConvert marketing screenshots instead
+of the app's own interface. So:
+- **A walkable draft of the proposed UI** (outside the repo — nothing in `src/qtui/`
+  or `web/` was touched): XnConvert's Input → Actions → Output → Status shape, with
+  ScreenToGif's "file type and preset" idea for the per-format settings. Actions is
+  an **ordered action chain**; the **preview sits on the Actions tab only** and is
+  genuinely live (it POSTs to the real engine: 8,637 → 5,549 B on the repo's own
+  fixture as the preset moves Best quality → Smallest file); clicking it opens the
+  animation **full size at full quality**.
+- **Plain language replaces engine jargon**: "Explode" → "Split into separate
+  frames", with an explanation next to the choice.
+- **GIF has no quality number** (it stores a palette), so the draft offers
+  **Color detail %** → `-k <colors>` and **Extra compression %** → `--lossy=<n>`,
+  printing the engine argument under each slider. APNG/WebP panels are drawn but
+  marked **PLANNED** and disabled — nothing implements them (`D-01`…`D-03`).
+- **New owner rule recorded**: no GUI edit starts on a session's own judgement —
+  research (cited) → draft in front of the owner → wording confirmed → code.
+- **`OD-21`** (preset wording) and **`OD-22`** (may XnView/XnConvert material enter
+  the repo — recommendation: no binaries or screenshots, text-only notes; use the
+  MS-PL ScreenToGif fork for the settings vocabulary) are OPEN.
+- **W-32** added: the Status tab is now a register row instead of prose, and the
+  reason it is not built is written into it — neither surface keeps per-file
+  results today, so it is a result model + rows + totals, not a rename of the log.
+
+**Partial:**
+
+- The core port is a SLICE: `Validate.h`, `OutputPlan.h`, `OutputName.h`,
+  `ProcessRunner.h`, `ExplodeVerify.h` and the settings *reader* are not ported
+  yet, and there is no shell UI (WPF) and no packaging. `U-91` stays OPEN until
+  the spike itself is pointed at `ExitCodes.cs`.
+
+**Left:**
+
+- The WPF shell (plan Phase 3), packaging (Phase 4) and the Phase-5 cutover
+  decision (`OD-C5`) — untouched by design; the phases are cumulative.
+- The deferred rows `P3-19`/`U-90` that turn `OD-20 = a` into schedulable
+  work (the vision blocker is gone; the register one is not), and any code for
+  video/stills before those rows exist. The FFmpeg build licence is also still
+  to be identified at build time.
+
+**Verified:**
+
+- `check_docs.sh` — all gates green after the re-anchor (the two failures found
+  on arrival are fixed: G10 stale base, G15 hooks not bootstrapped), and
+  `sweep_stale.sh` clean.
+- Both workflow copies byte-identical after the CI edit (G7); the workflow parses
+  as YAML (`js-yaml`).
+- The C# sources parse with a real C# grammar (tree-sitter) with no error or
+  missing nodes — a syntax check, NOT a build.
+- **The port's first CI verdict is GREEN** — run `37813051817` (2026-10-08, head
+  `cc94ed1`), **every job success** (gate/windows/portability/linux/docs/
+  csharp-spike), including the new step **"Gifscythe.Core unit + CLI parity
+  (S38)"** on windows-latest. That step is the C# port's first compiler, and it
+  passed with `GS_REQUIRE_PROOF=1`, so the parity lane could not have skipped
+  itself: the unit lane and the argv-token comparison against the real
+  `gifscythe-cli.exe` both ran, and `dotnet run` exited 0. The same run proves
+  the base-line re-anchor on a clean CI checkout — `docs` and `linux` (whose
+  verify_audit F1 wraps the doc gate) are green where main's last run was red.
+
+**Not verifiable here:**
+
+- **The local C# build.** There is no .NET SDK in this sandbox (`which dotnet` →
+  not found) and none is installable (the toolchain hosts are not reachable), so
+  the compile that certifies this port is CI's, not this session's — run
+  `37813051817` above. One nuance the green step does not settle on its own:
+  the byte-for-byte *display-line* comparison inside the parity lane is
+  conditional (it reports a SKIP when the platform echoes path separators back),
+  while the argv-token comparison is unconditional — the pass certifies the
+  argv, which the port's comment already names as the contract.
+- The WPF shell (needs Windows + Visual Studio tooling) and any Windows-only
+  behaviour of the core.
+
+**Docs touched:** `SESSION_HANDOFF.md` (header, base lines, S38 entry, ledger
+rows #13–#14, the parked→resumed wording in the map/constraints),
+`IMPROVEMENT_LOG.md`, `STATUS.md` (W-31, N-37), `WORKLIST.md` (N-37 pending
+line, the U-91 note, the deferred bucket's `OD-20`, constraints note),
+`README.md` (N-37 + the map's OD range and "parked C# plan" wording),
+`COMPILED_AUDIT.md` (base line), `docs/planning/PLANNING.md` (§2 header +
+state, §6.1/§6.2 wording), `docs/planning/OWNER_DECISIONS.md` (OD-20 asked **and answered `= a`**,
+`OD-C7 = resume`), `PROJECT_VISION.md` (the adopted conversion-endpoint
+amendment + the hard-scope bullet + the resumed C# lane), `docs/legal/README.md`
+(new §5: the FFmpeg sidecar's three-licence rules), `COMPILED_AUDIT.md` (the
+`U-90` and `P3-19` rows re-stated around the answered question),
+`csharp/README.md`, `docs/ci/README.md` (csharp-spike now described as the
+resumed lane), `docs/ci/build.yml.proposed`.
+
+---
+
 ## S37 — 2026-10-07: the wasm claim re-derived (a `.wasm` IS built on every CI run), the page glue wired into CI without emcc, and a Windows build path that runs on your own machine
 
 **Changed:**

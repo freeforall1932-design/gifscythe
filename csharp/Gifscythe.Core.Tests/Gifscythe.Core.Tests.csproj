@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Gifscythe.Core's test runner. House style, not xunit: the C++ suite in
+       working_code/gifscythe/tests/ is a plain binary that counts CHECK()s and
+       exits non-zero on a failure, and this deliberately matches it - no NuGet
+       package, nothing to restore beyond the SDK itself, and a CI step that is
+       one `dotnet run`.
+
+       Two lanes:
+         unit  - every case below, always.
+         parity - the same settings handed to the REAL C++ gifscythe-cli in print
+                  mode; runs when GS_CLI points at a built CLI. GS_REQUIRE_PROOF=1
+                  turns "no CLI" into a FAILURE instead of a skip, so a CI job
+                  cannot pass by quietly skipping its proof (the repo's rule:
+                  a skipped proof must never read as a passed one). -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Gifscythe.Core.Tests</RootNamespace>
+    <AssemblyName>Gifscythe.Core.Tests</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Gifscythe.Core/Gifscythe.Core.csproj" />
+  </ItemGroup>
+
+</Project>

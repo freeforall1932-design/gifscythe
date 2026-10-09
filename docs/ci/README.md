@@ -54,8 +54,10 @@ back to enforcing byte-equality with no standing exception.
   web suites, the wasm-track proofs that need no Emscripten (`u57-stale-output.test.mjs` and, since
   2026-10-07, the page glue end to end in `web/wasm/glue_harness.mjs`), packaging + manifest
   assertion (Windows ships; linux is the test battery since S20/OD-17), artifact upload (`gifscythe-windows`, 14-day
-  retention; binaries are banked on Releases), the csharp-spike job (parked
-  track, still CI-run), and the doc gate (its own `docs` job). The Windows GUI
+  retention; binaries are banked on Releases), the csharp-spike job (the C#
+  lane: Phase-1 spike, plus since S38 the `Gifscythe.Core` unit + CLI-parity
+  step against the same artifact's `gifscythe-cli.exe` — `OD-C7 = resume`,
+  2026-10-08), and the doc gate (its own `docs` job). The Windows GUI
   build and its offscreen harness (S34) run even when the CLI/unit-test step
   before them failed; they only need the Qt provisioning step to have worked.
   Two diagnostics-only Windows steps (S34, N-30) publish what a failed run's
