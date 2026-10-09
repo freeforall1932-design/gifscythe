@@ -62,6 +62,31 @@ Chronological log of decisions and changes. **Newest at the top.**
   fail/success totals) is recorded as the shell's UI requirement, with what
   exists today named beside it.
 
+**2026-10-09 (same session) — the GUI ask was researched and drafted, not coded.**
+The owner pushed back on being handed three XnConvert marketing screenshots instead
+of the app's own interface. So:
+- **A walkable draft of the proposed UI** (outside the repo — nothing in `src/qtui/`
+  or `web/` was touched): XnConvert's Input → Actions → Output → Status shape, with
+  ScreenToGif's "file type and preset" idea for the per-format settings. Actions is
+  an **ordered action chain**; the **preview sits on the Actions tab only** and is
+  genuinely live (it POSTs to the real engine: 8,637 → 5,549 B on the repo's own
+  fixture as the preset moves Best quality → Smallest file); clicking it opens the
+  animation **full size at full quality**.
+- **Plain language replaces engine jargon**: "Explode" → "Split into separate
+  frames", with an explanation next to the choice.
+- **GIF has no quality number** (it stores a palette), so the draft offers
+  **Color detail %** → `-k <colors>` and **Extra compression %** → `--lossy=<n>`,
+  printing the engine argument under each slider. APNG/WebP panels are drawn but
+  marked **PLANNED** and disabled — nothing implements them (`D-01`…`D-03`).
+- **New owner rule recorded**: no GUI edit starts on a session's own judgement —
+  research (cited) → draft in front of the owner → wording confirmed → code.
+- **`OD-21`** (preset wording) and **`OD-22`** (may XnView/XnConvert material enter
+  the repo — recommendation: no binaries or screenshots, text-only notes; use the
+  MS-PL ScreenToGif fork for the settings vocabulary) are OPEN.
+- **W-32** added: the Status tab is now a register row instead of prose, and the
+  reason it is not built is written into it — neither surface keeps per-file
+  results today, so it is a result model + rows + totals, not a rename of the log.
+
 **Partial:**
 
 - The core port is a SLICE: `Validate.h`, `OutputPlan.h`, `OutputName.h`,

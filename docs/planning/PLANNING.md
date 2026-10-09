@@ -70,14 +70,36 @@ named — the first verdict is in: CI run `37813051817` (2026-10-08, head
 `cc94ed1`) is green on all six jobs, the parity step included. `csharp/README.md`
 carries the tree notice.
 
-**UI requirement (owner, 2026-10-08):** the shell must have the XNConvert
-four-tab shape — Input (explorer-like file management: drag and drop, filter,
-sort), Actions (the formatting controls, adapted to this repo's scope), Output
-(per-format settings once APNG/WebP land, destination folder) and a **Status tab**
-(per-file processing log with the size change, plus fail/success totals). Today's
-Qt surface has Input/Actions/Output/Guide plus an activity log and an output
-summary; the Status tab exists in neither surface yet, so it is new work, not a
-port. **Video/FFmpeg (`OD-20 = a`, answered by the owner 2026-10-08):** an
+**UI requirement (owner, 2026-10-08; specified 2026-10-09):** the shell must have
+the XNConvert four-tab shape — Input (explorer-like file management: drag and
+drop, filter, sort), Actions (the formatting controls, adapted to this repo's
+scope), Output (per-format settings once APNG/WebP land, destination folder) and a
+**Status tab** (per-file processing log with the size change, plus fail/success
+totals). Today's Qt surface has Input/Actions/Output/Guide plus an activity log and
+an output summary; the Status tab exists in neither surface yet, so it is new work,
+not a port — register row **W-32** (OPEN).
+
+**How the four tabs are meant to behave (drafted 2026-10-09, awaiting `OD-21`):**
+- **Input** — drag-and-drop + Add files / Add folder / Remove / Clear, a **filter**
+  box and a **sort** (name/size/date/type), a per-file info panel, and the queue
+  order made visible (order decides how a combined animation is built).
+- **Actions** — an **ordered chain of action cards** (XnConvert behaviour: they run
+  top → bottom, and order matters), each removable and reorderable. **The preview
+  belongs here and nowhere else**, and it stays only while it is genuinely live
+  (it re-runs the engine when tuning stops); clicking it opens the animation
+  **full size at full quality**.
+- **Output** — *What to make* in plain language (optimize each file / combine into
+  one animation / **split into separate frames** / let Gifscythe decide), then
+  *Where to save* (folder + a filename pattern that never overwrites the original),
+  then **Format & preset**: a format dropdown, a gear that opens **that format's**
+  settings, and a preset combobox that holds all of them (ScreenToGif's
+  "file type and preset" idea — `S.SaveAs.Type` in its MS-PL source, readable in
+  your own fork). **GIF has no quality number** — it stores a palette — so "quality"
+  is presented as **Color detail %** (→ `-k <colors>`) and **Extra compression %**
+  (→ `--lossy=<n>`), with the real engine argument printed under each slider.
+  APNG/WebP panels are drawn as **PLANNED and disabled** until `D-01`…`D-03` land.
+- **Status** — per-file rows (before → after → change) plus fail/success totals,
+  with named failure reasons. Tracked as **W-32**. **Video/FFmpeg (`OD-20 = a`, answered by the owner 2026-10-08):** an
 FFmpeg sidecar for video → GIF is **approved as a conversion endpoint** and
 `PROJECT_VISION.md` now carries the adopted amendment — decode in via one
 subprocess sidecar, gifsicle still does all the GIF work, no editing/timeline/

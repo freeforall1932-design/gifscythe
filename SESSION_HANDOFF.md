@@ -71,7 +71,34 @@ Based on `main` commit `c3ce59f` (PR #14's merge commit — the tip this branch 
 - The XNConvert four-tab UI ask is recorded as the shell's UI requirement;
   today's surface is Input/Actions/Output/Guide tabs + an activity log + an output
   summary, and the **Status tab** (per-file size deltas, fail/success totals)
-  does not exist in either surface yet.
+  does not exist in either surface yet — now also register row **W-32** (OPEN).
+- **2026-10-09 (same session): the UI ask was researched and drafted, not coded.**
+  The owner pushed back — correctly — on being handed three XnConvert marketing
+  screenshots instead of the app's own interface, so this time the work was:
+  1. **A walkable draft of the proposed UI** (XnConvert's Input → Actions →
+     Output → Status shape; ScreenToGif's "file type and preset" idea for the
+     per-format settings). Input = drag-drop + filter + sort; Actions = an ordered
+     **action chain** with a **live preview beside it**; Output = *What to make*
+     (plain language: optimize each / combine / **split into separate frames**),
+     where to save, and **Format & preset** with a gear that opens the per-format
+     settings; Status = the spec, drawn as a ghost tab.
+  2. **The preview is real, not decorative**: it POSTs the file to the actual
+     engine (the web server on port 8000) and shows the true before/after bytes —
+     measured 8,637 → 5,549 B on the repo's own fixture when the preset moves from
+     *Best quality* to *Smallest file*. Clicking it opens the animation full size
+     at full quality.
+  3. **GIF has no "quality" slider** — it stores a palette — so the draft offers
+     **Color detail %** (→ `-k <colors>`) and **Extra compression %**
+     (→ `--lossy=<n>`), with the engine argument printed under each slider.
+     APNG/WebP panels are drawn but marked **PLANNED** and disabled: nothing
+     implements them (`D-01`…`D-03`, 2.0.0+).
+  4. **The draft lives outside the repo** (a scratch directory), because the rule
+     below says no GUI edit starts before the owner confirms. Nothing in
+     `src/qtui/` or `web/` was touched.
+  Open questions recorded from this: `OD-21` (confirm the preset wording) and
+  `OD-22` (may XnView/XnConvert material enter the repo — recommendation: no
+  binaries or screenshots; text-only reference notes, and use the ScreenToGif
+  fork instead, which is MS-PL and already yours).
 
 ### S36 — what changed (previous session; S37's changes are in its log entry and ledger row)
 
@@ -338,7 +365,7 @@ Based on `main` commit `c3ce59f` (PR #14's merge commit — the tip this branch 
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 178 DONE · 7 PARTIAL · 13 OPEN · 0 UNTRIAGED · 198 total (at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 178 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 199 total (at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -1056,6 +1083,25 @@ only stick if they are in files a new session reads, not in a conversation.
   self-hosted (loopback default) and supported since S14; its `/run` keeps the
   desktop honesty rules — do not fork the semantics.
 - Language stays C++17/Qt6 through 1.0.0 (triggers in `docs/planning/PLANNING.md` §1). *(S38: the C# shell lane is resumed as an ADDITIVE track behind the CLI oracle - it does not change the shipped EXE; `OD-C7 = resume`.)*
+- **GUI changes: research first, then confirm with the owner, then code (owner rule, 2026-10-09).**
+  No further GUI edit may start on a session's own judgement. The sequence is:
+  research the reference (what it actually looks like / what its settings are, cited) →
+  put a **draft in front of the owner** (a walkable UI draft counts; a description does not) →
+  get the wording and the behaviour confirmed → *then* touch `src/qtui/` or `web/`.
+  The owner's complaint that produced this rule: earlier sessions answered a GUI question
+  with the three marketing screenshots on `xnview.com/en/xnconvert/` instead of doing the
+  research and showing the **app's own** UI. Standing sub-rules that came with it:
+  - **Preview belongs to the Actions tab only** — not a permanent panel on every tab. It
+    stays only while it is genuinely live (it re-runs the engine when you stop tuning); a
+    preview that does not track the settings gets deleted rather than kept as decoration.
+  - **Clicking the preview must show the animation full size at full quality**, not a
+    downscaled approximation.
+  - **Plain language, not engine jargon.** "Explode" is not user-facing vocabulary.
+  - **Per-format presets on the Output tab** (XnConvert's Format + gear shape; ScreenToGif's
+    "file type and preset" idea): a percentage slider a normal person understands, with the
+    real engine argument shown underneath it. GIF has no quality number — it stores a
+    palette — so "quality" is expressed as **color detail %** and **extra compression %**,
+    mapped to `-k <colors>` and `--lossy=<n>`.
 - The `scripts/build_gifsicle.sh` shim is gone (S7). Do not reintroduce it.
 - Settings file is core-SettingsIO format; GUI-only keys live in the
   unknown-key map (keep unit tests 20 + 31 green). Default name template
@@ -1244,7 +1290,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 178 DONE · 7 PARTIAL · 13 OPEN · 0
+   its generated counts line (currently: 178 DONE · 7 PARTIAL · 14 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
