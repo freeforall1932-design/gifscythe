@@ -32,12 +32,21 @@ Chronological log of decisions and changes. **Newest at the top.**
   `SESSION_HANDOFF_CONTEXT_PACK_2026-10-12`). Full text of every removed file is
   retained in git history at `dafbd5f` — nothing was lost, only de-duplicated from
   the tree.
-- **Every reference repointed.** `GIFSCYTHE_PROJECT_OVERLAY_v3.md` ("Use with",
-  continuation prompt), `SESSION_HANDOFF_UNIVERSAL_CONTEXT_AND_PROJECT_2026-10-13.md`
-  (§0 line + §5 file list rewritten as a superseded/current map) and
-  `GIFSCYTHE_CURRENT_REVIEW_AND_CONTINUATION_CONTEXT_2026-10-12.md` (header +
-  task prompt) now name `UNIVERSAL_AGENT_CONTEXT_v4.md`; no tracked doc points at
-  a removed file (gate **G8** verifies this).
+- **Context layer removed, project layer kept (same session, owner's direction).**
+  The unpacked universal-context files and the applied patch bundle were deleted
+  from the tree: the v3 project overlay, the 2026-10-13 universal handoff, the
+  2026-10-12 current-review context, and the `node24-actions-runtime` ZIP whose
+  patch this session applied. The tree keeps only the repository's own
+  long-standing documents plus the unified `UNIVERSAL_AGENT_CONTEXT_v4.md`; the
+  project layer is now this file, `STATUS.md`, `WORKLIST.md` and
+  `docs/planning/`. Everything removed is in git history at `dafbd5f`. **Open
+  items carried over from the deleted overlay, so they are not lost:** (1) the C#
+  lane's .NET 9 → .NET 10 LTS migration — all four project TFMs, the workflow's
+  SDK selection and its `net9.0` output paths, proven by compile/unit/fake-engine/
+  CLI-parity in CI (Microsoft's .NET 9 support ends 2026-11-10); (2) confirm
+  whether the staged Windows portable artifact is executed after packaging, and
+  add only a focused package-smoke job if the gap is confirmed; W-18
+  (clean machine) and W-19 (real desktop) stay owner/manual.
 - **Base re-anchored in both enforced lines.** `c3ce59f` → `dafbd5f` (this file's
   header + `COMPILED_AUDIT.md` §0): the owner's direct web upload of 2026-10-13
   moved main's tip, so the old anchor stopped being the tip or the tip's first
@@ -87,10 +96,10 @@ owner/manual). The .NET 10 lane was not attempted (no SDK here; CI is its compil
 **Docs touched:** `SESSION_HANDOFF.md` (header Session/Branch/base re-anchor + new
 S40 section + S38 marked previous), `IMPROVEMENT_LOG.md` (this entry),
 `COMPILED_AUDIT.md` (§0 base line), `STATUS.md` (N-34 proof cell),
-`UNIVERSAL_AGENT_CONTEXT_v4.md` (new), `GIFSCYTHE_PROJECT_OVERLAY_v3.md`,
-`SESSION_HANDOFF_UNIVERSAL_CONTEXT_AND_PROJECT_2026-10-13.md`,
-`GIFSCYTHE_CURRENT_REVIEW_AND_CONTINUATION_CONTEXT_2026-10-12.md` (references
-repointed to v4). Removed files are listed under **Changed**.
+`UNIVERSAL_AGENT_CONTEXT_v4.md` (new). Removed files are listed under **Changed**.
+No other current-state doc needs an edit: the removed context-layer files left no
+dangling reference behind (gate **G8** verifies the surviving references), because
+the only files that pointed at them were themselves part of that removed layer.
 
 ---
 
