@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/freeforall1932-design/gifscythe  
 **Review snapshot:** 2026-10-13  
-**Use with:** `UNIVERSAL_AGENT_CONTEXT_v3.md`  
+**Use with:** `UNIVERSAL_AGENT_CONTEXT_v4.md` (unified; supersedes the v3 lineage)  
 **Scope:** This file contains Gifscythe-specific facts and next steps. The universal file defines the reusable engineering method. Recheck the current branch and latest CI state before treating any item below as current.
 
 ## 1. Verified live baseline (2026-10-13)
@@ -99,7 +99,7 @@ Review [docs/planning/OWNER_DECISIONS.md](https://github.com/freeforall1932-desi
 
 ## 5. Exact Arena continuation prompt
 
-> Read `UNIVERSAL_AGENT_CONTEXT_v3.md` first, then this project overlay. Verify the live branch head, local working tree if available, workflow mirror, current build configuration, open tasks, and most recent Actions run. Do not treat historical runs as proof of current health.
+> Read `UNIVERSAL_AGENT_CONTEXT_v4.md` first, then this project overlay. Verify the live branch head, local working tree if available, workflow mirror, current build configuration, open tasks, and most recent Actions run. Do not treat historical runs as proof of current health.
 >
 > Start with a dedicated Node 24 action-runtime update using the release candidates and metadata linked in this overlay. Recheck the branch head, keep `.github/workflows/build.yml` and `docs/ci/build.yml.proposed` synchronized and byte-identical, run all relevant gates, and verify a new real Actions run. Keep the separate .NET 10 migration reviewable: update all project TFMs, SDK selection, output paths and current-state documentation; then prove compile, unit, fake-engine, and C++ CLI-parity behavior in CI. Finally inspect whether the actual staged Windows artifact is executed after packaging; add only a focused package-smoke job if the gap is confirmed.
 >

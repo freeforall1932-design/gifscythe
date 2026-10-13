@@ -1,17 +1,62 @@
 # Session Handoff
 
-**Session:** S38 · **Date:** 2026-10-08
-**Branch:** arena/8eef3ffc-gifscythe
+**Session:** S40 · **Date:** 2026-10-13
+**Branch:** arena/9604d42a-gifscythe
 **Repo re-created 2026-09-22:** the GitHub repo was rebuilt from a zip upload; the old remote's history (S1–S26, PRs #1–#33, shas like `5c93680`) does not exist in this clone — every such sha below is an old-remote record kept for the written history. The new remote: `04a1cd4` (initial) → `60d3df4` (zip upload) → `ce5fd51` (unpack to root) → PR #1 merge `824bf20`, whose tree is the S26 state minus the four root license files (loss = finding **U-97**, restored in S27 with executed proof). The ledger carries a separator: rows #1–#33 are the OLD repo's; the new repo's numbering restarts at #1. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number. This records the merged baseline, not a claim about current CI health.
 **Docs synced through:** PR #15 · branch `arena/8eef3ffc-gifscythe` · merged as: OPEN — this branch's own PR, pre-synced per the S34 rule; the merge sha lands in its ledger row when it merges
 *(the newest merge these docs actually describe. `pr_preflight.sh --online` step **P6** compares this against the newest merged PR and fails when a merge landed with no doc sync. A PR **pre-syncs itself**: right after `gh pr create` it moves this line to its own number — P6 accepts the number of the branch's own open PR — so the owner can merge from the GitHub UI and continue with nothing left to edit. Move this line only after the writing is done.)*
-**S38 re-anchor (post-merge):** both enforced base lines now name `c3ce59f`, PR #14's merge commit — legal now (it IS main's tip) and legal after the next merge, because a merge sha is also its first parent (the S26 mechanic). The value they replaced, `7f29347` (PR #12's merge), still resolves but stopped being main's tip when PR #14 merged on 2026-10-07; G10 accepts only the tip or the tip's first parent (`df219c0`, PR #13's merge). This session arrived to exactly that red and its PR carries the re-anchor — the #13/#9 post-merge pattern.
-Based on `main` commit `c3ce59f` (PR #14's merge commit — the tip this branch `arena/8eef3ffc-gifscythe` was cut from. **S37 re-anchor (kept for the written history):** both enforced base lines named `7f29347`, PR #12's merge commit — legal then, because it WAS main's tip. **S36 re-anchor:** every commit that lands on main moves its tip and G10 accepts only the tip or its first parent, so the base line moves with it; `4430a28`, the base S35 named, is PR #11's first parent and stays the history entry below. The tree was verified again the same way, by markers rather than trust.) PREVIOUS BASE, kept for the written history: `main` commit `4430a28` ("Add files via upload" — **a second re-creation of this repo.** The entire history of this clone is that one squashed commit, so the `fe4f0a7` lineage below does not resolve here at all, exactly as the S27 re-creation did not; S27's entry is the precedent for how that is recorded. The TREE is nevertheless the one these docs describe, verified by markers rather than trust: `4430a28` holds zero image files (what `fe4f0a7`'s delete produced — N-36) and all five root license files (U-97's restoration survived). Re-anchored in S35 because G10 accepts only `origin/main`'s tip or its first parent, and an unresolvable base sha keeps main red on every run. **Consequence for anyone reading the patch series:** the five audit-fix patches applied in S35 were anchored on `fe4f0a7`, so every hunk landed at an offset of +14 to +562 lines in this tree; the offsets are recorded line by line in `PATCH_SERIES_REVIEW.md`.) PREVIOUS BASE, kept for the written history: `main` commit `fe4f0a7` (the owner's direct web commit of 2026-10-02, "Deleted shot_actions_tab.png", which removed every image file in the repo — register row N-36; its parent `c999061` is PR #9's merge, 2026-10-02 — the S33 post-merge sync plus the N-31 fix that makes G11 skip in shallow clones — whose first parent `ad8f956` is PR #8's merge, whose own first parent `13d95a7` was the owner's 2026-09-29 direct upload. Re-anchored twice in S34, because every commit that lands on main moves its tip and G10 only accepts the tip or its first parent: an older sha here turns main red on the post-merge run — it did, for the old `13d95a7`, on PR #9's own merge run 36971588492, and the `c999061` this line named before the owner's direct commit went stale the same way; `scripts/sim_postmerge.sh` shows that before the merge instead of after it. Old-remote shas inside the historical sections are records this clone cannot resolve) ·
+**S40 re-anchor:** both enforced base lines now name `dafbd5f`, the owner's direct web upload of 2026-10-13 and main's current tip. Its parent `3dc49ce` is PR #15's merge commit, whose own first parent is `c3ce59f`; G10 accepts the tip or the tip's first parent, so `dafbd5f` and `3dc49ce` are both legal and the value it replaced is not. This session arrived to main red on exactly that stale anchor and its PR carries the re-anchor — the #14/#13/#9 post-merge pattern. PREVIOUS ANCHOR, kept for the written history: both base lines named `c3ce59f`, PR #14's merge commit — legal then (it WAS main's tip) and legal after the next merge, because a merge sha is also its first parent (the S26 mechanic). The value it replaced, `7f29347` (PR #12's merge), still resolves but stopped being main's tip when PR #14 merged on 2026-10-07.
+Based on `main` commit `dafbd5f` (the owner's 2026-10-13 upload and main's current tip; this branch `arena/9604d42a-gifscythe` was cut from the identical tree — its one commit `a992c8b` sits directly on `dafbd5f`. **S38 branch base (kept for the written history):** the previous session's branch `arena/8eef3ffc-gifscythe` was cut from `c3ce59f`, PR #14's merge commit. **S37 re-anchor (kept for the written history):** both enforced base lines named `7f29347`, PR #12's merge commit — legal then, because it WAS main's tip. **S36 re-anchor:** every commit that lands on main moves its tip and G10 accepts only the tip or its first parent, so the base line moves with it; `4430a28`, the base S35 named, is PR #11's first parent and stays the history entry below. The tree was verified again the same way, by markers rather than trust.) PREVIOUS BASE, kept for the written history: `main` commit `4430a28` ("Add files via upload" — **a second re-creation of this repo.** The entire history of this clone is that one squashed commit, so the `fe4f0a7` lineage below does not resolve here at all, exactly as the S27 re-creation did not; S27's entry is the precedent for how that is recorded. The TREE is nevertheless the one these docs describe, verified by markers rather than trust: `4430a28` holds zero image files (what `fe4f0a7`'s delete produced — N-36) and all five root license files (U-97's restoration survived). Re-anchored in S35 because G10 accepts only `origin/main`'s tip or its first parent, and an unresolvable base sha keeps main red on every run. **Consequence for anyone reading the patch series:** the five audit-fix patches applied in S35 were anchored on `fe4f0a7`, so every hunk landed at an offset of +14 to +562 lines in this tree; the offsets are recorded line by line in `PATCH_SERIES_REVIEW.md`.) PREVIOUS BASE, kept for the written history: `main` commit `fe4f0a7` (the owner's direct web commit of 2026-10-02, "Deleted shot_actions_tab.png", which removed every image file in the repo — register row N-36; its parent `c999061` is PR #9's merge, 2026-10-02 — the S33 post-merge sync plus the N-31 fix that makes G11 skip in shallow clones — whose first parent `ad8f956` is PR #8's merge, whose own first parent `13d95a7` was the owner's 2026-09-29 direct upload. Re-anchored twice in S34, because every commit that lands on main moves its tip and G10 only accepts the tip or its first parent: an older sha here turns main red on the post-merge run — it did, for the old `13d95a7`, on PR #9's own merge run 36971588492, and the `c999061` this line named before the owner's direct commit went stale the same way; `scripts/sim_postmerge.sh` shows that before the merge instead of after it. Old-remote shas inside the historical sections are records this clone cannot resolve) ·
 **Product version:** 0.1.0 (owner `OD-11 = a` S19: stays 0.1.0 until the release criteria are met) ·
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-### S38 — what just changed (current session)
+### S40 — what just changed (current session)
+
+- **The first-party Actions runtime migration landed (Node 20 → Node 24).** Both
+  byte-identical workflow copies moved `actions/checkout@v4` → `@v7`,
+  `actions/setup-dotnet@v4` → `@v6`, `actions/upload-artifact@v4` → `@v7`,
+  `actions/download-artifact@v4` → `@v8` — 22 action-reference occurrences, action
+  refs only: no SDK/TFM change, no workflow-structure change, so the .NET 10
+  migration stays separate and diagnosable. Applied from the reviewed patch bundle
+  against the recorded base blob `d22de8aec9e514445409fcba36592f8d9a692ad7` (both
+  copies hashed to it before applying; `git apply --check` clean).
+  **Local evidence:** `scripts/lint_workflow.mjs` clean on both copies and
+  `--selftest` OK; `cmp` shows the copies still byte-identical (G7).
+  **Real proof, run `38339179749` on `a992c8b`:** gate, windows, linux, portability
+  and csharp-spike all **success**; `release snapshot (tag only)` skipped as
+  designed. The `Node.js 20 is deprecated` annotation main's runs carry is gone,
+  and the job step list shows `Run actions/checkout@v7`. The docs job in that run is
+  red for the pre-existing **G10** base-anchor reason (main's own run `38338785714`
+  is red on the same class — docs + the linux audit gate), which this PR re-anchors;
+  see the header's S40 re-anchor line.
+- **Universal context consolidated to v4.** `UNIVERSAL_AGENT_CONTEXT_v4.md` (new,
+  repo root) merges the v3 universal guide, the CI/reference-driven-porting draft,
+  the refinement notes and the optional research-tool catalog into one
+  stack-agnostic file. New generalized sections: truth-maintenance registers and
+  gates, external patch intake with salvage accounting, sentinel/mutation-tested
+  guards, environment-premise re-verification, and "never flip a status on a green
+  build alone" — all with project names, IDs and versions stripped. Removed in the
+  same change: `UNIVERSAL_AGENT_CONTEXT_v3.md`,
+  `UNIVERSAL_AGENT_CI_AND_REFERENCE_DRIVEN_PORTING.md`,
+  `UNIVERSAL_CONTEXT_V3_REFINEMENT_NOTES_2026-10-13.md` and the four context-pack
+  ZIPs (`AGENT_CONTEXT_PACK_v2/v3/v3_REFINED`,
+  `SESSION_HANDOFF_CONTEXT_PACK_2026-10-12`) — superseded, absorbed, or
+  history-only; **full text retained in git history at `dafbd5f`**. Every doc that
+  pointed at a removed file now points at v4 (this directory's overlay v3, the
+  2026-10-13 universal handoff, the 2026-10-12 current-review context).
+- **Base re-anchored `c3ce59f` → `dafbd5f`** in both enforced lines (this file +
+  `COMPILED_AUDIT.md`): main's tip moved on 2026-10-13 with the owner's direct
+  upload, and the previous anchor stopped being the tip or its first parent.
+- **Status register:** `N-34`'s proof cell updated — the Node 20 action warnings it
+  recorded as "unchanged and still passing" are now migrated, with this run named.
+- **Evidence-access limitation (not verifiable here):** GitHub's job-log storage
+  returns `EOF` from this sandbox and the web viewer requires sign-in, so the exact
+  failing check *names* inside the docs job could not be read directly. Job/step
+  conclusions came from the Actions jobs API and check-run annotations; that is the
+  level at which this section's claims are made.
+
+### S38 — what just changed (previous session)
 
 - **The C# shell is UNPARKED on the owner's direction** (2026-10-08: *"im planning
   to pursue windows first and that wpf .net"*) and Phase 2 of

@@ -4,7 +4,95 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
-## S39 — 2026-10-09: the DiscordChatExporter handoff received — the spike's unreachable engine deadline fixed and pinned by a hostile-engine CI regression (W-33), and the W-32 per-file result contract written out as a proposal
+## S40 — 2026-10-13: the Node 20 → Node 24 Actions migration landed with a green run, and the universal context was consolidated to v4 (prior versions removed)
+
+**Changed:**
+
+- **First-party Actions runtime migration (the standing P0 of the current
+  context).** Both byte-identical workflow copies (`.github/workflows/build.yml`,
+  `docs/ci/build.yml.proposed`) moved `actions/checkout@v4` → `@v7`,
+  `actions/setup-dotnet@v4` → `@v6`, `actions/upload-artifact@v4` → `@v7` and
+  `actions/download-artifact@v4` → `@v8` — 22 action-reference occurrences across
+  the two files. Applied from the reviewed `node24-actions-runtime` patch bundle
+  against the exact recorded base: both copies hashed to
+  `d22de8aec9e514445409fcba36592f8d9a692ad7` **before** applying, `git apply
+  --check` clean. Scope held to action refs — no SDK/TFM change, no workflow
+  structure change — so the separate .NET 10 migration stays diagnosable on its own.
+- **Universal context consolidated.** New `UNIVERSAL_AGENT_CONTEXT_v4.md` at the
+  repo root merges the v3 universal guide, the CI/reference-driven-porting draft,
+  the v3 refinement notes and the optional research-tool catalog into one
+  stack-agnostic file. The additions are generalized lessons from this project's
+  own records with the project details removed: truth-maintenance registers and
+  gates, base-commit anchoring and historical-record labelling, the unverified log
+  and do-not-"fix" guardrail tables, external patch intake with salvage accounting,
+  sentinel/mutation-tested guards, and environment-premise re-verification.
+  Removed in the same change (superseded, absorbed, or history-only): the three
+  prior universal `.md` files and the four context-pack ZIPs
+  (`AGENT_CONTEXT_PACK_v2`, `_v3`, `_v3_REFINED_2026-10-13`,
+  `SESSION_HANDOFF_CONTEXT_PACK_2026-10-12`). Full text of every removed file is
+  retained in git history at `dafbd5f` — nothing was lost, only de-duplicated from
+  the tree.
+- **Every reference repointed.** `GIFSCYTHE_PROJECT_OVERLAY_v3.md` ("Use with",
+  continuation prompt), `SESSION_HANDOFF_UNIVERSAL_CONTEXT_AND_PROJECT_2026-10-13.md`
+  (§0 line + §5 file list rewritten as a superseded/current map) and
+  `GIFSCYTHE_CURRENT_REVIEW_AND_CONTINUATION_CONTEXT_2026-10-12.md` (header +
+  task prompt) now name `UNIVERSAL_AGENT_CONTEXT_v4.md`; no tracked doc points at
+  a removed file (gate **G8** verifies this).
+- **Base re-anchored in both enforced lines.** `c3ce59f` → `dafbd5f` (this file's
+  header + `COMPILED_AUDIT.md` §0): the owner's direct web upload of 2026-10-13
+  moved main's tip, so the old anchor stopped being the tip or the tip's first
+  parent. Its parent `3dc49ce` (PR #15's merge) is accepted too, by the same rule.
+- **Register row N-34's proof cell updated.** It recorded the four v4 action refs
+  as warned-about but "unchanged and still passing"; that exposure is now closed
+  and the row names the run that proves it.
+
+**Partial:** none of this session's own work is partial. The two migrations that
+*remain* are untouched by design: the .NET 9 → .NET 10 C# lane migration (P1 of the
+project overlay) and the P2 question of whether the staged Windows artifact is
+smoke-tested — both still open, neither attempted here.
+
+**Left:** deliberately not done — no changes to `csharp/**`, no TFM edit, no
+workflow-structure change, no new job, no release, no version bump. The historical
+session sections of `SESSION_HANDOFF.md` and all older `IMPROVEMENT_LOG.md` entries
+were left exactly as written (history is not rewritten).
+
+**Verified:** (executed here, in this order)
+
+- `./build.sh` — engine 1.96 + CLI + unit tests built; **415 checks + 35 admission
+  checks, 0 failures** (matches the documented host count); it also bootstrapped
+  the hooks, so gate **G15** is live (`core.hooksPath=.githooks`).
+- `git apply --check` clean at the recorded base blob; `git hash-object` confirmed
+  both copies matched `d22de8ae…` before the patch.
+- `node scripts/lint_workflow.mjs` on both copies → *actionlint: clean*; and
+  `--selftest` → OK. `cmp` → copies byte-identical (**G7**).
+- Actions run **`38339179749`** on commit `a992c8b` (pushed branch): **gate,
+  windows, linux, portability, csharp-spike all success**; `release snapshot
+  (tag-only)` skipped as designed. The Node 20 deprecation annotation present on
+  main's runs is **absent** from this run, and the docs job's step list shows
+  `Run actions/checkout@v7` — the new action majors are executing.
+- Main's own run **`38338785714`** (owner's `dafbd5f` upload) read for the
+  comparison: docs + linux red there, i.e. the anchor red is main's, not this
+  branch's, and the branch's docs job fails at the same step for the same reason.
+- Job/step conclusions and annotations read via `gh api` (Actions jobs + check-run
+  annotations), not from logs — see the limitation line below.
+
+**Not verifiable here:** GitHub's job-log storage host returns `EOF` from this
+sandbox (both `gh run view --log` and the API logs endpoint) and the web log viewer
+requires sign-in, so the *step-level log text* of the failing docs job could not be
+read directly; the failing step is known from the jobs API, and the run/job
+conclusions are the level at which claims are made here. Also out of reach here:
+real Windows desktop behaviour and the clean-machine artifact smoke (W-18/W-19 stay
+owner/manual). The .NET 10 lane was not attempted (no SDK here; CI is its compiler).
+
+**Docs touched:** `SESSION_HANDOFF.md` (header Session/Branch/base re-anchor + new
+S40 section + S38 marked previous), `IMPROVEMENT_LOG.md` (this entry),
+`COMPILED_AUDIT.md` (§0 base line), `STATUS.md` (N-34 proof cell),
+`UNIVERSAL_AGENT_CONTEXT_v4.md` (new), `GIFSCYTHE_PROJECT_OVERLAY_v3.md`,
+`SESSION_HANDOFF_UNIVERSAL_CONTEXT_AND_PROJECT_2026-10-13.md`,
+`GIFSCYTHE_CURRENT_REVIEW_AND_CONTINUATION_CONTEXT_2026-10-12.md` (references
+repointed to v4). Removed files are listed under **Changed**.
+
+---
 
 **What arrived.** A read-only review, `GUI_REUSE_REVIEW.md`, handed off from the
 DiscordChatExporter session. It lives **outside the repo**

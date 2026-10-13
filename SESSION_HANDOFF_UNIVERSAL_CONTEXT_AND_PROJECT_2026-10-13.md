@@ -1,7 +1,7 @@
 # Session Handoff: Universal Context Refinement + Project Follow-through
 
 **Prepared:** 2026-10-13  
-**Current universal guide:** `UNIVERSAL_AGENT_CONTEXT_v3.md` (refined, still open to improvement)  
+**Current universal guide:** `UNIVERSAL_AGENT_CONTEXT_v4.md` (unified edition, 2026-10-13; supersedes the v3 lineage named below, which is absorbed into it and retained in git history at `dafbd5f`)  
 **Project overlay:** `GIFSCYTHE_PROJECT_OVERLAY_v3.md`  
 **No live repository files have been modified in this session.** The live repo was inspected to update the project overlay and define the next implementation step. The refined context files are packaged separately for download.
 
@@ -43,10 +43,17 @@ For meaningful architecture, porting, tooling, and framework choices, if saved r
 
 ## 5. Files in this pack
 
-- `UNIVERSAL_AGENT_CONTEXT_v3.md` — updated universal process guidance.
-- `UNIVERSAL_CONTEXT_V3_REFINEMENT_NOTES_2026-10-13.md` — gap findings and order, deliberately project-agnostic.
+> **Superseded 2026-10-13 (S40):** this session's files were consolidated into the single
+> universal guide `UNIVERSAL_AGENT_CONTEXT_v4.md` at the repository root; the earlier
+> universal files and context-pack ZIPs listed below were removed in the same change and
+> their full text is retained in git history at `dafbd5f`. The project overlay and handoff
+> below stay as the project layer.
+
+- `UNIVERSAL_AGENT_CONTEXT_v4.md` — **current:** one unified, stack-agnostic guide (merges the v3 guide, the CI/reference-driven-porting draft, the refinement notes, and the optional tool catalog).
+- `UNIVERSAL_AGENT_CONTEXT_v3.md` — prior universal guide; absorbed into v4, removed in S40 (git history `dafbd5f`).
+- `UNIVERSAL_CONTEXT_V3_REFINEMENT_NOTES_2026-10-13.md` — gap findings and order, deliberately project-agnostic; absorbed into v4, removed in S40 (git history `dafbd5f`).
 - `GIFSCYTHE_PROJECT_OVERLAY_v3.md` — project-specific live baseline and next actions.
-- `OPTIONAL_RESEARCH_TOOL_REFERENCES.md` — optional niche-tool catalog, not a universal requirement.
-- `arena_github_ci_qt6_transfer_context.md` — historical source handoff that initiated the project discussion; use only as a reference, not current repo state.
-- `SESSION_HANDOFF_UNIVERSAL_CONTEXT_AND_GIFSCYTHE_2026-10-12.md` — previous handoff retained for history, superseded by this one for current state.
+- `OPTIONAL_RESEARCH_TOOL_REFERENCES.md` — optional niche-tool catalog, not a universal requirement; absorbed into v4 §12, removed in S40 (git history `dafbd5f`).
+- `arena_github_ci_qt6_transfer_context.md` — historical source handoff that initiated the project discussion; use only as a reference, not current repo state (kept inside the `SESSION_HANDOFF_CONTEXT_PACK_2026-10-12.zip` archive removed in S40; git history `dafbd5f`).
+- `SESSION_HANDOFF_UNIVERSAL_CONTEXT_AND_GIFSCYTHE_2026-10-12.md` — previous handoff retained for history, superseded by this one for current state (same archive, removed in S40; git history `dafbd5f`).
 

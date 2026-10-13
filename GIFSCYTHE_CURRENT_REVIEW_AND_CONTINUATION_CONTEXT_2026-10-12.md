@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/freeforall1932-design/gifscythe  
 **Reviewed:** 2026-10-12  
-**Purpose:** Project-specific companion to `UNIVERSAL_AGENT_CI_AND_REFERENCE_DRIVEN_PORTING.md`. Use this for the current Gifscythe repository only. Recheck the real tip and latest Actions run before making claims about current health.
+**Purpose:** Project-specific companion to the universal guide `UNIVERSAL_AGENT_CONTEXT_v4.md` (the earlier `UNIVERSAL_AGENT_CI_AND_REFERENCE_DRIVEN_PORTING.md` is absorbed into it). Use this for the current Gifscythe repository only. Recheck the real tip and latest Actions run before making claims about current health.
 
 ---
 
@@ -251,7 +251,7 @@ These repositories are research leads, not automatic dependencies. Which ones he
 
 Copy this into the already-connected Arena session, or upload the file and give the shorter instruction to follow it. No external AI agent is required.
 
-> Read `GIFSCYTHE_CURRENT_REVIEW_AND_CONTINUATION_CONTEXT_2026-10-12.md` and `UNIVERSAL_AGENT_CI_AND_REFERENCE_DRIVEN_PORTING.md` carefully. Start by verifying the actual branch/base and current workflow/run status—do not assume the historical green runs prove current Actions compatibility.
+> Read `GIFSCYTHE_CURRENT_REVIEW_AND_CONTINUATION_CONTEXT_2026-10-12.md` and `UNIVERSAL_AGENT_CONTEXT_v4.md` carefully. Start by verifying the actual branch/base and current workflow/run status—do not assume the historical green runs prove current Actions compatibility.
 >
 > First, inspect and modernize the current GitHub Actions action versions that still declare Node 20. Update `.github/workflows/build.yml` and `docs/ci/build.yml.proposed` together, preserve byte-identical workflow copies, run all repository documentation/YAML/parity gates, and verify the real Actions results. Keep the change focused; do not add a duplicate Qt workflow.
 >
