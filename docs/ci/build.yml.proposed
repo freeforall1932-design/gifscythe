@@ -36,7 +36,7 @@ jobs:
     outputs:
       skip: ${{ steps.decide.outputs.skip }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: working_code/gifscythe/scripts/ci_gate.sh
           sparse-checkout-cone-mode: false
@@ -70,7 +70,7 @@ jobs:
     if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -99,7 +99,7 @@ jobs:
     if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Qt6
         run: sudo apt-get update && sudo apt-get install -y qt6-base-dev
@@ -338,7 +338,7 @@ jobs:
     timeout-minutes: 20
     steps:
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # A venv: 24.04's system pip refuses to install into the system Python (PEP 668).
       - name: Install the pinned toolchain (zig, Pillow)
@@ -403,7 +403,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # AUD-08: the aqt download flaked (one run died here with exit 254 and
       # skipped every later step). Cache the install, and retry the downloads
@@ -715,7 +715,7 @@ jobs:
           ls -la "$pkg"
 
       - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gifscythe-windows
           retention-days: 14
@@ -734,15 +734,15 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up .NET 9 SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 9.0.x
 
       - name: Fetch Windows engine artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: gifscythe-windows
           path: spike-deps
@@ -1089,7 +1089,7 @@ jobs:
           echo "published exe runs OK"
 
       - name: Upload spike artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gifscythe-spike
           retention-days: 14
@@ -1121,7 +1121,7 @@ jobs:
       contents: write
     steps:
       - name: Fetch the Windows artifact THIS run built and asserted
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: gifscythe-windows
 
