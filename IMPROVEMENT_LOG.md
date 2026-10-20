@@ -4,6 +4,56 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S41 — 2026-10-21: the external audit's P0 data-loss set landed (AUD-01/04/02) plus the aqt install cache, and two items were deliberately held
+
+**Changed:**
+
+- **AUD-01 (`N-46`, P0 data loss).** `claim_partial_output_path()` replaces the
+  unconditional `discard_partial(<target>.gs-partial)` in the CLI and at all
+  three Qt staging sites: it returns the first `<target>.gs-partial[.N]` with no
+  file at that path and no `<cand>.*` entries, and deletes nothing. An input
+  literally named `<output>.gs-partial` used to be deleted; it now survives and
+  the run succeeds (smoke case + `test_output_verify.cpp` checks). The TOCTOU
+  window between claim and the engine opening `-o` remains — closing it means
+  changing how the engine is launched, held out. **Accepted trade-off:** a
+  staging file left by a hard kill is no longer swept up, because it is
+  indistinguishable from user data without an ownership marker.
+- **AUD-04 (`N-47`).** The C# spike verified the DESTINATION after exit 0, so an
+  engine that wrote nothing over a pre-existing valid GIF looked like a success.
+  It now creates an exclusive staging file, verifies that file, moves it into
+  place, and returns rc 6 when the move fails; `FakeEngine` honours `-o`, so the
+  new CI csharp-spike step proves it end to end (flood over an existing GIF ⇒
+  rc 5, sha unchanged, no `gs-partial` leftover).
+- **AUD-02 (`N-48`, P0 data loss).** Reproduced before the fix: explode to prefix
+  `fr` **deleted** a user file named `fr.gs-partial.000`. `claim_partial_explode_prefix()`
+  now claims a free prefix without deleting anything (CLI refuses when none is
+  free), and the Qt Explode mode — which had no partial guard at all, so a cancel
+  or failure truncated the previous frame set in place — now writes under the
+  claimed prefix, verifies there, promotes with `promote_explode_frames`, and
+  discards only its own set. Cancel reports the flat `Cancelled.`; the N-10
+  warning described the pre-guard behaviour. Proof: 6 new unit checks, smoke
+  65/65, harness T7/T21 assertions. Qt cannot be built in this sandbox, so the
+  CI offscreen harness is the proof for the GUI half.
+- **AUD-08 (`N-49`).** The Windows aqt step had no retry and no cache; one
+  network blip (`exit 254`) skipped every later step. `actions/cache@v4` on
+  `$RUNNER_TEMP/qt` (key `aqt-qt6.7.3-win64_mingw-tools_mingw1310-v1`, trusted
+  only when both the Qt and MinGW bin dirs exist) plus a bash `retry 3` with
+  15/30/60 s backoff around the pip and aqt/choco downloads. Action refs only;
+  no gate changed.
+- **Held out (not silently dropped).** **AUD-06 `ci-ok`**: the U-89 freeze
+  (WORKLIST.md L158-164) forbids new gates while the derived P0/P1 release bar is
+  above zero — it needs an owner exception. **AUD-09**: Qt evidence can only come
+  from CI. The `verify_audit.sh` G18 gate fails on uncommitted work by design, so
+  the commit precedes the gate run.
+- **Docs.** Register rows `N-46`–`N-49` (183 DONE · 7 PARTIAL · 14 OPEN · 0
+  UNTRIAGED = 204), base lines re-anchored to `9629d49` after the owner's
+  2026-10-20 upload moved main's tip past PR #16, and main merged into the branch
+  first so CI runs against the current base (workflow copies verified
+  byte-identical after the merge; the Node 24 action refs from S40 survive the
+  AUD-08 hunk).
+
+---
+
 ## S40 — 2026-10-13: the Node 20 → Node 24 Actions migration landed with a green run, and the universal context was consolidated to v4 (prior versions removed)
 
 **Changed:**
