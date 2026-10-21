@@ -50,6 +50,14 @@ evidence can only come from CI.
   `$RUNNER_TEMP/qt` (`aqt-qt6.7.3-win64_mingw-tools_mingw1310-v1`, trusted only
   when both the Qt and MinGW bin dirs exist) and wraps the pip + aqt/choco
   downloads in a bash `retry 3` with 15/30/60 s backoff. Not a gate.
+- **The dionysus drop-in (`gifscythe.zip` at main) — reviewed, digested, de-duplicated (`N-50`).**
+  The archive was byte-identical to `dionysus@9b5e0e6:gifscythe/`, so it is deleted here and
+  replaced by `docs/planning/SKILLS_INTAKE.md`. Its executable part, `qt_lint.py`, was **run as the
+  intake's first action** and is green on this tip: selftest PASS, 9 findings, 0 not in baseline,
+  exit 0 — with none added by this PR's Qt changes; a scratch-copy mutation still fails the
+  baseline, so it bites. Not installed: `OD-15` is open (`PLANNING.md` §3) and CI wiring is frozen
+  under U-89. The drop-in's stale rows (`GS-210`, `F-02` listed open, counts 179/200) and the one
+  skill rule AUD-02 has outgrown are recorded there, with the upstream defect row ready to paste.
 - **Docs:** `N-46`–`N-49` added to the register (183/7/14/0 = 204), base lines
   re-anchored to `9629d49`, this log entry and section, and the S40 doc set
   merged in from main first.
@@ -463,7 +471,7 @@ evidence can only come from CI.
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 183 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 204 total (at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 184 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 205 total (at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -1475,7 +1483,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 183 DONE · 7 PARTIAL · 14 OPEN · 0
+   its generated counts line (currently: 184 DONE · 7 PARTIAL · 14 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High

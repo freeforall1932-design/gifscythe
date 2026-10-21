@@ -45,6 +45,21 @@ Chronological log of decisions and changes. **Newest at the top.**
   above zero — it needs an owner exception. **AUD-09**: Qt evidence can only come
   from CI. The `verify_audit.sh` G18 gate fails on uncommitted work by design, so
   the commit precedes the gate run.
+- **The dionysus drop-in was reviewed, digested and de-duplicated.** The owner's `gifscythe.zip` at
+  main is byte-identical to `dionysus@9b5e0e6:gifscythe/` (six files, no provenance manifest), so it
+  was removed from this repo and replaced by `docs/planning/SKILLS_INTAKE.md` (`N-50`), which keeps
+  the one reusable artifact — the qt_lint baseline, verbatim — plus the evidence. **The lint was run
+  as the intake's first action** (the externally-run route, no install): selftest PASS; 9 findings on
+  this tree, exactly the 2026-10-13 set (5x QL003 = U-12's five waits, 2x QL006 = the hard-coded
+  PreviewPanel colours, 2x QL002-info in tests); with the baseline, 0 not in baseline and exit 0.
+  The AUD-01/AUD-02 Qt changes add **zero** findings — an independent check on Qt code this sandbox
+  cannot compile. A mutation test on a scratch copy (`waitForFinished(9000)`) produced 1 new key and
+  exit 1, so the baseline is a gate and not decoration. Two stale rows in the drop-in are recorded
+  as traps (`GS-210` and `F-02` are DONE here; its table says open) and one skill rule is now
+  behind our code (§6 rule 4 expects the N-10 partial-frame warning that AUD-02 removed) — written up
+  as a ready-to-paste row for dionysus's own defect log, which this session cannot commit.
+  **Nothing was installed:** `OD-15` is open and `PLANNING.md` §3 forbids vendoring, submodule or
+  pip-install before it is answered, and CI wiring would be a new gate under the U-89 freeze.
 - **Docs.** Register rows `N-46`–`N-49` (183 DONE · 7 PARTIAL · 14 OPEN · 0
   UNTRIAGED = 204), base lines re-anchored to `9629d49` after the owner's
   2026-10-20 upload moved main's tip past PR #16, and main merged into the branch
