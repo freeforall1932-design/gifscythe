@@ -70,11 +70,15 @@ Qt evidence comes from CI and is now also captured as screenshots.
   (`N-52`): `PreviewPanel.cpp` no longer hard-codes `#202020`/`#909090` — the canvas takes
   `QPalette::Base` (`setBackgroundRole` + `setAutoFillBackground`) and the hint text
   `QPalette::Mid` (`setForegroundRole`), so `D-06` is no longer blocked by it. objectNames
-  untouched. **Two earlier attempts were wrong and CI's pixel measurement caught both** (a black
-  canvas: first `WA_OpaquePaintEvent` suppressing `autoFillBackground`, then a QSS `palette(base)`
-  that did not resolve to a fill). Final measurement, both platforms:
-  `corners #ffffff × 4, centre #b8b8b8`, against palette Base `#ffffff`. No test asserts pixels, so
-  only that measurement could have caught it — which is exactly why `N-54` exists.
+  untouched. **The owner's call was to keep the dark film strip**, so the final version
+  derives it instead of typing it: `mediaCanvasPalette()` takes the palette's darker role and lifts
+  it 13% toward the other, which lands on **`#212121`** in the light palette — one step off the old
+  `#202020` — and moves with the theme when `D-06` lands. **Three attempts, and CI's pixel
+  measurement was the only judge** (no test asserts a pixel): two read `#000000` (an unpainted
+  canvas — `WA_OpaquePaintEvent` suppressing `autoFillBackground`, then a QSS `palette(base)` that
+  did not resolve to a fill). Final measurement at `f5b7d7a`, both platforms: **corners `#212121`
+  ×4**, centre `#b8b8b8` (Windows) / `#493022` (Linux, the same glyph antialiased); hint contrast
+  rises 5.10:1 → 8.12:1. That is exactly why `N-54` exists.
 - **AUD-06 `ci-ok` landed (`N-53`) under a second recorded owner exception.** The owner
   granted it in the same conversation as the Qt lint. `ci-ok` needs all six jobs and runs
   `if: always()` — without that, a failed dependency removes the job and the required check

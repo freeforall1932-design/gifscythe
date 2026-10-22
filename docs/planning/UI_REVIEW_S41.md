@@ -1,7 +1,6 @@
 # UI review — S41, before merging PR #17
 
-**Requested by the owner:** review the UI before merging. **Reviewed at:** `0dee5b2`, PR #17,
-CI run `39786162032` (all eight jobs green, `ci-ok` included).
+**Requested by the owner:** review the UI before merging. **Reviewed at:** `f5b7d7a`, PR #17, CI run `39810897814` (all eight jobs green, `ci-ok` included).
 **Scope:** every change on this branch that a user can *see*, plus the UI surface around them.
 
 ## What this review can and cannot see
@@ -10,7 +9,7 @@ CI run `39786162032` (all eight jobs green, `ci-ok` included).
   pixel by pixel, plus the full assertion suite (T1–T26) and its event-loop timings.
 - **Cannot:** desktop appearance, window-manager chrome, animation smoothness, HiDPI scaling,
   a dark theme (`D-06` is not implemented), or a human judgement of "looks right". The PNGs are
-  attached to run `39786162032` as `ui-screenshots-linux` and `ui-screenshots-windows` — this
+  attached to run `39810897814` as `ui-screenshots-linux` and `ui-screenshots-windows` — this
   sandbox cannot fetch artifact blobs (they redirect to storage outside the allowed hosts), so
   **the images are yours to eyeball; the numbers below are what I could verify**.
 
@@ -22,9 +21,10 @@ which restores the look without the literal.
 
 | | Before (QL006 literal) | After (owner's call) |
 |---|---|---|
-| Canvas fill | fixed `#202020` | `mediaCanvasPalette()`: the palette's darker role lifted 13% toward the other → `#212121` predicted, **measured in CI** |
+| Canvas fill | fixed `#202020` | `mediaCanvasPalette()`: the palette's darker role lifted 13% toward the other → `#212121` **measured in CI, both platforms** |
 | Hint text | fixed `#909090` | `QPalette::Mid` → `#b8b8b8` |
 | Hint contrast | 5.10:1 | 8.12:1 (computed; AA/AAA pass, where the old value only scraped AA) |
+| Measured corners (both platforms) | `#202020` hard-coded | **`#212121` ×4**, run `39810897814` at `f5b7d7a` |
 | Dark mode (`D-06`) | impossible — literal overrides the palette | follows the theme automatically |
 
 The earlier light-canvas measurement in this file's history is kept below rather than deleted,
@@ -109,16 +109,17 @@ defect: **the preview canvas is now light where it used to be dark** (§1). Ever
 asserts is green on both platforms, `ci-ok` is green, and the two subtle failures this review did
 find were both introduced and fixed inside this branch, with their measurements kept as the record.
 
-**Recommended:** merge, accepting §1. If the dark canvas was deliberate, say so first and it is a
-small, lint-clean change to make it dark again *by role* — after which the same numbers should read
-a dark value at the corners instead of `#ffffff`.
+**Recommended:** merge. The owner's call on §1 is implemented and measured: the dark film strip is
+back (`#212121`, one step off the old `#202020`), it is derived from palette roles rather than typed
+in, and the hint text is more legible than it has ever been. **The owner is reviewing the PNGs
+themselves before the merge** — that is the one judgement a pixel measurement cannot make.
 
 ## Evidence index
 
 | Item | Where |
 |---|---|
-| Pixel + tab facts, both platforms | annotations on run `39786162032` (check-runs API) |
-| Screenshots (7 PNGs per platform) | artifacts `ui-screenshots-linux`, `ui-screenshots-windows` on that run |
+| Pixel + tab facts, both platforms | annotations on run `39810897814` at `f5b7d7a` (check-runs API) |
+| Screenshots (7 PNGs per platform: idle, 4 tabs, preview panel, with-input) | artifacts `ui-screenshots-linux`, `ui-screenshots-windows` on run `39810897814` |
 | Harness assertions, both platforms | `linux`/`windows` jobs, *GUI offscreen tests* steps |
 | Two failed implementations | `STATUS.md` `N-52`, this file §1 |
 | Changelog rows | `N-48` (cancel), `N-51` (lint gate), `N-52` (palette), `N-53` (`ci-ok`), `N-54` (evidence) |

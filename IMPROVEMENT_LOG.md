@@ -78,15 +78,16 @@ Chronological log of decisions and changes. **Newest at the top.**
   tree) then the baselined scan. The baseline is **this tree's**, regenerated after the fix below:
   6 keys / 7 findings.
 - **QL006 ×2 fixed (`N-52`) — palette roles instead of hex, and the UI measurement earned its
-  keep.** `PreviewPanel.cpp` hard-coded `#202020` (canvas) and `#909090` (hint text); the final
-  implementation takes `QPalette::Base` (`setBackgroundRole` + `setAutoFillBackground`) and
-  `QPalette::Mid` (`setForegroundRole`), with no stylesheet and no `WA_OpaquePaintEvent`. **Two
-  earlier attempts shipped wrong and CI's pixel annotation caught both:** the first kept
-  `WA_OpaquePaintEvent` (Qt skips `autoFillBackground` for an opaque widget, so nothing painted the
-  canvas) and measured `#000000`; the second used a stylesheet with `palette(base)`, which did not
-  resolve to a fill, and also measured `#000000`. Final: `corners #ffffff × 4, centre #b8b8b8` on
-  **both** linux and windows. **No test in the suite asserts a pixel** — this is precisely the gap
-  `N-54` fills, and it is why the screenshots/pixel facts are now produced on every run.
+  keep.** `PreviewPanel.cpp` hard-coded `#202020` (canvas) and `#909090` (hint text). **The owner's call,
+  taken during the pre-merge review, was to keep the dark film strip** — so the final version
+  derives it: `mediaCanvasPalette()` takes the palette's darker role (WindowText in a light theme,
+  Base in a dark one) and lifts it 13% toward the other, giving `#212121` here (one step off the old
+  `#202020`) and a tone that moves with the theme when `D-06` lands; `Mid` supplies the hint text,
+  whose contrast rises 5.10:1 → 8.12:1. **Three attempts, and only the CI pixel measurement could
+  judge them** (no test asserts a pixel): two read `#000000` — `WA_OpaquePaintEvent` suppressing
+  `autoFillBackground`, then a QSS `palette(base)` that did not resolve to a fill. Final measurement
+  at `f5b7d7a` on **both** platforms: corners `#212121` ×4. This is precisely the gap `N-54` fills,
+  and why the screenshots/pixel facts are produced on every run.
 - **Docs.** Register rows `N-46`–`N-49` (183 DONE · 7 PARTIAL · 14 OPEN · 0
   UNTRIAGED = 204), base lines re-anchored to `9629d49` after the owner's
   2026-10-20 upload moved main's tip past PR #16, and main merged into the branch
