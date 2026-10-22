@@ -7,6 +7,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMovie>
+#include <QPalette>
 #include <QPushButton>
 #include <QSizePolicy>
 #include <QVBoxLayout>
@@ -39,16 +40,19 @@ PreviewPanel::PreviewPanel(QWidget* parent) : QWidget(parent) {
     frame->setFrameShape(QFrame::StyledPanel);
     frame->setMinimumSize(kPreviewSize);
     frame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    // QL006 / D-06: palette ROLES instead of a hard-coded #202020/#909090 pair,
-    // so the canvas follows the theme. A stylesheet is kept deliberately: the
-    // label below sets WA_OpaquePaintEvent (so a late repaint cannot paint over
-    // the last animation frame) and Qt skips autoFillBackground() for an opaque
-    // widget, so without a stylesheet NOTHING paints the canvas and it reads as
-    // black - measured, not guessed (CI annotation, S41: centre pixel #000000
-    // on both platforms against palette Base #ffffff). palette(base) and
-    // palette(mid) keep the fill and the hint colour theme-driven, and neither
-    // is a hex literal, so the lint stays quiet.
-    frame->setStyleSheet(QStringLiteral("QFrame { background: palette(base); }"));
+    // QL006 / D-06: palette ROLES instead of the hard-coded #202020/#909090
+    // pair, so the canvas follows the theme instead of overriding it.
+    //
+    // Measured, not guessed (S41, CI annotations): the first attempt used
+    // setBackgroundRole + autoFillBackground and read #000000 - nothing painted
+    // it, because the label below sets WA_OpaquePaintEvent and Qt skips
+    // autoFillBackground for an opaque widget. The second used a stylesheet with
+    // palette(base), which also read #000000 (the QSS role did not resolve to a
+    // fill), while its color: half did work. So: no stylesheet, QPalette roles,
+    // and no WA_OpaquePaintEvent - Qt then clears each widget to its own role
+    // colour and the canvas cannot end up unpainted in either theme.
+    frame->setAutoFillBackground(true);
+    frame->setBackgroundRole(QPalette::Base);
     auto* frameLay = new QVBoxLayout(frame);
     frameLay->setContentsMargins(0, 0, 0, 0);
 
@@ -58,12 +62,14 @@ PreviewPanel::PreviewPanel(QWidget* parent) : QWidget(parent) {
     label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     label->setAlignment(Qt::AlignCenter);
     label->setTextFormat(Qt::PlainText);
-    label->setAttribute(Qt::WA_OpaquePaintEvent, true);
-    // palette(mid) is this file's existing role for secondary/hint text (the
-    // SettingsPanel descriptions use it); it dims in both themes exactly as the
-    // old fixed #909090 was meant to.
-    label->setStyleSheet(
-        QStringLiteral("background: palette(base); color: palette(mid);"));
+    // No WA_OpaquePaintEvent: it suppresses the palette fill (see the note above
+    // makeCanvas's frame) and it was what made the canvas measure black.
+    label->setAutoFillBackground(true);
+    label->setBackgroundRole(QPalette::Base);
+    // Mid is this file's role for secondary/hint text (the SettingsPanel
+    // descriptions use the same one); it dims in both themes exactly as the old
+    // fixed #909090 was meant to.
+    label->setForegroundRole(QPalette::Mid);
     frameLay->addWidget(label);
     *labelOut = label;
     return std::pair<QLabel*, QFrame*>(cap, frame);
