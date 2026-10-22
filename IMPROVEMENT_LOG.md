@@ -77,16 +77,16 @@ Chronological log of decisions and changes. **Newest at the top.**
   The `docs` job runs `--selftest` first (a vendored tool must prove it runs before it judges the
   tree) then the baselined scan. The baseline is **this tree's**, regenerated after the fix below:
   6 keys / 7 findings.
-- **QL006 ×2 fixed (`N-52`) — palette roles instead of hex.** `PreviewPanel.cpp` hard-coded
-  `#202020` (canvas) and `#909090` (hint text), which is exactly what the lint reported and what
-  would have made `D-06` dark mode impossible. The frame and label now take `QPalette::Base`
-  (`setBackgroundRole` + `setAutoFillBackground`); the hint text takes
-  `QPalette::PlaceholderText`. A light theme gets a light canvas, a dark theme a dark one, and no
-  colour is baked in. Every `objectName` the offscreen harness selects on is untouched. Owner
-  authorised it as a palette correction despite the `OD-21` GUI gate. Lint: 9 → 7 findings, the two
-  QL006 keys gone. **Qt is not buildable in this sandbox**, so this is source-only here — the
-  `linux` and `windows` GUI harness jobs are the proof, and the CI run for this commit is quoted in
-  the PR.
+- **QL006 ×2 fixed (`N-52`) — palette roles instead of hex, and the UI measurement earned its
+  keep.** `PreviewPanel.cpp` hard-coded `#202020` (canvas) and `#909090` (hint text); the final
+  implementation takes `QPalette::Base` (`setBackgroundRole` + `setAutoFillBackground`) and
+  `QPalette::Mid` (`setForegroundRole`), with no stylesheet and no `WA_OpaquePaintEvent`. **Two
+  earlier attempts shipped wrong and CI's pixel annotation caught both:** the first kept
+  `WA_OpaquePaintEvent` (Qt skips `autoFillBackground` for an opaque widget, so nothing painted the
+  canvas) and measured `#000000`; the second used a stylesheet with `palette(base)`, which did not
+  resolve to a fill, and also measured `#000000`. Final: `corners #ffffff × 4, centre #b8b8b8` on
+  **both** linux and windows. **No test in the suite asserts a pixel** — this is precisely the gap
+  `N-54` fills, and it is why the screenshots/pixel facts are now produced on every run.
 - **Docs.** Register rows `N-46`–`N-49` (183 DONE · 7 PARTIAL · 14 OPEN · 0
   UNTRIAGED = 204), base lines re-anchored to `9629d49` after the owner's
   2026-10-20 upload moved main's tip past PR #16, and main merged into the branch

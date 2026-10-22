@@ -68,9 +68,13 @@ Qt evidence comes from CI and is now also captured as screenshots.
   tree's, not upstream's: 6 keys / 7 findings, **5 × QL003** (U-12's five waits under
   `OD-19 = a` — do not re-open) and **2 × QL002-info** in the harness. **QL006 ×2 fixed**
   (`N-52`): `PreviewPanel.cpp` no longer hard-codes `#202020`/`#909090` — the canvas takes
-  `QPalette::Base` and the hint text `QPalette::PlaceholderText`, so `D-06` is no longer blocked by
-  it. objectNames untouched; **Qt cannot be built in this sandbox**, so the CI GUI harnesses are
-  the proof.
+  `QPalette::Base` (`setBackgroundRole` + `setAutoFillBackground`) and the hint text
+  `QPalette::Mid` (`setForegroundRole`), so `D-06` is no longer blocked by it. objectNames
+  untouched. **Two earlier attempts were wrong and CI's pixel measurement caught both** (a black
+  canvas: first `WA_OpaquePaintEvent` suppressing `autoFillBackground`, then a QSS `palette(base)`
+  that did not resolve to a fill). Final measurement, both platforms:
+  `corners #ffffff × 4, centre #b8b8b8`, against palette Base `#ffffff`. No test asserts pixels, so
+  only that measurement could have caught it — which is exactly why `N-54` exists.
 - **AUD-06 `ci-ok` landed (`N-53`) under a second recorded owner exception.** The owner
   granted it in the same conversation as the Qt lint. `ci-ok` needs all six jobs and runs
   `if: always()` — without that, a failed dependency removes the job and the required check
