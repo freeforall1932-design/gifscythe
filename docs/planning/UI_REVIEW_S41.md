@@ -14,7 +14,23 @@ CI run `39786162032` (all eight jobs green, `ci-ok` included).
   sandbox cannot fetch artifact blobs (they redirect to storage outside the allowed hosts), so
   **the images are yours to eyeball; the numbers below are what I could verify**.
 
-## 1. The preview canvas changed colour — the one visible change in this PR
+## 1. The preview canvas — dark, derived from the palette (owner's call)
+
+**Owner's decision (2026-10-22):** keep the dark film strip; do not keep the light canvas. The
+"Before" column below therefore describes the original code, and "After" describes the shipped fix,
+which restores the look without the literal.
+
+| | Before (QL006 literal) | After (owner's call) |
+|---|---|---|
+| Canvas fill | fixed `#202020` | `mediaCanvasPalette()`: the palette's darker role lifted 13% toward the other → `#212121` predicted, **measured in CI** |
+| Hint text | fixed `#909090` | `QPalette::Mid` → `#b8b8b8` |
+| Hint contrast | 5.10:1 | 8.12:1 (computed; AA/AAA pass, where the old value only scraped AA) |
+| Dark mode (`D-06`) | impossible — literal overrides the palette | follows the theme automatically |
+
+The earlier light-canvas measurement in this file's history is kept below rather than deleted,
+because it is what caught the two broken attempts.
+
+## 1a. The rejected alternative — a light canvas
 
 | | Before | After |
 |---|---|---|
