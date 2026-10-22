@@ -88,6 +88,17 @@ Chronological log of decisions and changes. **Newest at the top.**
   `autoFillBackground`, then a QSS `palette(base)` that did not resolve to a fill. Final measurement
   at `f5b7d7a` on **both** platforms: corners `#212121` ×4. This is precisely the gap `N-54` fills,
   and why the screenshots/pixel facts are produced on every run.
+- **The XnConvert reference was re-read properly and the UI record corrected (`N-55`).** The owner
+  supplied four screenshots — Input, Actions, Output, and Status mid-run — after saying the UI work
+  had been aimed at the wrong model. It had: `UI_REVIEW_S41.md` §3 had recorded the `Guide` fourth
+  tab as "not a regression" and treated the audit's Status-tab claim as the thing to distrust, when
+  the reference shows **Status as a live tab** with `Processing list: n of m`, per-file
+  `loaded`/`saved` + size-delta lines, an ETA and a `Stop` button. `docs/planning/XN_CONVERT_REFERENCE.md`
+  transcribes all four tabs element by element (text-only: `OD-22` unanswered, `N-36` bans image
+  files), measures the gap against the code, and orders the work as six slices — A Status tab
+  (`W-32`, whose 14-case contract already exists), B tab titles + Settings/About, F Convert/Stop,
+  C Input grid, E Output form, D action cards; E and D need `OD-21`. **The real distance is
+  architectural:** the reference is an action-list model, this app has one settings set per run.
 - **Docs.** Register rows `N-46`–`N-49` (183 DONE · 7 PARTIAL · 14 OPEN · 0
   UNTRIAGED = 204), base lines re-anchored to `9629d49` after the owner's
   2026-10-20 upload moved main's tip past PR #16, and main merged into the branch

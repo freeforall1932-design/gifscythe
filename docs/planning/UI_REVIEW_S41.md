@@ -77,16 +77,23 @@ on success, so **a cancel leaves the previous frame set untouched** and "Cancell
 truthful message. Asserted by harness T21, which also checks the previously promoted frames are
 still intact.
 
-## 3. The tab shape is Input → Actions → Output → **Guide**, not → Status
+## 3. The tab shape is Input → Actions → Output → **Guide** — CORRECTED 2026-10-22
 
-The dionysus drop-in (and the audit's UI note) describe the target four-tab XnConvert shape as
-Input → Actions → Output → **Status**. What actually ships is a **Guide** tab in the fourth slot.
-That is not a regression and not a defect — `W-32` (Status tab / per-file results) is still OPEN,
-with its contract proposed in `docs/planning/W32_RESULT_CONTRACT.md`. Recorded so nobody "fixes"
-the tab titles from the drop-in's table.
+> **This section was wrong and is corrected here.** It said the fourth tab being `Guide` rather than
+> `Status` was "not a regression", and treated the drop-in's Status claim as the thing to distrust.
+> On 2026-10-22 the owner supplied four screenshots of XnConvert showing **Status as a live tab**
+> (`Processing list: 9 of 38 files`, per-file size deltas, ETA, `Stop`). The drop-in was right and
+> this review had it backwards. The authoritative transcription and the measured gap now live in
+> `docs/planning/XN_CONVERT_REFERENCE.md`.
 
-Consequence for a user today: a batch shows **one status line plus the log pane**; there is no
-per-file results table yet. That is unchanged by this PR.
+What actually ships today is a **Guide** tab in the fourth slot, and a batch reports **one status
+line plus the log pane**. Against the reference that is a **gap, not a design choice**: `W-32`
+(Status tab / per-file results) is OPEN, its contract is proposed in
+`docs/planning/W32_RESULT_CONTRACT.md`, and it is slice **A** in the reference's proposed order.
+
+The Guide content itself is not wasted: it is plain-language help for gifsicle's terms, which the
+reference has no equivalent of (XnConvert ships a Help button instead). Whether it stays as a tab or
+becomes a Help dialog is part of slice **B** in `XN_CONVERT_REFERENCE.md` §7.
 
 ## 4. Things I checked and found unchanged
 
@@ -109,7 +116,7 @@ defect: **the preview canvas is now light where it used to be dark** (§1). Ever
 asserts is green on both platforms, `ci-ok` is green, and the two subtle failures this review did
 find were both introduced and fixed inside this branch, with their measurements kept as the record.
 
-**Recommended:** merge. The owner's call on §1 is implemented and measured: the dark film strip is
+**Recommended:** merge this PR (it is a correctness PR, not the redesign). The owner's call on §1 is implemented and measured: the dark film strip is
 back (`#212121`, one step off the old `#202020`), it is derived from palette roles rather than typed
 in, and the hint text is more legible than it has ever been. **The owner is reviewing the PNGs
 themselves before the merge** — that is the one judgement a pixel measurement cannot make.

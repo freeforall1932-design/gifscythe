@@ -91,6 +91,17 @@ Qt evidence comes from CI and is now also captured as screenshots.
   assertion-free (the documented check counts are unchanged); `linux` and `windows` upload
   `ui-screenshots-*` with `continue-on-error`, so this is evidence, never a gate — and the
   Windows render is the one that matters, since `OD-17 = a` makes Windows the shipping target.
+- **The UI target model was corrected (`N-55`) — the owner was right and the record was wrong.**
+  Four reference screenshots (Input / Actions / Output / Status-in-progress) show the real XnConvert
+  shape: Status is a **live tab** during a run (`Processing list: 9 of 38 files`, per-file
+  `loaded`/`saved` lines with size deltas, ETA, `Stop`). `UI_REVIEW_S41.md` §3 had called the
+  `Guide`-in-slot-4 shape "not a regression" and distrusted the audit's Status claim — that section
+  is corrected in place rather than quietly rewritten. `docs/planning/XN_CONVERT_REFERENCE.md` now
+  holds the element-by-element transcription (text-only, per `OD-22`/`N-36`), a measured gap table,
+  and six costed slices: **A** Status tab (`W-32`, contract already written) → **B** tab titles +
+  Settings/About → **F** Convert/Stop → **C** Input grid → **E** Output form → **D** action cards,
+  with E and D gated by `OD-21`. The honest distance: the reference assumes an **action-list**
+  processing model, where this app has **one settings set per run**.
 - **Docs:** `N-46`–`N-49` added to the register (183/7/14/0 = 204), base lines
   re-anchored to `9629d49`, this log entry and section, and the S40 doc set
   merged in from main first.
@@ -504,7 +515,7 @@ Qt evidence comes from CI and is now also captured as screenshots.
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 188 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 209 total (at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 189 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 210 total (at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -1516,7 +1527,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 188 DONE · 7 PARTIAL · 14 OPEN · 0
+   its generated counts line (currently: 189 DONE · 7 PARTIAL · 14 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
