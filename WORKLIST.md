@@ -163,6 +163,17 @@ the existing register blocks instead; anything newly discovered goes in an
 usual. The freeze lifts itself when the derived bar reads 0 (no hand-editing:
 `check_docs.sh --emit` owns the number).
 
+**Recorded exception (owner, S41, 2026-10-21): the Qt lint gate.** The owner was
+asked to choose between no gate, a non-blocking print, and a blocking baselined
+check for the vendored `tools/qt_lint`, and chose the **blocking** one with the
+freeze visibly in front of them. So `docs` job step *"Qt lint gate (baselined -
+fails on any NEW finding)"* is a new gate that exists **by explicit owner
+exception**, on the same footing as `AUD-06`'s hold (which was *not* taken for
+the same reason: no such exception was given for it). Nothing else about the
+freeze changes: it stays in force for every other new gate or register until the
+derived bar reads 0. The gate is baselined, so it cannot fail on the debt that
+already exists - only on a NEW finding.
+
 Every new finding gets a matching line here. Nothing is `UNTRIAGED` right now:
 the S24 intake was triaged in the same session (each row carries its §6 id).
 

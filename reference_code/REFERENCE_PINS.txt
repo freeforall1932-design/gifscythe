@@ -119,3 +119,9 @@ f91dd769bf0190dec7f76001e0729fc987e67b4a88f99729c2d968c702926db0  reference_code
 # set: working_code/gifscythe/build_support/gifsicle/config.native.h
 # basis: product-owned; staged as config.h by build_engine.sh
 553f97b8cccc615141d13309d29217cffa614b4d73f646b7394589c26c95889d  working_code/gifscythe/build_support/gifsicle/config.native.h
+#
+# set: working_code/gifscythe/tools/qt_lint
+# basis: freeforall1932-design/dionysus @ 9b5e0e6a5a56ae407701650c728212dee7947f05 (OD-15 = b, vendored S41)
+925f893461c7eedb113d91748d7ee26b3a4a38421f471f61d986012be0d9ffba  working_code/gifscythe/tools/qt_lint/README.md
+a1451adee44d58ba77ffdee53ad67fcf47aeefb54a8170a6cf41416e09fd5b8b  working_code/gifscythe/tools/qt_lint/qt_lint.baseline.json
+50194e4e75efca45eb6bdba699a567c380ceeda87806a28e739053ee6a8673c4  working_code/gifscythe/tools/qt_lint/qt_lint.py

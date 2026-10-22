@@ -94,6 +94,24 @@ jobs:
         working-directory: working_code/gifscythe
         run: ./scripts/check_docs.sh --no-gate-run
 
+      # OD-15 = b (owner, S41, 2026-10-21): the Qt lint vendored under
+      # tools/qt_lint runs as a gate. The selftest comes first - a vendored tool
+      # that cannot prove itself does not get to judge the tree - and the scan
+      # then fails on any key that is not in the committed baseline. This is a
+      # NEW GATE and therefore an explicit, recorded owner exception to the U-89
+      # freeze (WORKLIST.md), taken with the same weight as the AUD-06 hold.
+      # Baseline keys are relative to the working directory, so the cwd matters:
+      # from anywhere else the lint fails loudly instead of passing silently.
+      - name: Qt lint selftest (proves the vendored tool runs)
+        working-directory: working_code/gifscythe
+        run: python3 tools/qt_lint/qt_lint.py --selftest
+
+      - name: Qt lint gate (baselined - fails on any NEW finding)
+        working-directory: working_code/gifscythe
+        run: |
+          python3 tools/qt_lint/qt_lint.py src tests CMakeLists.txt \
+              --baseline tools/qt_lint/qt_lint.baseline.json
+
   linux:
     needs: gate
     if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}

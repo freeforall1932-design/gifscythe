@@ -21,7 +21,7 @@
 #      web upload. Byte-exactness therefore has to be claimed modulo those two
 #      files, and stated as such.
 #
-# WHAT IT CHECKS: every file of the three pinned sets, by sha256, against
+# WHAT IT CHECKS: every file of the four pinned sets, by sha256, against
 # reference_code/REFERENCE_PINS.txt - plus the absence of unexpected extra
 # files (an added file is drift too) and the presence of every pinned path (a
 # deletion is drift). Failures name the file, its recorded hash and its actual
@@ -50,6 +50,7 @@ SETS=(
   "reference_code/gifsicle|kohler/gifsicle @ 07f5c4c3de1306156e1d8f33e62971d4664c8f7d"
   "reference_code/gifsicle-nested-1.96|kohler/gifsicle @ v1.96 (a08e0f6686d467bb8b9e4715b1f1835f12984fb0)"
   "working_code/gifscythe/build_support/gifsicle/config.native.h|product-owned; staged as config.h by build_engine.sh"
+  "working_code/gifscythe/tools/qt_lint|freeforall1932-design/dionysus @ 9b5e0e6a5a56ae407701650c728212dee7947f05 (OD-15 = b, vendored S41)"
 )
 
 MODE=verify

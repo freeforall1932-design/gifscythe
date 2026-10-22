@@ -169,13 +169,21 @@ refusal) — fix all three against one shared exit-code contract when Phase 2
 resumes. **Untouched by any of this:** `reference_code/`, `src/cli/` (the
 oracle), `web/` (second parity client), the docs gate.
 
-## 3. SkillOpt integration query — awaiting `OD-15`
+## 3. SkillOpt integration query — `OD-15` answered `= b` (S41, 2026-10-21)
 
 **The ask:** incorporate microsoft/SkillOpt INTO this repo (available inside the
 checkout) so a future session can *train a natural-language skill* against this
-repo's own ground truth. Nothing is built until the owner answers `OD-15`
-(shape A pinned submodule [recommended] / B vendored pinned copy / C venv-pip
-wrapper / D skip). **Do not vendor, submodule or pip-install before that answer.**
+repo's own ground truth. Shape A pinned submodule [former recommendation] / B
+vendored pinned copy / C venv-pip wrapper / D skip.
+
+**The owner answered `b` in S41, and only the tooling half has moved.** The
+vendored, pinned copy that landed is the **Qt lint** (`tools/qt_lint/`,
+`qt_lint.py` byte-identical to `dionysus@9b5e0e6`, pinned by
+`verify_reference_pins.sh`, gated in the `docs` job) — a static checker, not
+SkillOpt. **SkillOpt itself is still unbuilt, and the original prohibition still
+holds for it: do not vendor, submodule or pip-install SkillOpt until it has its
+own answer.** The submodule shape (`a`) remains available if a later, larger
+integration wants it.
 
 **Verified facts:** upstream `microsoft/SkillOpt`, MIT (© 2026 Microsoft),
 Python (`pyproject.toml` + `requirements.txt`), 531 commits, page
@@ -261,8 +269,9 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S24.
    rows: U-59 (P0-7 data loss), U-09 + U-95 (release re-cut + pre-relicence asset note),
    GS-203 GUI half (P1-25), U-58 (P1-38), U-78/U-87 (P1-44 web numeric honesty).
 
-3. SKILLOPT: awaiting OD-15 - see docs/planning/PLANNING.md §3. Do not vendor/submodule/
-   pip-install before the answer.
+3. SKILLOPT: OD-15 answered = b (S41) for the vendored Qt lint; SkillOpt ITSELF is still
+   unbuilt and still must not be vendored, submoduled or pip-installed - see
+   docs/planning/PLANNING.md §3.
 
 4. DECISIONS: docs/planning/OWNER_DECISIONS.md - answered so far: OD-01=a, OD-02=a,
    OD-09=b, OD-11=a, OD-12=a, OD-17=a (and OD-08 resolved in substance S24: the workflow

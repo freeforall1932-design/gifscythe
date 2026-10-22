@@ -58,6 +58,19 @@ evidence can only come from CI.
   baseline, so it bites. Not installed: `OD-15` is open (`PLANNING.md` §3) and CI wiring is frozen
   under U-89. The drop-in's stale rows (`GS-210`, `F-02` listed open, counts 179/200) and the one
   skill rule AUD-02 has outgrown are recorded there, with the upstream defect row ready to paste.
+- **`OD-15` answered `= b`, and the Qt lint is now a gate (`N-51`, `N-52`).** The owner took the
+  vendored-pinned-copy shape (not the recommended submodule: a 35 MB repository for one 672-line
+  script), so `tools/qt_lint/qt_lint.py` is committed byte-identical to `dionysus@9b5e0e6`
+  (`50194e4e…`), added as a **fourth `verify_reference_pins.sh` set** (111 files, no drift), and
+  run in the `docs` job as `--selftest` + baselined scan — a **new gate by explicit owner
+  exception to the U-89 freeze**, recorded in `WORKLIST.md` next to the freeze text. That is the
+  same shelf AUD-06 sits on, held for the *absence* of such an exception. The baseline is this
+  tree's, not upstream's: 6 keys / 7 findings, **5 × QL003** (U-12's five waits under
+  `OD-19 = a` — do not re-open) and **2 × QL002-info** in the harness. **QL006 ×2 fixed**
+  (`N-52`): `PreviewPanel.cpp` no longer hard-codes `#202020`/`#909090` — the canvas takes
+  `QPalette::Base` and the hint text `QPalette::PlaceholderText`, so `D-06` is no longer blocked by
+  it. objectNames untouched; **Qt cannot be built in this sandbox**, so the CI GUI harnesses are
+  the proof.
 - **Docs:** `N-46`–`N-49` added to the register (183/7/14/0 = 204), base lines
   re-anchored to `9629d49`, this log entry and section, and the S40 doc set
   merged in from main first.
@@ -471,7 +484,7 @@ evidence can only come from CI.
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 184 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 205 total (at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 186 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 207 total (at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -1483,7 +1496,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 184 DONE · 7 PARTIAL · 14 OPEN · 0
+   its generated counts line (currently: 186 DONE · 7 PARTIAL · 14 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High

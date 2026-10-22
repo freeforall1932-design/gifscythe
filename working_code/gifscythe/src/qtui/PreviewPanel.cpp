@@ -7,6 +7,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMovie>
+#include <QPalette>
 #include <QPushButton>
 #include <QSizePolicy>
 #include <QVBoxLayout>
@@ -39,7 +40,13 @@ PreviewPanel::PreviewPanel(QWidget* parent) : QWidget(parent) {
     frame->setFrameShape(QFrame::StyledPanel);
     frame->setMinimumSize(kPreviewSize);
     frame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    frame->setStyleSheet(QStringLiteral("QFrame { background: #202020; }"));
+    // QL006 (D-06): the canvas takes its colours from the palette instead of a
+    // hard-coded #202020/#909090 pair. QPalette::Base is the role Qt already
+    // uses for content surfaces, so a light theme gets a light canvas and a
+    // dark theme a dark one without either being baked in here. objectNames are
+    // unchanged - the offscreen harness selects on them.
+    frame->setBackgroundRole(QPalette::Base);
+    frame->setAutoFillBackground(true);
     auto* frameLay = new QVBoxLayout(frame);
     frameLay->setContentsMargins(0, 0, 0, 0);
 
@@ -50,7 +57,13 @@ PreviewPanel::PreviewPanel(QWidget* parent) : QWidget(parent) {
     label->setAlignment(Qt::AlignCenter);
     label->setTextFormat(Qt::PlainText);
     label->setAttribute(Qt::WA_OpaquePaintEvent, true);
-    label->setStyleSheet(QStringLiteral("background:#202020;color:#909090;"));
+    label->setBackgroundRole(QPalette::Base);
+    label->setAutoFillBackground(true);
+    // PlaceholderText is the role for hint text ("no file selected", "-"); it
+    // follows the palette in both themes exactly as the old grey was meant to.
+    QPalette hintPalette = label->palette();
+    hintPalette.setColor(QPalette::WindowText, hintPalette.color(QPalette::PlaceholderText));
+    label->setPalette(hintPalette);
     frameLay->addWidget(label);
     *labelOut = label;
     return std::pair<QLabel*, QFrame*>(cap, frame);
