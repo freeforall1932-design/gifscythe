@@ -7,7 +7,6 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMovie>
-#include <QPalette>
 #include <QPushButton>
 #include <QSizePolicy>
 #include <QVBoxLayout>
@@ -40,13 +39,16 @@ PreviewPanel::PreviewPanel(QWidget* parent) : QWidget(parent) {
     frame->setFrameShape(QFrame::StyledPanel);
     frame->setMinimumSize(kPreviewSize);
     frame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    // QL006 (D-06): the canvas takes its colours from the palette instead of a
-    // hard-coded #202020/#909090 pair. QPalette::Base is the role Qt already
-    // uses for content surfaces, so a light theme gets a light canvas and a
-    // dark theme a dark one without either being baked in here. objectNames are
-    // unchanged - the offscreen harness selects on them.
-    frame->setBackgroundRole(QPalette::Base);
-    frame->setAutoFillBackground(true);
+    // QL006 / D-06: palette ROLES instead of a hard-coded #202020/#909090 pair,
+    // so the canvas follows the theme. A stylesheet is kept deliberately: the
+    // label below sets WA_OpaquePaintEvent (so a late repaint cannot paint over
+    // the last animation frame) and Qt skips autoFillBackground() for an opaque
+    // widget, so without a stylesheet NOTHING paints the canvas and it reads as
+    // black - measured, not guessed (CI annotation, S41: centre pixel #000000
+    // on both platforms against palette Base #ffffff). palette(base) and
+    // palette(mid) keep the fill and the hint colour theme-driven, and neither
+    // is a hex literal, so the lint stays quiet.
+    frame->setStyleSheet(QStringLiteral("QFrame { background: palette(base); }"));
     auto* frameLay = new QVBoxLayout(frame);
     frameLay->setContentsMargins(0, 0, 0, 0);
 
@@ -57,13 +59,11 @@ PreviewPanel::PreviewPanel(QWidget* parent) : QWidget(parent) {
     label->setAlignment(Qt::AlignCenter);
     label->setTextFormat(Qt::PlainText);
     label->setAttribute(Qt::WA_OpaquePaintEvent, true);
-    label->setBackgroundRole(QPalette::Base);
-    label->setAutoFillBackground(true);
-    // PlaceholderText is the role for hint text ("no file selected", "-"); it
-    // follows the palette in both themes exactly as the old grey was meant to.
-    QPalette hintPalette = label->palette();
-    hintPalette.setColor(QPalette::WindowText, hintPalette.color(QPalette::PlaceholderText));
-    label->setPalette(hintPalette);
+    // palette(mid) is this file's existing role for secondary/hint text (the
+    // SettingsPanel descriptions use it); it dims in both themes exactly as the
+    // old fixed #909090 was meant to.
+    label->setStyleSheet(
+        QStringLiteral("background: palette(base); color: palette(mid);"));
     frameLay->addWidget(label);
     *labelOut = label;
     return std::pair<QLabel*, QFrame*>(cap, frame);

@@ -365,9 +365,17 @@ void shootUi(const QString& logo) {
     if (!w) return;
     const QImage im = w->grab().toImage();
     if (im.isNull()) { note(QString::fromLatin1(label), QStringLiteral("grab failed")); return; }
+    // Corners as well as the centre: a filled surface has surface-coloured
+    // corners (the centre may legitimately land on a glyph), while an UNPAINTED
+    // one is black everywhere - that difference is the whole point of N-52.
+    const QColor tl = im.pixelColor(3, 3);
+    const QColor tr = im.pixelColor(im.width() - 4, 3);
+    const QColor bl = im.pixelColor(3, im.height() - 4);
     const QColor c = im.pixelColor(im.width() / 2, im.height() / 2);
-    note(QString::fromLatin1(label) + QStringLiteral(" centre pixel"),
-         QStringLiteral("%1 (%2x%3)").arg(c.name()).arg(im.width()).arg(im.height()));
+    note(QString::fromLatin1(label) + QStringLiteral(" pixels"),
+         QStringLiteral("corners %1/%2/%3 centre %4 (%5x%6)")
+             .arg(tl.name(), tr.name(), bl.name(), c.name())
+             .arg(im.width()).arg(im.height()));
   };
 
   // 1. Idle window, empty queue: what a first run looks like.
