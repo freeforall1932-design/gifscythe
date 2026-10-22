@@ -269,6 +269,10 @@ jobs:
           # (the runner-side log endpoint EOFs). Annotations ARE retrievable, so publish the
           # numbers on every run, pass or fail - they are the per-platform record of T26.
           while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\([A-E]\)' "$log" | head -10 || true)
+          # S41 (N-54): the palette/layout facts behind the screenshots. Artifact blobs and job
+          # logs are not retrievable from every environment (both have EOFed); annotations are, so
+          # these one-liners are what makes the QL006 claim checkable without the PNG.
+          while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\(ui\)' "$log" | head -20 || true)
           exit "$status"
 
       # S41: UI evidence for the review before merge, NOT a gate (U-89: it can
@@ -720,6 +724,10 @@ jobs:
           # Windows is unmeasurable there), and job log blobs are not always retrievable.
           # Annotations are, so publish the numbers on every run, pass or fail.
           while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\([A-E]\)' "$log" | head -10 || true)
+          # S41 (N-54): the palette/layout facts behind the screenshots. Artifact blobs and job
+          # logs are not retrievable from every environment (both have EOFed); annotations are, so
+          # these one-liners are what makes the QL006 claim checkable without the PNG.
+          while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\(ui\)' "$log" | head -20 || true)
           exit "$status"
 
       # S41: the Windows render is the shipping target (OD-17 = a), so its shots
