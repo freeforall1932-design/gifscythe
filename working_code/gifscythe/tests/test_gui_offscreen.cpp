@@ -354,30 +354,25 @@ void shootUi(const QString& logo) {
     std::printf("  (shot) %s\n", path.toUtf8().constData());
   };
   // The PNGs are artifacts, and artifact blobs are not fetchable from every
-  // sandbox or CI log reader. These one-line facts travel as workflow
-  // annotations instead, so the palette claim (N-52) is checkable without the
-  // image: a canvas still painted #202020 reads 32,32,32, and the palette Base
-  // of a light theme does not.
-  const auto note = [](const QString& k, const QString& v) {
-    std::printf("  (ui) %s = %s\n", k.toUtf8().constData(), v.toUtf8().constData());
-  };
-  const auto sampled = [&note](const char* label, QWidget* w) {
-    if (!w) return;
+  // sandbox and CI log reader. These facts travel as ONE workflow annotation
+  // instead (GitHub caps annotations per step, so one line, not ten), which
+  // makes the palette claim checkable without the image: a canvas still painted
+  // #202020 reads 32,32,32, an unpainted one reads 0,0,0, and palette(base) of a
+  // light theme reads 255,255,255.
+  QStringList facts;
+  const auto samplePixels = [](QWidget* w) -> QString {
+    if (!w) return QStringLiteral("(missing)");
     const QImage im = w->grab().toImage();
-    if (im.isNull()) { note(QString::fromLatin1(label), QStringLiteral("grab failed")); return; }
-    // Corners as well as the centre: a filled surface has surface-coloured
-    // corners (the centre may legitimately land on a glyph), while an UNPAINTED
-    // one is black everywhere - that difference is the whole point of N-52.
-    const QColor tl = im.pixelColor(3, 3);
-    const QColor tr = im.pixelColor(im.width() - 4, 3);
-    const QColor bl = im.pixelColor(3, im.height() - 4);
-    const QColor c = im.pixelColor(im.width() / 2, im.height() / 2);
-    note(QString::fromLatin1(label) + QStringLiteral(" pixels"),
-         QStringLiteral("corners %1/%2/%3 centre %4 (%5x%6)")
-             .arg(tl.name(), tr.name(), bl.name(), c.name())
-             .arg(im.width()).arg(im.height()));
+    if (im.isNull()) return QStringLiteral("(grab failed)");
+    return QStringLiteral("%1/%2/%3/%4/%5 (%6x%7)")
+        .arg(im.pixelColor(3, 3).name())
+        .arg(im.pixelColor(im.width() - 4, 3).name())
+        .arg(im.pixelColor(3, im.height() - 4).name())
+        .arg(im.pixelColor(im.width() - 4, im.height() - 4).name())
+        .arg(im.pixelColor(im.width() / 2, im.height() / 2).name())
+        .arg(im.width())
+        .arg(im.height());
   };
-
   // 1. Idle window, empty queue: what a first run looks like.
   {
     MainWindow* w = makeWindow();
@@ -388,9 +383,6 @@ void shootUi(const QString& logo) {
     auto* tabs = byName<QTabWidget>(w, "mainTabs");
     if (!tabs) tabs = w->findChild<QTabWidget*>();
     if (tabs) {
-      QStringList titles;
-      for (int i = 0; i < tabs->count(); ++i) titles << tabs->tabText(i);
-      note(QStringLiteral("tabs"), titles.join(QStringLiteral(" > ")));
       for (int i = 0; i < tabs->count(); ++i) {
         tabs->setCurrentIndex(i);
         settle(90);
@@ -404,21 +396,17 @@ void shootUi(const QString& logo) {
     if (QWidget* preview = w->findChild<QWidget*>(QStringLiteral("previewGroup"))) {
       save(preview, "03-preview-placeholder.png");
     }
-    note(QStringLiteral("app palette Base"),
-         QApplication::palette().color(QPalette::Base).name());
-    note(QStringLiteral("app palette WindowText"),
-         QApplication::palette().color(QPalette::WindowText).name());
-    note(QStringLiteral("previewBefore text"),
-         byName<QLabel>(w, "previewBefore") ? byName<QLabel>(w, "previewBefore")->text()
-                                            : QStringLiteral("(missing)"));
-    if (auto* lbl = byName<QLabel>(w, "previewBefore")) {
-      sampled("previewBefore", lbl);
-      note(QStringLiteral("previewBefore WindowText role"),
-           lbl->palette().color(QPalette::WindowText).name());
-      note(QStringLiteral("previewBefore background role"),
-           lbl->palette().color(lbl->backgroundRole()).name());
-    }
-    if (auto* canvas = byName<QFrame>(w, "previewBeforeCanvas")) sampled("previewBeforeCanvas", canvas);
+    QStringList tabsSeen;
+    if (tabs) for (int i = 0; i < tabs->count(); ++i) tabsSeen << tabs->tabText(i);
+    facts << QStringLiteral("tabs=%1").arg(tabsSeen.join(QLatin1Char('>')));
+    facts << QStringLiteral("palette base=%1 text=%2")
+                 .arg(QApplication::palette().color(QPalette::Base).name(),
+                      QApplication::palette().color(QPalette::WindowText).name());
+    if (auto* lbl = byName<QLabel>(w, "previewBefore"))
+      facts << QStringLiteral("label text=%1 px=%2").arg(lbl->text(), samplePixels(lbl));
+    if (auto* canvas = byName<QFrame>(w, "previewBeforeCanvas"))
+      facts << QStringLiteral("canvas px=%1").arg(samplePixels(canvas));
+    std::printf("  (ui) %s\n", facts.join(QStringLiteral(" | ")).toUtf8().constData());
     delete w;
   }
 
