@@ -163,7 +163,7 @@ the existing register blocks instead; anything newly discovered goes in an
 usual. The freeze lifts itself when the derived bar reads 0 (no hand-editing:
 `check_docs.sh --emit` owns the number).
 
-**Recorded exception (owner, S41, 2026-10-21): the Qt lint gate.** The owner was
+**Recorded exception (owner, S41, 2026-10-22): the Qt lint gate.** The owner was
 asked to choose between no gate, a non-blocking print, and a blocking baselined
 check for the vendored `tools/qt_lint`, and chose the **blocking** one with the
 freeze visibly in front of them. So `docs` job step *"Qt lint gate (baselined -

@@ -1,6 +1,6 @@
 # Skills intake — the dionysus Qt lint and its evidence
 
-**Recorded:** S41, 2026-10-21 · **Status of the intake:** evidence kept, tool **not** installed
+**Recorded:** S41, 2026-10-22 · **Status of the intake:** evidence kept, tool **not** installed
 **Source:** `freeforall1932-design/dionysus` @ `9b5e0e6` (2026-10-20), folder `gifscythe/`
 **Archive:** the owner's `gifscythe.zip` upload (18,491 bytes, sha256
 `94e642e1b87123d6b4fb88557e7c8d529fad8bcd13db58c9709401b7a5cfbf1e`) was **removed from this

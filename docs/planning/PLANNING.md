@@ -169,7 +169,7 @@ refusal) — fix all three against one shared exit-code contract when Phase 2
 resumes. **Untouched by any of this:** `reference_code/`, `src/cli/` (the
 oracle), `web/` (second parity client), the docs gate.
 
-## 3. SkillOpt integration query — `OD-15` answered `= b` (S41, 2026-10-21)
+## 3. SkillOpt integration query — `OD-15` answered `= b` (S41, 2026-10-22)
 
 **The ask:** incorporate microsoft/SkillOpt INTO this repo (available inside the
 checkout) so a future session can *train a natural-language skill* against this

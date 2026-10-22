@@ -2,7 +2,7 @@
 
 A static scan for Qt 6 / CMake anti-patterns, vendored from the owner's
 `freeforall1932-design/dionysus` repository at the owner's direction
-(`OD-15`, answered S41, 2026-10-21).
+(`OD-15`, answered S41, 2026-10-22).
 
 ## Provenance
 
@@ -13,7 +13,7 @@ A static scan for Qt 6 / CMake anti-patterns, vendored from the owner's
 | Upstream revision | `9b5e0e6a5a56ae407701650c728212dee7947f05` (2026-10-20) |
 | `qt_lint.py` sha256 | `50194e4e75efca45eb6bdba699a567c380ceeda87806a28e739053ee6a8673c4` — **byte-identical to upstream at that revision** |
 | `qt_lint.baseline.json` | **generated here**, not copied — see below |
-| Vendored | S41, 2026-10-21 |
+| Vendored | S41, 2026-10-22 |
 
 `dionysus` declares no `LICENSE` file. It is the same repository owner's own work,
 vendored here by that owner's direction; this note records the fact so that a

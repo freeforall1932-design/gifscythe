@@ -4,7 +4,7 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
-## S41 — 2026-10-21: the external audit's P0 data-loss set landed (AUD-01/04/02) plus the aqt install cache, and two items were deliberately held
+## S41 — 2026-10-22: the external audit's P0 data-loss set landed (AUD-01/04/02) plus the aqt install cache, and two items were deliberately held
 
 **Changed:**
 
