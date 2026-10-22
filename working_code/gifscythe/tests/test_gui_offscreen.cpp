@@ -55,6 +55,10 @@
 //   T23 non-ASCII engine path (U-70 / P1-42): GS_ENGINE under a non-ASCII
 //       directory survives the u8path_compat boundary, so the preview
 //       re-probe finds the engine and the debounced preview runs
+//   T27 Status tab result rows (N-55 slice A / W-32): one row per operation,
+//       byte figures only on `succeeded`, stop-on-first-failure leaves later
+//       rows `skipped`, a plan refusal is `refusedBeforeRun`, and the tab
+//       titles carry the queue count
 //   T24 mid-batch settings mutation (U-58 / P1-38): a control changed between
 //       batch job 1 and job 2 does not change job 2's argv - the batch-start
 //       settings snapshot, proven from the fixture's argv log
@@ -101,6 +105,7 @@
 #include <QSpinBox>
 #include <QStandardPaths>
 #include <QTabWidget>
+#include <QTableWidget>
 #include <QTemporaryDir>
 #include <QThread>
 #include <QTimer>
@@ -614,7 +619,7 @@ int main(int argc, char** argv) {
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
     CHECK(x.list && x.pane && x.mode && x.optimize && x.lossy && x.output &&
-          x.run && x.run->text() == QStringLiteral("Start") && x.cancel &&
+          x.run && x.run->text() == QStringLiteral("Convert") && x.cancel &&
           x.remove && x.clear && x.progress && x.process && x.tabs &&
           x.countLabel && x.outputSummary && x.previewCaption);
     CHECK(byName<QPlainTextEdit>(w, "logPane") != nullptr);
@@ -630,14 +635,37 @@ int main(int argc, char** argv) {
     auto* tmplEdit = byName<QLineEdit>(w, "nameTemplateEdit");
     CHECK(tmplEdit && tmplEdit->text() == QStringLiteral("{name}_opt.gif"));
     if (x.tabs) {
-      CHECK(x.tabs->count() == 4);
-      CHECK(x.tabs->tabText(0) == QStringLiteral("Input"));
+      // N-55 / slice B: the reference's tab ORDER is Input, Actions, Output,
+      // Status, Settings, About - the old Guide tab is now the About tab
+      // (guideScroll/guideIntro keep their objectNames, so old probes still
+      // find them). The Input title carries its count.
+      CHECK(x.tabs->count() == 6);
+      CHECK(x.tabs->tabText(0) == QStringLiteral("Input: 0 file(s)"));
       CHECK(x.tabs->tabText(1) == QStringLiteral("Actions"));
       CHECK(x.tabs->tabText(2) == QStringLiteral("Output"));
-      CHECK(x.tabs->tabText(3) == QStringLiteral("Guide") && tmplEdit &&
-            x.tabs->widget(0)->isAncestorOf(tmplEdit) &&
+      CHECK(x.tabs->tabText(3) == QStringLiteral("Status"));
+      CHECK(x.tabs->tabText(4) == QStringLiteral("Settings"));
+      CHECK(x.tabs->tabText(5) == QStringLiteral("About"));
+      CHECK(tmplEdit && x.tabs->widget(0)->isAncestorOf(tmplEdit) &&
             !x.tabs->widget(2)->isAncestorOf(tmplEdit));
+      auto* guide = byName<QScrollArea>(w, "guideScroll");
+      CHECK(guide && x.tabs->widget(5)->isAncestorOf(guide));
     }
+    // Slice A: the Status tab's result surface exists before the first run and
+    // reports the empty queue honestly (W-32 R13).
+    {
+      auto* table = byName<QTableWidget>(w, "resultTable");
+      CHECK(table && table->columnCount() == 6 && table->rowCount() == 0);
+      auto* header = byName<QLabel>(w, "resultHeaderLabel");
+      auto* summary = byName<QLabel>(w, "resultSummaryLabel");
+      CHECK(header && summary);
+      CHECK(summary->text() == QStringLiteral("No run yet."));
+    }
+    // Slice B: the Settings tab shows the resolved engine and output folder.
+    CHECK(byName<QLabel>(w, "settingsEnginePath") != nullptr);
+    CHECK(byName<QLabel>(w, "settingsEngineVersion") != nullptr);
+    CHECK(byName<QLabel>(w, "settingsFilePath") != nullptr);
+    CHECK(byName<QPushButton>(w, "settingsOpenFolderButton") != nullptr);
     if (x.mode) {
       CHECK(x.mode->currentIndex() == 0);
       CHECK(x.mode->currentData().toInt() == static_cast<int>(gs::Mode::Batch));  // E4
@@ -2610,6 +2638,138 @@ int main(int argc, char** argv) {
     if (origEngine.isNull()) qunsetenv("GS_ENGINE");
     else qputenv("GS_ENGINE", origEngine);
     qunsetenv("GS_FAKE_ORPHAN_MS");
+  }
+
+  // ========== T27: Status tab result rows (N-55 slice A / W-32) ===========
+  {
+    g_stage = "T27"; std::printf("== T27 Status tab result rows ==\n");
+    QTemporaryDir tmp;
+    CHECK(tmp.isValid());
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    const QString b = tmp.path() + QStringLiteral("/b.gif");
+    const QString c = tmp.path() + QStringLiteral("/c.gif");
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+    CHECK(copyFile(logo1, c));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* table = byName<QTableWidget>(w, "resultTable");
+    auto* header = byName<QLabel>(w, "resultHeaderLabel");
+    auto* summary = byName<QLabel>(w, "resultSummaryLabel");
+    CHECK(table && header && summary);
+
+    dropFiles(w, {a, b, c});
+    spinEvents(50);
+    // Slice B: the Input tab title follows the queue.
+    CHECK_MSG(x.tabs->tabText(0) == QStringLiteral("Input: 3 file(s)"),
+              "Input tab title carries the queue count");
+
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "3-file batch completes");
+    CHECK(table->rowCount() == 3);
+    CHECK(header->text() == QStringLiteral("Processing list: 3 of 3 files"));
+    int ok = 0;
+    bool figures = false, pct = false;
+    for (int r = 0; r < table->rowCount(); ++r) {
+      if (table->item(r, 4) && table->item(r, 4)->text() == QStringLiteral("succeeded")) ++ok;
+      if (table->item(r, 2) && !table->item(r, 2)->text().isEmpty()) figures = true;
+      if (table->item(r, 3) && table->item(r, 3)->text().contains(QLatin1Char('%'))) pct = true;
+    }
+    CHECK_MSG(ok == 3, "every row is `succeeded`");
+    CHECK_MSG(figures, "succeeded rows carry the After figure");
+    CHECK_MSG(pct, "succeeded rows carry the % change");
+    CHECK_MSG(summary->text().contains(QStringLiteral("3 succeeded")),
+              "summary counts the successes");
+    delete w;
+
+    // ---- Stop-on-first-failure (R2): the fixture fails file 2 of 3 ------
+    // A corrupt input cannot reach the run any more: admission (GS-205)
+    // refuses bytes that are not GIF87a/GIF89a, so the queue would hold two
+    // files and the test would prove nothing. The slow argv fixture gains a
+    // GS_FAKE_FAIL_INPUT substring instead: job 2 writes nothing and exits 1,
+    // which is exactly the contract's "file 2 failed, file 3 skipped" case.
+    QTemporaryDir tmp2;
+    CHECK(tmp2.isValid());
+    const QString g1 = tmp2.path() + QStringLiteral("/one.gif");
+    const QString g2 = tmp2.path() + QStringLiteral("/two.gif");
+    const QString g3 = tmp2.path() + QStringLiteral("/three.gif");
+    CHECK(copyFile(logo1, g1));
+    CHECK(copyFile(logo1, g2));
+    CHECK(copyFile(logo1, g3));
+    {
+      const QString fake = fixturePath("fake_engine_argv_sleep");
+      CHECK_MSG(QFileInfo::exists(fake), "slow fixture built next to the harness");
+      const QByteArray origEngine = qgetenv("GS_ENGINE");
+      const QByteArray origSleep = qgetenv("GS_FAKE_SLEEP_MS");
+      const QByteArray origFail = qgetenv("GS_FAKE_FAIL_INPUT");
+      setEnvU8("GS_ENGINE", fake);
+      qputenv("GS_FAKE_SLEEP_MS", "0");
+      qputenv("GS_FAKE_FAIL_INPUT", "two.gif");
+      MainWindow* w2 = makeWindow();
+      dropFiles(w2, {g1, g2, g3});
+      spinEvents(50);
+      auto* t2 = byName<QTableWidget>(w2, "resultTable");
+      auto* s2 = byName<QLabel>(w2, "resultSummaryLabel");
+      auto* h2 = byName<QLabel>(w2, "resultHeaderLabel");
+      g_dialogs.clear();
+      if (auto* run2 = byName<QPushButton>(w2, "runButton")) run2->click();
+      CHECK_MSG(waitForStatus(w2, QStringLiteral("failed")), "the middle job fails the run");
+      CHECK(t2 && t2->rowCount() == 3);
+      if (t2 && t2->rowCount() == 3) {
+        CHECK_MSG(t2->item(0, 4)->text() == QStringLiteral("succeeded"),
+                  "row 1 succeeded before the failure");
+        CHECK_MSG(t2->item(1, 4)->text() == QStringLiteral("failed"), "row 2 failed");
+        CHECK_MSG(t2->item(1, 5)->text().contains(QStringLiteral("engineFailed")),
+                  "row 2 names the reason (engineFailed)");
+        CHECK_MSG(t2->item(2, 4)->text() == QStringLiteral("skipped"),
+                  "row 3 was never attempted -> skipped");
+        CHECK_MSG(t2->item(1, 2)->text().isEmpty() && t2->item(2, 2)->text().isEmpty(),
+                  "non-succeeded rows show no byte figures");
+        CHECK_MSG(t2->item(0, 2)->text().isEmpty() == false,
+                  "the succeeded row keeps its byte figures");
+        CHECK_MSG(h2->text() == QStringLiteral("Processing list: 3 of 3 files"),
+                  "header counts every decided row");
+        CHECK_MSG(s2->text().contains(QStringLiteral("1 succeeded")) &&
+                      s2->text().contains(QStringLiteral("1 failed")) &&
+                      s2->text().contains(QStringLiteral("1 skipped")),
+                  "summary separates succeeded, failed and skipped");
+      }
+      delete w2;
+      if (origEngine.isNull()) qunsetenv("GS_ENGINE");
+      else qputenv("GS_ENGINE", origEngine);
+      if (origSleep.isNull()) qunsetenv("GS_FAKE_SLEEP_MS");
+      else qputenv("GS_FAKE_SLEEP_MS", origSleep);
+      if (origFail.isNull()) qunsetenv("GS_FAKE_FAIL_INPUT");
+      else qputenv("GS_FAKE_FAIL_INPUT", origFail);
+      g_dialogs.clear();
+    }
+
+    // ---- Plan refusal before any process (R5) ----------------------------
+    QTemporaryDir tmp3;
+    CHECK(tmp3.isValid());
+    const QString r1 = tmp3.path() + QStringLiteral("/r1.gif");
+    const QString r2 = tmp3.path() + QStringLiteral("/r2.gif");
+    CHECK(copyFile(logo1, r1));
+    CHECK(copyFile(logo1, r2));
+    MainWindow* w3 = makeWindow();
+    auto x3 = findWidgets(w3);
+    dropFiles(w3, {r1, r2});
+    x3.mode->setCurrentIndex(1);            // Merge
+    x3.output->setText(r1);                 // ...over its own input
+    spinEvents(30);
+    x3.run->click();
+    spinEvents(80);
+    auto* t3 = byName<QTableWidget>(w3, "resultTable");
+    CHECK(t3 && t3->rowCount() == 1);
+    CHECK_MSG(t3->item(0, 4)->text() == QStringLiteral("refusedBeforeRun"),
+              "a refused plan is refusedBeforeRun, not failed");
+    CHECK_MSG(t3->item(0, 2)->text().isEmpty(),
+              "a refused row shows no After figure");
+    CHECK_MSG(!QFileInfo::exists(r1 + QStringLiteral(".gs-partial")),
+              "a refused run wrote nothing");
+    delete w3;
+    g_dialogs.clear();
   }
 
   std::printf("==> %d checks, %d failures\n", g_checks, g_failures);

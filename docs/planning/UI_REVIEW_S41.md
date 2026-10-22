@@ -121,6 +121,48 @@ back (`#212121`, one step off the old `#202020`), it is derived from palette rol
 in, and the hint text is more legible than it has ever been. **The owner is reviewing the PNGs
 themselves before the merge** — that is the one judgement a pixel measurement cannot make.
 
+## 6. The reference's grammar landed — slices A + B + F (2026-10-23)
+
+`XN_CONVERT_REFERENCE.md` costed six slices; the owner chose **A + B + F as one batch** and
+**`OD-21 = a`** (the Output tab follows the reference, which unblocks D and E later). This section
+records what a reviewer can see now, and what is still deliberately missing.
+
+**B — the tab set.** Six tabs, in the reference's order: `Input: 0 file(s)` · `Actions` · `Output` ·
+**`Status`** · `Settings` · **`About`**. The old `Guide` tab did not disappear; it became **About**,
+with a version/licence block above it, and kept the `guideScroll` / `guideIntro` /
+`guideDescription` objectNames, so every probe written against the old tab still finds its widget.
+`Settings` shows the three app-level facts the probes already produce — the resolved engine path,
+the version it reports, and the output folder with a working *Open folder* button. The Input title
+carries its count and follows the queue as files are added or cleared.
+
+**A — the Status tab.** The `W-32` contract is now implemented, not just written down:
+
+| Contract clause | What the tab does |
+|---|---|
+| one row per **operation** | Batch installs one row per queued file; Merge/Auto install one row whose *Before* is the sum of its inputs; Explode installs one row whose *After* is the sum of its frames |
+| rows come from the **plan** | `beginResultRows()` runs after `planBatch()`, not from the live queue — editing the queue mid-run cannot desynchronise the table from what is actually running |
+| states | `pending` → `running` → `succeeded` / `failed` / `cancelled`; `skipped` = never attempted; `refusedBeforeRun` = the planner refused before any process started |
+| named reasons | `engineFailed: exit N`, `engineNotStartable: …`, `outputMissing: …`, `outputInvalid: …`, `outputUnverifiable: …` |
+| no figures on dishonesty | a non-`succeeded` row shows **no** After size and **no** delta — the contract's rule, asserted in T27 |
+| stop-on-first-failure | preserved; later rows become `skipped` with "not attempted", completed rows keep their figures |
+| `n of m` | `Processing list: n of m files` above the table, plus a `succeeded · failed · skipped · cancelled` summary line |
+
+**F — the footer.** The primary control reads **`Convert`**; the cancel control reads **`Stop`**
+while a run is in flight and **`Cancel`** when idle. The semantics did not change: `U-72`'s latch
+still stops *this file*, and the app still refuses to claim it is cancelling the whole run — which is
+why the tab labels the row `cancelled` / "stopped by the user" rather than promising a rollback.
+
+**What a reviewer should still expect to be missing** (the remaining slices, in the owner's order
+C → E → D): the Input tab is still a flat list, not a thumbnail grid with sortable columns and a
+quick filter; Actions is still one settings form, not a stack of enable/disable cards; the Output
+form is still gifsicle-shaped rather than the reference's format/case/collision-policy form; and the
+Status tab has no ETA or in-tab progress bar (the bar remains in the bottom strip).
+
+**Registered honestly:** `W-32` is **PARTIAL**, not DONE — the Qt surface is done, the web surface
+(`web/app.js`) still lists outputs without per-file before/after/delta or failure states. `N-56`/
+`N-57` carry the evidence rows.
+
+
 ## Evidence index
 
 | Item | Where |

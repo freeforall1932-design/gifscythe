@@ -46,7 +46,9 @@
 #include <QScrollBar>
 #include <QSplitter>
 #include <QStandardPaths>
+#include <QHeaderView>
 #include <QTabWidget>
+#include <QTableWidget>
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -149,12 +151,20 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
   tabs_ = new QTabWidget(splitter);
   tabs_->setObjectName(QStringLiteral("mainTabs"));
-  tabs_->addTab(buildInputTab(), QStringLiteral("Input"));
+  // OD-21 = a / N-55 (2026-10-22): the owner's XnConvert reference settles the
+  // tab set as Input · Actions · Output · Status · Settings · About. "Guide"
+  // was never part of it; its plain-language content moved into About, which
+  // keeps every objectName the harness selects on (guideScroll/guideIntro/
+  // guideDescription). Input carries its file count in the title, like the
+  // reference ("Input: 10 file(s)"). See docs/planning/XN_CONVERT_REFERENCE.md.
+  tabs_->addTab(buildInputTab(), QStringLiteral("Input: 0 file(s)"));
   settingsPanel_ = new SettingsPanel(tabs_);
   settingsPanel_->setObjectName(QStringLiteral("settingsPanel"));
   tabs_->addTab(settingsPanel_, QStringLiteral("Actions"));
   tabs_->addTab(buildOutputTab(), QStringLiteral("Output"));
-  tabs_->addTab(buildGuideTab(), QStringLiteral("Guide"));
+  tabs_->addTab(buildStatusTab(), QStringLiteral("Status"));
+  tabs_->addTab(buildSettingsTab(), QStringLiteral("Settings"));
+  tabs_->addTab(buildAboutTab(), QStringLiteral("About"));
   splitter->addWidget(tabs_);
 
   previewPanel_ = new PreviewPanel(splitter);
@@ -292,7 +302,9 @@ QWidget* MainWindow::buildInputTab() {
   namingForm->addRow(QString(), tmplHint);
   left->addWidget(namingBox);
 
-  runButton_ = new QPushButton(QStringLiteral("Start"), page);
+  // Slice F (reference footer): the primary action is "Convert"; while a run
+  // is in flight the secondary control reads "Stop" (setBusy swaps it back).
+  runButton_ = new QPushButton(QStringLiteral("Convert"), page);
   runButton_->setObjectName(QStringLiteral("runButton"));
   runButton_->setMinimumHeight(38);
   runButton_->setToolTip(QStringLiteral("Start processing the queued GIF files"));
@@ -384,10 +396,136 @@ QWidget* MainWindow::buildOutputTab() {
   return page;
 }
 
-QWidget* MainWindow::buildGuideTab() {
+// ---------------------------------------------------------------------------
+// Status tab (W-32 / slice A, OD-21 = a 2026-10-22)
+//
+// The contract in docs/planning/W32_RESULT_CONTRACT.md is the source of truth:
+// one row per OPERATION (not per input), six columns, named failure reasons, and
+// the honesty rule that a row which did not succeed shows NO byte figures - not
+// zero, because "0 bytes saved" for work that never ran is the lie the contract
+// exists to prevent. Rows are installed once at Start from the planned jobs and
+// are never re-derived from the live queue: the queue may change mid-run.
+// ---------------------------------------------------------------------------
+QWidget* MainWindow::buildStatusTab() {
+  auto* page = new QWidget(tabs_);
+  auto* lay = new QVBoxLayout(page);
+
+  resultHeaderLabel_ = new QLabel(QStringLiteral("Processing list: 0 of 0 files"), page);
+  resultHeaderLabel_->setObjectName(QStringLiteral("resultHeaderLabel"));
+  lay->addWidget(resultHeaderLabel_);
+
+  resultTable_ = new QTableWidget(0, 6, page);
+  resultTable_->setObjectName(QStringLiteral("resultTable"));
+  resultTable_->setHorizontalHeaderLabels({QStringLiteral("File"), QStringLiteral("Before"),
+                                           QStringLiteral("After"), QStringLiteral("Change"),
+                                           QStringLiteral("State"), QStringLiteral("Detail")});
+  resultTable_->verticalHeader()->setVisible(false);
+  resultTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  resultTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
+  resultTable_->setAlternatingRowColors(true);
+  resultTable_->setWordWrap(false);
+  resultTable_->horizontalHeader()->setStretchLastSection(true);
+  resultTable_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Interactive);
+  resultTable_->setColumnWidth(0, 260);
+  resultTable_->setColumnWidth(1, 90);
+  resultTable_->setColumnWidth(2, 90);
+  resultTable_->setColumnWidth(3, 90);
+  resultTable_->setColumnWidth(4, 90);
+  lay->addWidget(resultTable_, 1);
+
+  resultSummaryLabel_ = new QLabel(QStringLiteral("No run yet."), page);
+  resultSummaryLabel_->setObjectName(QStringLiteral("resultSummaryLabel"));
+  resultSummaryLabel_->setWordWrap(true);
+  lay->addWidget(resultSummaryLabel_);
+
+  auto* note = new QLabel(QStringLiteral(
+      "One row per operation. Batch is one row per file; Merge is one row with every input; "
+      "Explode is one row whose After is the sum of its frames. A row that did not succeed "
+      "shows no sizes, because the work did not happen."), page);
+  note->setObjectName(QStringLiteral("resultNoteLabel"));
+  note->setWordWrap(true);
+  note->setTextFormat(Qt::PlainText);
+  lay->addWidget(note);
+  return page;
+}
+
+// Settings tab (slice B): app-level facts, all read from the running build or
+// the engine probe. Deliberately no editable controls yet - a settings field
+// that nothing reads would be worse than none.
+QWidget* MainWindow::buildSettingsTab() {
+  auto* page = new QWidget(tabs_);
+  auto* lay = new QVBoxLayout(page);
+
+  auto* engineBox = new QGroupBox(QStringLiteral("Engine"), page);
+  engineBox->setObjectName(QStringLiteral("settingsEngineGroup"));
+  auto* engineForm = new QFormLayout(engineBox);
+  auto* enginePath = new QLabel(enginePath_.isEmpty() ? QStringLiteral("(not located yet)") : enginePath_,
+                                engineBox);
+  enginePath->setObjectName(QStringLiteral("settingsEnginePath"));
+  enginePath->setWordWrap(true);
+  enginePath->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  engineForm->addRow(QStringLiteral("gifsicle"), enginePath);
+  auto* engineVersion = new QLabel(QStringLiteral("probe on demand (status bar shows the result)"),
+                                   engineBox);
+  engineVersion->setObjectName(QStringLiteral("settingsEngineVersion"));
+  engineVersion->setWordWrap(true);
+  engineForm->addRow(QStringLiteral("Version"), engineVersion);
+  lay->addWidget(engineBox);
+
+  auto* filesBox = new QGroupBox(QStringLiteral("Files"), page);
+  filesBox->setObjectName(QStringLiteral("settingsFilesGroup"));
+  auto* filesForm = new QFormLayout(filesBox);
+  auto* sessionPath = new QLabel(sessionFilePath().isEmpty()
+                                     ? QStringLiteral("(no writable config location)")
+                                     : sessionFilePath(),
+                                 filesBox);
+  sessionPath->setObjectName(QStringLiteral("settingsFilePath"));
+  sessionPath->setWordWrap(true);
+  sessionPath->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  filesForm->addRow(QStringLiteral("Session file"), sessionPath);
+  auto* openFolder = new QPushButton(QStringLiteral("Show settings folder"), filesBox);
+  openFolder->setObjectName(QStringLiteral("settingsOpenFolderButton"));
+  connect(openFolder, &QPushButton::clicked, this, [this]() {
+    const QString path = sessionFilePath();
+    if (path.isEmpty()) {
+      updateStatus(QStringLiteral("No writable settings location on this system."));
+      return;
+    }
+    QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(path).absolutePath()));
+  });
+  filesForm->addRow(QString(), openFolder);
+  lay->addWidget(filesBox);
+
+  lay->addStretch();
+  return page;
+}
+
+QWidget* MainWindow::buildAboutTab() {
   auto* page = new QWidget(tabs_);
   auto* outer = new QVBoxLayout(page);
   outer->setContentsMargins(0, 0, 0, 0);
+
+  // The About block: the facts a user (or a bug report) needs. Everything here
+  // is read from the binary or the engine probe, not typed in by hand.
+  auto* about = new QGroupBox(QStringLiteral("Gifscythe"), page);
+  about->setObjectName(QStringLiteral("aboutGroup"));
+  auto* aboutLay = new QVBoxLayout(about);
+  auto* ver = new QLabel(QStringLiteral("Version %1 · engine: gifsicle (LCDF) · licence: Ms-PL")
+                             .arg(QStringLiteral(GS_VERSION)), about);
+  ver->setObjectName(QStringLiteral("aboutVersion"));
+  ver->setWordWrap(true);
+  ver->setTextFormat(Qt::PlainText);
+  aboutLay->addWidget(ver);
+  auto* aboutNote = new QLabel(QStringLiteral(
+      "Gifscythe is a desktop front end for the gifsicle GIF engine. Output is written "
+      "beside a staging file, verified, and only then moved into place; the pictures you "
+      "already have are never touched by a cancelled or failed run."), about);
+  aboutNote->setObjectName(QStringLiteral("aboutNote"));
+  aboutNote->setWordWrap(true);
+  aboutNote->setTextFormat(Qt::PlainText);
+  aboutLay->addWidget(aboutNote);
+  outer->addWidget(about);
+
   auto* scroll = new QScrollArea(page);
   scroll->setObjectName(QStringLiteral("guideScroll"));
   scroll->setWidgetResizable(true);
@@ -611,6 +749,7 @@ void MainWindow::refreshQueueLabel() {
                                      existing == inputs_.size()
                                          ? QString()
                                          : QStringLiteral(" (%1 missing)").arg(inputs_.size() - existing)));
+  refreshTabTitles();
 }
 
 void MainWindow::chooseInputs() {
@@ -995,6 +1134,125 @@ void MainWindow::refreshCommand() {
       + QString::fromStdString(cmd.toString()));
 }
 
+// ---------------------------------------------------------------------------
+// Status tab result rows (W-32 / slice A)
+//
+// Cardinality follows the contract: Batch installs one row per queued file,
+// Merge/Auto one row whose Before is the SUM of its inputs, Explode one row
+// whose After is the SUM of its frames. Byte figures appear only on a
+// `succeeded` row - the contract's honesty rule.
+// ---------------------------------------------------------------------------
+void MainWindow::refreshTabTitles() {
+  if (!tabs_) return;
+  tabs_->setTabText(0, QStringLiteral("Input: %1 file(s)").arg(inputs_.size()));
+}
+
+void MainWindow::beginResultRows(const QStringList& files) {
+  if (!resultTable_) return;
+  resultTable_->setRowCount(0);
+  resultBeforeBytes_.clear();
+  resultActiveRow_ = -1;
+  if (files.isEmpty()) {
+    refreshResultSummary();
+    return;
+  }
+  resultTable_->setRowCount(files.size());
+  for (int i = 0; i < files.size(); ++i) {
+    const QFileInfo fi(files.at(i));
+    const qint64 bytes = fi.exists() ? fi.size() : -1;
+    resultBeforeBytes_.append(bytes);
+    auto* name = new QTableWidgetItem(fi.fileName());
+    name->setToolTip(files.at(i));
+    resultTable_->setItem(i, 0, name);
+    resultTable_->setItem(i, 1, new QTableWidgetItem(bytes >= 0 ? humanSize(bytes)
+                                                               : QStringLiteral("—")));
+    for (int c = 2; c <= 5; ++c) resultTable_->setItem(i, c, new QTableWidgetItem(QString()));
+    resultTable_->item(i, 4)->setText(QStringLiteral("pending"));
+  }
+  refreshResultSummary();
+}
+
+void MainWindow::beginSingleResultRow(const QString& label, qint64 beforeBytes) {
+  if (!resultTable_) return;
+  resultTable_->setRowCount(0);
+  resultBeforeBytes_.clear();
+  resultActiveRow_ = 0;
+  resultTable_->setRowCount(1);
+  resultTable_->setItem(0, 0, new QTableWidgetItem(label));
+  resultTable_->setItem(0, 1, new QTableWidgetItem(beforeBytes >= 0 ? humanSize(beforeBytes)
+                                                                    : QStringLiteral("—")));
+  for (int c = 2; c <= 5; ++c) resultTable_->setItem(0, c, new QTableWidgetItem(QString()));
+  resultBeforeBytes_.append(beforeBytes);
+  resultTable_->item(0, 4)->setText(QStringLiteral("pending"));
+  refreshResultSummary();
+}
+
+void MainWindow::setResultState(int row, const QString& state, const QString& detail,
+                                qint64 afterBytes) {
+  if (!resultTable_ || row < 0 || row >= resultTable_->rowCount()) return;
+  auto* stateItem = resultTable_->item(row, 4);
+  if (stateItem) stateItem->setText(state);
+  auto* detailItem = resultTable_->item(row, 5);
+  if (detailItem) detailItem->setText(detail);
+  // The contract's rule: a row that did not succeed shows NO byte figures.
+  if (state == QStringLiteral("succeeded") && afterBytes >= 0) {
+    if (auto* after = resultTable_->item(row, 2)) after->setText(humanSize(afterBytes));
+    const qint64 before = row < resultBeforeBytes_.size() ? resultBeforeBytes_.at(row) : -1;
+    if (auto* change = resultTable_->item(row, 3)) {
+      if (before > 0 && afterBytes >= 0) {
+        const double pct = 100.0 * static_cast<double>(afterBytes - before) /
+                           static_cast<double>(before);
+        change->setText(QStringLiteral("%1%2%")
+                            .arg(afterBytes == before ? QString() : (afterBytes > before ? QStringLiteral("+") : QStringLiteral("−")),
+                                 QString::number(qAbs(pct), 'f', 1)));
+      } else {
+        change->setText(QStringLiteral("—"));
+      }
+    }
+  }
+  refreshResultSummary();
+}
+
+void MainWindow::markRemainingSkipped(int fromRow) {
+  if (!resultTable_) return;
+  for (int r = std::max(0, fromRow); r < resultTable_->rowCount(); ++r) {
+    auto* st = resultTable_->item(r, 4);
+    if (!st) continue;
+    if (st->text() == QStringLiteral("pending") || st->text() == QStringLiteral("running")) {
+      st->setText(QStringLiteral("skipped"));
+      if (auto* d = resultTable_->item(r, 5))
+        d->setText(QStringLiteral("not attempted - the run stopped before this file"));
+    }
+  }
+  refreshResultSummary();
+}
+
+void MainWindow::refreshResultSummary() {
+  if (!resultTable_) return;
+  int succeeded = 0, failed = 0, skipped = 0, cancelled = 0, done = 0;
+  const int total = resultTable_->rowCount();
+  for (int r = 0; r < total; ++r) {
+    auto* st = resultTable_->item(r, 4);
+    if (!st) continue;
+    const QString s = st->text();
+    if (s == QStringLiteral("succeeded")) { ++succeeded; ++done; }
+    else if (s == QStringLiteral("failed")) { ++failed; ++done; }
+    else if (s == QStringLiteral("skipped")) { ++skipped; ++done; }
+    else if (s == QStringLiteral("cancelled")) { ++cancelled; ++done; }
+  }
+  if (resultHeaderLabel_) {
+    resultHeaderLabel_->setText(QStringLiteral("Processing list: %1 of %2 files")
+                                    .arg(done).arg(total));
+  }
+  if (resultSummaryLabel_) {
+    resultSummaryLabel_->setText(
+        total == 0
+            ? QStringLiteral("No run yet.")
+            : QStringLiteral("%1 succeeded · %2 failed · %3 skipped · %4 cancelled")
+                  .arg(succeeded).arg(failed).arg(skipped).arg(cancelled));
+  }
+}
+
 void MainWindow::setBusy(bool busy) {
   busy_ = busy;
   // Audit U-35 / P1-22: leaving busy re-enables Run only after re-checking
@@ -1004,6 +1262,10 @@ void MainWindow::setBusy(bool busy) {
   // must not stomp the caller's "Optimizing…" / it would re-probe per file).
   runButton_->setEnabled(!busy && !inputs_.isEmpty() && ensureEngine());
   cancelButton_->setEnabled(busy);
+  // Slice F: the reference labels the in-flight control "Stop"; idle it is a
+  // plain "Cancel". Same slot (U-72's cancel latch), honest label.
+  if (cancelButton_) cancelButton_->setText(busy ? QStringLiteral("Stop")
+                                                 : QStringLiteral("Cancel"));
   removeButton_->setEnabled(!busy);
   clearButton_->setEnabled(!busy);
   moveUpButton_->setEnabled(!busy);
@@ -1118,18 +1380,29 @@ void MainWindow::runCommand() {
     // result while the UI reported "Optimization complete — 2 file(s).".
     const gs::OutputPlan plan = planBatch();
     if (!plan.ok) {
+      // W-32 R5: the run was refused BEFORE any process started, so every
+      // planned row is `refusedBeforeRun` - not `failed`, and with no figures.
+      beginResultRows(inputs_);
+      for (int r = 0; r < resultTable_->rowCount(); ++r)
+        setResultState(r, QStringLiteral("refusedBeforeRun"),
+                       QStringLiteral("the planned output would overwrite user data"));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
           QStringLiteral("Refusing to run — the planned output would overwrite user data:\n\n%1")
               .arg(QString::fromStdString(plan.describe())));
       return;
     }
     batchTargets_ = plannedBatchTargets();
+    // W-32: install one row per planned job NOW, from the plan - not from the
+    // live queue, which the user can still change while the run is in flight.
+    beginResultRows(inputs_);
 
     // Process one file at a time, using the PLANNED target for each file.
     batchQueue_ = inputs_;
     batchIndex_ = 0;
     explodeSnapshot_.clear();  // batch never explodes; keep the snapshot honest
     setBusy(true);
+    resultActiveRow_ = 0;
+    setResultState(0, QStringLiteral("running"), QStringLiteral("optimizing…"));
     updateStatus(QStringLiteral("Optimizing 1/%1…").arg(batchQueue_.size()));
     QString in = batchQueue_.at(0);
     pendingOutput_ = batchTargets_.value(0);  // from the plan, not re-derived
@@ -1165,6 +1438,10 @@ void MainWindow::runCommand() {
     if (!process_->waitForStarted(5000)) {
       discardPendingPartial();
       pendingPartial_.clear();
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("engineNotStartable: %1").arg(process_->errorString()));
+      markRemainingSkipped(resultActiveRow_ + 1);
+      resultActiveRow_ = -1;
       setBusy(false);
       QMessageBox::critical(this, QStringLiteral("Gifscythe"),
           QStringLiteral("Could not start the GIF engine: %1").arg(process_->errorString()));
@@ -1197,6 +1474,9 @@ void MainWindow::runCommand() {
     for (const QString& p : inputs_) plan_inputs.push_back(p.toStdString());
     const gs::OutputPlan one_plan = gs::plan_outputs(plan_inputs, {settings.output});
     if (!one_plan.ok) {
+      beginSingleResultRow(QFileInfo(QString::fromStdString(settings.output)).fileName(), -1);
+      setResultState(0, QStringLiteral("refusedBeforeRun"),
+                     QStringLiteral("the planned output would overwrite user data"));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
           QStringLiteral("Refusing to run — the planned output would overwrite user data:\n\n%1")
               .arg(QString::fromStdString(one_plan.describe())));
@@ -1246,6 +1526,32 @@ void MainWindow::runCommand() {
   QStringList qargs;
   for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
 
+  // W-32 cardinality: Merge/Auto are N->1 and Explode is 1->N, so each is ONE
+  // row. Before is the sum of the inputs for a merge, the single input for an
+  // explode; the After figure is filled in only after verification.
+  {
+    qint64 beforeBytes = -1;
+    if (batchMode_ == gs::Mode::Explode) {
+      const QFileInfo in(inputs_.value(0));
+      beforeBytes = in.exists() ? in.size() : -1;
+      beginSingleResultRow(in.fileName() + QStringLiteral(" (all frames)"), beforeBytes);
+    } else {
+      qint64 sum = 0;
+      bool any = false;
+      for (const QString& f : inputs_) {
+        const QFileInfo fi(f);
+        if (fi.exists()) { sum += fi.size(); any = true; }
+      }
+      beforeBytes = any ? sum : -1;
+      const QString label = QFileInfo(pendingOutput_).fileName() +
+                            (inputs_.size() > 1
+                                 ? QStringLiteral(" (merged from %1 files)").arg(inputs_.size())
+                                 : QString());
+      beginSingleResultRow(label, beforeBytes);
+    }
+    resultActiveRow_ = 0;
+    setResultState(0, QStringLiteral("running"), QStringLiteral("optimizing…"));
+  }
   setBusy(true);
   updateStatus(QStringLiteral("Running…"));
   appendLog(QStringLiteral("Optimizing %1 → %2")
@@ -1257,6 +1563,9 @@ void MainWindow::runCommand() {
   if (!process_->waitForStarted(5000)) {
     discardPendingPartial();
     pendingPartial_.clear();
+    setResultState(resultActiveRow_, QStringLiteral("failed"),
+                   QStringLiteral("engineNotStartable: %1").arg(process_->errorString()));
+    resultActiveRow_ = -1;
     setBusy(false);
     QMessageBox::critical(this, QStringLiteral("Gifscythe"),
         QStringLiteral("Could not start the GIF engine: %1").arg(process_->errorString()));
@@ -1318,6 +1627,13 @@ void MainWindow::cancelRun() {
   // the previous frames are untouched and the flat message is accurate for
   // every mode. (N-10's "may be incomplete" warning described the old,
   // unguarded write.)
+  // W-32: completed rows keep their figures; the row the engine was working on
+  // is `cancelled`; everything after it was never attempted.
+  if (resultActiveRow_ >= 0) {
+    setResultState(resultActiveRow_, QStringLiteral("cancelled"), QStringLiteral("stopped by the user"));
+    markRemainingSkipped(resultActiveRow_ + 1);
+    resultActiveRow_ = -1;
+  }
   updateStatus(QStringLiteral("Cancelled."));
 }
 
@@ -1348,6 +1664,14 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     batchQueue_.clear();
     batchIndex_ = -1;
     appendLog(QStringLiteral("Engine failed with exit code %1.").arg(exitCode));
+    // W-32: named reason, and every row after this one is `skipped` - it never
+    // ran, so it gets no byte figures and is not blamed as a failure.
+    if (resultActiveRow_ >= 0) {
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("engineFailed: exit %1").arg(exitCode));
+      markRemainingSkipped(resultActiveRow_ + 1);
+      resultActiveRow_ = -1;
+    }
     updateStatus(QStringLiteral("Optimization failed (exit %1).").arg(exitCode));
     QMessageBox::warning(this, QStringLiteral("Gifscythe"),
         err.isEmpty() ? QStringLiteral("The GIF engine returned an error (exit %1).").arg(exitCode)
@@ -1369,6 +1693,9 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       setBusy(false);
       batchQueue_.clear();
       batchIndex_ = -1;
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("outputMissing: the engine exited 0 but wrote no frame this run"));
+      resultActiveRow_ = -1;
       updateStatus(QStringLiteral("No frames produced — engine exited 0 but wrote none."));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
           QString::fromStdString(vr.describe()));
@@ -1381,6 +1708,9 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       discardPendingPartial();
       pendingPartial_.clear();
       setBusy(false);
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("outputUnverifiable: the verified frames could not be promoted"));
+      resultActiveRow_ = -1;
       updateStatus(QStringLiteral("Explode failed while replacing frames."));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
           QStringLiteral("Could not promote the exploded frames: %1\n\n"
@@ -1403,6 +1733,14 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     refreshOutputFiles();
     setBusy(false);
     appendLog(QStringLiteral("Explode verified %1 frame(s) on disk.").arg(vr.frames.size()));
+    {
+      qint64 frameBytes = 0;
+      for (const QString& p : lastOutputPaths_) frameBytes += QFileInfo(p).size();
+      setResultState(resultActiveRow_, QStringLiteral("succeeded"),
+                     QStringLiteral("%1 frame(s) verified on disk").arg(lastOutputPaths_.size()),
+                     frameBytes);
+      resultActiveRow_ = -1;
+    }
     updateStatus(QStringLiteral("Explode complete — %1 frame(s) written.")
                      .arg(vr.frames.size()));
     previewPanel_->clearAfter(QStringLiteral("Explode wrote frame files; see Output for the folder and names"));
@@ -1419,6 +1757,10 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       setBusy(false);
       batchQueue_.clear();
       batchIndex_ = -1;
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("outputInvalid: %1")
+                         .arg(QString::fromStdString(verificationError).left(160)));
+      resultActiveRow_ = -1;
       updateStatus(QStringLiteral("Output verification failed."));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
           QStringLiteral("The GIF engine exited 0, but its output was rejected:\n%1\n\n%2")
@@ -1439,6 +1781,9 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       setBusy(false);
       batchQueue_.clear();
       batchIndex_ = -1;
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("outputUnverifiable: the verified file could not replace the destination"));
+      resultActiveRow_ = -1;
       updateStatus(QStringLiteral("Could not promote output - result kept."));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
           QStringLiteral("The verified output could not replace the destination:\n%1\n\n%2\n\n"
@@ -1449,11 +1794,20 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     pendingPartial_.clear();
   }
 
+  // W-32: reaching this point means the current job verified AND promoted, so
+  // its row becomes `succeeded` with the on-disk size.
+  if (resultActiveRow_ >= 0) {
+    const qint64 afterBytes = pendingOutput_.isEmpty() ? -1 : QFileInfo(pendingOutput_).size();
+    setResultState(resultActiveRow_, QStringLiteral("succeeded"), QString(), afterBytes);
+  }
+
   // Continue batch?
   if (batchIndex_ >= 0 && batchMode_ == gs::Mode::Batch) {
     ++batchIndex_;
     if (batchIndex_ < batchQueue_.size()) {
       if (progressBar_) progressBar_->setValue(batchIndex_);
+      resultActiveRow_ = batchIndex_;
+      setResultState(resultActiveRow_, QStringLiteral("running"), QStringLiteral("optimizing…"));
       appendLog(QStringLiteral("Finished file %1/%2; continuing with %3.")
                     .arg(batchIndex_).arg(batchQueue_.size())
                     .arg(batchQueue_.at(batchIndex_)));
@@ -1467,6 +1821,10 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       if (pendingPartial_.isEmpty()) {
         batchQueue_.clear();
         batchIndex_ = -1;
+        setResultState(resultActiveRow_, QStringLiteral("refusedBeforeRun"),
+                       QStringLiteral("no free staging path beside the planned output"));
+        markRemainingSkipped(resultActiveRow_ + 1);
+        resultActiveRow_ = -1;
         setBusy(false);
         QMessageBox::warning(this, QStringLiteral("Gifscythe"),
             QStringLiteral("Batch stopped — no free staging path beside %1").arg(pendingOutput_));
@@ -1495,6 +1853,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     // Batch complete.
     const int n = batchQueue_.size();
     lastOutputPaths_ = batchTargets_;
+    resultActiveRow_ = -1;
     batchQueue_.clear();
     batchIndex_ = -1;
     if (progressBar_) progressBar_->setValue(n);
@@ -1510,6 +1869,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
   }
 
   lastOutputPaths_ = {pendingOutput_};
+  resultActiveRow_ = -1;  // the single row was already marked succeeded above
   refreshOutputFiles();
   setBusy(false);
   appendLog(QStringLiteral("Output verified and written to disk: %1").arg(pendingOutput_));
@@ -1524,6 +1884,12 @@ void MainWindow::onProcessError(QProcess::ProcessError error) {
     setBusy(false);
     batchQueue_.clear();
     batchIndex_ = -1;
+    if (resultActiveRow_ >= 0) {
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("engineNotStartable: %1").arg(process_->errorString()));
+      markRemainingSkipped(resultActiveRow_ + 1);
+      resultActiveRow_ = -1;
+    }
     appendLog(QStringLiteral("Could not start the GIF engine: %1").arg(process_->errorString()));
     updateStatus(QStringLiteral("Failed to start the GIF engine."));
   }

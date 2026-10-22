@@ -515,7 +515,16 @@ Qt evidence comes from CI and is now also captured as screenshots.
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 189 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 210 total (at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **S41, second half (2026-10-23) — the UI moved onto the reference's grammar**
+  (`N-55` transcribed it, `N-56` implemented slices A+B+F): a **Status tab** with one row per
+  operation (File · Before · After · Change · State · Detail) built to `W32_RESULT_CONTRACT.md`,
+  six tabs in the reference order (`Input: n file(s)` · Actions · Output · Status · Settings ·
+  About, with the old Guide folded into About), and `Convert`/`Stop` in the footer. Rows are
+  installed from the **plan**, so a mid-run queue edit cannot desynchronise them; a non-succeeded
+  row never shows byte figures. `W-32` is PARTIAL on purpose — the Qt half is done, the web
+  surface has not moved. `N-57`: the four reference screenshots are committed under
+  `docs/planning/reference/` (`OD-22 = yes`, explicit `N-36` exception).
+- **Register:** 191 DONE · 8 PARTIAL · 13 OPEN · 0 UNTRIAGED · 212 total (at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -563,8 +572,8 @@ Qt evidence comes from CI and is now also captured as screenshots.
      announced on stderr; the desktop/web keep writing beside their input. The
      divergence is now a **documented, executed contract** (`smoke_cli.sh` case 15)
      instead of an open question. No code change — that is the point.
-- **Measured here after all of it:** GUI harness **436 checks, 0 failures** (292
-  `CHECK(` sites, Qt 6.8.3 from source, offscreen, T25 re-measuring 18 Qt rows on every
+- **Measured here after all of it:** GUI harness **436 checks, 0 failures** at S37 (319
+  `CHECK(` sites now, after T27 added 27; Qt 6.8.3 from source, offscreen, T25 re-measuring 18 Qt rows on every
   run); `build/test_gifsicle_command` **421/0**; `build/test_input_admission` **35/0**;
   all **eleven** `web/test/*.test.mjs` suites green (the new `stem` suite is the
   eleventh, and CI's suite list now names it); `check_docs.sh`/`sweep_stale.sh` green
@@ -1527,8 +1536,8 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 189 DONE · 7 PARTIAL · 14 OPEN · 0
-   UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
+   its generated counts line (currently: 191 DONE · 8 PARTIAL · 13 OPEN · 0
+   UNTRIAGED · 212 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the

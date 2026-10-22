@@ -56,6 +56,7 @@
 #include <QMainWindow>
 #include <QStringList>
 #include <QProcess>
+#include <QVector>
 
 class QLabel;
 class QLineEdit;
@@ -65,6 +66,7 @@ class QPlainTextEdit;
 class QProgressBar;
 class QPushButton;
 class QTabWidget;
+class QTableWidget;
 class QTimer;
 class DropListWidget;
 class PreviewPanel;
@@ -117,8 +119,30 @@ class MainWindow : public QMainWindow {
   // UI construction
   QWidget* buildInputTab();
   QWidget* buildOutputTab();
-  QWidget* buildGuideTab();
+  // W-32 / slice A (2026-10-22): the Status tab - one row per operation, per
+  // the contract in docs/planning/W32_RESULT_CONTRACT.md.
+  QWidget* buildStatusTab();
+  // OD-21 = a (2026-10-22): the reference's remaining chrome. Settings carries
+  // the app-level facts the engine/version probes already produce; About
+  // carries the version/licence block and the plain-language guide, which used
+  // to be a fourth tab the reference does not have.
+  QWidget* buildSettingsTab();
+  QWidget* buildAboutTab();
   void buildBottomBar(class QWidget* central, class QVBoxLayout* root);
+
+  // ---- Status tab result rows (W-32, slice A) ----
+  // beginResultRows() installs one `pending` row per queued input (Batch) or a
+  // single row for the N->1 / 1->N modes, exactly as the contract's
+  // cardinality table requires. Every later call moves ONE row; nothing
+  // recomputes the table from the live queue, because the queue can change
+  // while a run is in flight and the rows must describe the RUN.
+  void beginResultRows(const QStringList& files);
+  void beginSingleResultRow(const QString& label, qint64 beforeBytes);
+  void setResultState(int row, const QString& state, const QString& detail,
+                      qint64 afterBytes = -1);
+  void markRemainingSkipped(int fromRow);
+  void refreshResultSummary();
+  void refreshTabTitles();
 
   // Queue helpers
   void chooseOutput();
@@ -194,6 +218,12 @@ class MainWindow : public QMainWindow {
   QPushButton* moveDownButton_ = nullptr;
   QLabel* statusLabel_ = nullptr;
   QProgressBar* progressBar_ = nullptr;
+  // Status tab (W-32, slice A)
+  QTableWidget* resultTable_ = nullptr;
+  QLabel* resultHeaderLabel_ = nullptr;
+  QLabel* resultSummaryLabel_ = nullptr;
+  QVector<qint64> resultBeforeBytes_;   // per row, captured when the row began
+  int resultActiveRow_ = -1;            // row a running engine belongs to
 
   // Engine / run state
   QString enginePath_;

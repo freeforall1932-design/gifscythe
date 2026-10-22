@@ -70,24 +70,33 @@ product reports work. The review is corrected in the same commit that adds this 
 | `4806388_6.jpg` (871×584) | Output |
 | `xnconvert-big-3.png` (1394×758) | Status, 21% into a 38-file run |
 
-They are **not committed to this repo**: `N-36` records the owner's decision that the repo holds no
-image files, and `OD-22` (may XnView/XnConvert material live here?) is still unanswered with `(a)
-text-only` on file as the recommendation. This transcription satisfies that recommendation. If the
-owner wants the PNGs themselves in-tree, that needs `OD-22` answered and an explicit `N-36` exception
-— two decisions, not a copy-paste.
+**They are committed** (owner, 2026-10-22): `OD-22 = yes, with an explicit `N-36` exception`, answered
+as two decisions rather than a copy-paste. The four files live under `docs/planning/reference/` with
+their original names, so a future session can look at the same pixels this file describes:
+
+| File | Tab |
+|---|---|
+| `docs/planning/reference/xnconvert-convert-heic-files.jpg` | Input grid |
+| `docs/planning/reference/com.xnview.XnConvert-461adbcd7cdb0e2a7e01b211c63fb92c.png` | Actions + Preview |
+| `docs/planning/reference/4806388_6.jpg` | Output |
+| `docs/planning/reference/xnconvert-big-3.png` | Status, mid-run |
+
+This is the **only** image material in the tree. `N-36` still stands for everything else: test images
+stay text (`scripts/fixtures.sh` rebuilds them), and no new screenshots or icons get committed without
+a fresh decision. The exception is these four reference artefacts and nothing else.
 
 ## 6. The gap, measured against the code
 
 | Reference element | Gifscythe today | Gap |
 |---|---|---|
-| Tabs: Input · Actions · Output · **Status** · Settings · About | Input · Actions · Output · **Guide** | **Status and Settings tabs missing**; Guide is an extra the reference does not have |
-| Tab titles carry counts (`Input: 10 file(s)`, `Actions [5/5]`) | None | missing |
+| Tabs: Input · Actions · Output · **Status** · Settings · About | Input · Actions · Output · **Status** · Settings · About | **DELIVERED** — N-56, slice B (Guide folded into About) |
+| Tab titles carry counts (`Input: 10 file(s)`, `Actions [5/5]`) | `Input: N file(s)` | **partial** — Input counts (N-56); Actions count waits on the action-list model |
 | Input: thumbnail grid, 7 sortable columns, Quick filter, Add folder, Hot folders | Flat text list (`queueList`) + Add/Remove/Clear + Move Up/Down | **large** — needs a model item + view + tests |
 | Actions: stack of cards, each enable/disable/reorder/delete, slider+spin+reset per parameter | One fixed settings form (`SettingsPanel`) | **architectural** — Gifscythe has *one* settings model, not a list of actions |
 | Preview inside the Actions tab, Before/After + zoom + page readout | Separate splitter pane, Before/After + Play/Stop + savings | close in spirit; placement and zoom differ |
 | Output: Format, Case, existing-file policy, metadata/colour-profile, Delete original, After-conversion | Mode combo, output path + browse, batch dir, summary | **mostly missing** — the reference's fields are format-agnostic where Gifscythe's are gifsicle-specific |
-| Status: per-file log with size deltas, `n of m`, ETA, progress, Stop | Status label + progress bar + activity log in the bottom strip; `W-32` per-file model still OPEN | **the model exists on paper only** (`W32_RESULT_CONTRACT.md`, 14 cases) |
-| `Stop` while running | `Cancel` (cancel latch, U-72) | wording + semantics to reconcile |
+| Status: per-file log with size deltas, `n of m`, ETA, progress, Stop | `resultTable` — one row per operation (File · Before · After · Change · State · Detail), `Processing list: n of m files`, succeeded/failed/skipped/cancelled summary | **DELIVERED in the contract's terms** (N-56, slice A). Still missing vs the reference: ETA and the green progress bar **inside** the tab (the bar remains in the bottom strip) |
+| `Stop` while running | Footer reads `Convert`; the cancel control reads `Stop` while a run is in flight, `Cancel` when idle (cancel latch, U-72) | **DELIVERED** — N-56, slice F. Semantics unchanged: the latch means "stop this file", so the UI never claims the whole run is being cancelled |
 
 **The honest summary:** two of the four reference tabs are close in *spirit* (Actions+Preview,
 Output) and far in *detail*; two (Input grid, Status) do not exist as designed. This is not a
@@ -102,14 +111,15 @@ intact, with its own tests.
 
 | # | Slice | Why first | Cost | Gate |
 |---|---|---|---|---|
-| **A** | **Status tab** (per-file results, `n of m`, size deltas, ETA, `Stop`) | The contract already exists (`W32_RESULT_CONTRACT.md`, 14 cases) and the reference shows exactly what it must contain. It also retires `W-32`. | medium | none — `W-32` is already the registered item |
-| **B** | Tab set + tab titles with counts (`Input: n file(s)`, `Actions [n/n]`), `Settings`/`About` | Mechanical, visible, cheap; moves the chrome onto the reference's grammar | small | none |
+| **A** ✅ | **Status tab** (per-file results, `n of m`, size deltas, ETA, `Stop`) | The contract already exists (`W32_RESULT_CONTRACT.md`, 14 cases) and the reference shows exactly what it must contain. It also retires `W-32`. | medium | none — `W-32` is already the registered item |
+| **B** ✅ | Tab set + tab titles with counts (`Input: n file(s)`, `Actions [n/n]`), `Settings`/`About` | Mechanical, visible, cheap; moves the chrome onto the reference's grammar | small | none |
 | **C** | Input grid: thumbnails + columns + Quick filter | Large but self-contained; needs a `QAbstractTableModel` over the existing queue | large | none |
 | **D** | Actions as a card stack (enable/disable, reorder, per-parameter slider+spin+reset) | The architectural one: turns the settings model into an action list | very large | **`OD-21`** |
 | **E** | Output form: Format + Case + existing-file policy + metadata + after-conversion | Needs `OD-21` (preset/format mapping) and a gifsicle-format decision | medium | **`OD-21`** |
-| **F** | `Convert`/`Stop` wording and footer layout | Cosmetic, touches the cancel-latch tests | small | none |
+| **F** ✅ | `Convert`/`Stop` wording and footer layout | Cosmetic, touches the cancel-latch tests | small | none |
 
-**Recommended order: A → B → F → C → E → D.** A is the biggest *honest* win per unit of risk: the
+**Delivered 2026-10-23: A + B + F, as one batch** (`N-56`; the owner chose this order and
+`OD-21 = a`). Remaining order: **C → E → D**. **Recommended order was: A → B → F → C → E → D.** A is the biggest *honest* win per unit of risk: the
 model is already specified, it is what image 3 shows, and it is the one thing an owner looking at
 these four screenshots would miss most.
 
