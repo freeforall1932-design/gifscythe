@@ -87,14 +87,53 @@ Explode writes to a claimed staging prefix and promotes, so a cancel leaves no p
 the honest status is the flat `Cancelled.` The rule needs the conditional ("if the mode writes in
 place") or a later reader will restore the old warning.
 
-Ready-to-paste row for dionysus `SKILL_DEFECT_LOG.md`:
+### Where it goes
+
+`dionysus` → `gifscythe/SKILL_DEFECT_LOG.md`, **above** the `## How to add a row` section. That log
+groups rows under session headings and its last row is #13 (2026-10-14), so paste the heading first,
+then the table. No other file changes; the row adds no links, paths or files, so no gate rule can
+trip on it.
+
+### Paste block
+
+```markdown
+## Session 2026-10-22 (gifscythe S41: a rule outgrown by a staging-guarded mode)
 
 | # | rule / section | what happened | evidence | fix | promote? | status |
 |---|---|---|---|---|---|---|
-| 14 | `qt6-cmake-cpp/references/subprocess-engine.md` §6 rule 4 | The "say so explicitly for modes that already wrote partial frames" clause assumes in-place output. gifscythe's Explode now writes to a claimed `*.gs-partial[.N]` prefix and promotes on success, so a cancel writes and leaves nothing and the required status is the flat `Cancelled.` | gifscythe `STATUS.md` N-48; harness T21 asserts the flat status and that the frames survive | make the clause conditional on in-place modes; add a line that a staging-guarded mode reports plain "Cancelled" | y — "a cancel message must describe the write strategy, not the mode name" | open |
+| 14 | `qt6-cmake-cpp/references/subprocess-engine.md` §6 rule 4 | The "and for modes that already wrote partial frames, say so explicitly" clause assumes every mode writes in place. gifscythe's Explode now claims a `*.gs-partial[.N]` staging prefix and promotes it on success, so a cancel writes nothing visible and the honest status is the flat `Cancelled.` Followed as written, the rule would have had this project restore the old warning after the fix. | old code, explode to prefix `fr` with a user file `fr.gs-partial.000` present -> `OLD CODE: user file DELETED`; new code `./scripts/smoke_cli.sh` -> `PASS: AUD-02 explode keeps a user file named <prefix>.gs-partial.000` (65 passed, 0 failed); harness T21 asserts the flat status **and** that the previously promoted frames survive (gifscythe PR #17, `N-48`) | make the clause conditional: a mode that writes in place and already produced frames says so; a mode guarded by staging + promote (rule 1) reports a plain "Cancelled". Wording in gifscythe `docs/planning/SKILLS_INTAKE.md` §4 | **y** - "a cancel message must describe the write strategy, not the mode name" is stack-agnostic and belongs with rule 4 itself | open |
+```
 
-This row cannot be committed from this session: it belongs to `dionysus`, and this session's write
-scope is the gifscythe branch.
+### Optional: the rule fix itself, in the same edit
+
+`skills/qt6-cmake-cpp/references/subprocess-engine.md`, §6 rule 4 — replace the sentence in brackets:
+
+```diff
+-   temp file, leave the original untouched, report "Cancelled" (and for modes
+-   that already wrote partial frames, say so explicitly).
++   temp file, leave the original untouched, report "Cancelled". **The message
++   describes the WRITE STRATEGY, not the mode name:** a mode that writes in
++   place and already produced partial frames says so explicitly; a mode guarded
++   by staging + promote (rule 1) writes nothing visible on cancel and reports a
++   plain "Cancelled".
+```
+
+Leave row 14 `open` until that edit lands; then flip it to `fixed` in the same commit, per the log's
+own convention.
+
+### What happens when you commit it
+
+The `skills-gate` workflow triggers on `gifscythe/**`, so it runs on the change. It checks skill
+structure, the portable drop-ins, `qt_lint --selftest` and the universal-guide hash — **none of
+which reads this log's prose**, and the row introduces no link, path or file, so it should come back
+green. `validate_skills.py` and the v4 hash are untouched.
+
+### Why this session could not do it
+
+The write scope here is the `gifscythe` branch (`arena/fd6e2d05-gifscythe`); `dionysus` is a separate
+repository and its `gifscythe/` folder is a support copy, not a mirror of this repo. Nothing is lost
+by waiting: this section *is* the record. If you would rather I open a PR against `dionysus`
+instead of pasting, say so.
 
 ## 5. The baseline, preserved as data
 
