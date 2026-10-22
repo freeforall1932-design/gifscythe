@@ -163,7 +163,7 @@ the existing register blocks instead; anything newly discovered goes in an
 usual. The freeze lifts itself when the derived bar reads 0 (no hand-editing:
 `check_docs.sh --emit` owns the number).
 
-**Recorded exception (owner, S41, 2026-10-22): the Qt lint gate.** The owner was
+**Recorded exception (owner, S41, 2026-10-22): the Qt lint gate and `ci-ok`.** The owner was
 asked to choose between no gate, a non-blocking print, and a blocking baselined
 check for the vendored `tools/qt_lint`, and chose the **blocking** one with the
 freeze visibly in front of them. So `docs` job step *"Qt lint gate (baselined -
@@ -173,6 +173,12 @@ the same reason: no such exception was given for it). Nothing else about the
 freeze changes: it stays in force for every other new gate or register until the
 derived bar reads 0. The gate is baselined, so it cannot fail on the debt that
 already exists - only on a NEW finding.
+
+In the same S41 conversation the owner also granted the exception for **`AUD-06`
+`ci-ok`** (the aggregate job that requires every other job to have `success`), so
+the audit's raw-CI finding is closed rather than carried. The UI screenshot upload
+next to those jobs is deliberately declared `continue-on-error`: evidence is not a
+gate, so it needs no exception and can never fail a run.
 
 Every new finding gets a matching line here. Nothing is `UNTRIAGED` right now:
 the S24 intake was triaged in the same session (each row carries its §6 id).

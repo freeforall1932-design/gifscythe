@@ -79,6 +79,7 @@
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
 #include <QEventLoop>
+#include <QPixmap>
 #include <QFile>
 #include <QFileInfo>
 #include <QIODevice>
@@ -328,6 +329,70 @@ MainWindow* makeWindow() {
   return w;
 }
 
+// ---- Screenshot evidence (S41) -------------------------------------------
+// ui-redesign.md §7 asks for QWidget::grab() evidence of the real window. Set
+// GS_SHOT_DIR and the harness writes the actual widgets there; unset (the
+// default, and what every assertion run does) nothing is written and nothing
+// can fail. Deliberately assertion-free: the documented check counts stay put,
+// so this evidence cannot drift the register's G9 figures.
+void shootUi(const QString& logo) {
+  const QByteArray want = qgetenv("GS_SHOT_DIR");
+  if (want.isEmpty()) return;
+  const QString dir = QString::fromLocal8Bit(want);
+  if (!QDir().mkpath(dir)) return;
+
+  const auto settle = [](int ms) {
+    QElapsedTimer t;
+    t.start();
+    while (t.elapsed() < ms) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+  };
+  const auto save = [&dir](QWidget* w, const char* name) {
+    const QString path = dir + QStringLiteral("/") + QString::fromLatin1(name);
+    w->grab().save(path, "PNG");
+    std::printf("  (shot) %s\n", path.toUtf8().constData());
+  };
+
+  // 1. Idle window, empty queue: what a first run looks like.
+  {
+    MainWindow* w = makeWindow();
+    w->resize(1180, 780);
+    settle(120);
+    save(w, "01-idle.png");
+    // 2. Every tab, same window, so the four-tab shape can be reviewed.
+    auto* tabs = byName<QTabWidget>(w, "mainTabs");
+    if (!tabs) tabs = w->findChild<QTabWidget*>();
+    if (tabs) {
+      for (int i = 0; i < tabs->count(); ++i) {
+        tabs->setCurrentIndex(i);
+        settle(90);
+        const QString n = QStringLiteral("02-tab-%1.png").arg(i + 1);
+        save(w, n.toUtf8().constData());
+      }
+      tabs->setCurrentIndex(0);
+    }
+    // 3. Preview panel alone: the QL006 palette change lives here, so the
+    //    placeholder text and canvas colour are judged at full size.
+    if (QWidget* preview = w->findChild<QWidget*>(QStringLiteral("previewGroup"))) {
+      save(preview, "03-preview-placeholder.png");
+    }
+    delete w;
+  }
+
+  // 4. Window with a real input queued (the state a user sees mid-setup).
+  if (!logo.isEmpty()) {
+    MainWindow* w = makeWindow();
+    w->resize(1180, 780);
+    dropFiles(w, {logo});
+    settle(150);
+    save(w, "04-with-input.png");
+    if (QWidget* preview = w->findChild<QWidget*>(QStringLiteral("previewGroup"))) {
+      save(preview, "05-preview-with-input.png");
+    }
+    delete w;
+  }
+}
+
+
 // Path stored in a queue row (display text now carries size info).
 QString rowPath(DropListWidget* list, int row) {
   auto* item = list->item(row);
@@ -508,6 +573,7 @@ int main(int argc, char** argv) {
   std::printf("  engine: %s\n  refs:   %s\n", qPrintable(g_engine), qPrintable(g_refDir));
 
   const QString logo = g_refDir + QStringLiteral("/logo.gif");    // 12 frames
+  shootUi(logo);  // GS_SHOT_DIR only; no-op and CHECK-free in an assertion run
   const QString logo1 = g_refDir + QStringLiteral("/logo1.gif");  // 1 frame
 
   // ================= T1: defaults (E4, B14, tabs) ========================

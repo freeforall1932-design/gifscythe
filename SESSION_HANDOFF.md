@@ -15,10 +15,10 @@ Based on `main` commit `9629d49` (**S41 re-anchor:** the owner's 2026-10-20 "Add
 
 The consolidated external audit's ten easiest-to-prove findings were worked
 easiest-first, with the two that move a gate or an engine contract held out:
-AUD-01 (`N-46`), AUD-04 (`N-47`), AUD-02 (`N-48`) and AUD-08 (`N-49`) are DONE;
-AUD-06 (`ci-ok`) is **held out under the U-89 freeze** (no new gates while the
-derived P0/P1 bar is above zero) and needs an owner exception; AUD-09's Qt
-evidence can only come from CI.
+AUD-01 (`N-46`), AUD-04 (`N-47`), AUD-02 (`N-48`), AUD-08 (`N-49`), AUD-06
+(`N-53`) and the UI-evidence gap (`N-54`) are DONE. AUD-06 was held out under the
+U-89 freeze until the owner granted the same exception the Qt lint got; AUD-09's
+Qt evidence comes from CI and is now also captured as screenshots.
 
 - **AUD-01 (`N-46`) — the CLI and all three Qt staging sites deleted an
   unowned `<target>.gs-partial`.** `claim_partial_output_path` now returns the
@@ -71,6 +71,18 @@ evidence can only come from CI.
   `QPalette::Base` and the hint text `QPalette::PlaceholderText`, so `D-06` is no longer blocked by
   it. objectNames untouched; **Qt cannot be built in this sandbox**, so the CI GUI harnesses are
   the proof.
+- **AUD-06 `ci-ok` landed (`N-53`) under a second recorded owner exception.** The owner
+  granted it in the same conversation as the Qt lint. `ci-ok` needs all six jobs and runs
+  `if: always()` — without that, a failed dependency removes the job and the required check
+  never reports, which is the audit's own failure mode. One deliberate exemption: a deduped
+  PUSH run passes with a notice, because the PR's own run is the check of record; without it
+  every push made while a PR is open would go red. Four branches simulated locally
+  (all-success 0, one-failure 1, deduped 0, unexpected-skip 1) before pushing.
+- **UI evidence now exists (`N-54`).** `ui-redesign.md` §7 prescribes `QWidget::grab()` and no
+  run had ever produced one. The harness has `shootUi()`, armed only by `GS_SHOT_DIR` and
+  assertion-free (the documented check counts are unchanged); `linux` and `windows` upload
+  `ui-screenshots-*` with `continue-on-error`, so this is evidence, never a gate — and the
+  Windows render is the one that matters, since `OD-17 = a` makes Windows the shipping target.
 - **Docs:** `N-46`–`N-49` added to the register (183/7/14/0 = 204), base lines
   re-anchored to `9629d49`, this log entry and section, and the S40 doc set
   merged in from main first.
@@ -484,7 +496,7 @@ evidence can only come from CI.
   non-negotiable conditions, the four shapes, open questions Q1–Q4. Await
   `OD-15`. **Do not vendor, submodule or pip-install anything before that
   answer.**
-- **Register:** 186 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 207 total (at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 188 DONE · 7 PARTIAL · 14 OPEN · 0 UNTRIAGED · 209 total (at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -1496,7 +1508,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 186 DONE · 7 PARTIAL · 14 OPEN · 0
+   its generated counts line (currently: 188 DONE · 7 PARTIAL · 14 OPEN · 0
    UNTRIAGED · N total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High

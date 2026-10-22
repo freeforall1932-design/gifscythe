@@ -40,11 +40,18 @@ Chronological log of decisions and changes. **Newest at the top.**
   only when both the Qt and MinGW bin dirs exist) plus a bash `retry 3` with
   15/30/60 s backoff around the pip and aqt/choco downloads. Action refs only;
   no gate changed.
-- **Held out (not silently dropped).** **AUD-06 `ci-ok`**: the U-89 freeze
-  (WORKLIST.md L158-164) forbids new gates while the derived P0/P1 release bar is
-  above zero — it needs an owner exception. **AUD-09**: Qt evidence can only come
-  from CI. The `verify_audit.sh` G18 gate fails on uncommitted work by design, so
-  the commit precedes the gate run.
+- **AUD-06 `ci-ok` landed under a second recorded owner exception (`N-53`).** The owner
+  granted it alongside the Qt lint, so the audit's raw-CI finding is closed rather than
+  carried. The job needs all six jobs and runs `if: always()` — a failed dependency would
+  otherwise remove it and the required check would never report. A deduped push run passes
+  with a notice, since the PR's own run is the check of record. Four branches simulated
+  locally before pushing. **AUD-09** is unchanged: Qt evidence comes from CI. The
+  `verify_audit.sh` G18 gate fails on uncommitted work by design, so the commit precedes it.
+- **UI screenshots as evidence, not a gate (`N-54`).** `ui-redesign.md` §7 asks for
+  `QWidget::grab()` captures and none had ever been produced. `shootUi()` in the harness is
+  armed by `GS_SHOT_DIR` only; both GUI jobs upload the PNGs with `continue-on-error`. That
+  keeps it outside the U-89 freeze by construction — and means a failing run still shows the
+  UI it failed with.
 - **The dionysus drop-in was reviewed, digested and de-duplicated.** The owner's `gifscythe.zip` at
   main is byte-identical to `dionysus@9b5e0e6:gifscythe/` (six files, no provenance manifest), so it
   was removed from this repo and replaced by `docs/planning/SKILLS_INTAKE.md` (`N-50`), which keeps

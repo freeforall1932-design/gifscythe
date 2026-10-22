@@ -256,7 +256,7 @@ jobs:
           # dies on one assertion must name the case, not just exit 1 (S34's rule).
           log="${RUNNER_TEMP:-/tmp}/gui_offscreen.log"
           set +e
-          GS_TEST_REF_DIR="$(./scripts/fixtures.sh)" QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen 2>&1 | tee "$log"
+          GS_TEST_REF_DIR="$(./scripts/fixtures.sh)" GS_SHOT_DIR="$PWD/ui-shots" QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen 2>&1 | tee "$log"
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -270,6 +270,19 @@ jobs:
           # numbers on every run, pass or fail - they are the per-platform record of T26.
           while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\([A-E]\)' "$log" | head -10 || true)
           exit "$status"
+
+      # S41: UI evidence for the review before merge, NOT a gate (U-89: it can
+      # never fail the job). ui-redesign.md §7 wants the real widgets, so the
+      # harness grabs them when GS_SHOT_DIR is set; always() means a FAILING run
+      # still shows what the UI looked like when it failed.
+      - name: Upload UI screenshots (evidence only - never fails the job)
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-screenshots-linux
+          path: working_code/gifscythe/ui-shots
+          if-no-files-found: warn
 
       - name: Package portable
         working-directory: working_code/gifscythe
@@ -695,7 +708,7 @@ jobs:
           # dies on one assertion must name the case, not just exit 1 (S34's rule).
           log="${RUNNER_TEMP:-/tmp}/gui_offscreen.log"
           set +e
-          GS_TEST_REF_DIR="$(cygpath -m "$(./scripts/fixtures.sh)")" QT_QPA_PLATFORM=offscreen ./build-win/test_gui_offscreen.exe 2>&1 | tee "$log"
+          GS_TEST_REF_DIR="$(cygpath -m "$(./scripts/fixtures.sh)")" GS_SHOT_DIR="$(cygpath -m "$PWD/ui-shots")" QT_QPA_PLATFORM=offscreen ./build-win/test_gui_offscreen.exe 2>&1 | tee "$log"
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -708,6 +721,19 @@ jobs:
           # Annotations are, so publish the numbers on every run, pass or fail.
           while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\([A-E]\)' "$log" | head -10 || true)
           exit "$status"
+
+      # S41: the Windows render is the shipping target (OD-17 = a), so its shots
+      # matter most for the UI review - and they are the only way to see what the
+      # QL006 palette change looks like under the native Windows style. Evidence
+      # only: continue-on-error keeps this outside the U-89 gate freeze.
+      - name: Upload UI screenshots (evidence only - never fails the job)
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-screenshots-windows
+          path: working_code/gifscythe/ui-shots
+          if-no-files-found: warn
 
       - name: Package portable (Windows)
         working-directory: working_code/gifscythe
@@ -1130,6 +1156,66 @@ jobs:
   #
   # It runs only for `refs/tags/snapshot-*`; ci_gate.sh never skips a tag (see its header), so the tag's
   # own run is the one that verifies and then publishes.
+  # AUD-06 (S41): ONE check a branch-protection rule can require. Every other job
+  # reports its own result, so "all green" was a thing a human asserted by reading
+  # six rows - and a job that never ran (skipped, cancelled, or gated off) looked
+  # identical to a job that passed. This job fails unless every job it needs
+  # SUCCEEDED, so a skip is a red check rather than a silent hole.
+  #
+  # Deliberately `if: always()`: without it a failed dependency removes this job
+  # from the run entirely and the required check never reports - the exact
+  # failure mode the audit named. `release-snapshot` is NOT here: it runs only on a
+  # snapshot tag and is skipped on every PR by design.
+  #
+  # NEW GATE => explicit owner exception to the U-89 freeze (WORKLIST.md), asked
+  # and granted in S41 together with the Qt lint gate. Unlike the lint gate this
+  # one adds no check of its own: it only makes the existing six readable as one
+  # verdict.
+  ci-ok:
+    name: ci-ok (aggregate - the only check to require)
+    needs: [gate, docs, linux, portability, windows, csharp-spike]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Every required job succeeded
+        env:
+          GATE_RESULT: ${{ needs.gate.result }}
+          GATE_SKIP: ${{ needs.gate.outputs.skip }}
+          RESULTS: |
+            docs=${{ needs.docs.result }}
+            linux=${{ needs.linux.result }}
+            portability=${{ needs.portability.result }}
+            windows=${{ needs.windows.result }}
+            csharp-spike=${{ needs.csharp-spike.result }}
+        run: |
+          set -euo pipefail
+          echo "gate=$GATE_RESULT dedupe-skip=${GATE_SKIP:-unknown}"
+          printf '%s\n' "$RESULTS"
+          # A push run whose commit an open PR already covers intentionally runs
+          # nothing: the PR's own run is the check of record, so this is not a
+          # failure. Without this branch every such push would go red.
+          if [[ "$GATE_SKIP" == "true" ]]; then
+            echo "::notice::gate deduped this push - the PR's own run is the check of record"
+            exit 0
+          fi
+          if [[ "$GATE_RESULT" != "success" ]]; then
+            echo "::error::the gate job itself did not succeed"
+            exit 1
+          fi
+          bad=0
+          while IFS= read -r row; do
+            [[ -n "$row" ]] || continue
+            case "$row" in
+              *=success) ;;
+              *) bad=1 ;;
+            esac
+          done <<< "$RESULTS"
+          if [[ "$bad" -ne 0 ]]; then
+            echo "::error::at least one required job did not succeed - see the rows above"
+            exit 1
+          fi
+          echo "all required jobs succeeded"
+
   release-snapshot:
     name: release snapshot (tag only)
     needs: windows
