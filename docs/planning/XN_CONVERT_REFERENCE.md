@@ -109,6 +109,14 @@ distance, and it is why the previous sessions kept producing screenshots of "the
 Each slice is independently shippable and keeps the harness contract (objectNames named by T1–T26)
 intact, with its own tests.
 
+**Gate on C, E and D (cleared 2026-10-23).** The owner required the *shipped program* to be studied
+before those slices started, rather than inferred from the four photographs. That study now exists:
+**`XN_CONVERT_PROGRAM_STUDY.md`** — the real 1.118.0 binary driven live, its strings and `.qm`
+catalogues harvested, its log and ini read. It keeps this order, and it changes **what goes inside**
+each slice (Input columns become animation-aware, Output's `Multipage` group is replaced by an
+`Animation` group defaulting ON, the action set stays bounded by gifsicle). Read §11 there before
+starting C, E or D.
+
 | # | Slice | Why first | Cost | Gate |
 |---|---|---|---|---|
 | **A** ✅ | **Status tab** (per-file results, `n of m`, size deltas, ETA, `Stop`) | The contract already exists (`W32_RESULT_CONTRACT.md`, 14 cases) and the reference shows exactly what it must contain. It also retires `W-32`. | medium | none — `W-32` is already the registered item |
@@ -129,5 +137,9 @@ these four screenshots would miss most.
   formats, multipage, NConvert export); Gifscythe drives one engine (gifsicle) for GIF-to-GIF. The
   **layout and reporting** transfer; the **field set** does not, and several Output fields have no
   gifsicle equivalent (`Case`, `Print size`, multipage).
+- That the *program itself* is still unread: it has now been run and measured — see
+  `XN_CONVERT_PROGRAM_STUDY.md`, which supersedes any behavioural guess made from the four
+  photographs and records the one hard divergence (**XnConvert drops the animation: a 6-page GIF in
+  produces a 1-page GIF out with both `Multipage` boxes off, which is the default**).
 - That any of this is scheduled: slices D and E are gated by `OD-21`, which is the owner's to answer,
   and the whole route is one `OD-21`/`W-32` decision away from being unblocked.
