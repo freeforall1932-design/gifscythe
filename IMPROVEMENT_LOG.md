@@ -4,6 +4,47 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S42 — 2026-10-24: the shipped XnConvert was studied as a program, then slice C landed (Input grid + animation facts)
+
+**Changed:**
+
+- **The reference stopped being four photographs (`XN_CONVERT_PROGRAM_STUDY.md`).** The owner
+  supplied both XnConvert archives and asked for the *program* to be read, not inferred. Both were
+  unpacked outside the tree (py7zr; no `7z` binary here) and the genuine 1.118.0 Qt 6.8.9 build was
+  driven live on Qt's `vnc` platform plugin: 26 full-frame captures, plus its `.qm` catalogues
+  (4,637 rows), its logic strings, its `xnconvert.ini` and its own `batch_convert_log.txt`. The study
+  records the shell, the action-card stack (delete ≠ disable; slider+spin+reset), the Output form, the
+  Status grammar including the live-run footer, and the reconstructed state machine. **The decisive
+  finding is measured:** with both `Multipage` boxes off — the default — a 6-page GIF comes out as a
+  1-page GIF (`276.99 KiB -> 16.17 KiB`, -94%) because the frames were dropped, not compressed, which
+  is why its preview arrows step FILES and never frames. The study therefore separates *shell*
+  (adopt) from *model* (reject) and states the inversion slice E must make. Text only; `OD-22`/`N-36`
+  still keep every vendor binary, screenshot and asset out of the tree.
+- **Slice C (`N-58`): the Input tab is an animation-aware grid.** `queueList` stays a
+  `DropListWidget` (so T1–T27's contract is untouched) but is now an IconMode thumbnail grid:
+  per-cell first-frame thumbnail, name, and `frames · duration`. The reference's toolbar arrives
+  (`Add files…`, `Add folder…`, `Remove`, `Remove all`), with a Quick filter that **hides** rows and
+  never drops a queued file, a sort header (`Queue order · Name · Size · Modified · Frames ·
+  Duration`) that reorders the REAL queue because Merge concatenates in queue order, and a facts
+  strip for the selected file. `Queue order` restores the manual order a sort displaced
+  (`manualOrder_` tracks adds and Move Up/Down); ties keep insertion order in both directions.
+- **`src/core/GifFacts.h`: the animation facts are read from the bytes.** Frame count, summed GCE
+  delays, NETSCAPE/ANIMEXTS loop and fps, by a bounded block walk — no LZW, no Qt, no subprocess, so
+  the grid is correct even when the engine is missing and the values are pinned by
+  `tests/test_gif_facts.cpp` (54 checks; `build.sh` and ctest both run it). Cross-checked against the
+  engine on `build/fixtures/logo.gif`: 12 frames / 2400 ms / loop 0 / 5.00 fps vs gifsicle's
+  "12 images", "loop forever", 2.40 s delay sum. Three states the parser refuses to blur: no loop
+  block is `-1` ("plays once"), zero delays are "no delay" (not "0.00 s"), and a truncated file keeps
+  its partial counts with `ok=false`.
+- **Deliberately not built in C, and said so:** `Hot folders…` (a watcher is a feature with its own
+  failure modes, not a view) and the columns menu (no configurable column model yet). The reference's
+  still-image columns (EXIF Date Taken, Print size, Rating, Colour label) are dropped rather than
+  imitated — that column set is the still-image model the study warns against.
+- **Harness: T28.** Icon mode, a non-null thumbnail, the caption/duration text, filter-hides-not-
+  removes, and sort + `Queue order` restoring the real Merge order — the four claims a screenshot
+  cannot prove. Docs: reference §6/§7 (C delivered, E→D remaining), STATUS `N-58`, README net
+  (319 → 325 `CHECK(` sites, T1–T28).
+
 ## S41 — 2026-10-22: the external audit's P0 data-loss set landed (AUD-01/04/02) plus the aqt install cache, and two items were deliberately held
 
 **Changed:**
