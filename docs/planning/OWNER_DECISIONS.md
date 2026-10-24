@@ -27,7 +27,7 @@ answers are fine; `OD-14` has two sub-questions and needs both.
 | **OD-12** | Two-way CLI settings in 1.0.0 | (a) out · (b) in | **a** — answered by the owner 2026-09-14 (S19): the live pane stays honest one-way through 1.0.0 | Keeping the one-way CLI pane unchanged through 1.0.0 |
 | **OD-13** | Threads contract (`<0` / `0` / `>0`) | (a) yes, restore the sentinel · (b) leave as-is | **a** — `DS-06`'s tri-state fix | The `threads` sentinel semantics (`DS-06`/`DS-07`) |
 | **OD-14** | Disposal 4..7 + settings whitespace | (a) fix disposal 4..7 · (b) document settings quoting | **a** for disposal, **b** for settings whitespace | `DS-10` (unreachable disposal values) and `DS-12` (whitespace round-trip) |
-| **OD-15** | SkillOpt: how to incorporate | (a) pinned git submodule, quarantined · (b) vendored pinned copy · (c) venv/pip wrapper · (d) skip | **a** — see `docs/planning/PLANNING.md` §3 | The first in-repo SkillOpt experiment (the doc-sweep skill) |
+| **OD-15** | SkillOpt: how to incorporate | (a) pinned git submodule, quarantined · (b) vendored pinned copy · (c) venv/pip wrapper · (d) skip | **b** — **answered by the owner S41 (2026-10-22)**. The recommendation on file was (a); the owner took the pinned-copy route instead, and it is executed as (a)-strength: `working_code/gifscythe/tools/qt_lint/` holds `qt_lint.py` byte-identical to `dionysus@9b5e0e6` (sha256 in its README), added to `verify_reference_pins.sh` so CI fails on any drift, deletion or added file, with no network and no auto-update. (a) was not taken because a submodule would add a 35 MB dependency to every CI checkout for one 672-line script. **Scope note:** this answers the *tooling* half only — the SkillOpt experiment the row was written for is still unstarted. | The Qt lint gate (landed S41) |
 
 ## Answers so far
 
@@ -45,6 +45,14 @@ answers are fine; `OD-14` has two sub-questions and needs both.
   are untriaged intake (`GS-201`, `GS-204`, `GS-208`, `DS-06`) — `U-08` is
   PARTIAL and `U-09` is OPEN, already tracked. Neither "5" nor `GS-201`…`GS-204`
   described the real set.
+- **`OD-15` = b** (2026-10-22, S41) — a **vendored, pinned copy** of the Qt lint, not the
+  pinned submodule the row recommended. **Executed in the same session:** `tools/qt_lint/qt_lint.py`
+  is byte-identical to `dionysus@9b5e0e6` (`50194e4e…`), pinned by `verify_reference_pins.sh` as a
+  fourth set (111 files across 4 sets, no drift), and gated in the `docs` CI job. The submodule shape
+  was not taken because it would pull a 35 MB repository into every checkout for one Python file;
+  the quarantine discipline that shape was chosen for is kept. **This is the tooling half of the
+  question only** — the SkillOpt experiment itself remains unstarted, and the entry above says so
+  rather than closing the row silently.
 - **`OD-02` = a** (2026-09-12) — ship the ~10-line `GS-201` stop-loss now
   (CLI `--run` refuses Batch with no `output`, exit 2). It is the only
   **Critical** in the intake. This is the one answer that authorizes a code
@@ -74,7 +82,7 @@ answers are fine; `OD-14` has two sub-questions and needs both.
 
 **`OD-01` executed S15 (2026-09-13); `OD-02` executed S16 (2026-09-13); `OD-09` executed S18 (2026-09-14); `OD-11` + `OD-12` executed S19 (2026-09-14); `OD-17` executed S20 (2026-09-14).** The
 triage of all 18 rows landed in S15. The `GS-201` stop-loss (**P0-5**) landed in
-S16. Remaining owner questions are **OD-03…OD-08, OD-10, OD-13…OD-15, OD-21, OD-22** (`OD-16` answered S37, conditionally; `OD-18`, `OD-19` answered S37; `OD-20` answered S38, 2026-10-08, `= a`; the parked-`OD-C7` shell answered S37/S38). `OD-21` and `OD-22` were added 2026-10-09 from the GUI-design session — both await the owner's wording
+S16. Remaining owner questions are **OD-03…OD-08, OD-10, OD-13, OD-14, OD-21, OD-22** (`OD-16` answered S37, conditionally; `OD-18`, `OD-19` answered S37; `OD-20` answered S38, 2026-10-08, `= a`; the parked-`OD-C7` shell answered S37/S38). `OD-21` and `OD-22` were added 2026-10-09 from the GUI-design session — both await the owner's wording
 (`OD-09` answered S18; `OD-11`/`OD-12` answered S19; `OD-16` added S19; `OD-17` answered S20).
 **`OD-16` was answered S37 (2026-10-06) as (b), conditional on counsel-approved terms
 that do not exist yet — the track stays unshipped until they do.** **`OD-19` was added and answered S37 (2026-10-07)** from T26's GREEN: U-12 closes on the measurement with T26 as its standing regression guard, and the P1-24 rewrite is declined as an unverified refactor (see the row; it also records the standing "sweep with a RED or direct proof, report before applying" rule). **`OD-18` was added by S23 (2026-09-16)** from the U-76 / P1-43 work: the fix is
@@ -106,9 +114,11 @@ New questions land here, in the same shape, answered in the same
 
 - **OD-01 and OD-02 first** — they gate the release-blocker remediation; the
   rest are direction choices the plan can proceed without.
-- **OD-15** feeds directly into `docs/planning/PLANNING.md` §3,
-  which holds the three non-negotiable conditions and the four integration
-  shapes. Answering `OD-15 = a` unblocks the submodule shape.
+- **OD-15 was answered `= b` in S41 (2026-10-22)** — the vendored, pinned copy of the
+  Qt lint, executed in the same session (`tools/qt_lint/`, pinned by
+  `verify_reference_pins.sh`, gated in the `docs` job). `PLANNING.md` §3 keeps the
+  three non-negotiable conditions and the four integration shapes for a *future*
+  SkillOpt integration; the submodule shape (`a`) stays available but was not taken.
 - **`OD-20` was asked S38 (2026-10-08) and answered the same day as `= a`** — the owner's
   answer is an *amendment*, not a work order: `PROJECT_VISION.md` now carries it as the
   adopted "conversion endpoints only" amendment, and the deferred rows (`P3-19`/`U-90`)

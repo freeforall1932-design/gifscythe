@@ -70,6 +70,30 @@ inline std::string partial_output_path(const std::string& target) {
   return target + ".gs-partial";
 }
 
+// AUD-01 (P0 data loss): pick a staging path that this run can OWN. The old
+// callers did `discard_partial(partial_output_path(target))` unconditionally,
+// so an unrelated file that happened to be named `<target>.gs-partial` — even
+// one of the run's own INPUTS — was deleted before the engine started. This
+// never deletes anything: it returns the first of `<target>.gs-partial`,
+// `<target>.gs-partial.1`, ... that does not exist at all (symlink_status, so a
+// dangling symlink counts as occupied). An input necessarily exists, so it can
+// never be chosen. Returns "" if no free name was found or the directory could
+// not be probed; the caller must then refuse to run. A leftover partial from a
+// hard-killed earlier run is left in place (safe) rather than "self-healed".
+// Residual: a TOCTOU window remains between this probe and the engine's open;
+// exclusive create would close it but gifsicle opens `-o` itself.
+inline std::string claim_partial_output_path(const std::string& target) {
+  const std::string base = partial_output_path(target);
+  for (int i = 0; i < 1000; ++i) {
+    const std::string cand = i ? base + "." + std::to_string(i) : base;
+    std::error_code ec;
+    const auto st = std::filesystem::symlink_status(u8path_compat(cand), ec);
+    if (ec && ec != std::errc::no_such_file_or_directory) return {};
+    if (st.type() == std::filesystem::file_type::not_found) return cand;
+  }
+  return {};
+}
+
 // Redirect the single `-o <target>` operand of a full argv vector (argv[0] is
 // the engine path) to `-o <partial>`. Returns false unless the operand occurs
 // EXACTLY once with exactly that value: an ambiguous command line is refused by

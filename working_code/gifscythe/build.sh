@@ -174,6 +174,13 @@ g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
   -o "$BUILD_DIR/test_input_admission" "$self/tests/test_input_admission.cpp" $STDCXXFS \
   || fail "input-admission test compile failed"
 "$BUILD_DIR/test_input_admission" || fail "input-admission tests failed"
+# Slice C: the animation facts the Input grid displays (frames / duration /
+# loop) are read by a Qt-free header walk, so they are pinned here rather than
+# only being visible in a screenshot.
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/test_gif_facts" "$self/tests/test_gif_facts.cpp" $STDCXXFS \
+  || fail "gif-facts test compile failed"
+"$BUILD_DIR/test_gif_facts" || fail "gif-facts tests failed"
 
 # 4. GUI (only when requested)
 echo "==> [4/4] Qt6 GUI..."

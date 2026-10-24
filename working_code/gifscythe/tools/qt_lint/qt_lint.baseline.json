@@ -1,0 +1,11 @@
+{
+  "generated_by": "qt_lint.py",
+  "keys": [
+    "QL002|tests/test_gui_offscreen.cpp|QObject::connect(&ticker, &QTimer::timeout, [&ticks]() { ++ticks; });",
+    "QL002|tests/test_gui_offscreen.cpp|QObject::connect(g_hb.timer, &QTimer::timeout, [] {",
+    "QL003|src/qtui/MainWindow.cpp|if (!process_->waitForStarted(5000)) {",
+    "QL003|src/qtui/MainWindow.cpp|previewProcess_->waitForFinished(1000);",
+    "QL003|src/qtui/MainWindow.cpp|process_->waitForFinished(2000);",
+    "QL003|src/qtui/MainWindow.cpp|process_->waitForFinished(3000);"
+  ]
+}

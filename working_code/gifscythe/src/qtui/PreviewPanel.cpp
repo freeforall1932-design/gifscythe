@@ -7,6 +7,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMovie>
+#include <QPalette>
 #include <QPushButton>
 #include <QSizePolicy>
 #include <QVBoxLayout>
@@ -18,6 +19,33 @@ const QSize kPreviewSize(240, 180);
 const char* kPreviewCaption =
     "Preview = the selected file re-encoded with current actions "
     "(single-file run; Batch applies the same settings to every file).";
+
+// The preview canvas is a MEDIA surface, so it stays DARK in both themes the way
+// a video player does: a transparent or pale GIF reads against a dark strip,
+// which a white page cannot promise (owner's call, S41).
+//
+// Dark is computed, not typed in. QL006's literal was `#202020`; this takes the
+// palette's darker role (WindowText in a light theme, Base in a dark one) and
+// lifts it 13% toward the other role, so the tone follows the theme instead of
+// claiming a fixed grey - and it lands on ~#212121 in the default light palette,
+// i.e. the same film strip as before. Nothing here is a hex literal, so the lint
+// has nothing to flag and a dark theme (D-06) moves with it.
+QPalette mediaCanvasPalette(const QPalette& src) {
+  const QColor text = src.color(QPalette::WindowText);
+  const QColor base = src.color(QPalette::Base);
+  const bool textIsDarker = text.lightness() < base.lightness();
+  const QColor dark = textIsDarker ? text : base;
+  const QColor other = textIsDarker ? base : text;
+  constexpr qreal kLift = 0.13;  // off pure black, so it reads as a panel
+  const QColor fill(
+      qRound(dark.red() + (other.red() - dark.red()) * kLift),
+      qRound(dark.green() + (other.green() - dark.green()) * kLift),
+      qRound(dark.blue() + (other.blue() - dark.blue()) * kLift));
+  QPalette out = src;
+  out.setColor(QPalette::Window, fill);
+  out.setColor(QPalette::Base, fill);
+  return out;
+}
 }
 
 PreviewPanel::PreviewPanel(QWidget* parent) : QWidget(parent) {
@@ -28,8 +56,9 @@ PreviewPanel::PreviewPanel(QWidget* parent) : QWidget(parent) {
   // Captions are siblings of the canvas, never children of it. This is
   // intentional: a QLabel showing a QMovie must not also carry status text,
   // otherwise a late setText() can paint over the last animation frame.
-  auto makeCanvas = [box](const QString& caption, const QString& captionName,
-                          const QString& labelName, QLabel** labelOut) {
+  const QPalette canvasPal = mediaCanvasPalette(palette());
+  auto makeCanvas = [box, canvasPal](const QString& caption, const QString& captionName,
+                                     const QString& labelName, QLabel** labelOut) {
     auto* cap = new QLabel(caption, box);
     cap->setObjectName(captionName);
     cap->setWordWrap(true);
@@ -39,7 +68,15 @@ PreviewPanel::PreviewPanel(QWidget* parent) : QWidget(parent) {
     frame->setFrameShape(QFrame::StyledPanel);
     frame->setMinimumSize(kPreviewSize);
     frame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    frame->setStyleSheet(QStringLiteral("QFrame { background: #202020; }"));
+    // Measured, not guessed (S41, CI annotations): no stylesheet, and a filled
+    // widget needs autoFillBackground + a background role. Two earlier attempts
+    // read #000000 (an unpainted canvas): the first kept WA_OpaquePaintEvent,
+    // which makes Qt skip autoFillBackground; the second relied on a QSS
+    // palette(base), which did not resolve to a fill. Both were caught by the
+    // pixel annotation, not by any test - see N-52 / N-54.
+    frame->setPalette(canvasPal);
+    frame->setAutoFillBackground(true);
+    frame->setBackgroundRole(QPalette::Base);
     auto* frameLay = new QVBoxLayout(frame);
     frameLay->setContentsMargins(0, 0, 0, 0);
 
@@ -49,8 +86,16 @@ PreviewPanel::PreviewPanel(QWidget* parent) : QWidget(parent) {
     label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     label->setAlignment(Qt::AlignCenter);
     label->setTextFormat(Qt::PlainText);
-    label->setAttribute(Qt::WA_OpaquePaintEvent, true);
-    label->setStyleSheet(QStringLiteral("background:#202020;color:#909090;"));
+    // No WA_OpaquePaintEvent: it suppresses the palette fill (see the note
+    // above the frame) and it was what made the canvas measure black.
+    label->setPalette(canvasPal);
+    label->setAutoFillBackground(true);
+    label->setBackgroundRole(QPalette::Base);
+    // Mid is this file's role for secondary/hint text (the SettingsPanel
+    // descriptions use the same one). On the dark strip it is a LIGHTER grey
+    // than the old fixed #909090, which is a contrast improvement, not a
+    // regression: measured in CI, not assumed.
+    label->setForegroundRole(QPalette::Mid);
     frameLay->addWidget(label);
     *labelOut = label;
     return std::pair<QLabel*, QFrame*>(cap, frame);

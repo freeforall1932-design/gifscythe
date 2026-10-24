@@ -26,6 +26,11 @@ using System.Text;
 var mode = Environment.GetEnvironmentVariable("FAKE_MODE") ?? "ok";
 var src = Environment.GetEnvironmentVariable("FAKE_SRC");
 var outPath = Environment.GetEnvironmentVariable("FAKE_OUT");
+// AUD-04: the spike now hands the engine a fresh staging file, not the
+// destination, so the `-o` operand is where a write must land. Prefer it; keep
+// FAKE_OUT only as the fallback for callers that pass no `-o`.
+var oAt = Array.IndexOf(args, "-o");
+if (oAt >= 0 && oAt + 1 < args.Length) outPath = args[oAt + 1];
 
 switch (mode)
 {

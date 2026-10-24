@@ -163,6 +163,23 @@ the existing register blocks instead; anything newly discovered goes in an
 usual. The freeze lifts itself when the derived bar reads 0 (no hand-editing:
 `check_docs.sh --emit` owns the number).
 
+**Recorded exception (owner, S41, 2026-10-22): the Qt lint gate and `ci-ok`.** The owner was
+asked to choose between no gate, a non-blocking print, and a blocking baselined
+check for the vendored `tools/qt_lint`, and chose the **blocking** one with the
+freeze visibly in front of them. So `docs` job step *"Qt lint gate (baselined -
+fails on any NEW finding)"* is a new gate that exists **by explicit owner
+exception**, on the same footing as `AUD-06`'s hold (which was *not* taken for
+the same reason: no such exception was given for it). Nothing else about the
+freeze changes: it stays in force for every other new gate or register until the
+derived bar reads 0. The gate is baselined, so it cannot fail on the debt that
+already exists - only on a NEW finding.
+
+In the same S41 conversation the owner also granted the exception for **`AUD-06`
+`ci-ok`** (the aggregate job that requires every other job to have `success`), so
+the audit's raw-CI finding is closed rather than carried. The UI screenshot upload
+next to those jobs is deliberately declared `continue-on-error`: evidence is not a
+gate, so it needs no exception and can never fail a run.
+
 Every new finding gets a matching line here. Nothing is `UNTRIAGED` right now:
 the S24 intake was triaged in the same session (each row carries its §6 id).
 
@@ -446,6 +463,13 @@ Still open from the audit intake (state lives in `STATUS.md`):
    with the seeded engine-oracle matrix. The remaining doc-machine rows are
    U-88/P2-21 + U-89/P2-22 (they edit gate logic, so they are R1 work and need
    mutation testing).
+8. **The UI-parity route** (`docs/planning/XN_CONVERT_REFERENCE.md` §7, researched in
+   `XN_CONVERT_TABS_RESEARCH.md`): slices **A + B + F** (Status tab, tab titles/Settings, Convert/Stop)
+   landed S41, **C** (Input grid) S42, **E** (Output form + honest Format selector) and **D** (Actions
+   card stack, `N-60`) S43. **What is left on this route is the owner's UI review, then nothing —
+   unless he asks for the FFmpeg sidecar**, which is the only way APNG/WebP/MP4/WebM stop being
+   listed-but-disabled (no ffmpeg in the agent sandbox; the encoder recipes are frozen in the
+   research doc §3.1).
 7. **Owner decisions** — `docs/planning/OWNER_DECISIONS.md`: remaining
    OD-03…OD-07, OD-10, OD-13…OD-16 (OD-16 blocks `web/wasm/`). **OD-18 was
    answered `= a` in S37** — the un-prefixed CLI explode keeps writing into the

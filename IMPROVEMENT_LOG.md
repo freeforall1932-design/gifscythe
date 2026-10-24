@@ -4,6 +4,199 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S43 — 2026-10-24: slice D — the Actions tab is the reference's card stack, and a disabled action contributes nothing
+
+**Changed:**
+
+- **The tab was researched before it was built.** The owner's instruction was to research Input,
+  Actions, Output and Status in the real program first and only then adapt it with ScreenToGif's
+  encoder functions. `docs/planning/XN_CONVERT_TABS_RESEARCH.md` is that research: per tab, the
+  `[OBS]` behaviour of the shipped XnConvert 1.118.0, the `[SRC]` ScreenToGif export pipeline it has
+  to be adapted to (the `ExportFormats` enum, the five `EncoderTypes`, and the verbatim FFmpeg
+  recipes for GIF/APNG/WebP), what gifscythe ships today, and a 1:1/divergence table. Two findings
+  drive the rest: the reference's `-` **deletes** a card (`[0/0]`) while `Enabled` keeps it
+  (`[0/1]`) — two verbs, not one — and its Multipage defaults silently *flatten* an animation
+  (`276.99 KiB -> 16.17 KiB`, -94%), which is why gifscythe inverts it into an on-by-default
+  `Animation` card instead of copying the checkbox.
+- **Slice D (`N-60`): the Actions tab is a card stack.** One card per gifsicle operation group
+  (`actionCard_0..7`: Mode, Optimize, Resize, Geometry, Crop, Animation, Colors/Transparency,
+  Metadata), each header carrying `actionCardChevron_<id>` (fold), `actionCardRemove_<id>` (the
+  reference's `-`), `actionCardReset_<id>` (`↺`) and `actionCardEnabled_<id>` (`Enabled`), over the
+  existing controls untouched — every objectName and tooltip the harness selects on is unchanged.
+  The toolbar is the reference's: `Add action >` (menu, greys out what is already in the stack,
+  plus `Add all actions`), the `Actions [on/total]` counter, and `Clear all`. The same counter rides
+  in the **tab title** (`MainWindow::refreshTabTitles`).
+- **"Disabled" is honoured where it counts, not where it shows.** `writeInto()` copies the *default*
+  of every field belonging to a card that is out of the stack or switched off, so a disabled card
+  contributes nothing the user typed and a stale `-O2` cannot re-enter the command; a new
+  `writeSessionInto()` deliberately bypasses the gate so persistence keeps those values. Removing a
+  card parks its body in `bodies_` (re-parented, hidden) and `Add action >` re-attaches the **same
+  widget**, values intact; `↺` restores the construction defaults captured once into `defaults_`
+  (a Settings round trip, not a second copy of 40 literals). `card_state =
+  id:present:enabled:collapsed;...` is written to the session file **and** to every preset, so a
+  preset is an action set, which is what an XnConvert preset is.
+- **Harness: T30 + T30b** — counter and tab title at `[8/8]`, all four affordances on every card,
+  fold (still contributes), disable (`-O2`/`--lossy` leave the command while `-d 7` stays, counter
+  `[7/8]`), reset (this card only, the other card's typed value survives), remove + re-add (values
+  intact), `Clear all` (`[0/0]`, no action flags at all), and a restart that restores presence,
+  enabled state, and the values inside a disabled card. 325 -> 331 `CHECK(` sites (532 -> 575
+  with `CHECK_MSG`).
+- **No Qt SDK in this sandbox, so CI is the only compiler** — the same standing constraint as
+  S41/S42. Pre-push evidence: `build.sh` engine + CLI + 421/35/54 unit checks green, and
+  `qt_lint src tests CMakeLists.txt --baseline ...` = 7 findings, 0 not in the baseline, exit 0
+  (the CI invocation, run verbatim). **Then CI, which is what compiles this:** PR run
+  `40078589701` is green on linux and windows (T1-T30 all pass), and both jobs uploaded
+  `ui-screenshots-linux` / `ui-screenshots-windows` for the owner's review. It took three rounds,
+  each naming a real defect rather than a flaky check: `byName()` takes a `const char*` (the T30
+  lookup passed a built QString), a card being added back refreshed the tab title but **not** the
+  command preview, and `removeCard()`'s deferred delete never ran under `processEvents()` (a real
+  event loop runs it) — the last two were found by the new tests, which is the point of them.
+
+## S42 — 2026-10-24: the shipped XnConvert was studied as a program, then slice C landed (Input grid + animation facts)
+
+**Changed:**
+
+- **The reference stopped being four photographs (`XN_CONVERT_PROGRAM_STUDY.md`).** The owner
+  supplied both XnConvert archives and asked for the *program* to be read, not inferred. Both were
+  unpacked outside the tree (py7zr; no `7z` binary here) and the genuine 1.118.0 Qt 6.8.9 build was
+  driven live on Qt's `vnc` platform plugin: 26 full-frame captures, plus its `.qm` catalogues
+  (4,637 rows), its logic strings, its `xnconvert.ini` and its own `batch_convert_log.txt`. The study
+  records the shell, the action-card stack (delete ≠ disable; slider+spin+reset), the Output form, the
+  Status grammar including the live-run footer, and the reconstructed state machine. **The decisive
+  finding is measured:** with both `Multipage` boxes off — the default — a 6-page GIF comes out as a
+  1-page GIF (`276.99 KiB -> 16.17 KiB`, -94%) because the frames were dropped, not compressed, which
+  is why its preview arrows step FILES and never frames. The study therefore separates *shell*
+  (adopt) from *model* (reject) and states the inversion slice E must make. Text only; `OD-22`/`N-36`
+  still keep every vendor binary, screenshot and asset out of the tree.
+- **Slice C (`N-58`): the Input tab is an animation-aware grid.** `queueList` stays a
+  `DropListWidget` (so T1–T27's contract is untouched) but is now an IconMode thumbnail grid:
+  per-cell first-frame thumbnail, name, and `frames · duration`. The reference's toolbar arrives
+  (`Add files…`, `Add folder…`, `Remove`, `Remove all`), with a Quick filter that **hides** rows and
+  never drops a queued file, a sort header (`Queue order · Name · Size · Modified · Frames ·
+  Duration`) that reorders the REAL queue because Merge concatenates in queue order, and a facts
+  strip for the selected file. `Queue order` restores the manual order a sort displaced
+  (`manualOrder_` tracks adds and Move Up/Down); ties keep insertion order in both directions.
+- **`src/core/GifFacts.h`: the animation facts are read from the bytes.** Frame count, summed GCE
+  delays, NETSCAPE/ANIMEXTS loop and fps, by a bounded block walk — no LZW, no Qt, no subprocess, so
+  the grid is correct even when the engine is missing and the values are pinned by
+  `tests/test_gif_facts.cpp` (54 checks; `build.sh` and ctest both run it). Cross-checked against the
+  engine on `build/fixtures/logo.gif`: 12 frames / 2400 ms / loop 0 / 5.00 fps vs gifsicle's
+  "12 images", "loop forever", 2.40 s delay sum. Three states the parser refuses to blur: no loop
+  block is `-1` ("plays once"), zero delays are "no delay" (not "0.00 s"), and a truncated file keeps
+  its partial counts with `ok=false`.
+- **Deliberately not built in C, and said so:** `Hot folders…` (a watcher is a feature with its own
+  failure modes, not a view) and the columns menu (no configurable column model yet). The reference's
+  still-image columns (EXIF Date Taken, Print size, Rating, Colour label) are dropped rather than
+  imitated — that column set is the still-image model the study warns against.
+- **Harness: T28.** Icon mode, a non-null thumbnail, the caption/duration text, filter-hides-not-
+  removes, and sort + `Queue order` restoring the real Merge order — the four claims a screenshot
+  cannot prove. Docs: reference §6/§7 (C delivered, E→D remaining), STATUS `N-58`, README net
+  (319 → 325 `CHECK(` sites, T1–T28).
+
+## S41 — 2026-10-22: the external audit's P0 data-loss set landed (AUD-01/04/02) plus the aqt install cache, and two items were deliberately held
+
+**Changed:**
+
+- **AUD-01 (`N-46`, P0 data loss).** `claim_partial_output_path()` replaces the
+  unconditional `discard_partial(<target>.gs-partial)` in the CLI and at all
+  three Qt staging sites: it returns the first `<target>.gs-partial[.N]` with no
+  file at that path and no `<cand>.*` entries, and deletes nothing. An input
+  literally named `<output>.gs-partial` used to be deleted; it now survives and
+  the run succeeds (smoke case + `test_output_verify.cpp` checks). The TOCTOU
+  window between claim and the engine opening `-o` remains — closing it means
+  changing how the engine is launched, held out. **Accepted trade-off:** a
+  staging file left by a hard kill is no longer swept up, because it is
+  indistinguishable from user data without an ownership marker.
+- **AUD-04 (`N-47`).** The C# spike verified the DESTINATION after exit 0, so an
+  engine that wrote nothing over a pre-existing valid GIF looked like a success.
+  It now creates an exclusive staging file, verifies that file, moves it into
+  place, and returns rc 6 when the move fails; `FakeEngine` honours `-o`, so the
+  new CI csharp-spike step proves it end to end (flood over an existing GIF ⇒
+  rc 5, sha unchanged, no `gs-partial` leftover).
+- **AUD-02 (`N-48`, P0 data loss).** Reproduced before the fix: explode to prefix
+  `fr` **deleted** a user file named `fr.gs-partial.000`. `claim_partial_explode_prefix()`
+  now claims a free prefix without deleting anything (CLI refuses when none is
+  free), and the Qt Explode mode — which had no partial guard at all, so a cancel
+  or failure truncated the previous frame set in place — now writes under the
+  claimed prefix, verifies there, promotes with `promote_explode_frames`, and
+  discards only its own set. Cancel reports the flat `Cancelled.`; the N-10
+  warning described the pre-guard behaviour. Proof: 6 new unit checks, smoke
+  65/65, harness T7/T21 assertions. Qt cannot be built in this sandbox, so the
+  CI offscreen harness is the proof for the GUI half.
+- **AUD-08 (`N-49`).** The Windows aqt step had no retry and no cache; one
+  network blip (`exit 254`) skipped every later step. `actions/cache@v4` on
+  `$RUNNER_TEMP/qt` (key `aqt-qt6.7.3-win64_mingw-tools_mingw1310-v1`, trusted
+  only when both the Qt and MinGW bin dirs exist) plus a bash `retry 3` with
+  15/30/60 s backoff around the pip and aqt/choco downloads. Action refs only;
+  no gate changed.
+- **AUD-06 `ci-ok` landed under a second recorded owner exception (`N-53`).** The owner
+  granted it alongside the Qt lint, so the audit's raw-CI finding is closed rather than
+  carried. The job needs all six jobs and runs `if: always()` — a failed dependency would
+  otherwise remove it and the required check would never report. A deduped push run passes
+  with a notice, since the PR's own run is the check of record. Four branches simulated
+  locally before pushing. **AUD-09** is unchanged: Qt evidence comes from CI. The
+  `verify_audit.sh` G18 gate fails on uncommitted work by design, so the commit precedes it.
+- **UI screenshots as evidence, not a gate (`N-54`).** `ui-redesign.md` §7 asks for
+  `QWidget::grab()` captures and none had ever been produced. `shootUi()` in the harness is
+  armed by `GS_SHOT_DIR` only; both GUI jobs upload the PNGs with `continue-on-error`. That
+  keeps it outside the U-89 freeze by construction — and means a failing run still shows the
+  UI it failed with.
+- **The dionysus drop-in was reviewed, digested and de-duplicated.** The owner's `gifscythe.zip` at
+  main is byte-identical to `dionysus@9b5e0e6:gifscythe/` (six files, no provenance manifest), so it
+  was removed from this repo and replaced by `docs/planning/SKILLS_INTAKE.md` (`N-50`), which keeps
+  the one reusable artifact — the qt_lint baseline, verbatim — plus the evidence. **The lint was run
+  as the intake's first action** (the externally-run route, no install): selftest PASS; 9 findings on
+  this tree, exactly the 2026-10-13 set (5x QL003 = U-12's five waits, 2x QL006 = the hard-coded
+  PreviewPanel colours, 2x QL002-info in tests); with the baseline, 0 not in baseline and exit 0.
+  The AUD-01/AUD-02 Qt changes add **zero** findings — an independent check on Qt code this sandbox
+  cannot compile. A mutation test on a scratch copy (`waitForFinished(9000)`) produced 1 new key and
+  exit 1, so the baseline is a gate and not decoration. Two stale rows in the drop-in are recorded
+  as traps (`GS-210` and `F-02` are DONE here; its table says open) and one skill rule is now
+  behind our code (§6 rule 4 expects the N-10 partial-frame warning that AUD-02 removed) — written up
+  as a ready-to-paste row for dionysus's own defect log, which this session cannot commit.
+  **Nothing was installed:** `OD-15` is open and `PLANNING.md` §3 forbids vendoring, submodule or
+  pip-install before it is answered, and CI wiring would be a new gate under the U-89 freeze.
+- **`OD-15` answered `= b`: the Qt lint is vendored, pinned, quarantined — and gated (`N-51`).**
+  The owner chose a blocking baselined check over a non-blocking print, knowing it lands during the
+  U-89 freeze; that makes it a **new gate by explicit owner exception**, now recorded in
+  `WORKLIST.md` beside the freeze text (and the reason AUD-06 stays held: no equivalent exception).
+  Shape: `tools/qt_lint/qt_lint.py` byte-identical to `dionysus@9b5e0e6` (`50194e4e…`, verified by
+  sha256), a README with provenance + sync rules, and the directory added as a fourth
+  `verify_reference_pins.sh` set so drift/deletion/addition all fail (111 files, 4 sets, no drift).
+  The `docs` job runs `--selftest` first (a vendored tool must prove it runs before it judges the
+  tree) then the baselined scan. The baseline is **this tree's**, regenerated after the fix below:
+  6 keys / 7 findings.
+- **QL006 ×2 fixed (`N-52`) — palette roles instead of hex, and the UI measurement earned its
+  keep.** `PreviewPanel.cpp` hard-coded `#202020` (canvas) and `#909090` (hint text). **The owner's call,
+  taken during the pre-merge review, was to keep the dark film strip** — so the final version
+  derives it: `mediaCanvasPalette()` takes the palette's darker role (WindowText in a light theme,
+  Base in a dark one) and lifts it 13% toward the other, giving `#212121` here (one step off the old
+  `#202020`) and a tone that moves with the theme when `D-06` lands; `Mid` supplies the hint text,
+  whose contrast rises 5.10:1 → 8.12:1. **Three attempts, and only the CI pixel measurement could
+  judge them** (no test asserts a pixel): two read `#000000` — `WA_OpaquePaintEvent` suppressing
+  `autoFillBackground`, then a QSS `palette(base)` that did not resolve to a fill. Final measurement
+  at `f5b7d7a` on **both** platforms: corners `#212121` ×4. This is precisely the gap `N-54` fills,
+  and why the screenshots/pixel facts are produced on every run.
+- **The XnConvert reference was re-read properly and the UI record corrected (`N-55`).** The owner
+  supplied four screenshots — Input, Actions, Output, and Status mid-run — after saying the UI work
+  had been aimed at the wrong model. It had: `UI_REVIEW_S41.md` §3 had recorded the `Guide` fourth
+  tab as "not a regression" and treated the audit's Status-tab claim as the thing to distrust, when
+  the reference shows **Status as a live tab** with `Processing list: n of m`, per-file
+  `loaded`/`saved` + size-delta lines, an ETA and a `Stop` button. `docs/planning/XN_CONVERT_REFERENCE.md`
+  transcribes all four tabs element by element (text-only: `OD-22` unanswered, `N-36` bans image
+  files), measures the gap against the code, and orders the work as six slices — A Status tab
+  (`W-32`, whose 14-case contract already exists), B tab titles + Settings/About, F Convert/Stop,
+  C Input grid, E Output form, D action cards; E and D need `OD-21`. **The real distance is
+  architectural:** the reference is an action-list model, this app has one settings set per run.
+- **Docs.** Register rows `N-46`–`N-49` (183 DONE · 7 PARTIAL · 14 OPEN · 0
+  UNTRIAGED = 204), base lines re-anchored to `9629d49` after the owner's
+  2026-10-20 upload moved main's tip past PR #16, and main merged into the branch
+  first so CI runs against the current base (workflow copies verified
+  byte-identical after the merge; the Node 24 action refs from S40 survive the
+  AUD-08 hunk).
+
+---
+
 ## S40 — 2026-10-13: the Node 20 → Node 24 Actions migration landed with a green run, and the universal context was consolidated to v4 (prior versions removed)
 
 **Changed:**

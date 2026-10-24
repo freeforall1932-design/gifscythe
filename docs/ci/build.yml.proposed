@@ -94,6 +94,24 @@ jobs:
         working-directory: working_code/gifscythe
         run: ./scripts/check_docs.sh --no-gate-run
 
+      # OD-15 = b (owner, S41, 2026-10-21): the Qt lint vendored under
+      # tools/qt_lint runs as a gate. The selftest comes first - a vendored tool
+      # that cannot prove itself does not get to judge the tree - and the scan
+      # then fails on any key that is not in the committed baseline. This is a
+      # NEW GATE and therefore an explicit, recorded owner exception to the U-89
+      # freeze (WORKLIST.md), taken with the same weight as the AUD-06 hold.
+      # Baseline keys are relative to the working directory, so the cwd matters:
+      # from anywhere else the lint fails loudly instead of passing silently.
+      - name: Qt lint selftest (proves the vendored tool runs)
+        working-directory: working_code/gifscythe
+        run: python3 tools/qt_lint/qt_lint.py --selftest
+
+      - name: Qt lint gate (baselined - fails on any NEW finding)
+        working-directory: working_code/gifscythe
+        run: |
+          python3 tools/qt_lint/qt_lint.py src tests CMakeLists.txt \
+              --baseline tools/qt_lint/qt_lint.baseline.json
+
   linux:
     needs: gate
     if: ${{ !cancelled() && needs.gate.outputs.skip != 'true' }}
@@ -238,7 +256,7 @@ jobs:
           # dies on one assertion must name the case, not just exit 1 (S34's rule).
           log="${RUNNER_TEMP:-/tmp}/gui_offscreen.log"
           set +e
-          GS_TEST_REF_DIR="$(./scripts/fixtures.sh)" QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen 2>&1 | tee "$log"
+          GS_TEST_REF_DIR="$(./scripts/fixtures.sh)" GS_SHOT_DIR="$PWD/ui-shots" QT_QPA_PLATFORM=offscreen ./build-cmake/test_gui_offscreen 2>&1 | tee "$log"
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -251,7 +269,24 @@ jobs:
           # (the runner-side log endpoint EOFs). Annotations ARE retrievable, so publish the
           # numbers on every run, pass or fail - they are the per-platform record of T26.
           while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\([A-E]\)' "$log" | head -10 || true)
+          # S41 (N-54): the palette/layout facts behind the screenshots. Artifact blobs and job
+          # logs are not retrievable from every environment (both have EOFed); annotations are, so
+          # these one-liners are what makes the QL006 claim checkable without the PNG.
+          while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\(ui\)' "$log" | head -20 || true)
           exit "$status"
+
+      # S41: UI evidence for the review before merge, NOT a gate (U-89: it can
+      # never fail the job). ui-redesign.md §7 wants the real widgets, so the
+      # harness grabs them when GS_SHOT_DIR is set; always() means a FAILING run
+      # still shows what the UI looked like when it failed.
+      - name: Upload UI screenshots (evidence only - never fails the job)
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-screenshots-linux
+          path: working_code/gifscythe/ui-shots
+          if-no-files-found: warn
 
       - name: Package portable
         working-directory: working_code/gifscythe
@@ -405,17 +440,41 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # AUD-08: the aqt download flaked (one run died here with exit 254 and
+      # skipped every later step). Cache the install, and retry the downloads
+      # with backoff. Not a gate: it changes no pass/fail rule (U-89 freeze).
+      - name: Cache Qt6 + MinGW (aqt)
+        id: qtcache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/qt
+          key: aqt-qt6.7.3-win64_mingw-tools_mingw1310-v1
+
       - name: Install Qt6 (aqt) + MinGW toolchain
         id: provision
         run: |
           set -euo pipefail
-          pip install aqtinstall
-          aqt install-qt windows desktop 6.7.3 win64_mingw -O "$RUNNER_TEMP/qt"
-          # MinGW from aqt tools (try common packages; ignore failures)
-          aqt install-tool windows desktop tools_mingw1310 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
-          aqt install-tool windows desktop tools_mingw1120 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
-          aqt install-tool windows desktop tools_mingw90 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
-          choco install mingw -y --no-progress
+          retry() {  # retry <attempts> <cmd...>: backoff 15s, 30s, 60s...
+            local n="$1"; shift; local i=1 wait=15
+            until "$@"; do
+              if (( i >= n )); then echo "::error::failed after $n attempts: $*"; return 1; fi
+              echo "::warning::attempt $i failed: $* - retrying in ${wait}s"
+              sleep "$wait"; i=$((i + 1)); wait=$((wait * 2))
+            done
+          }
+          if [[ "${{ steps.qtcache.outputs.cache-hit }}" == "true" ]] \
+             && ls -d "$RUNNER_TEMP/qt"/6.*/mingw_64/bin >/dev/null 2>&1 \
+             && ls -d "$RUNNER_TEMP/qt"/Tools/mingw*/bin >/dev/null 2>&1; then
+            echo "Qt6 + MinGW restored from cache"
+          else
+            retry 3 pip install aqtinstall
+            retry 3 aqt install-qt windows desktop 6.7.3 win64_mingw -O "$RUNNER_TEMP/qt"
+            # MinGW from aqt tools (try common packages; each one retried)
+            retry 3 aqt install-tool windows desktop tools_mingw1310 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
+            aqt install-tool windows desktop tools_mingw1120 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
+            aqt install-tool windows desktop tools_mingw90 -O "$RUNNER_TEMP/qt" 2>/dev/null || \
+            retry 3 choco install mingw -y --no-progress
+          fi
 
           # Put every bin dir aqt created on PATH
           while IFS= read -r d; do
@@ -653,7 +712,7 @@ jobs:
           # dies on one assertion must name the case, not just exit 1 (S34's rule).
           log="${RUNNER_TEMP:-/tmp}/gui_offscreen.log"
           set +e
-          GS_TEST_REF_DIR="$(cygpath -m "$(./scripts/fixtures.sh)")" QT_QPA_PLATFORM=offscreen ./build-win/test_gui_offscreen.exe 2>&1 | tee "$log"
+          GS_TEST_REF_DIR="$(cygpath -m "$(./scripts/fixtures.sh)")" GS_SHOT_DIR="$(cygpath -m "$PWD/ui-shots")" QT_QPA_PLATFORM=offscreen ./build-win/test_gui_offscreen.exe 2>&1 | tee "$log"
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -665,7 +724,24 @@ jobs:
           # Windows is unmeasurable there), and job log blobs are not always retrievable.
           # Annotations are, so publish the numbers on every run, pass or fail.
           while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\([A-E]\)' "$log" | head -10 || true)
+          # S41 (N-54): the palette/layout facts behind the screenshots. Artifact blobs and job
+          # logs are not retrievable from every environment (both have EOFed); annotations are, so
+          # these one-liners are what makes the QL006 claim checkable without the PNG.
+          while IFS= read -r line; do echo "::notice::$line"; done < <(grep -aE '^\s+\(ui\)' "$log" | head -20 || true)
           exit "$status"
+
+      # S41: the Windows render is the shipping target (OD-17 = a), so its shots
+      # matter most for the UI review - and they are the only way to see what the
+      # QL006 palette change looks like under the native Windows style. Evidence
+      # only: continue-on-error keeps this outside the U-89 gate freeze.
+      - name: Upload UI screenshots (evidence only - never fails the job)
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-screenshots-windows
+          path: working_code/gifscythe/ui-shots
+          if-no-files-found: warn
 
       - name: Package portable (Windows)
         working-directory: working_code/gifscythe
@@ -1018,6 +1094,24 @@ jobs:
           set -e
           cat "$work/fl.log"
           [[ "$rc" == 4 ]] || { echo "FAIL: engine exited 7 want rc=4 got rc=$rc" >&2; exit 1; }
+
+          # AUD-04: exit 0 WITHOUT writing, over a pre-existing valid GIF. The
+          # old spike verified the destination and reported the stale file as
+          # this run's success (rc 0). Must be rc 5 with the old bytes intact
+          # and no staging file left behind.
+          noop="$work/noop.gif"
+          cp "$work/in.gif" "$noop"
+          noop_before="$(sha256sum < "$noop")"
+          unset FAKE_EXIT
+          export FAKE_MODE=flood FAKE_FLOOD_BYTES=0
+          set +e
+          "$SPIKE_EXE" "$FAKE_ENGINE" "$work/in.gif" "$noop" >"$work/noop.log" 2>&1
+          rc=$?
+          set -e
+          cat "$work/noop.log"
+          [[ "$rc" == 5 ]] || { echo "FAIL: no-write over existing GIF want rc=5 got rc=$rc" >&2; exit 1; }
+          [[ "$(sha256sum < "$noop")" == "$noop_before" ]] || { echo "FAIL: existing output was modified" >&2; exit 1; }
+          if ls -A "$work" | grep -q 'gs-partial'; then echo "FAIL: staging file left behind" >&2; ls -la "$work" >&2; exit 1; fi
           echo OK
 
       - name: Publish self-contained single file
@@ -1070,6 +1164,66 @@ jobs:
   #
   # It runs only for `refs/tags/snapshot-*`; ci_gate.sh never skips a tag (see its header), so the tag's
   # own run is the one that verifies and then publishes.
+  # AUD-06 (S41): ONE check a branch-protection rule can require. Every other job
+  # reports its own result, so "all green" was a thing a human asserted by reading
+  # six rows - and a job that never ran (skipped, cancelled, or gated off) looked
+  # identical to a job that passed. This job fails unless every job it needs
+  # SUCCEEDED, so a skip is a red check rather than a silent hole.
+  #
+  # Deliberately `if: always()`: without it a failed dependency removes this job
+  # from the run entirely and the required check never reports - the exact
+  # failure mode the audit named. `release-snapshot` is NOT here: it runs only on a
+  # snapshot tag and is skipped on every PR by design.
+  #
+  # NEW GATE => explicit owner exception to the U-89 freeze (WORKLIST.md), asked
+  # and granted in S41 together with the Qt lint gate. Unlike the lint gate this
+  # one adds no check of its own: it only makes the existing six readable as one
+  # verdict.
+  ci-ok:
+    name: ci-ok (aggregate - the only check to require)
+    needs: [gate, docs, linux, portability, windows, csharp-spike]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Every required job succeeded
+        env:
+          GATE_RESULT: ${{ needs.gate.result }}
+          GATE_SKIP: ${{ needs.gate.outputs.skip }}
+          RESULTS: |
+            docs=${{ needs.docs.result }}
+            linux=${{ needs.linux.result }}
+            portability=${{ needs.portability.result }}
+            windows=${{ needs.windows.result }}
+            csharp-spike=${{ needs.csharp-spike.result }}
+        run: |
+          set -euo pipefail
+          echo "gate=$GATE_RESULT dedupe-skip=${GATE_SKIP:-unknown}"
+          printf '%s\n' "$RESULTS"
+          # A push run whose commit an open PR already covers intentionally runs
+          # nothing: the PR's own run is the check of record, so this is not a
+          # failure. Without this branch every such push would go red.
+          if [[ "$GATE_SKIP" == "true" ]]; then
+            echo "::notice::gate deduped this push - the PR's own run is the check of record"
+            exit 0
+          fi
+          if [[ "$GATE_RESULT" != "success" ]]; then
+            echo "::error::the gate job itself did not succeed"
+            exit 1
+          fi
+          bad=0
+          while IFS= read -r row; do
+            [[ -n "$row" ]] || continue
+            case "$row" in
+              *=success) ;;
+              *) bad=1 ;;
+            esac
+          done <<< "$RESULTS"
+          if [[ "$bad" -ne 0 ]]; then
+            echo "::error::at least one required job did not succeed - see the rows above"
+            exit 1
+          fi
+          echo "all required jobs succeeded"
+
   release-snapshot:
     name: release snapshot (tag only)
     needs: windows

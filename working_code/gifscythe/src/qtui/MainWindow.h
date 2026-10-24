@@ -56,20 +56,29 @@
 #include <QMainWindow>
 #include <QStringList>
 #include <QProcess>
+#include <QVector>
 
 class QLabel;
+class QComboBox;
 class QLineEdit;
 class QListWidget;
+class QListWidgetItem;
 class QFileInfo;
 class QPlainTextEdit;
 class QProgressBar;
 class QPushButton;
 class QTabWidget;
+class QTableWidget;
 class QTimer;
+class QToolButton;
 class DropListWidget;
 class PreviewPanel;
 class SettingsPanel;
 
+#include <QHash>
+#include <QPixmap>
+
+#include "core/GifFacts.h"
 #include "core/GifsicleSettings.h"
 #include "core/GifsicleCommand.h"
 #include "core/OutputPlan.h"
@@ -101,8 +110,17 @@ class MainWindow : public QMainWindow {
 
  private slots:
   void chooseInputs();
+  // Slice C: the reference's "Add folder…". Scans the chosen folder (one level,
+  // name-sorted) and hands every entry to the SAME admission rule as a drop —
+  // a folder is a shortcut for selecting files, never a way around GS-205.
+  void chooseInputFolder();
   void removeSelected();
   void clearQueue();
+  // Slice C: the Quick-filter box and the sort header. Both act on the VIEW,
+  // except sorting, which reorders the real queue because Merge concatenates
+  // in queue order (S3-9) — a sort the engine ignores would be a lie.
+  void applyQueueFilter();
+  void applyQueueSort();
   void refreshCommand();
   void runCommand();
   void cancelRun();
@@ -111,17 +129,54 @@ class MainWindow : public QMainWindow {
   void onFilesDropped(const QStringList& files);
 
  private:
+  // AUD-02: remove THIS run's staging output - the partial file, or for
+  // Explode the partial frame set (pendingPartial_ is then a prefix).
+  void discardPendingPartial();
   // UI construction
   QWidget* buildInputTab();
+  // Owner, 2026-10-24: Actions is a two-pane splitter - the action stack and
+  // the Preview - exactly as the reference screenshot shows.
+  QWidget* buildActionsTab();
   QWidget* buildOutputTab();
-  QWidget* buildGuideTab();
+  // W-32 / slice A (2026-10-22): the Status tab - one row per operation, per
+  // the contract in docs/planning/W32_RESULT_CONTRACT.md.
+  QWidget* buildStatusTab();
+  // OD-21 = a (2026-10-22): the reference's remaining chrome. Settings carries
+  // the app-level facts the engine/version probes already produce; About
+  // carries the version/licence block and the plain-language guide, which used
+  // to be a fourth tab the reference does not have.
+  QWidget* buildSettingsTab();
+  QWidget* buildAboutTab();
   void buildBottomBar(class QWidget* central, class QVBoxLayout* root);
+
+  // ---- Status tab result rows (W-32, slice A) ----
+  // beginResultRows() installs one `pending` row per queued input (Batch) or a
+  // single row for the N->1 / 1->N modes, exactly as the contract's
+  // cardinality table requires. Every later call moves ONE row; nothing
+  // recomputes the table from the live queue, because the queue can change
+  // while a run is in flight and the rows must describe the RUN.
+  void beginResultRows(const QStringList& files);
+  void beginSingleResultRow(const QString& label, qint64 beforeBytes);
+  void setResultState(int row, const QString& state, const QString& detail,
+                      qint64 afterBytes = -1);
+  void markRemainingSkipped(int fromRow);
+  void refreshResultSummary();
+  void refreshTabTitles();
 
   // Queue helpers
   void chooseOutput();
   void chooseBatchDir();
   void openOutputFolder();
   void updateStatus(const QString& message);
+  // ---- Presets (reference footer, owner 2026-10-24) ----
+  // A preset is a saved Actions state plus the GUI-only batch_dir /
+  // name_template keys, stored as one .conf per preset next to the session
+  // file. Real files, so a preset survives a restart and can be inspected.
+  QString presetDir() const;
+  void refreshPresetList();
+  void savePresetAs();
+  void loadSelectedPreset();
+  void deleteSelectedPreset();
   void appendInputs(const QStringList& files);
   void setBusy(bool busy);
   void moveCurrent(int delta);
@@ -135,6 +190,25 @@ class MainWindow : public QMainWindow {
   bool templateIsConstant() const;
   bool ensureEngine();
   void refreshQueueLabel();
+  // ---- Slice C: the Input grid ------------------------------------------
+  // Facts are read once per path (GifFacts.h, Qt-free) and cached; the grid,
+  // the selection strip and the sort header all read the same numbers, so the
+  // caption, the tooltip and the sort key cannot disagree about a file.
+  gs::GifFacts factsFor(const QString& path);
+  QPixmap thumbnailFor(const QString& path);
+  void applyQueueItemFacts(QListWidgetItem* item, const QString& path);
+  void updateQueueDetails();
+  // Queue sort keys, in the reference's column order. QueueOrder is the
+  // historical behaviour (insertion order = merge order) and stays the default.
+  enum QueueSort {
+    SortQueueOrder = 0,
+    SortName,
+    SortSize,
+    SortModified,
+    SortFrames,
+    SortDuration
+  };
+  void updateSortButtonLabels();
   void refreshOutputSummary();
   void refreshOutputFiles();
   QStringList plannedOutputPaths() const;
@@ -166,6 +240,27 @@ class MainWindow : public QMainWindow {
   QTabWidget* tabs_ = nullptr;
   DropListWidget* inputList_ = nullptr;
   QLabel* queueCountLabel_ = nullptr;
+  // ---- Slice C widgets (Input grid) ----
+  QPushButton* addFolderButton_ = nullptr;
+  QLineEdit* queueFilterEdit_ = nullptr;
+  QLabel* queueSelectionDetails_ = nullptr;
+  QToolButton* previewToggleButton_ = nullptr;  // Actions splitter handle
+  // Output > Format (owner, 2026-10-24): the reference's combo + per-format
+  // Settings..., with the entries this build cannot encode disabled.
+  QComboBox* presetCombo_ = nullptr;
+  QComboBox* formatCombo_ = nullptr;
+  QPushButton* formatSettingsButton_ = nullptr;
+  QLabel* formatNoteLabel_ = nullptr;
+  QVector<QToolButton*> sortButtons_;
+  QHash<QString, gs::GifFacts> factsCache_;
+  QHash<QString, QPixmap> thumbCache_;
+  int queueSortKey_ = SortQueueOrder;
+  bool queueSortAscending_ = true;
+  // The order the user established by adding and by Move Up/Down, kept apart
+  // from the sorted VIEW order. Without this, "Queue order" would only mean
+  // "stop sorting from here on" and could never restore what a sort displaced —
+  // and queue order is the Merge order, so that would be a semantic lie.
+  QStringList manualOrder_;
   SettingsPanel* settingsPanel_ = nullptr;
   QLineEdit* outputEdit_ = nullptr;
   QLineEdit* batchDirEdit_ = nullptr;
@@ -191,6 +286,12 @@ class MainWindow : public QMainWindow {
   QPushButton* moveDownButton_ = nullptr;
   QLabel* statusLabel_ = nullptr;
   QProgressBar* progressBar_ = nullptr;
+  // Status tab (W-32, slice A)
+  QTableWidget* resultTable_ = nullptr;
+  QLabel* resultHeaderLabel_ = nullptr;
+  QLabel* resultSummaryLabel_ = nullptr;
+  QVector<qint64> resultBeforeBytes_;   // per row, captured when the row began
+  int resultActiveRow_ = -1;            // row a running engine belongs to
 
   // Engine / run state
   QString enginePath_;
@@ -206,6 +307,7 @@ class MainWindow : public QMainWindow {
   QString processStderr_;              // stderr captured while the engine is running
   QString processStdout_;              // bounded stdout capture for the activity log
   int batchIndex_ = -1;
+  int actionsTabIndex_ = -1;  // index of the Actions tab (slice D: title carries the count)
   QStringList batchQueue_;
   // U-58 / P1-38 (F:NF-01): the settings the batch was STARTED with. Batch
   // continuation jobs (onProcessFinished) used to call currentSettings()

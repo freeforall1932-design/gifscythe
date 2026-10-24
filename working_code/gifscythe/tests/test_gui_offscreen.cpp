@@ -45,8 +45,8 @@
 //       clearing the queue or switching to Explode invalidates the in-flight
 //       preview, and superseded/stale preview files are swept from the
 //       temp dir instead of leaking for the session
-//   T21 explode cancel honesty (N-10): a cancelled Explode says frames
-//       already written may be incomplete; a guarded mode keeps the flat
+//   T21 explode cancel (N-10 -> AUD-02): Explode is now partial-guarded, so
+//       a cancel reports the flat "Cancelled." and keeps the frames; a guarded mode keeps the flat
 //       "Cancelled."
 //   T22 cancel-latch honesty (U-72 / P1-42): an idle Cancel arms nothing, a
 //       cancelled run's own completion consumes the latch (no spurious
@@ -55,6 +55,10 @@
 //   T23 non-ASCII engine path (U-70 / P1-42): GS_ENGINE under a non-ASCII
 //       directory survives the u8path_compat boundary, so the preview
 //       re-probe finds the engine and the debounced preview runs
+//   T27 Status tab result rows (N-55 slice A / W-32): one row per operation,
+//       byte figures only on `succeeded`, stop-on-first-failure leaves later
+//       rows `skipped`, a plan refusal is `refusedBeforeRun`, and the tab
+//       titles carry the queue count
 //   T24 mid-batch settings mutation (U-58 / P1-38): a control changed between
 //       batch job 1 and job 2 does not change job 2's argv - the batch-start
 //       settings snapshot, proven from the fixture's argv log
@@ -71,6 +75,8 @@
 #include "core/ProcessRunner.h"
 #include "core/version.h"
 
+#include <QAbstractItemModel>
+#include <QAction>
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
@@ -78,15 +84,21 @@
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
+#include <QEvent>
 #include <QEventLoop>
+#include <QPixmap>
 #include <QFile>
 #include <QFileInfo>
+#include <QFrame>
+#include <QImage>
 #include <QIODevice>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListView>
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QMessageBox>
+#include <QMenu>
 #include <QMimeData>
 #include <QMovie>
 #include <QPlainTextEdit>
@@ -96,11 +108,14 @@
 #include <QRegularExpression>
 #include <QScrollArea>
 #include <QSpinBox>
+#include <QStandardItemModel>
 #include <QStandardPaths>
 #include <QTabWidget>
+#include <QTableWidget>
 #include <QTemporaryDir>
 #include <QThread>
 #include <QTimer>
+#include <QToolButton>
 #include <QUrl>
 
 #include <chrono>
@@ -328,6 +343,100 @@ MainWindow* makeWindow() {
   return w;
 }
 
+// ---- Screenshot evidence (S41) -------------------------------------------
+// ui-redesign.md §7 asks for QWidget::grab() evidence of the real window. Set
+// GS_SHOT_DIR and the harness writes the actual widgets there; unset (the
+// default, and what every assertion run does) nothing is written and nothing
+// can fail. Deliberately assertion-free: the documented check counts stay put,
+// so this evidence cannot drift the register's G9 figures.
+void shootUi(const QString& logo) {
+  const QByteArray want = qgetenv("GS_SHOT_DIR");
+  if (want.isEmpty()) return;
+  const QString dir = QString::fromLocal8Bit(want);
+  if (!QDir().mkpath(dir)) return;
+
+  const auto settle = [](int ms) {
+    QElapsedTimer t;
+    t.start();
+    while (t.elapsed() < ms) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+  };
+  const auto save = [&dir](QWidget* w, const char* name) {
+    const QString path = dir + QStringLiteral("/") + QString::fromLatin1(name);
+    w->grab().save(path, "PNG");
+    std::printf("  (shot) %s\n", path.toUtf8().constData());
+  };
+  // The PNGs are artifacts, and artifact blobs are not fetchable from every
+  // sandbox and CI log reader. These facts travel as ONE workflow annotation
+  // instead (GitHub caps annotations per step, so one line, not ten), which
+  // makes the palette claim checkable without the image: a canvas still painted
+  // #202020 reads 32,32,32, an unpainted one reads 0,0,0, and palette(base) of a
+  // light theme reads 255,255,255.
+  QStringList facts;
+  const auto samplePixels = [](QWidget* w) -> QString {
+    if (!w) return QStringLiteral("(missing)");
+    const QImage im = w->grab().toImage();
+    if (im.isNull()) return QStringLiteral("(grab failed)");
+    return QStringLiteral("%1/%2/%3/%4/%5 (%6x%7)")
+        .arg(im.pixelColor(3, 3).name())
+        .arg(im.pixelColor(im.width() - 4, 3).name())
+        .arg(im.pixelColor(3, im.height() - 4).name())
+        .arg(im.pixelColor(im.width() - 4, im.height() - 4).name())
+        .arg(im.pixelColor(im.width() / 2, im.height() / 2).name())
+        .arg(im.width())
+        .arg(im.height());
+  };
+  // 1. Idle window, empty queue: what a first run looks like.
+  {
+    MainWindow* w = makeWindow();
+    w->resize(1180, 780);
+    settle(120);
+    save(w, "01-idle.png");
+    // 2. Every tab, same window, so the four-tab shape can be reviewed.
+    auto* tabs = byName<QTabWidget>(w, "mainTabs");
+    if (!tabs) tabs = w->findChild<QTabWidget*>();
+    if (tabs) {
+      for (int i = 0; i < tabs->count(); ++i) {
+        tabs->setCurrentIndex(i);
+        settle(90);
+        const QString n = QStringLiteral("02-tab-%1.png").arg(i + 1);
+        save(w, n.toUtf8().constData());
+      }
+      tabs->setCurrentIndex(0);
+    }
+    // 3. Preview panel alone: the QL006 palette change lives here, so the
+    //    placeholder text and canvas colour are judged at full size.
+    if (QWidget* preview = w->findChild<QWidget*>(QStringLiteral("previewGroup"))) {
+      save(preview, "03-preview-placeholder.png");
+    }
+    QStringList tabsSeen;
+    if (tabs) for (int i = 0; i < tabs->count(); ++i) tabsSeen << tabs->tabText(i);
+    facts << QStringLiteral("tabs=%1").arg(tabsSeen.join(QLatin1Char('>')));
+    facts << QStringLiteral("palette base=%1 text=%2")
+                 .arg(QApplication::palette().color(QPalette::Base).name(),
+                      QApplication::palette().color(QPalette::WindowText).name());
+    if (auto* lbl = byName<QLabel>(w, "previewBefore"))
+      facts << QStringLiteral("label text=%1 px=%2").arg(lbl->text(), samplePixels(lbl));
+    if (auto* canvas = byName<QFrame>(w, "previewBeforeCanvas"))
+      facts << QStringLiteral("canvas px=%1").arg(samplePixels(canvas));
+    std::printf("  (ui) %s\n", facts.join(QStringLiteral(" | ")).toUtf8().constData());
+    delete w;
+  }
+
+  // 4. Window with a real input queued (the state a user sees mid-setup).
+  if (!logo.isEmpty()) {
+    MainWindow* w = makeWindow();
+    w->resize(1180, 780);
+    dropFiles(w, {logo});
+    settle(150);
+    save(w, "04-with-input.png");
+    if (QWidget* preview = w->findChild<QWidget*>(QStringLiteral("previewGroup"))) {
+      save(preview, "05-preview-with-input.png");
+    }
+    delete w;
+  }
+}
+
+
 // Path stored in a queue row (display text now carries size info).
 QString rowPath(DropListWidget* list, int row) {
   auto* item = list->item(row);
@@ -508,6 +617,7 @@ int main(int argc, char** argv) {
   std::printf("  engine: %s\n  refs:   %s\n", qPrintable(g_engine), qPrintable(g_refDir));
 
   const QString logo = g_refDir + QStringLiteral("/logo.gif");    // 12 frames
+  shootUi(logo);  // GS_SHOT_DIR only; no-op and CHECK-free in an assertion run
   const QString logo1 = g_refDir + QStringLiteral("/logo1.gif");  // 1 frame
 
   // ================= T1: defaults (E4, B14, tabs) ========================
@@ -516,7 +626,7 @@ int main(int argc, char** argv) {
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
     CHECK(x.list && x.pane && x.mode && x.optimize && x.lossy && x.output &&
-          x.run && x.run->text() == QStringLiteral("Start") && x.cancel &&
+          x.run && x.run->text() == QStringLiteral("Convert") && x.cancel &&
           x.remove && x.clear && x.progress && x.process && x.tabs &&
           x.countLabel && x.outputSummary && x.previewCaption);
     CHECK(byName<QPlainTextEdit>(w, "logPane") != nullptr);
@@ -532,14 +642,38 @@ int main(int argc, char** argv) {
     auto* tmplEdit = byName<QLineEdit>(w, "nameTemplateEdit");
     CHECK(tmplEdit && tmplEdit->text() == QStringLiteral("{name}_opt.gif"));
     if (x.tabs) {
-      CHECK(x.tabs->count() == 4);
-      CHECK(x.tabs->tabText(0) == QStringLiteral("Input"));
-      CHECK(x.tabs->tabText(1) == QStringLiteral("Actions"));
+      // N-55 / slice B: the reference's tab ORDER is Input, Actions, Output,
+      // Status, Settings, About - the old Guide tab is now the About tab
+      // (guideScroll/guideIntro keep their objectNames, so old probes still
+      // find them). The Input title carries its count.
+      CHECK(x.tabs->count() == 6);
+      CHECK(x.tabs->tabText(0) == QStringLiteral("Input: 0 file(s)"));
+      // Slice D: the Actions title carries the reference's counter.
+      CHECK(x.tabs->tabText(1) == QStringLiteral("Actions [8/8]"));
       CHECK(x.tabs->tabText(2) == QStringLiteral("Output"));
-      CHECK(x.tabs->tabText(3) == QStringLiteral("Guide") && tmplEdit &&
-            x.tabs->widget(0)->isAncestorOf(tmplEdit) &&
+      CHECK(x.tabs->tabText(3) == QStringLiteral("Status"));
+      CHECK(x.tabs->tabText(4) == QStringLiteral("Settings"));
+      CHECK(x.tabs->tabText(5) == QStringLiteral("About"));
+      CHECK(tmplEdit && x.tabs->widget(0)->isAncestorOf(tmplEdit) &&
             !x.tabs->widget(2)->isAncestorOf(tmplEdit));
+      auto* guide = byName<QScrollArea>(w, "guideScroll");
+      CHECK(guide && x.tabs->widget(5)->isAncestorOf(guide));
     }
+    // Slice A: the Status tab's result surface exists before the first run and
+    // reports the empty queue honestly (W-32 R13).
+    {
+      auto* table = byName<QTableWidget>(w, "resultTable");
+      CHECK(table && table->columnCount() == 6 && table->rowCount() == 0);
+      auto* header = byName<QLabel>(w, "resultHeaderLabel");
+      auto* summary = byName<QLabel>(w, "resultSummaryLabel");
+      CHECK(header && summary);
+      CHECK(summary->text() == QStringLiteral("No run yet."));
+    }
+    // Slice B: the Settings tab shows the resolved engine and output folder.
+    CHECK(byName<QLabel>(w, "settingsEnginePath") != nullptr);
+    CHECK(byName<QLabel>(w, "settingsEngineVersion") != nullptr);
+    CHECK(byName<QLabel>(w, "settingsFilePath") != nullptr);
+    CHECK(byName<QPushButton>(w, "settingsOpenFolderButton") != nullptr);
     if (x.mode) {
       CHECK(x.mode->currentIndex() == 0);
       CHECK(x.mode->currentData().toInt() == static_cast<int>(gs::Mode::Batch));  // E4
@@ -781,6 +915,11 @@ int main(int argc, char** argv) {
     // (logo.gif = 12 frames), not just the word "complete".
     CHECK_MSG(x.status->text().contains(QStringLiteral("12 frame")),
               "explode completion reports the verified frame count");
+    // AUD-02: frames are written under a partial prefix and PROMOTED; nothing
+    // of the staging set may be left behind after a successful run.
+    CHECK_MSG(QDir(tmp.path()).entryList({QStringLiteral("*.gs-partial*")},
+                                         QDir::Files).isEmpty(),
+              "explode leaves no .gs-partial frames after promotion");
     delete w;
 
     // ---- N-05: multi-input explode is REFUSED before the engine starts ----
@@ -1981,10 +2120,13 @@ int main(int argc, char** argv) {
     x.cancel->setEnabled(true);
     x.cancel->click();
     spinEvents(60);
-    CHECK_MSG(x.status->text().contains(QStringLiteral("incomplete")),
-              "explode cancel warns that frames already written may be incomplete");
-    CHECK_MSG(x.status->text().trimmed() != QStringLiteral("Cancelled."),
-              "explode cancel does not use the flat 'Cancelled.' status");
+    // AUD-02: Explode is now guarded by a partial frame set like every other
+    // mode, so a cancel changes nothing and the flat message is accurate; the
+    // frames the completed run promoted must still be intact.
+    CHECK_MSG(x.status->text().trimmed() == QStringLiteral("Cancelled."),
+              "explode cancel reports a flat 'Cancelled.' (frames are guarded)");
+    CHECK_MSG(QFileInfo(tmp.path() + QStringLiteral("/a_frame.011")).size() > 0,
+              "explode cancel leaves the previously promoted frames intact");
     delete w;
 
     // (b) A guarded mode keeps the flat message: its output goes through a
@@ -2504,6 +2646,562 @@ int main(int argc, char** argv) {
     if (origEngine.isNull()) qunsetenv("GS_ENGINE");
     else qputenv("GS_ENGINE", origEngine);
     qunsetenv("GS_FAKE_ORPHAN_MS");
+  }
+
+  // ========== T27: Status tab result rows (N-55 slice A / W-32) ===========
+  {
+    g_stage = "T27"; std::printf("== T27 Status tab result rows ==\n");
+    QTemporaryDir tmp;
+    CHECK(tmp.isValid());
+    const QString a = tmp.path() + QStringLiteral("/a.gif");
+    const QString b = tmp.path() + QStringLiteral("/b.gif");
+    const QString c = tmp.path() + QStringLiteral("/c.gif");
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+    CHECK(copyFile(logo1, c));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* table = byName<QTableWidget>(w, "resultTable");
+    auto* header = byName<QLabel>(w, "resultHeaderLabel");
+    auto* summary = byName<QLabel>(w, "resultSummaryLabel");
+    CHECK(table && header && summary);
+
+    dropFiles(w, {a, b, c});
+    spinEvents(50);
+    // Slice B: the Input tab title follows the queue.
+    CHECK_MSG(x.tabs->tabText(0) == QStringLiteral("Input: 3 file(s)"),
+              "Input tab title carries the queue count");
+
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "3-file batch completes");
+    CHECK(table->rowCount() == 3);
+    CHECK(header->text() == QStringLiteral("Processing list: 3 of 3 files"));
+    int ok = 0;
+    bool figures = false, pct = false;
+    for (int r = 0; r < table->rowCount(); ++r) {
+      if (table->item(r, 4) && table->item(r, 4)->text() == QStringLiteral("succeeded")) ++ok;
+      if (table->item(r, 2) && !table->item(r, 2)->text().isEmpty()) figures = true;
+      if (table->item(r, 3) && table->item(r, 3)->text().contains(QLatin1Char('%'))) pct = true;
+    }
+    CHECK_MSG(ok == 3, "every row is `succeeded`");
+    CHECK_MSG(figures, "succeeded rows carry the After figure");
+    CHECK_MSG(pct, "succeeded rows carry the % change");
+    CHECK_MSG(summary->text().contains(QStringLiteral("3 succeeded")),
+              "summary counts the successes");
+    delete w;
+
+    // ---- Stop-on-first-failure (R2): the fixture fails file 2 of 3 ------
+    // A corrupt input cannot reach the run any more: admission (GS-205)
+    // refuses bytes that are not GIF87a/GIF89a, so the queue would hold two
+    // files and the test would prove nothing. The slow argv fixture gains a
+    // GS_FAKE_FAIL_INPUT substring instead: job 2 writes nothing and exits 1,
+    // which is exactly the contract's "file 2 failed, file 3 skipped" case.
+    QTemporaryDir tmp2;
+    CHECK(tmp2.isValid());
+    const QString g1 = tmp2.path() + QStringLiteral("/one.gif");
+    const QString g2 = tmp2.path() + QStringLiteral("/two.gif");
+    const QString g3 = tmp2.path() + QStringLiteral("/three.gif");
+    CHECK(copyFile(logo1, g1));
+    CHECK(copyFile(logo1, g2));
+    CHECK(copyFile(logo1, g3));
+    {
+      const QString fake = fixturePath("fake_engine_argv_sleep");
+      CHECK_MSG(QFileInfo::exists(fake), "slow fixture built next to the harness");
+      const QByteArray origEngine = qgetenv("GS_ENGINE");
+      const QByteArray origSleep = qgetenv("GS_FAKE_SLEEP_MS");
+      const QByteArray origFail = qgetenv("GS_FAKE_FAIL_INPUT");
+      setEnvU8("GS_ENGINE", fake);
+      qputenv("GS_FAKE_SLEEP_MS", "0");
+      qputenv("GS_FAKE_FAIL_INPUT", "two.gif");
+      MainWindow* w2 = makeWindow();
+      dropFiles(w2, {g1, g2, g3});
+      spinEvents(50);
+      auto* t2 = byName<QTableWidget>(w2, "resultTable");
+      auto* s2 = byName<QLabel>(w2, "resultSummaryLabel");
+      auto* h2 = byName<QLabel>(w2, "resultHeaderLabel");
+      g_dialogs.clear();
+      if (auto* run2 = byName<QPushButton>(w2, "runButton")) run2->click();
+      CHECK_MSG(waitForStatus(w2, QStringLiteral("failed")), "the middle job fails the run");
+      CHECK(t2 && t2->rowCount() == 3);
+      if (t2 && t2->rowCount() == 3) {
+        CHECK_MSG(t2->item(0, 4)->text() == QStringLiteral("succeeded"),
+                  "row 1 succeeded before the failure");
+        CHECK_MSG(t2->item(1, 4)->text() == QStringLiteral("failed"), "row 2 failed");
+        CHECK_MSG(t2->item(1, 5)->text().contains(QStringLiteral("engineFailed")),
+                  "row 2 names the reason (engineFailed)");
+        CHECK_MSG(t2->item(2, 4)->text() == QStringLiteral("skipped"),
+                  "row 3 was never attempted -> skipped");
+        CHECK_MSG(t2->item(1, 2)->text().isEmpty() && t2->item(2, 2)->text().isEmpty(),
+                  "non-succeeded rows show no byte figures");
+        CHECK_MSG(t2->item(0, 2)->text().isEmpty() == false,
+                  "the succeeded row keeps its byte figures");
+        CHECK_MSG(h2->text() == QStringLiteral("Processing list: 3 of 3 files"),
+                  "header counts every decided row");
+        CHECK_MSG(s2->text().contains(QStringLiteral("1 succeeded")) &&
+                      s2->text().contains(QStringLiteral("1 failed")) &&
+                      s2->text().contains(QStringLiteral("1 skipped")),
+                  "summary separates succeeded, failed and skipped");
+      }
+      delete w2;
+      if (origEngine.isNull()) qunsetenv("GS_ENGINE");
+      else qputenv("GS_ENGINE", origEngine);
+      if (origSleep.isNull()) qunsetenv("GS_FAKE_SLEEP_MS");
+      else qputenv("GS_FAKE_SLEEP_MS", origSleep);
+      if (origFail.isNull()) qunsetenv("GS_FAKE_FAIL_INPUT");
+      else qputenv("GS_FAKE_FAIL_INPUT", origFail);
+      g_dialogs.clear();
+    }
+
+    // ---- Plan refusal before any process (R5) ----------------------------
+    QTemporaryDir tmp3;
+    CHECK(tmp3.isValid());
+    const QString r1 = tmp3.path() + QStringLiteral("/r1.gif");
+    const QString r2 = tmp3.path() + QStringLiteral("/r2.gif");
+    CHECK(copyFile(logo1, r1));
+    CHECK(copyFile(logo1, r2));
+    MainWindow* w3 = makeWindow();
+    auto x3 = findWidgets(w3);
+    dropFiles(w3, {r1, r2});
+    x3.mode->setCurrentIndex(1);            // Merge
+    x3.output->setText(r1);                 // ...over its own input
+    spinEvents(30);
+    x3.run->click();
+    spinEvents(80);
+    auto* t3 = byName<QTableWidget>(w3, "resultTable");
+    CHECK(t3 && t3->rowCount() == 1);
+    CHECK_MSG(t3->item(0, 4)->text() == QStringLiteral("refusedBeforeRun"),
+              "a refused plan is refusedBeforeRun, not failed");
+    CHECK_MSG(t3->item(0, 2)->text().isEmpty(),
+              "a refused row shows no After figure");
+    CHECK_MSG(!QFileInfo::exists(r1 + QStringLiteral(".gs-partial")),
+              "a refused run wrote nothing");
+    delete w3;
+    g_dialogs.clear();
+  }
+
+  // ========== T28: Input grid - thumbnails, facts, filter, sort (slice C) ===
+  //
+  // Slice C replaced the flat queue list with the reference's thumbnail grid
+  // and gave it the animation columns the reference does not have. The points
+  // worth pinning are the ones a screenshot cannot prove:
+  //   * a cell carries a decoded thumbnail (not an empty box),
+  //   * the caption states frames/duration, read from the BYTES,
+  //   * filtering HIDES and never drops a queued file,
+  //   * sorting reorders the REAL queue (Merge order), and "Queue order"
+  //     restores the manual order a sort displaced.
+  {
+    g_stage = "T28"; std::printf("== T28 Input grid (slice C) ==\n");
+    QTemporaryDir tmp;
+    const QString still = tmp.path() + QStringLiteral("/grid_still.gif");   // 1 frame
+    const QString anim = tmp.path() + QStringLiteral("/grid_anim.gif");     // 12 frames
+    const QString anim2 = tmp.path() + QStringLiteral("/grid_anim2.gif");   // 12 frames
+    CHECK(copyFile(logo1, still));
+    CHECK(copyFile(logo, anim));
+    CHECK(copyFile(logo, anim2));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {still, anim});
+    CHECK_MSG(x.list->count() == 2, "two files queued into the grid");
+
+    // ---- the grid is a grid ----
+    auto* view = qobject_cast<QListView*>(x.list);
+    CHECK_MSG(view && view->viewMode() == QListView::IconMode,
+              "the queue is an icon grid, not a text list");
+    CHECK_MSG(!x.list->item(0)->icon().isNull(), "cell 0 has a thumbnail");
+    CHECK_MSG(!x.list->item(1)->icon().isNull(), "cell 1 has a thumbnail");
+    // ...and it is a DECODE, not the "GIF" placeholder every failed read draws:
+    // the two fixtures have different dimensions, so two identical icons would
+    // mean both fell back to the placeholder.
+    CHECK_MSG(x.list->item(0)->icon().pixmap(QSize(96, 96)).toImage() !=
+                  x.list->item(1)->icon().pixmap(QSize(96, 96)).toImage(),
+              "the thumbnails are decoded from the files, not the placeholder");
+
+    // ---- the caption states the animation facts ----
+    CHECK_MSG(x.list->item(0)->text().contains(QStringLiteral("1 frame")),
+              "a single-frame GIF says '1 frame'");
+    CHECK_MSG(x.list->item(1)->text().contains(QStringLiteral("12 frames")),
+              "a 12-frame GIF says '12 frames'");
+    CHECK_MSG(x.list->item(1)->text().contains(QStringLiteral("2.40 s")),
+              "the caption carries the duration read from the GCE delays");
+    CHECK_MSG(x.list->item(1)->toolTip().contains(anim),
+              "the tooltip keeps the full path the caption elides");
+    CHECK_MSG(x.list->item(1)->toolTip().contains(QStringLiteral("loops forever")),
+              "the tooltip carries the loop count");
+
+    // ---- the facts strip follows the selection ----
+    x.list->setCurrentRow(1);
+    spinEvents(30);
+    auto* details = byName<QLabel>(w, "queueSelectionDetails");
+    CHECK(details != nullptr);
+    CHECK_MSG(details && details->text().contains(QStringLiteral("12 frame(s)")),
+              "the facts strip describes the selected file");
+    CHECK_MSG(details && details->text().contains(QStringLiteral("fps")),
+              "the facts strip carries fps");
+
+    // ---- Quick filter hides, never removes, and says so ----
+    auto* filter = byName<QLineEdit>(w, "queueFilterEdit");
+    CHECK_MSG(filter != nullptr, "the Quick filter box exists");
+    if (filter) {
+      filter->setText(QStringLiteral("still"));
+      spinEvents(30);
+      CHECK_MSG(x.list->count() == 2, "filtering never drops a file from the queue");
+      CHECK(!x.list->item(0)->isHidden());
+      CHECK_MSG(x.list->item(1)->isHidden(), "a non-matching row is hidden");
+      CHECK_MSG(x.countLabel->text().contains(QStringLiteral("hidden by filter")),
+                "the count admits that rows are hidden");
+      filter->clear();
+      spinEvents(30);
+      CHECK_MSG(!x.list->item(1)->isHidden(), "clearing the filter shows every row again");
+    }
+
+    // ---- sorting reorders the REAL queue ----
+    auto* sortFrames = byName<QToolButton>(w, "sortFrames");
+    auto* sortQueue = byName<QToolButton>(w, "sortQueueOrder");
+    CHECK_MSG(sortFrames && sortQueue, "the sort header exists");
+    dropFiles(w, {anim2});
+    CHECK(x.list->count() == 3);
+    if (sortFrames && sortQueue) {
+      sortFrames->click();  // ascending: 1 frame first, the two 12s after it
+      spinEvents(30);
+      CHECK_MSG(rowPath(x.list, 0) == still, "ascending by frames puts the 1-frame file first");
+      sortFrames->click();  // descending
+      spinEvents(30);
+      CHECK_MSG(rowPath(x.list, 0) == anim && rowPath(x.list, 1) == anim2,
+                "a second click flips the direction and keeps insertion order for ties");
+      sortQueue->click();  // back to the order the user built
+      spinEvents(30);
+      CHECK_MSG(rowPath(x.list, 0) == still && rowPath(x.list, 1) == anim &&
+                    rowPath(x.list, 2) == anim2,
+                "Queue order restores the manual order a sort displaced");
+    }
+
+    // ---- Add folder… goes through the same admission rule ----
+    auto* addFolder = byName<QPushButton>(w, "addFolderButton");
+    CHECK_MSG(addFolder != nullptr, "Add folder exists");
+    delete w;
+    g_dialogs.clear();
+  }
+
+  // ========== T29: layout parity - preview in Actions, format selector =====
+  //
+  // Two owner corrections, 2026-10-24, pinned so neither can drift back:
+  //   1. "the preview of the pictures should only be at action" - the reference
+  //      puts Preview INSIDE the Actions tab. It used to be a sibling of the
+  //      whole tab widget, so it also showed on Input/Output/Status/Settings.
+  //   2. the Output tab must offer a format choice, and must never offer one
+  //      this build cannot actually write.
+  {
+    g_stage = "T29"; std::printf("== T29 layout parity (preview + format) ==\n");
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* preview = byName<QWidget>(w, "previewPanel");
+    CHECK_MSG(preview != nullptr, "the preview pane exists");
+    if (preview && x.tabs && x.tabs->count() > 1) {
+      QWidget* actionsPage = x.tabs->widget(1);
+      bool insideActions = false;
+      for (QWidget* p = preview; p != nullptr; p = p->parentWidget()) {
+        if (p == actionsPage) { insideActions = true; break; }
+      }
+      CHECK_MSG(insideActions,
+                "the preview lives INSIDE the Actions tab (the reference's two-pane shape)");
+      // ...and is not floating beside the tab widget.
+      bool besideTabs = preview->parentWidget() == x.tabs->parentWidget();
+      CHECK_MSG(!besideTabs, "the preview is not a sibling of the whole tab widget");
+    }
+    // The handle that collapses it exists and actually hides the pane.
+    auto* toggle = byName<QToolButton>(w, "previewToggleButton");
+    CHECK_MSG(toggle != nullptr, "the Actions splitter has a preview collapse handle");
+    if (toggle && preview) {
+      toggle->setChecked(false);
+      spinEvents(20);
+      CHECK_MSG(!preview->isVisible(), "the handle hides the preview");
+      toggle->setChecked(true);
+      spinEvents(20);
+    }
+
+    // ---- Output > Format ----
+    auto* format = byName<QComboBox>(w, "formatCombo");
+    CHECK_MSG(format != nullptr, "Output has a Format selector");
+    if (format) {
+      QStringList labels;
+      for (int i = 0; i < format->count(); ++i) labels << format->itemText(i);
+      CHECK_MSG(labels.filter(QStringLiteral("GIF")).size() >= 1, "GIF is offered");
+      CHECK_MSG(labels.filter(QStringLiteral("APNG")).size() == 1, "APNG is listed");
+      CHECK_MSG(labels.filter(QStringLiteral("WebP")).size() == 1, "WebP is listed");
+      CHECK_MSG(labels.filter(QStringLiteral("H.264")).size() == 1, "MP4 H.264 is listed");
+      CHECK_MSG(labels.filter(QStringLiteral("AV1")).size() == 1, "AV1 is listed");
+      // The honesty rule: an entry this build cannot encode must be DISABLED,
+      // not merely mentioned - otherwise choosing it starts a run that writes
+      // nothing.
+      int gifRow = -1, mp4Row = -1;
+      for (int i = 0; i < format->count(); ++i) {
+        if (format->itemText(i).startsWith(QStringLiteral("GIF"))) gifRow = i;
+        if (format->itemText(i).contains(QStringLiteral("H.264"))) mp4Row = i;
+      }
+      CHECK_MSG(gifRow >= 0 && format->model()->flags(format->model()->index(gifRow, 0)).testFlag(Qt::ItemIsEnabled),
+                "GIF is selectable (gifsicle writes it)");
+      CHECK_MSG(mp4Row >= 0 && !format->model()->flags(format->model()->index(mp4Row, 0)).testFlag(Qt::ItemIsEnabled),
+                "a format this build cannot write is disabled, not selectable");
+      CHECK_MSG(mp4Row >= 0 && format->itemData(mp4Row, Qt::ToolTipRole).toString().contains(QStringLiteral("FFmpeg")),
+                "the disabled entry says WHY on hover");
+    }
+    CHECK_MSG(byName<QPushButton>(w, "formatSettingsButton") != nullptr,
+              "the per-format Settings… button exists");
+    delete w;
+    g_dialogs.clear();
+  }
+
+  // ========== T30: the Actions stack - cards, disable, reset, remove (D) ===
+  //
+  // Slice D copies the reference's Actions tab: one COLLAPSIBLE card per action,
+  // each with `-` (remove from the stack), `↺` (reset), and an Enabled box, plus
+  // `Add action >`, `Clear all` and an `Actions [on/total]` counter that also
+  // rides in the tab title. The points a screenshot cannot prove:
+  //   * a disabled card contributes NOTHING to the command (it is not merely
+  //     greyed out), and re-enabling restores it,
+  //   * `-` removes the card from the stack while the action's values survive,
+  //   * `↺` restores that one card's defaults and leaves the others alone,
+  //   * the stack survives a restart, values included.
+  {
+    g_stage = "T30"; std::printf("== T30 action stack (slice D) ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/card.gif");
+    CHECK(copyFile(logo, a));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a});
+    spinEvents(50);
+
+    auto* addBtn = byName<QToolButton>(w, "addActionButton");
+    auto* clearBtn = byName<QToolButton>(w, "clearActionsButton");
+    auto* counter = byName<QLabel>(w, "actionsCountLabel");
+    CHECK_MSG(addBtn && clearBtn && counter,
+              "the Actions toolbar exists (Add action > / Clear all / counter)");
+    CHECK_MSG(counter && counter->text() == QStringLiteral("Actions [8/8]"),
+              "every action starts in the stack and enabled");
+    CHECK_MSG(x.tabs && x.tabs->tabText(1) == QStringLiteral("Actions [8/8]"),
+              "the tab title carries the count, like the reference");
+
+    // ---- every card has the reference's four affordances ----
+    bool allHeaders = true;
+    for (int id = 0; id < 8; ++id) {
+      // findChild directly: byName() takes a const char*, and this name is built.
+      auto* c = w->findChild<QWidget*>(QStringLiteral("actionCard_%1").arg(id));
+      if (!c ||
+          !c->findChild<QToolButton*>(QStringLiteral("actionCardChevron_%1").arg(id)) ||
+          !c->findChild<QToolButton*>(QStringLiteral("actionCardRemove_%1").arg(id)) ||
+          !c->findChild<QToolButton*>(QStringLiteral("actionCardReset_%1").arg(id)) ||
+          !c->findChild<QCheckBox*>(QStringLiteral("actionCardEnabled_%1").arg(id))) {
+        allHeaders = false;
+      }
+    }
+    CHECK_MSG(allHeaders, "each card has chevron / minus / reset / Enabled");
+
+    auto* optimizeCard = byName<QWidget>(w, "actionCard_1");
+    auto* optimizeGroup = byName<QWidget>(w, "optimizeGroup");
+    auto* enabledBox =
+        optimizeCard ? optimizeCard->findChild<QCheckBox*>("actionCardEnabled_1") : nullptr;
+    auto* resetBtn =
+        optimizeCard ? optimizeCard->findChild<QToolButton*>("actionCardReset_1") : nullptr;
+    auto* removeBtn =
+        optimizeCard ? optimizeCard->findChild<QToolButton*>("actionCardRemove_1") : nullptr;
+    auto* chevron =
+        optimizeCard ? optimizeCard->findChild<QToolButton*>("actionCardChevron_1") : nullptr;
+    CHECK_MSG(optimizeCard && optimizeGroup && enabledBox && resetBtn && removeBtn && chevron,
+              "the Optimize action is a card with live controls");
+
+    const auto paneText = [&x]() { return x.pane->toPlainText(); };
+
+    // ---- collapse hides the body, and only the body ----
+    if (chevron && optimizeGroup) {
+      chevron->click();
+      spinEvents(20);
+      CHECK_MSG(optimizeGroup->isHidden(), "the chevron folds the card's body away");
+      CHECK_MSG(paneText().contains(QStringLiteral("-O3")),
+                "a folded card still contributes to the command");
+      chevron->click();
+      spinEvents(20);
+      CHECK_MSG(!optimizeGroup->isHidden(), "a second click unfolds it");
+    }
+
+    // ---- Enabled: off contributes NOTHING, on restores everything ----
+    x.optimize->setValue(2);
+    x.lossy->setValue(40);
+    byName<QCheckBox>(w, "delayCheck")->setChecked(true);
+    byName<QSpinBox>(w, "delaySpin")->setValue(7);
+    spinEvents(30);
+    CHECK_MSG(paneText().contains(QStringLiteral("-O2")), "the Optimize card is in the command");
+    CHECK_MSG(paneText().contains(QStringLiteral("--lossy=40")), "lossy is in the command");
+    if (enabledBox) {
+      enabledBox->setChecked(false);
+      spinEvents(30);
+      CHECK_MSG(!paneText().contains(QStringLiteral("-O2")),
+                "a disabled card leaves the command (no -O)");
+      CHECK_MSG(!paneText().contains(QStringLiteral("--lossy=40")),
+                "a disabled card leaves the command (no --lossy)");
+      CHECK_MSG(paneText().contains(QStringLiteral("-d 7")),
+                "the OTHER cards still contribute");
+      CHECK_MSG(counter && counter->text() == QStringLiteral("Actions [7/8]"),
+                "the counter counts enabled cards");
+      CHECK_MSG(x.tabs && x.tabs->tabText(1) == QStringLiteral("Actions [7/8]"),
+                "the tab title follows the counter");
+      enabledBox->setChecked(true);
+      spinEvents(30);
+      CHECK_MSG(paneText().contains(QStringLiteral("-O2")),
+                "re-enabling restores the card's options");
+    }
+
+    // ---- reset restores THIS card's defaults and nobody else's ----
+    if (resetBtn) {
+      resetBtn->click();
+      spinEvents(30);
+      CHECK_MSG(x.optimize->value() == 3, "reset restores the Optimize default (-O3)");
+      CHECK_MSG(x.lossy->value() == 0, "reset clears lossy");
+      CHECK_MSG(paneText().contains(QStringLiteral("-O3")), "the command shows the default");
+      CHECK_MSG(!paneText().contains(QStringLiteral("--lossy")), "lossy is gone");
+      CHECK_MSG(paneText().contains(QStringLiteral("-d 7")),
+                "reset does not touch the Animation card (the value the user typed)");
+    }
+
+    // ---- minus removes the card, and the action keeps its values ----
+    if (removeBtn && optimizeGroup) {
+      removeBtn->click();
+      spinEvents(30);
+      CHECK_MSG(counter && counter->text() == QStringLiteral("Actions [7/7]"),
+                "removing a card shrinks the stack");
+      CHECK_MSG(optimizeGroup->isHidden(), "a removed card's body leaves the stack");
+      CHECK_MSG(!paneText().contains(QStringLiteral("-O3")),
+                "a removed card contributes nothing");
+      CHECK_MSG(paneText().contains(QStringLiteral("-d 7")),
+                "removing one card leaves the others alone");
+
+      // Add it back through the reference's menu.
+      if (addBtn && addBtn->menu()) {
+        QMenu* menu = addBtn->menu();
+        QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+        QAction* reAdd = nullptr;
+        for (QAction* act : menu->actions()) {
+          if (act->text().startsWith(QStringLiteral("Optimize"))) reAdd = act;
+        }
+        CHECK_MSG(reAdd != nullptr, "the Add action menu offers the removed action again");
+        if (reAdd) {
+          reAdd->trigger();
+          spinEvents(30);
+          CHECK_MSG(counter && counter->text() == QStringLiteral("Actions [8/8]"),
+                    "adding it back restores the stack");
+          CHECK_MSG(!optimizeGroup->isHidden(), "the card is visible again");
+          CHECK_MSG(paneText().contains(QStringLiteral("-O3")),
+                    "the action comes back with the values it had (no silent reset)");
+        }
+      }
+    }
+
+    // ---- Clear all empties the stack, honestly ----
+    if (clearBtn) {
+      clearBtn->click();
+      spinEvents(30);
+      CHECK_MSG(counter && counter->text() == QStringLiteral("Actions [0/0]"),
+                "Clear all empties the stack");
+      CHECK_MSG(x.tabs && x.tabs->tabText(1) == QStringLiteral("Actions [0/0]"),
+                "the tab title follows Clear all");
+      CHECK_MSG(!paneText().contains(QStringLiteral("-O3")) &&
+                    !paneText().contains(QStringLiteral("-d 7")),
+                "an empty stack sends no action flags at all");
+    }
+    w->close();  // closeEvent -> saveSessionState (delete alone never closes)
+    spinEvents(20);
+    delete w;
+    g_dialogs.clear();
+  }
+
+  // ---- T30b: the stack survives a restart, values included ----
+  {
+    g_stage = "T30b"; std::printf("== T30b action stack persistence ==\n");
+    const QByteArray prevEnv = qgetenv("GS_SETTINGS_PATH");
+    QTemporaryDir cfg;
+    CHECK(cfg.isValid());
+    const QString cfgPath = cfg.path() + QStringLiteral("/gifscythe.conf");
+    qputenv("GS_SETTINGS_PATH", QFile::encodeName(cfgPath));
+    QTemporaryDir media;
+    CHECK(media.isValid());
+    const QString a = media.path() + QStringLiteral("/persist.gif");
+    CHECK(copyFile(logo, a));
+
+    {
+      MainWindow* w = makeWindow();
+      spinEvents(20);
+      dropFiles(w, {a});
+      spinEvents(30);
+      auto* card = byName<QWidget>(w, "actionCard_1");
+      auto* box = card ? card->findChild<QCheckBox*>("actionCardEnabled_1") : nullptr;
+      CHECK(box != nullptr);
+      if (box) box->setChecked(false);  // Optimize off
+      spinEvents(20);
+      byName<QSpinBox>(w, "optimizeSpin")->setValue(2);
+      byName<QSpinBox>(w, "lossySpin")->setValue(40);
+      spinEvents(20);
+      auto* rm = byName<QToolButton>(w, "actionCardRemove_2");  // drop Resize
+      CHECK(rm != nullptr);
+      if (rm) rm->click();
+      spinEvents(20);
+      w->close();  // closeEvent -> saveSessionState (delete alone never closes)
+      spinEvents(30);
+      delete w;
+    }
+    CHECK_MSG(QFileInfo::exists(cfgPath), "the session file was written");
+    {
+      QFile f(cfgPath);
+      QString conf;
+      if (f.open(QIODevice::ReadOnly)) conf = QString::fromUtf8(f.readAll());
+      CHECK_MSG(conf.contains(QStringLiteral("card_state = ")),
+                "the session file carries the card stack");
+      CHECK_MSG(conf.contains(QStringLiteral("1:1:0:0")),
+                "card 1 is present but switched off in the saved stack");
+      CHECK_MSG(conf.contains(QStringLiteral("2:0:0:0")),
+                "card 2 is recorded as removed");
+      CHECK_MSG(conf.contains(QStringLiteral("lossy = 40")),
+                "a disabled card's value is in the file (off is not gone)");
+    }
+
+    {
+      MainWindow* w = makeWindow();
+      spinEvents(20);
+      dropFiles(w, {a});
+      spinEvents(30);
+      // removeCard() DEFERS the delete (deleting a sender from inside its own
+      // clicked() signal would use-after-free), and processEvents() does not run
+      // DeferredDelete events - a real event loop does. Flush them here so the
+      // "out of the stack" claim is about the restored stack, not about when the
+      // harness happens to drain the queue.
+      QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+      auto* card = byName<QWidget>(w, "actionCard_1");
+      auto* box = card ? card->findChild<QCheckBox*>("actionCardEnabled_1") : nullptr;
+      CHECK_MSG(box && !box->isChecked(), "the disabled card is still disabled next launch");
+      CHECK_MSG(byName<QWidget>(w, "actionCard_2") == nullptr,
+                "the removed card is still out of the stack next launch");
+      auto* counter = byName<QLabel>(w, "actionsCountLabel");
+      CHECK_MSG(counter && counter->text() == QStringLiteral("Actions [6/7]"),
+                "the counter is restored (7 cards, 6 enabled)");
+      // A disabled card's values must survive too - otherwise turning it back on
+      // next launch silently changes the job.
+      CHECK_MSG(byName<QSpinBox>(w, "optimizeSpin")->value() == 2,
+                "a disabled card keeps the values the user typed");
+      CHECK_MSG(byName<QSpinBox>(w, "lossySpin")->value() == 40,
+                "a disabled card keeps lossy too");
+      if (box) box->setChecked(true);
+      spinEvents(20);
+      CHECK_MSG(byName<QPlainTextEdit>(w, "commandPane")->toPlainText().contains(
+                    QStringLiteral("--lossy=40")),
+                "re-enabling it brings its options back");
+      w->close();
+      spinEvents(20);
+      delete w;
+      g_dialogs.clear();
+    }
+    qputenv("GS_SETTINGS_PATH", prevEnv);
   }
 
   std::printf("==> %d checks, %d failures\n", g_checks, g_failures);
