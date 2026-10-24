@@ -44,7 +44,13 @@ Chronological log of decisions and changes. **Newest at the top.**
 - **No Qt SDK in this sandbox, so CI is the only compiler** — the same standing constraint as
   S41/S42. Pre-push evidence: `build.sh` engine + CLI + 421/35/54 unit checks green, and
   `qt_lint src tests CMakeLists.txt --baseline ...` = 7 findings, 0 not in the baseline, exit 0
-  (the CI invocation, run verbatim).
+  (the CI invocation, run verbatim). **Then CI, which is what compiles this:** PR run
+  `40078589701` is green on linux and windows (T1-T30 all pass), and both jobs uploaded
+  `ui-screenshots-linux` / `ui-screenshots-windows` for the owner's review. It took three rounds,
+  each naming a real defect rather than a flaky check: `byName()` takes a `const char*` (the T30
+  lookup passed a built QString), a card being added back refreshed the tab title but **not** the
+  command preview, and `removeCard()`'s deferred delete never ran under `processEvents()` (a real
+  event loop runs it) — the last two were found by the new tests, which is the point of them.
 
 ## S42 — 2026-10-24: the shipped XnConvert was studied as a program, then slice C landed (Input grid + animation facts)
 

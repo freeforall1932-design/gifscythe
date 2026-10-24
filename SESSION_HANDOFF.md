@@ -28,8 +28,9 @@ ScreenToGif, `[PLAN]` this app, plus the 1:1/divergence table) and summarised as
 - **Persistence:** `card_state = id:present:enabled:collapsed;…` in the session file and in every
   preset (a preset is an action set).
 - **Proof:** T30 + T30b offscreen (325 → 331 `CHECK(`), `qt_lint` 7/0 exit 0, `build.sh`
-  421/35/54 unit checks. **No Qt SDK here — CI is the only compiler, and the owner reviews the UI
-  before any merge.**
+  421/35/54 unit checks, then **PR CI run `40078589701` green on linux + windows** with
+  `ui-screenshots-linux`/`-windows` uploaded. **No Qt SDK here — CI is the only compiler, and the
+  owner reviews the UI before any merge.**
 
 ### S41 — what just changed (S41; kept for the written history)
 
