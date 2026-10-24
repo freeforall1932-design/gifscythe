@@ -32,6 +32,7 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QInputDialog>
 #include <QImageReader>
 #include <QKeySequence>
 #include <QListWidget>
@@ -46,6 +47,7 @@
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QScrollBar>
 #include <QSignalBlocker>
@@ -420,15 +422,9 @@ QWidget* MainWindow::buildInputTab() {
   namingForm->addRow(QString(), tmplHint);
   left->addWidget(namingBox);
 
-  // Slice F (reference footer): the primary action is "Convert"; while a run
-  // is in flight the secondary control reads "Stop" (setBusy swaps it back).
-  runButton_ = new QPushButton(QStringLiteral("Convert"), page);
-  runButton_->setObjectName(QStringLiteral("runButton"));
-  runButton_->setMinimumHeight(38);
-  runButton_->setToolTip(QStringLiteral("Start processing the queued GIF files"));
-  runButton_->setEnabled(false);
-  connect(runButton_, &QPushButton::clicked, this, &MainWindow::runCommand);
-  left->addWidget(runButton_);
+  // The primary action is NOT here: the reference puts Convert in the footer,
+  // beside Close, where it is reachable from every tab (owner, 2026-10-24 -
+  // the Input tab used to own it, which is not the reference's layout).
   return page;
 }
 
@@ -697,6 +693,41 @@ QWidget* MainWindow::buildStatusTab() {
   note->setWordWrap(true);
   note->setTextFormat(Qt::PlainText);
   lay->addWidget(note);
+
+  // ---- the command preview and the activity log -------------------------
+  // Owner, 2026-10-24: they used to sit under the whole window, which the
+  // reference does not have and which made every tab look like a console. The
+  // reference's Status tab IS the "what is happening" surface, so they live
+  // here now - same object names (commandPane / logPane / clearLogButton), so
+  // the honesty guarantees and every harness contract are unchanged.
+  auto* commandTitle = new QLabel(
+      QStringLiteral("Command preview · read-only · controls \u2192 exact engine arguments"), page);
+  commandTitle->setObjectName(QStringLiteral("commandTitle"));
+  lay->addWidget(commandTitle);
+  commandPane_ = new QPlainTextEdit(page);
+  commandPane_->setObjectName(QStringLiteral("commandPane"));
+  commandPane_->setReadOnly(true);
+  commandPane_->setMaximumHeight(64);
+  commandPane_->setPlaceholderText(QStringLiteral("Add a GIF to generate a command\u2026"));
+  lay->addWidget(commandPane_);
+
+  auto* logHeader = new QHBoxLayout();
+  auto* logTitle = new QLabel(QStringLiteral("Activity log"), page);
+  logTitle->setObjectName(QStringLiteral("logTitle"));
+  logHeader->addWidget(logTitle);
+  auto* clearLog = new QPushButton(QStringLiteral("Clear"), page);
+  clearLog->setObjectName(QStringLiteral("clearLogButton"));
+  logHeader->addWidget(clearLog);
+  logHeader->addStretch();
+  lay->addLayout(logHeader);
+  logPane_ = new QPlainTextEdit(page);
+  logPane_->setObjectName(QStringLiteral("logPane"));
+  logPane_->setReadOnly(true);
+  logPane_->setMaximumBlockCount(250);
+  logPane_->setMaximumHeight(120);
+  logPane_->setPlaceholderText(QStringLiteral("Run messages will appear here\u2026"));
+  connect(clearLog, &QPushButton::clicked, this, [this]() { resetRunLog(); });
+  lay->addWidget(logPane_);
   return page;
 }
 
@@ -847,56 +878,222 @@ QWidget* MainWindow::buildAboutTab() {
   return page;
 }
 
-void MainWindow::buildBottomBar(QWidget* central, QVBoxLayout* root) {
-  auto* commandTitle = new QLabel(QStringLiteral(
-      "Command preview · read-only · controls → exact engine arguments"), central);
-  commandTitle->setObjectName(QStringLiteral("commandTitle"));
-  root->addWidget(commandTitle);
-  commandPane_ = new QPlainTextEdit(central);
-  commandPane_->setObjectName(QStringLiteral("commandPane"));
-  commandPane_->setReadOnly(true);
-  commandPane_->setMaximumHeight(92);
-  commandPane_->setPlaceholderText(QStringLiteral("Add a GIF to generate a command…"));
-  root->addWidget(commandPane_);
+// ---------------------------------------------------------------------------
+// Presets — the reference footer's left-hand group.
+//
+// A preset is one file: the same key=value payload saveSessionState() writes,
+// so it round-trips through gs::save_settings / gs::load_settings and cannot
+// drift from the session format. Stored one-per-file so a preset can be read,
+// edited or deleted by hand — a blob in one settings file would not be.
+// ---------------------------------------------------------------------------
 
-  auto* logHeader = new QHBoxLayout();
-  auto* logTitle = new QLabel(QStringLiteral("Activity log"), central);
-  logTitle->setObjectName(QStringLiteral("logTitle"));
-  logHeader->addWidget(logTitle);
-  auto* clearLog = new QPushButton(QStringLiteral("Clear"), central);
-  clearLog->setObjectName(QStringLiteral("clearLogButton"));
-  logHeader->addWidget(clearLog);
-  logHeader->addStretch();
-  root->addLayout(logHeader);
-  logPane_ = new QPlainTextEdit(central);
-  logPane_->setObjectName(QStringLiteral("logPane"));
-  logPane_->setReadOnly(true);
-  logPane_->setMaximumBlockCount(250);
-  logPane_->setMaximumHeight(92);
-  logPane_->setPlaceholderText(QStringLiteral("Run messages will appear here…"));
-  connect(clearLog, &QPushButton::clicked, this, [this]() { resetRunLog(); });
-  root->addWidget(logPane_);
+QString MainWindow::presetDir() const {
+  const QString session = sessionFilePath();
+  if (session.isEmpty()) return {};
+  return QFileInfo(session).absolutePath() + QStringLiteral("/presets");
+}
+
+void MainWindow::refreshPresetList() {
+  if (!presetCombo_) return;
+  const QString previous = presetCombo_->currentText();
+  QSignalBlocker blocker(presetCombo_);
+  presetCombo_->clear();
+  presetCombo_->addItem(QStringLiteral("(no preset)"));
+  const QString dir = presetDir();
+  if (!dir.isEmpty()) {
+    const QDir folder(dir);
+    const auto entries = folder.entryInfoList({QStringLiteral("*.conf")}, QDir::Files, QDir::Name);
+    for (const QFileInfo& entry : entries) {
+      presetCombo_->addItem(entry.completeBaseName());
+    }
+  }
+  const int restored = presetCombo_->findText(previous);
+  if (restored > 0) presetCombo_->setCurrentIndex(restored);
+}
+
+void MainWindow::savePresetAs() {
+  const QString dir = presetDir();
+  if (dir.isEmpty()) {
+    updateStatus(QStringLiteral("No writable settings folder — presets are unavailable here."));
+    return;
+  }
+  bool ok = false;
+  const QString name = QInputDialog::getText(
+      this, QStringLiteral("Save preset"), QStringLiteral("Preset name:"),
+      QLineEdit::Normal, presetCombo_ ? presetCombo_->currentText() : QString(), &ok);
+  if (!ok || name.trimmed().isEmpty()) return;
+  // Strip anything a filename cannot carry: a preset name must not become a
+  // path (the same rule OutputName applies to the batch template).
+  QString safe = name.trimmed();
+  safe.replace(QRegularExpression(QStringLiteral("[\\\\/:*?\"<>|]")), QStringLiteral("_"));
+  if (!QDir().mkpath(dir)) {
+    updateStatus(QStringLiteral("Could not create the preset folder: %1").arg(dir));
+    return;
+  }
+  gs::Settings s;
+  settingsPanel_->writeInto(s);
+  s.inputs.clear();
+  s.output.clear();
+  std::ostringstream oss;
+  gs::save_settings(oss, s);
+  oss << "# Gifscythe preset (GUI keys are ignored by the CLI)\n";
+  const QString bd = batchDir();
+  if (!bd.isEmpty()) oss << "batch_dir = " << bd.toStdString() << "\n";
+  const QString tmpl = nameTemplateEdit_ ? nameTemplateEdit_->text().trimmed() : QString();
+  if (!tmpl.isEmpty() && tmpl != QString::fromLatin1(kDefaultNameTemplate))
+    oss << "name_template = " << tmpl.toStdString() << "\n";
+
+  const QString path = QDir(dir).filePath(safe + QStringLiteral(".conf"));
+  QSaveFile file(path);
+  if (!file.open(QIODevice::WriteOnly)) {
+    updateStatus(QStringLiteral("Could not write the preset: %1").arg(path));
+    return;
+  }
+  const QByteArray data = QByteArray::fromStdString(oss.str());
+  file.write(data);
+  if (!file.commit()) {
+    updateStatus(QStringLiteral("Could not save the preset: %1").arg(path));
+    return;
+  }
+  refreshPresetList();
+  if (presetCombo_) {
+    const int row = presetCombo_->findText(safe);
+    if (row > 0) presetCombo_->setCurrentIndex(row);
+  }
+  updateStatus(QStringLiteral("Preset saved: %1").arg(safe));
+}
+
+void MainWindow::loadSelectedPreset() {
+  if (!presetCombo_ || presetCombo_->currentIndex() <= 0) return;
+  const QString name = presetCombo_->currentText();
+  const QString path = QDir(presetDir()).filePath(name + QStringLiteral(".conf"));
+  // load_settings_file returns nullopt for an unreadable file and collects
+  // unknown keys + per-key warnings by pointer; the GUI-only batch_dir /
+  // name_template keys arrive in that same map (U-36 / P3-7).
+  std::vector<gs::LoadWarning> warnings;
+  std::map<std::string, std::string> guiKeys;
+  auto loaded = gs::load_settings_file(path.toStdString(), &warnings, &guiKeys);
+  if (!loaded) {
+    updateStatus(QStringLiteral("Could not read the preset %1 — it may have been removed.")
+                     .arg(name));
+    refreshPresetList();
+    return;
+  }
+  settingsPanel_->readFrom(*loaded);
+  auto guiKey = [&guiKeys](const char* k) -> QString {
+    const auto it = guiKeys.find(k);
+    return it == guiKeys.end() ? QString() : QString::fromStdString(it->second);
+  };
+  const QString batch = guiKey("batch_dir");
+  batchDirEdit_->setText(batch);
+  const QString tmpl = guiKey("name_template");
+  nameTemplateEdit_->setText(tmpl.isEmpty() ? QString::fromLatin1(kDefaultNameTemplate) : tmpl);
+
+  lastOutputPaths_.clear();
+  refreshCommand();
+  refreshOutputSummary();
+  schedulePreview();
+  updateStatus(warnings.empty()
+                   ? QStringLiteral("Preset applied: %1").arg(name)
+                   : QStringLiteral("Preset applied: %1 — %2 warning(s), see the log")
+                         .arg(name)
+                         .arg(warnings.size()));
+}
+
+void MainWindow::deleteSelectedPreset() {
+  if (!presetCombo_ || presetCombo_->currentIndex() <= 0) return;
+  const QString name = presetCombo_->currentText();
+  const QString path = QDir(presetDir()).filePath(name + QStringLiteral(".conf"));
+  const auto answer = QMessageBox::question(
+      this, QStringLiteral("Delete preset"),
+      QStringLiteral("Delete the preset \"%1\"?").arg(name));
+  if (answer != QMessageBox::Yes) return;
+  if (!QFile::remove(path)) {
+    updateStatus(QStringLiteral("Could not delete the preset: %1").arg(path));
+    return;
+  }
+  refreshPresetList();
+  updateStatus(QStringLiteral("Preset deleted: %1").arg(name));
+}
+
+void MainWindow::buildBottomBar(QWidget* central, QVBoxLayout* root) {
+  // Owner, 2026-10-24: this is the reference's footer, left to right -
+  //   Presets: [combo] [+] [x] ... [Convert] [Close]
+  // The old bar carried the command preview and the activity log across the
+  // whole window, which the reference does not have at all and which is why
+  // the window did not look like XnConvert. Both moved into the Status tab
+  // (same object names, so every harness contract still holds): Status is the
+  // reference's "what is happening" tab, and a log belongs there.
+  auto* bar = new QHBoxLayout();
+
+  auto* presetsLabel = new QLabel(QStringLiteral("Presets:"), central);
+  bar->addWidget(presetsLabel);
+  presetCombo_ = new QComboBox(central);
+  presetCombo_->setObjectName(QStringLiteral("presetCombo"));
+  presetCombo_->setMinimumWidth(170);
+  presetCombo_->setToolTip(
+      QStringLiteral("Saved action sets. A preset stores every gifsicle option on the Actions "
+                     "tab plus the batch folder and file-name pattern."));
+  connect(presetCombo_, &QComboBox::activated, this, [this](int) { loadSelectedPreset(); });
+  bar->addWidget(presetCombo_);
+
+  auto* savePreset = new QToolButton(central);
+  savePreset->setObjectName(QStringLiteral("presetSaveButton"));
+  savePreset->setText(QStringLiteral("+"));
+  savePreset->setToolTip(QStringLiteral("Save the current settings as a preset"));
+  connect(savePreset, &QToolButton::clicked, this, &MainWindow::savePresetAs);
+  bar->addWidget(savePreset);
+
+  auto* deletePreset = new QToolButton(central);
+  deletePreset->setObjectName(QStringLiteral("presetDeleteButton"));
+  deletePreset->setText(QStringLiteral("\u00d7"));
+  deletePreset->setToolTip(QStringLiteral("Delete the selected preset"));
+  connect(deletePreset, &QToolButton::clicked, this, &MainWindow::deleteSelectedPreset);
+  bar->addWidget(deletePreset);
+
+  bar->addStretch();
+
+  // The two controls that describe a run rather than a tab: what is happening
+  // (status line) and how far it got (progress).
+  statusLabel_ = new QLabel(central);
+  statusLabel_->setObjectName(QStringLiteral("statusLabel"));
+  statusLabel_->setWordWrap(false);
+  statusLabel_->setMinimumWidth(200);
+  bar->addWidget(statusLabel_, 1);
 
   progressBar_ = new QProgressBar(central);
   progressBar_->setObjectName(QStringLiteral("progressBar"));
   progressBar_->setRange(0, 0);  // indeterminate for one large engine run
-  progressBar_->setFormat(QStringLiteral("Working…"));
+  progressBar_->setFormat(QStringLiteral("Working\u2026"));
   progressBar_->setVisible(false);
-  root->addWidget(progressBar_);
+  progressBar_->setMaximumWidth(220);
+  bar->addWidget(progressBar_);
 
-  auto* actions = new QHBoxLayout();
+  // Slice F semantics unchanged: the primary control reads "Convert"; the
+  // secondary one reads "Stop" while a run is in flight (setBusy swaps it) and
+  // "Cancel" when idle. The U-72 latch is untouched.
   cancelButton_ = new QPushButton(QStringLiteral("Cancel"), central);
   cancelButton_->setObjectName(QStringLiteral("cancelButton"));
   cancelButton_->setEnabled(false);
   connect(cancelButton_, &QPushButton::clicked, this, &MainWindow::cancelRun);
-  actions->addWidget(cancelButton_);
-  actions->addStretch();
-  statusLabel_ = new QLabel(central);
-  statusLabel_->setObjectName(QStringLiteral("statusLabel"));
-  statusLabel_->setWordWrap(true);
-  statusLabel_->setMinimumWidth(260);
-  actions->addWidget(statusLabel_, 1);
-  root->addLayout(actions);
+  bar->addWidget(cancelButton_);
+
+  runButton_ = new QPushButton(QStringLiteral("Convert"), central);
+  runButton_->setObjectName(QStringLiteral("runButton"));
+  runButton_->setMinimumHeight(30);
+  runButton_->setMinimumWidth(96);
+  runButton_->setToolTip(QStringLiteral("Start processing the queued GIF files"));
+  runButton_->setEnabled(false);
+  connect(runButton_, &QPushButton::clicked, this, &MainWindow::runCommand);
+  bar->addWidget(runButton_);
+
+  auto* closeButton = new QPushButton(QStringLiteral("Close"), central);
+  closeButton->setObjectName(QStringLiteral("closeButton"));
+  connect(closeButton, &QPushButton::clicked, this, &QWidget::close);
+  bar->addWidget(closeButton);
+
+  root->addLayout(bar);
+  refreshPresetList();
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {

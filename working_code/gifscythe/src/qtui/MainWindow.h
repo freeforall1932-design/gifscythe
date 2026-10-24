@@ -168,6 +168,15 @@ class MainWindow : public QMainWindow {
   void chooseBatchDir();
   void openOutputFolder();
   void updateStatus(const QString& message);
+  // ---- Presets (reference footer, owner 2026-10-24) ----
+  // A preset is a saved Actions state plus the GUI-only batch_dir /
+  // name_template keys, stored as one .conf per preset next to the session
+  // file. Real files, so a preset survives a restart and can be inspected.
+  QString presetDir() const;
+  void refreshPresetList();
+  void savePresetAs();
+  void loadSelectedPreset();
+  void deleteSelectedPreset();
   void appendInputs(const QStringList& files);
   void setBusy(bool busy);
   void moveCurrent(int delta);
@@ -238,6 +247,7 @@ class MainWindow : public QMainWindow {
   QToolButton* previewToggleButton_ = nullptr;  // Actions splitter handle
   // Output > Format (owner, 2026-10-24): the reference's combo + per-format
   // Settings..., with the entries this build cannot encode disabled.
+  QComboBox* presetCombo_ = nullptr;
   QComboBox* formatCombo_ = nullptr;
   QPushButton* formatSettingsButton_ = nullptr;
   QLabel* formatNoteLabel_ = nullptr;
