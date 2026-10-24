@@ -91,7 +91,7 @@ a fresh decision. The exception is these four reference artefacts and nothing el
 |---|---|---|
 | Tabs: Input · Actions · Output · **Status** · Settings · About | Input · Actions · Output · **Status** · Settings · About | **DELIVERED** — N-56, slice B (Guide folded into About) |
 | Tab titles carry counts (`Input: 10 file(s)`, `Actions [5/5]`) | `Input: N file(s)` | **partial** — Input counts (N-56); Actions count waits on the action-list model |
-| Input: thumbnail grid, 7 sortable columns, Quick filter, Add folder, Hot folders | Flat text list (`queueList`) + Add/Remove/Clear + Move Up/Down | **large** — needs a model item + view + tests |
+| Input: thumbnail grid, sortable columns, Quick filter, Add folder, Hot folders | **thumbnail grid** (`queueList` in IconMode) + Add files / **Add folder** / Remove / **Remove all** + Quick filter + sort header + a facts strip, with `Frames · Duration · fps · Loop` read from the bytes | **DELIVERED (slice C, 2026-10-24)** — with three deliberate differences, see §7: the columns are animation-aware (the reference has none), sorting reorders the real queue, and **Hot folders / a columns menu are NOT built** (a watcher is a feature, not a view; there is no column model to configure) |
 | Actions: stack of cards, each enable/disable/reorder/delete, slider+spin+reset per parameter | One fixed settings form (`SettingsPanel`) | **architectural** — Gifscythe has *one* settings model, not a list of actions |
 | Preview inside the Actions tab, Before/After + zoom + page readout | Separate splitter pane, Before/After + Play/Stop + savings | close in spirit; placement and zoom differ |
 | Output: Format, Case, existing-file policy, metadata/colour-profile, Delete original, After-conversion | Mode combo, output path + browse, batch dir, summary | **mostly missing** — the reference's fields are format-agnostic where Gifscythe's are gifsicle-specific |
@@ -121,13 +121,29 @@ starting C, E or D.
 |---|---|---|---|---|
 | **A** ✅ | **Status tab** (per-file results, `n of m`, size deltas, ETA, `Stop`) | The contract already exists (`W32_RESULT_CONTRACT.md`, 14 cases) and the reference shows exactly what it must contain. It also retires `W-32`. | medium | none — `W-32` is already the registered item |
 | **B** ✅ | Tab set + tab titles with counts (`Input: n file(s)`, `Actions [n/n]`), `Settings`/`About` | Mechanical, visible, cheap; moves the chrome onto the reference's grammar | small | none |
-| **C** | Input grid: thumbnails + columns + Quick filter | Large but self-contained; needs a `QAbstractTableModel` over the existing queue | large | none |
+| **C** ✅ | Input grid: thumbnails + animation columns + Quick filter + sort | Large but self-contained | large | none |
 | **D** | Actions as a card stack (enable/disable, reorder, per-parameter slider+spin+reset) | The architectural one: turns the settings model into an action list | very large | **`OD-21`** |
 | **E** | Output form: Format + Case + existing-file policy + metadata + after-conversion | Needs `OD-21` (preset/format mapping) and a gifsicle-format decision | medium | **`OD-21`** |
 | **F** ✅ | `Convert`/`Stop` wording and footer layout | Cosmetic, touches the cancel-latch tests | small | none |
 
 **Delivered 2026-10-23: A + B + F, as one batch** (`N-56`; the owner chose this order and
-`OD-21 = a`). Remaining order: **C → E → D**. **Recommended order was: A → B → F → C → E → D.** A is the biggest *honest* win per unit of risk: the
+`OD-21 = a`). **Delivered 2026-10-24: C** (`N-58`). Remaining order: **E → D**.
+
+**What slice C did differently from the reference, and why** (the study's §11.1, applied):
+
+- **The columns carry animation facts.** `Name · Size · Modified date · Created date · EXIF Date Taken ·
+  Properties · Print size · Type · Rating · Colour label` is a still-image column set; gifscythe sorts by
+  `Queue order · Name · Size · Modified · Frames · Duration` and states `Frames · Duration · fps · Loop`
+  in the caption, the tooltip and the selection strip. The numbers come from
+  `src/core/GifFacts.h` (a Qt-free header walk, 54 unit checks), cross-checked against gifsicle on
+  `build/fixtures/logo.gif`: 12 frames / 2400 ms / loop 0 / 5.00 fps vs "12 images", "loop forever",
+  delay sum 2.40 s.
+- **Sorting reorders the queue itself.** Merge concatenates in queue order, so a sort the engine
+  ignored would silently reorder the output. `Queue order` restores the manual order a sort displaced.
+- **Filtering hides, never removes**, and the count line says `N hidden by filter` — a grid that
+  quietly drops six of ten files reads as data loss.
+- **Not built:** `Hot folders…` (a background watcher is a feature with its own failure modes, not a
+  view) and the columns menu (there is no configurable column model yet). **Recommended order was: A → B → F → C → E → D.** A is the biggest *honest* win per unit of risk: the
 model is already specified, it is what image 3 shows, and it is the one thing an owner looking at
 these four screenshots would miss most.
 

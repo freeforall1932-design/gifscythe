@@ -61,6 +61,7 @@
 class QLabel;
 class QLineEdit;
 class QListWidget;
+class QListWidgetItem;
 class QFileInfo;
 class QPlainTextEdit;
 class QProgressBar;
@@ -68,10 +69,15 @@ class QPushButton;
 class QTabWidget;
 class QTableWidget;
 class QTimer;
+class QToolButton;
 class DropListWidget;
 class PreviewPanel;
 class SettingsPanel;
 
+#include <QHash>
+#include <QPixmap>
+
+#include "core/GifFacts.h"
 #include "core/GifsicleSettings.h"
 #include "core/GifsicleCommand.h"
 #include "core/OutputPlan.h"
@@ -103,8 +109,17 @@ class MainWindow : public QMainWindow {
 
  private slots:
   void chooseInputs();
+  // Slice C: the reference's "Add folder…". Scans the chosen folder (one level,
+  // name-sorted) and hands every entry to the SAME admission rule as a drop —
+  // a folder is a shortcut for selecting files, never a way around GS-205.
+  void chooseInputFolder();
   void removeSelected();
   void clearQueue();
+  // Slice C: the Quick-filter box and the sort header. Both act on the VIEW,
+  // except sorting, which reorders the real queue because Merge concatenates
+  // in queue order (S3-9) — a sort the engine ignores would be a lie.
+  void applyQueueFilter();
+  void applyQueueSort();
   void refreshCommand();
   void runCommand();
   void cancelRun();
@@ -162,6 +177,25 @@ class MainWindow : public QMainWindow {
   bool templateIsConstant() const;
   bool ensureEngine();
   void refreshQueueLabel();
+  // ---- Slice C: the Input grid ------------------------------------------
+  // Facts are read once per path (GifFacts.h, Qt-free) and cached; the grid,
+  // the selection strip and the sort header all read the same numbers, so the
+  // caption, the tooltip and the sort key cannot disagree about a file.
+  gs::GifFacts factsFor(const QString& path);
+  QPixmap thumbnailFor(const QString& path);
+  void applyQueueItemFacts(QListWidgetItem* item, const QString& path);
+  void updateQueueDetails();
+  // Queue sort keys, in the reference's column order. QueueOrder is the
+  // historical behaviour (insertion order = merge order) and stays the default.
+  enum QueueSort {
+    SortQueueOrder = 0,
+    SortName,
+    SortSize,
+    SortModified,
+    SortFrames,
+    SortDuration
+  };
+  void updateSortButtonLabels();
   void refreshOutputSummary();
   void refreshOutputFiles();
   QStringList plannedOutputPaths() const;
@@ -193,6 +227,20 @@ class MainWindow : public QMainWindow {
   QTabWidget* tabs_ = nullptr;
   DropListWidget* inputList_ = nullptr;
   QLabel* queueCountLabel_ = nullptr;
+  // ---- Slice C widgets (Input grid) ----
+  QPushButton* addFolderButton_ = nullptr;
+  QLineEdit* queueFilterEdit_ = nullptr;
+  QLabel* queueSelectionDetails_ = nullptr;
+  QVector<QToolButton*> sortButtons_;
+  QHash<QString, gs::GifFacts> factsCache_;
+  QHash<QString, QPixmap> thumbCache_;
+  int queueSortKey_ = SortQueueOrder;
+  bool queueSortAscending_ = true;
+  // The order the user established by adding and by Move Up/Down, kept apart
+  // from the sorted VIEW order. Without this, "Queue order" would only mean
+  // "stop sorting from here on" and could never restore what a sort displaced —
+  // and queue order is the Merge order, so that would be a semantic lie.
+  QStringList manualOrder_;
   SettingsPanel* settingsPanel_ = nullptr;
   QLineEdit* outputEdit_ = nullptr;
   QLineEdit* batchDirEdit_ = nullptr;

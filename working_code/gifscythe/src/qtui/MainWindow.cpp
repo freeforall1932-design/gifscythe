@@ -30,6 +30,8 @@
 #include <QFrame>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QIcon>
+#include <QImageReader>
 #include <QKeySequence>
 #include <QListWidget>
 #include <QListWidgetItem>
@@ -39,23 +41,27 @@
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPainter>
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QSaveFile>
 #include <QScrollBar>
+#include <QSignalBlocker>
 #include <QSplitter>
 #include <QStandardPaths>
 #include <QHeaderView>
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QTimer>
+#include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
 
 #include <algorithm>
 #include <functional>
 #include <map>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -90,6 +96,21 @@ QString humanSize(qint64 bytes) {
   if (bytes >= 1024)
     return QStringLiteral("%1 KB").arg(double(bytes) / 1024.0, 0, 'f', 1);
   return QStringLiteral("%1 B").arg(bytes);
+}
+
+// Slice C: a duration a person can read. Deliberately explicit for the three
+// states the grid must distinguish, because they mean different things and a
+// single "0 s" would blur them:
+//   0 ms            -> "no delay"   (multi-frame GIF with zero delays: fast, legal)
+//   under a minute  -> "2.40 s"
+//   over a minute   -> "1m 05s"
+QString formatDuration(qint64 ms) {
+  if (ms <= 0) return QStringLiteral("no delay");
+  if (ms < 60000) return QStringLiteral("%1 s").arg(double(ms) / 1000.0, 0, 'f', 2);
+  const qint64 total_seconds = (ms + 500) / 1000;
+  return QStringLiteral("%1m %2s")
+      .arg(total_seconds / 60)
+      .arg(total_seconds % 60, 2, 10, QLatin1Char('0'));
 }
 
 // Default batch auto-name template (S3-25). {name} = the input's base name.
@@ -218,6 +239,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   refreshCommand();
   refreshOutputSummary();
   refreshQueueLabel();
+  updateQueueDetails();
 }
 
 MainWindow::~MainWindow() {
@@ -233,35 +255,131 @@ MainWindow::~MainWindow() {
 }
 
 QWidget* MainWindow::buildInputTab() {
+  // Slice C (2026-10-24): the Input tab now follows the reference's shape —
+  // toolbar, then a THUMBNAIL GRID, then the counts — instead of a flat text
+  // list. Two things are deliberately different from the reference, both from
+  // docs/planning/XN_CONVERT_PROGRAM_STUDY.md §11.1:
+  //   * the caption and the tooltip carry ANIMATION facts (frames, duration,
+  //     fps, loop), because XnConvert's Input tab has no such column anywhere;
+  //   * sorting is a header of buttons over the real queue, not a table header
+  //     over a proxy model, because Merge concatenates in queue order and a
+  //     sort that the engine ignored would be a lie about the output.
   auto* page = new QWidget(tabs_);
   auto* left = new QVBoxLayout(page);
-  left->addWidget(new QLabel(QStringLiteral("Animation queue — drop GIFs here"), page));
 
+  // ---- toolbar (reference: Add files / Add folder / Remove / Remove all) ----
+  auto* queueBtns = new QHBoxLayout();
+  auto* addButton = new QPushButton(QStringLiteral("Add files…"), page);
+  addButton->setObjectName(QStringLiteral("addButton"));
+  addButton->setToolTip(QStringLiteral("Queue GIF files (drop them on the grid below instead, if you prefer)"));
+  connect(addButton, &QPushButton::clicked, this, &MainWindow::chooseInputs);
+  addFolderButton_ = new QPushButton(QStringLiteral("Add folder…"), page);
+  addFolderButton_->setObjectName(QStringLiteral("addFolderButton"));
+  addFolderButton_->setToolTip(
+      QStringLiteral("Queue every GIF in a folder (one level; sub-folders are not walked).\n"
+                     "Each file still passes the same admission rule as a drop."));
+  connect(addFolderButton_, &QPushButton::clicked, this, &MainWindow::chooseInputFolder);
+  removeButton_ = new QPushButton(QStringLiteral("Remove"), page);
+  removeButton_->setObjectName(QStringLiteral("removeButton"));
+  connect(removeButton_, &QPushButton::clicked, this, &MainWindow::removeSelected);
+  clearButton_ = new QPushButton(QStringLiteral("Remove all"), page);
+  clearButton_->setObjectName(QStringLiteral("clearButton"));
+  connect(clearButton_, &QPushButton::clicked, this, &MainWindow::clearQueue);
+  queueBtns->addWidget(addButton);
+  queueBtns->addWidget(addFolderButton_);
+  queueBtns->addWidget(removeButton_);
+  queueBtns->addWidget(clearButton_);
+  queueBtns->addStretch();
+
+  // ---- Quick filter (reference: a funnel + a "Quick filter" line edit) ----
+  // It hides rows; it never removes them, so the queue — and the batch plan —
+  // is unchanged by typing. Hidden rows keep their row index, which is what
+  // keeps inputs_ index-aligned with the list.
+  auto* filterLabel = new QLabel(QStringLiteral("Filter"), page);
+  queueFilterEdit_ = new QLineEdit(page);
+  queueFilterEdit_->setObjectName(QStringLiteral("queueFilterEdit"));
+  queueFilterEdit_->setPlaceholderText(QStringLiteral("Quick filter"));
+  queueFilterEdit_->setClearButtonEnabled(true);
+  queueFilterEdit_->setMaximumWidth(220);
+  connect(queueFilterEdit_, &QLineEdit::textChanged, this, [this]() { applyQueueFilter(); });
+  queueBtns->addWidget(filterLabel);
+  queueBtns->addWidget(queueFilterEdit_);
+  left->addLayout(queueBtns);
+
+  // ---- sort header (the reference's columns, animation-aware) ----
+  auto* sortRow = new QHBoxLayout();
+  sortRow->addWidget(new QLabel(QStringLiteral("Sort"), page));
+  struct SortSpec {
+    const char* label;
+    int key;
+    const char* object_name;
+  };
+  const SortSpec specs[] = {
+      {"Queue order", SortQueueOrder, "sortQueueOrder"},
+      {"Name", SortName, "sortName"},
+      {"Size", SortSize, "sortSize"},
+      {"Modified", SortModified, "sortModified"},
+      {"Frames", SortFrames, "sortFrames"},
+      {"Duration", SortDuration, "sortDuration"},
+  };
+  for (const SortSpec& spec : specs) {
+    auto* button = new QToolButton(page);
+    button->setObjectName(QString::fromLatin1(spec.object_name));
+    button->setText(QString::fromLatin1(spec.label));
+    button->setCheckable(true);
+    button->setChecked(spec.key == SortQueueOrder);
+    button->setAutoRaise(true);
+    button->setProperty("sortKey", spec.key);
+    const int key = spec.key;
+    connect(button, &QToolButton::clicked, this, [this, key]() {
+      if (queueSortKey_ == key) {
+        // Second click on the active key flips the direction — except for
+        // Queue order, which has only one direction.
+        if (key != SortQueueOrder) queueSortAscending_ = !queueSortAscending_;
+      } else {
+        queueSortKey_ = key;
+        queueSortAscending_ = true;
+      }
+      updateSortButtonLabels();
+      applyQueueSort();
+    });
+    sortButtons_.append(button);
+    sortRow->addWidget(button);
+  }
+  sortRow->addStretch();
+  left->addLayout(sortRow);
+
+  // ---- the grid ----
   inputList_ = new DropListWidget(page);
   inputList_->setObjectName(QStringLiteral("queueList"));
   inputList_->setMinimumWidth(300);
   inputList_->setSelectionMode(QAbstractItemView::ExtendedSelection);
+  // IconMode + a uniform cell = the reference's grid: image on a transparent
+  // background, name underneath, one file per cell. No literal colours here:
+  // the palette decides (the canvas rule — no #202020-style constants, so the
+  // dark theme stays possible).
+  inputList_->setViewMode(QListView::IconMode);
+  inputList_->setIconSize(QSize(96, 96));
+  inputList_->setGridSize(QSize(132, 152));
+  inputList_->setResizeMode(QListView::Adjust);
+  inputList_->setMovement(QListView::Static);
+  inputList_->setUniformItemSizes(true);
+  inputList_->setWordWrap(true);
+  inputList_->setTextElideMode(Qt::ElideMiddle);
+  inputList_->setSpacing(4);
   left->addWidget(inputList_, 1);
+
+  // The reference has one selected cell and a preview bound to it; the facts
+  // strip under the grid says the same thing in words for the keyboard user
+  // and for anyone who cannot read the 96-px thumbnail.
+  queueSelectionDetails_ = new QLabel(page);
+  queueSelectionDetails_->setObjectName(QStringLiteral("queueSelectionDetails"));
+  queueSelectionDetails_->setWordWrap(true);
+  left->addWidget(queueSelectionDetails_);
 
   queueCountLabel_ = new QLabel(QStringLiteral("0 files"), page);
   queueCountLabel_->setObjectName(QStringLiteral("queueCountLabel"));
   left->addWidget(queueCountLabel_);
-
-  auto* queueBtns = new QHBoxLayout();
-  auto* addButton = new QPushButton(QStringLiteral("Add GIF files…"), page);
-  addButton->setObjectName(QStringLiteral("addButton"));
-  connect(addButton, &QPushButton::clicked, this, &MainWindow::chooseInputs);
-  removeButton_ = new QPushButton(QStringLiteral("Remove"), page);
-  removeButton_->setObjectName(QStringLiteral("removeButton"));
-  connect(removeButton_, &QPushButton::clicked, this, &MainWindow::removeSelected);
-  clearButton_ = new QPushButton(QStringLiteral("Clear"), page);
-  clearButton_->setObjectName(QStringLiteral("clearButton"));
-  connect(clearButton_, &QPushButton::clicked, this, &MainWindow::clearQueue);
-  queueBtns->addWidget(addButton);
-  queueBtns->addWidget(removeButton_);
-  queueBtns->addWidget(clearButton_);
-  queueBtns->addStretch();
-  left->addLayout(queueBtns);
 
   // Queue order matters for Merge (frames concatenate in queue order) — S3-9.
   auto* orderRow = new QHBoxLayout();
@@ -698,21 +816,28 @@ void MainWindow::appendInputs(const QStringList& files) {
       continue;
     }
     inputs_.append(f);
-    const QFileInfo fi(f);
-    auto* item = new QListWidgetItem(
-        QStringLiteral("%1 — %2").arg(fi.fileName(), humanSize(fi.size())));
+    manualOrder_.append(f);
+    auto* item = new QListWidgetItem();
     item->setData(Qt::UserRole, f);
-    item->setToolTip(f);
+    // Slice C: the cell is a thumbnail + the animation facts, and the tooltip
+    // keeps the full path (the grid elides it, the tooltip must not).
+    applyQueueItemFacts(item, f);
     inputList_->addItem(item);
     ++added;
   }
   if (added > 0) {
     lastOutputPaths_.clear();
     runButton_->setEnabled(!busy_ && ensureEngine() && !inputs_.isEmpty());
+    // A new file lands in insertion order, then the active sort is re-applied
+    // so an explicit "sort by frames" cannot quietly hold a hand-placed row at
+    // the end; the filter is re-applied so a typed needle covers new arrivals.
+    if (queueSortKey_ != SortQueueOrder) applyQueueSort();
+    applyQueueFilter();
     refreshQueueLabel();
     refreshCommand();
     refreshOutputSummary();
     if (inputList_->currentRow() < 0) inputList_->setCurrentRow(0);
+    updateQueueDetails();
     schedulePreview();
   }
   if (!refused.isEmpty()) {
@@ -736,20 +861,317 @@ void MainWindow::appendInputs(const QStringList& files) {
 void MainWindow::refreshQueueLabel() {
   qint64 total = 0;
   int existing = 0;
+  // Slice C: the queue total is an ANIMATION total, not only a byte total —
+  // "24 files" says nothing about whether this is a 2-second flipbook or four
+  // minutes of video, which is the first thing a moving-picture tool must say.
+  qint64 frames = 0;
+  qint64 duration_ms = 0;
   for (const auto& f : inputs_) {
     const QFileInfo fi(f);
     if (fi.exists()) {
       total += fi.size();
       ++existing;
     }
+    const gs::GifFacts facts = factsFor(f);
+    if (facts.ok) {
+      frames += facts.frames;
+      duration_ms += facts.duration_ms;
+    }
   }
-  queueCountLabel_->setText(QStringLiteral("%1 file(s) · %2 on disk%3")
-                                .arg(inputs_.size())
-                                .arg(humanSize(total),
-                                     existing == inputs_.size()
-                                         ? QString()
-                                         : QStringLiteral(" (%1 missing)").arg(inputs_.size() - existing)));
+  QString text = QStringLiteral("%1 file(s) · %2 frame(s) · %3 · %4 on disk")
+                     .arg(inputs_.size())
+                     .arg(frames)
+                     .arg(formatDuration(duration_ms))
+                     .arg(humanSize(total));
+  if (existing != inputs_.size()) {
+    text += QStringLiteral(" (%1 missing)").arg(inputs_.size() - existing);
+  }
+  // When a filter hides rows, say how many are actually showing: a grid that
+  // silently drops six of ten files looks like data loss, not a filter.
+  int hidden = 0;
+  if (inputList_) {
+    for (int i = 0; i < inputList_->count(); ++i) {
+      if (inputList_->item(i)->isHidden()) ++hidden;
+    }
+  }
+  if (hidden > 0) text += QStringLiteral(" · %1 hidden by filter").arg(hidden);
+  if (queueCountLabel_) queueCountLabel_->setText(text);
   refreshTabTitles();
+}
+
+// ---------------------------------------------------------------------------
+// Slice C — the Input grid's data helpers.
+//
+// Everything below is deliberately cheap and synchronous: the facts come from
+// a header walk (no LZW), thumbnails are scaled by QImageReader BEFORE decode
+// (so a 1200x1200 GIF costs a 96x96 allocation, not a 5 MB one), and both are
+// cached per path. A queue of hundreds of files must still feel like a list.
+// ---------------------------------------------------------------------------
+
+gs::GifFacts MainWindow::factsFor(const QString& path) {
+  auto it = factsCache_.find(path);
+  if (it == factsCache_.end()) {
+    it = factsCache_.insert(path, gs::read_gif_facts(path.toStdString()));
+  }
+  return it.value();
+}
+
+QPixmap MainWindow::thumbnailFor(const QString& path) {
+  const QFileInfo fi(path);
+  // Key on size+mtime as well as the path: a file re-encoded in place (the
+  // common "fix it in another tool then re-drop" loop) must not keep showing
+  // the old animation's first frame.
+  const QString key = QStringLiteral("%1|%2|%3")
+                          .arg(path)
+                          .arg(fi.size())
+                          .arg(fi.lastModified().toMSecsSinceEpoch());
+  auto it = thumbCache_.constFind(key);
+  if (it != thumbCache_.constEnd()) return it.value();
+
+  QPixmap pixmap;
+  QImageReader reader(path);
+  reader.setAutoTransform(true);
+  const QSize native = reader.size();
+  if (native.isValid()) {
+    const QSize target = native.scaled(QSize(96, 96), Qt::KeepAspectRatio);
+    if (!target.isEmpty()) reader.setScaledSize(target);
+  }
+  const QImage image = reader.read();
+  if (!image.isNull()) {
+    pixmap = QPixmap::fromImage(image);
+  } else {
+    // No Qt image plugin, or a GIF whose first frame will not decode: a
+    // labelled placeholder, never an empty cell that looks like a bug.
+    pixmap = QPixmap(96, 96);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setPen(palette().color(QPalette::Mid));
+    painter.drawRect(0, 0, pixmap.width() - 1, pixmap.height() - 1);
+    painter.drawText(pixmap.rect(), Qt::AlignCenter, QStringLiteral("GIF"));
+    painter.end();
+  }
+  // Bounded cache: a session that drops thousands of files through the grid
+  // must not grow a pixmap per file for the whole life of the window.
+  if (thumbCache_.size() > 512) thumbCache_.clear();
+  thumbCache_.insert(key, pixmap);
+  return pixmap;
+}
+
+void MainWindow::applyQueueItemFacts(QListWidgetItem* item, const QString& path) {
+  if (!item) return;
+  const QFileInfo fi(path);
+  const gs::GifFacts facts = factsFor(path);
+
+  QStringList caption;
+  QStringList detail;
+  detail << path;
+  if (facts.ok) {
+    caption << (facts.frames == 1 ? QStringLiteral("1 frame")
+                                  : QStringLiteral("%1 frames").arg(facts.frames));
+    // A multi-frame GIF whose delays are all zero is a real and common file
+    // (screen recordings, some exporters). It has frames but no duration, and
+    // saying "0.00 s" would read as a broken file rather than a fast one.
+    if (facts.duration_ms > 0) {
+      caption << formatDuration(facts.duration_ms);
+    } else if (facts.frames > 1) {
+      caption << QStringLiteral("no delay");
+    }
+    detail << QStringLiteral("%1×%2").arg(facts.width).arg(facts.height);
+    detail << QStringLiteral("%1 frame(s)").arg(facts.frames);
+    detail << QStringLiteral("duration %1").arg(formatDuration(facts.duration_ms));
+    if (facts.fps() > 0.0) {
+      detail << QStringLiteral("%1 fps").arg(QString::number(facts.fps(), 'f', 2));
+    }
+    detail << (facts.loop_count < 0
+                   ? QStringLiteral("plays once")
+                   : (facts.loop_count == 0
+                          ? QStringLiteral("loops forever")
+                          : QStringLiteral("loops %1×").arg(facts.loop_count)));
+  } else {
+    caption << QStringLiteral("header unreadable");
+    detail << QStringLiteral("could not read the GIF header (queued anyway: the engine decides)");
+  }
+  if (fi.exists()) detail << humanSize(fi.size());
+
+  item->setText(QStringLiteral("%1\n%2").arg(fi.fileName(), caption.join(QStringLiteral(" · "))));
+  item->setIcon(QIcon(thumbnailFor(path)));
+  item->setToolTip(detail.join(QStringLiteral("\n")));
+}
+
+void MainWindow::updateQueueDetails() {
+  if (!queueSelectionDetails_) return;
+  const QString selected = selectedInput();
+  if (selected.isEmpty()) {
+    queueSelectionDetails_->setText(
+        inputs_.isEmpty()
+            ? QStringLiteral("No files queued — drop GIFs on the grid, or use Add files… / Add folder…")
+            : QStringLiteral("Select a file to see its animation facts"));
+    return;
+  }
+  const gs::GifFacts facts = factsFor(selected);
+  const QFileInfo fi(selected);
+  QStringList bits;
+  bits << fi.fileName();
+  if (facts.ok) {
+    bits << QStringLiteral("%1×%2").arg(facts.width).arg(facts.height);
+    bits << QStringLiteral("%1 frame(s)").arg(facts.frames);
+    bits << formatDuration(facts.duration_ms);
+    if (facts.fps() > 0.0) bits << QStringLiteral("%1 fps").arg(QString::number(facts.fps(), 'f', 2));
+    bits << (facts.loop_count < 0
+                 ? QStringLiteral("plays once")
+                 : (facts.loop_count == 0 ? QStringLiteral("loops forever")
+                                          : QStringLiteral("loops %1×").arg(facts.loop_count)));
+  } else {
+    bits << QStringLiteral("header unreadable");
+  }
+  if (fi.exists()) bits << humanSize(fi.size());
+  queueSelectionDetails_->setText(bits.join(QStringLiteral("  ·  ")));
+}
+
+void MainWindow::updateSortButtonLabels() {
+  // The active key gets an arrow so the grid always answers "sorted by what?"
+  // without a second label. Queue order has one direction only.
+  for (QToolButton* button : sortButtons_) {
+    if (!button) continue;
+    const int key = button->property("sortKey").toInt();
+    button->setChecked(key == queueSortKey_);
+    QString label;
+    switch (key) {
+      case SortQueueOrder: label = QStringLiteral("Queue order"); break;
+      case SortName: label = QStringLiteral("Name"); break;
+      case SortSize: label = QStringLiteral("Size"); break;
+      case SortModified: label = QStringLiteral("Modified"); break;
+      case SortFrames: label = QStringLiteral("Frames"); break;
+      default: label = QStringLiteral("Duration"); break;
+    }
+    if (key == queueSortKey_ && key != SortQueueOrder) {
+      label += queueSortAscending_ ? QStringLiteral(" ↑") : QStringLiteral(" ↓");
+    }
+    button->setText(label);
+  }
+}
+
+void MainWindow::applyQueueSort() {
+  if (inputs_.size() < 2 || !inputList_) {
+    updateSortButtonLabels();
+    return;
+  }
+  const int count = inputs_.size();
+  QVector<int> order(count);
+  std::iota(order.begin(), order.end(), 0);
+
+  if (queueSortKey_ == SortQueueOrder) {
+    // Back to the order the user built by hand. Every queued path still has a
+    // rank there (appendInputs and removeSelected keep manualOrder_ in step),
+    // and a path that somehow has none sorts last instead of vanishing.
+    QHash<QString, int> rank;
+    for (int i = 0; i < manualOrder_.size(); ++i) rank.insert(manualOrder_.at(i), i);
+    std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+      return rank.value(inputs_.at(a), count) < rank.value(inputs_.at(b), count);
+    });
+  } else {
+    // Pre-compute every key once: the comparator runs O(n log n) times and a
+    // QFileInfo or a GIF header walk inside it would make a 500-file sort slow.
+    QVector<qint64> sizes(count, 0);
+    QVector<qint64> modified(count, 0);
+    QVector<int> frames(count, 0);
+    QVector<qint64> durations(count, 0);
+    QVector<QString> names(count);
+    for (int i = 0; i < count; ++i) {
+      const QFileInfo fi(inputs_.at(i));
+      names[i] = fi.fileName();
+      sizes[i] = fi.size();
+      modified[i] = fi.lastModified().toSecsSinceEpoch();
+      const gs::GifFacts facts = factsFor(inputs_.at(i));
+      frames[i] = facts.ok ? facts.frames : 0;
+      durations[i] = facts.ok ? facts.duration_ms : 0;
+    }
+    const bool ascending = queueSortAscending_;
+    const int key = queueSortKey_;
+    std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+      int cmp = 0;
+      switch (key) {
+        case SortName:
+          cmp = QString::compare(names[a], names[b], Qt::CaseInsensitive);
+          break;
+        case SortSize:
+          cmp = sizes[a] < sizes[b] ? -1 : (sizes[a] > sizes[b] ? 1 : 0);
+          break;
+        case SortModified:
+          cmp = modified[a] < modified[b] ? -1 : (modified[a] > modified[b] ? 1 : 0);
+          break;
+        case SortFrames:
+          cmp = frames[a] < frames[b] ? -1 : (frames[a] > frames[b] ? 1 : 0);
+          break;
+        case SortDuration:
+          cmp = durations[a] < durations[b] ? -1 : (durations[a] > durations[b] ? 1 : 0);
+          break;
+        default:
+          break;
+      }
+      // Ties keep INSERTION order in both directions: a reversed tie-break
+      // would silently reshuffle equal files when the user flips the arrow,
+      // and Merge order is the output order.
+      if (cmp == 0) return a < b;
+      return ascending ? cmp < 0 : cmp > 0;
+    });
+  }
+
+  // Rebuild BOTH halves of the queue in one move: inputs_ (the engine's order)
+  // and the widget's items. Taking the items out first keeps them alive across
+  // the re-add, so icons, facts and the selection's identity survive.
+  const QString keepSelected = selectedInput();
+  QVector<QListWidgetItem*> items;
+  items.reserve(count);
+  while (inputList_->count() > 0) items.append(inputList_->takeItem(0));
+
+  QStringList reordered;
+  reordered.reserve(count);
+  for (int i : order) reordered << inputs_.at(i);
+  inputs_ = reordered;
+  for (int i : order) inputList_->addItem(items.at(i));
+
+  const int restored = inputs_.indexOf(keepSelected);
+  if (restored >= 0) inputList_->setCurrentRow(restored);
+  lastOutputPaths_.clear();
+  refreshQueueLabel();
+  refreshCommand();
+  refreshOutputSummary();
+  updateQueueDetails();
+}
+
+void MainWindow::applyQueueFilter() {
+  if (!inputList_) return;
+  const QString needle =
+      queueFilterEdit_ ? queueFilterEdit_->text().trimmed() : QString();
+  int visible = 0;
+  int firstVisible = -1;
+  for (int i = 0; i < inputList_->count(); ++i) {
+    QListWidgetItem* item = inputList_->item(i);
+    if (!item) continue;
+    const QString path = item->data(Qt::UserRole).toString();
+    const bool match =
+        needle.isEmpty() || item->text().contains(needle, Qt::CaseInsensitive) ||
+        path.contains(needle, Qt::CaseInsensitive);
+    item->setHidden(!match);
+    if (match) {
+      ++visible;
+      if (firstVisible < 0) firstVisible = i;
+    }
+  }
+  // Never leave the selection on a hidden row: the preview and the facts strip
+  // would describe a file the user cannot see.
+  QListWidgetItem* current = inputList_->currentItem();
+  if (current && current->isHidden() && firstVisible >= 0) {
+    inputList_->setCurrentRow(firstVisible);
+  }
+  if (visible == 0 && !needle.isEmpty()) {
+    queueSelectionDetails_->setText(
+        QStringLiteral("No queued file matches \"%1\"").arg(needle));
+  } else {
+    updateQueueDetails();
+  }
+  refreshQueueLabel();
 }
 
 void MainWindow::chooseInputs() {
@@ -757,6 +1179,33 @@ void MainWindow::chooseInputs() {
       this, QStringLiteral("Open GIF files"), QString(),
       QStringLiteral("GIF files (*.gif *.GIF);;All files (*)"));
   if (!files.isEmpty()) appendInputs(files);
+}
+
+void MainWindow::chooseInputFolder() {
+  // Slice C. The reference's "Add folder…" is a convenience for selecting a
+  // batch of files, so it must not become a second, looser input path: every
+  // entry goes through appendInputs(), i.e. through gs::admit_input(). One
+  // level only — walking sub-folders silently would queue files the user did
+  // not see, and this queue's ORDER is meaningful (Merge concatenates in it).
+  const QString dir = QFileDialog::getExistingDirectory(
+      this, QStringLiteral("Add every GIF in a folder"), QString());
+  if (dir.isEmpty()) return;
+  const QDir folder(dir);
+  QStringList files;
+  const auto entries = folder.entryInfoList(QDir::Files | QDir::Readable, QDir::Name);
+  for (const QFileInfo& entry : entries) {
+    // The SUFFIX is only a pre-filter to keep the walk cheap; the bytes still
+    // decide (a .gif that is really a JPEG is refused downstream, and a GIF
+    // named oddly inside the folder is simply not picked up by this shortcut).
+    if (entry.suffix().compare(QStringLiteral("gif"), Qt::CaseInsensitive) == 0) {
+      files << entry.absoluteFilePath();
+    }
+  }
+  if (files.isEmpty()) {
+    updateStatus(QStringLiteral("No .gif files in %1").arg(QDir::toNativeSeparators(dir)));
+    return;
+  }
+  appendInputs(files);
 }
 
 void MainWindow::onFilesDropped(const QStringList& files) {
@@ -782,7 +1231,10 @@ void MainWindow::removeSelected() {
   std::sort(rows.begin(), rows.end(), std::greater<int>());
   lastOutputPaths_.clear();
   for (int row : rows) {
-    if (row >= 0 && row < inputs_.size()) inputs_.removeAt(row);
+    if (row >= 0 && row < inputs_.size()) {
+      manualOrder_.removeAll(inputs_.at(row));
+      inputs_.removeAt(row);
+    }
     delete inputList_->takeItem(row);
   }
   runButton_->setEnabled(!busy_ && !inputs_.isEmpty() && ensureEngine());
@@ -797,6 +1249,13 @@ void MainWindow::clearQueue() {
   lastOutputPaths_.clear();
   inputs_.clear();
   inputList_->clear();
+  factsCache_.clear();
+  thumbCache_.clear();
+  manualOrder_.clear();
+  if (queueFilterEdit_) {
+    QSignalBlocker blocker(queueFilterEdit_);  // no filter pass over an empty list
+    queueFilterEdit_->clear();
+  }
   runButton_->setEnabled(false);
   refreshQueueLabel();
   updateStatus(QStringLiteral("Queue cleared."));
@@ -982,6 +1441,13 @@ void MainWindow::moveCurrent(int delta) {
   lastOutputPaths_.clear();
   QListWidgetItem* item = inputList_->takeItem(row);
   if (!item) return;
+  // Keep the manual order in step even while a sort is active: a move the user
+  // performed is intent, and "Queue order" must not undo it later.
+  const int manualRow = manualOrder_.indexOf(inputs_.at(row));
+  const int manualTarget = manualOrder_.indexOf(inputs_.at(target));
+  if (manualRow >= 0 && manualTarget >= 0 && manualRow != manualTarget) {
+    manualOrder_.move(manualRow, manualTarget);
+  }
   inputList_->insertItem(target, item);
   // Keep inputs_ index-aligned with the list rows.
   const QString path = inputs_.takeAt(row);
@@ -1270,6 +1736,15 @@ void MainWindow::setBusy(bool busy) {
   clearButton_->setEnabled(!busy);
   moveUpButton_->setEnabled(!busy);
   moveDownButton_->setEnabled(!busy);
+  // Slice C: the queue's shape is part of the RUN's plan, so the controls that
+  // change it (add from a folder, filter, sort) are locked with Remove/Clear.
+  // Filtering is a view, but a filter that hides a file mid-run and reorders
+  // nothing still invites the reading that the run lost it.
+  if (addFolderButton_) addFolderButton_->setEnabled(!busy);
+  if (queueFilterEdit_) queueFilterEdit_->setEnabled(!busy);
+  for (QToolButton* button : sortButtons_) {
+    if (button) button->setEnabled(!busy);
+  }
   settingsPanel_->setEnabled(!busy);
   // Audit U-45 / P1-23: lock the WHOLE output group, Browse buttons included.
   // Disabling only the text fields left a hole: a picker dialog can still call
@@ -1907,6 +2382,7 @@ QString MainWindow::selectedInput() const {
 void MainWindow::onSelectionChanged() {
   forcePreview_ = false;
   const QString sel = selectedInput();
+  updateQueueDetails();
   previewPanel_->setBefore(sel);
   previewPanel_->clearAfter(sel.isEmpty() ? QStringLiteral("select a file to preview")
                                           : QStringLiteral("waiting for changes…"));

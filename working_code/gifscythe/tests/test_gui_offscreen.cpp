@@ -91,6 +91,7 @@
 #include <QIODevice>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListView>
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QMessageBox>
@@ -109,6 +110,7 @@
 #include <QTemporaryDir>
 #include <QThread>
 #include <QTimer>
+#include <QToolButton>
 #include <QUrl>
 
 #include <chrono>
@@ -2769,6 +2771,104 @@ int main(int argc, char** argv) {
     CHECK_MSG(!QFileInfo::exists(r1 + QStringLiteral(".gs-partial")),
               "a refused run wrote nothing");
     delete w3;
+    g_dialogs.clear();
+  }
+
+  // ========== T28: Input grid - thumbnails, facts, filter, sort (slice C) ===
+  //
+  // Slice C replaced the flat queue list with the reference's thumbnail grid
+  // and gave it the animation columns the reference does not have. The points
+  // worth pinning are the ones a screenshot cannot prove:
+  //   * a cell carries a decoded thumbnail (not an empty box),
+  //   * the caption states frames/duration, read from the BYTES,
+  //   * filtering HIDES and never drops a queued file,
+  //   * sorting reorders the REAL queue (Merge order), and "Queue order"
+  //     restores the manual order a sort displaced.
+  {
+    g_stage = "T28"; std::printf("== T28 Input grid (slice C) ==\n");
+    QTemporaryDir tmp;
+    const QString still = tmp.path() + QStringLiteral("/grid_still.gif");   // 1 frame
+    const QString anim = tmp.path() + QStringLiteral("/grid_anim.gif");     // 12 frames
+    const QString anim2 = tmp.path() + QStringLiteral("/grid_anim2.gif");   // 12 frames
+    CHECK(copyFile(logo1, still));
+    CHECK(copyFile(logo, anim));
+    CHECK(copyFile(logo, anim2));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {still, anim});
+    CHECK_MSG(x.list->count() == 2, "two files queued into the grid");
+
+    // ---- the grid is a grid ----
+    auto* view = qobject_cast<QListView*>(x.list);
+    CHECK_MSG(view && view->viewMode() == QListView::IconMode,
+              "the queue is an icon grid, not a text list");
+    CHECK_MSG(!x.list->item(0)->icon().isNull(), "cell 0 has a thumbnail");
+    CHECK_MSG(!x.list->item(1)->icon().isNull(), "cell 1 has a thumbnail");
+
+    // ---- the caption states the animation facts ----
+    CHECK_MSG(x.list->item(0)->text().contains(QStringLiteral("1 frame")),
+              "a single-frame GIF says '1 frame'");
+    CHECK_MSG(x.list->item(1)->text().contains(QStringLiteral("12 frames")),
+              "a 12-frame GIF says '12 frames'");
+    CHECK_MSG(x.list->item(1)->text().contains(QStringLiteral("2.40 s")),
+              "the caption carries the duration read from the GCE delays");
+    CHECK_MSG(x.list->item(1)->toolTip().contains(anim),
+              "the tooltip keeps the full path the caption elides");
+    CHECK_MSG(x.list->item(1)->toolTip().contains(QStringLiteral("loops forever")),
+              "the tooltip carries the loop count");
+
+    // ---- the facts strip follows the selection ----
+    x.list->setCurrentRow(1);
+    spinEvents(30);
+    auto* details = byName<QLabel>(w, "queueSelectionDetails");
+    CHECK(details != nullptr);
+    CHECK_MSG(details && details->text().contains(QStringLiteral("12 frame(s)")),
+              "the facts strip describes the selected file");
+    CHECK_MSG(details && details->text().contains(QStringLiteral("fps")),
+              "the facts strip carries fps");
+
+    // ---- Quick filter hides, never removes, and says so ----
+    auto* filter = byName<QLineEdit>(w, "queueFilterEdit");
+    CHECK_MSG(filter != nullptr, "the Quick filter box exists");
+    if (filter) {
+      filter->setText(QStringLiteral("still"));
+      spinEvents(30);
+      CHECK_MSG(x.list->count() == 2, "filtering never drops a file from the queue");
+      CHECK(!x.list->item(0)->isHidden());
+      CHECK_MSG(x.list->item(1)->isHidden(), "a non-matching row is hidden");
+      CHECK_MSG(x.countLabel->text().contains(QStringLiteral("hidden by filter")),
+                "the count admits that rows are hidden");
+      filter->clear();
+      spinEvents(30);
+      CHECK_MSG(!x.list->item(1)->isHidden(), "clearing the filter shows every row again");
+    }
+
+    // ---- sorting reorders the REAL queue ----
+    auto* sortFrames = byName<QToolButton>(w, "sortFrames");
+    auto* sortQueue = byName<QToolButton>(w, "sortQueueOrder");
+    CHECK_MSG(sortFrames && sortQueue, "the sort header exists");
+    dropFiles(w, {anim2});
+    CHECK(x.list->count() == 3);
+    if (sortFrames && sortQueue) {
+      sortFrames->click();  // ascending: 1 frame first, the two 12s after it
+      spinEvents(30);
+      CHECK_MSG(rowPath(x.list, 0) == still, "ascending by frames puts the 1-frame file first");
+      sortFrames->click();  // descending
+      spinEvents(30);
+      CHECK_MSG(rowPath(x.list, 0) == anim && rowPath(x.list, 1) == anim2,
+                "a second click flips the direction and keeps insertion order for ties");
+      sortQueue->click();  // back to the order the user built
+      spinEvents(30);
+      CHECK_MSG(rowPath(x.list, 0) == still && rowPath(x.list, 1) == anim &&
+                    rowPath(x.list, 2) == anim2,
+                "Queue order restores the manual order a sort displaced");
+    }
+
+    // ---- Add folder… goes through the same admission rule ----
+    auto* addFolder = byName<QPushButton>(w, "addFolderButton");
+    CHECK_MSG(addFolder != nullptr, "Add folder exists");
+    delete w;
     g_dialogs.clear();
   }
 
