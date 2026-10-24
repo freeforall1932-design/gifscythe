@@ -647,7 +647,8 @@ int main(int argc, char** argv) {
       // find them). The Input title carries its count.
       CHECK(x.tabs->count() == 6);
       CHECK(x.tabs->tabText(0) == QStringLiteral("Input: 0 file(s)"));
-      CHECK(x.tabs->tabText(1) == QStringLiteral("Actions"));
+      // Slice D: the Actions title carries the reference's counter.
+      CHECK(x.tabs->tabText(1) == QStringLiteral("Actions [8/8]"));
       CHECK(x.tabs->tabText(2) == QStringLiteral("Output"));
       CHECK(x.tabs->tabText(3) == QStringLiteral("Status"));
       CHECK(x.tabs->tabText(4) == QStringLiteral("Settings"));
@@ -3109,6 +3110,8 @@ int main(int argc, char** argv) {
                     !paneText().contains(QStringLiteral("-d 7")),
                 "an empty stack sends no action flags at all");
     }
+    w->close();  // closeEvent -> saveSessionState (delete alone never closes)
+    spinEvents(20);
     delete w;
     g_dialogs.clear();
   }
@@ -3143,7 +3146,9 @@ int main(int argc, char** argv) {
       CHECK(rm != nullptr);
       if (rm) rm->click();
       spinEvents(20);
-      delete w;  // closeEvent -> saveSessionState
+      w->close();  // closeEvent -> saveSessionState (delete alone never closes)
+      spinEvents(30);
+      delete w;
     }
     CHECK_MSG(QFileInfo::exists(cfgPath), "the session file was written");
     {
@@ -3184,6 +3189,8 @@ int main(int argc, char** argv) {
       CHECK_MSG(byName<QPlainTextEdit>(w, "commandPane")->toPlainText().contains(
                     QStringLiteral("--lossy=40")),
                 "re-enabling it brings its options back");
+      w->close();
+      spinEvents(20);
       delete w;
       g_dialogs.clear();
     }

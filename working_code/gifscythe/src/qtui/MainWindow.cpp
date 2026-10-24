@@ -214,11 +214,17 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     schedulePreview();
   });
   // Slice D: the Actions tab carries "Actions [enabled/total]" in its title, the
-  // way the reference does. A card being added, removed or switched off is not a
-  // settings change (a disabled card contributes defaults), so it gets its own
-  // signal instead of riding on changed().
-  connect(settingsPanel_, &SettingsPanel::actionCountsChanged, this,
-          [this]() { refreshTabTitles(); });
+  // way the reference does, and adding/removing/disabling a card DOES change the
+  // generated command (a card that is out or off contributes defaults), so this
+  // signal refreshes the same three surfaces changed() does - plus the title.
+  connect(settingsPanel_, &SettingsPanel::actionCountsChanged, this, [this]() {
+    forcePreview_ = false;
+    lastOutputPaths_.clear();
+    refreshCommand();
+    refreshOutputSummary();
+    schedulePreview();
+    refreshTabTitles();
+  });
   connect(outputEdit_, &QLineEdit::textChanged, this, [this]() {
     lastOutputPaths_.clear();
     refreshCommand();
