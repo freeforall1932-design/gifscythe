@@ -11,7 +11,27 @@ Based on `main` commit `9629d49` (**S41 re-anchor:** the owner's 2026-10-20 "Add
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-### S41 — what just changed (current session)
+### S43 — what just changed (current session)
+
+Slice **D** of the UI route. The owner asked for the real program to be researched tab by tab
+*before* implementing, and for the result to use ScreenToGif's deployed encoder functions: both are
+recorded in `docs/planning/XN_CONVERT_TABS_RESEARCH.md` (per tab: `[OBS]` XnConvert, `[SRC]`
+ScreenToGif, `[PLAN]` this app, plus the 1:1/divergence table) and summarised as `N-60`.
+
+- **The Actions tab is now the reference's card stack** — `actionCard_0..7`, each with a fold
+  chevron, `-` (remove), `↺` (reset) and `Enabled`, over the untouched controls; toolbar
+  `Add action >` / `Actions [on/total]` / `Clear all`; the same counter in the tab title.
+- **Disabled means absent from the command, not greyed out**: `writeInto()` substitutes the defaults
+  of an out-or-off card's fields, and `writeSessionInto()` keeps the values so a restart does not
+  silently change the job. Removing parks the body instead of deleting it, so `Add action >`
+  restores the same widgets with their values.
+- **Persistence:** `card_state = id:present:enabled:collapsed;…` in the session file and in every
+  preset (a preset is an action set).
+- **Proof:** T30 + T30b offscreen (325 → 331 `CHECK(`), `qt_lint` 7/0 exit 0, `build.sh`
+  421/35/54 unit checks. **No Qt SDK here — CI is the only compiler, and the owner reviews the UI
+  before any merge.**
+
+### S41 — what just changed (S41; kept for the written history)
 
 The consolidated external audit's ten easiest-to-prove findings were worked
 easiest-first, with the two that move a gate or an engine contract held out:
@@ -524,7 +544,7 @@ Qt evidence comes from CI and is now also captured as screenshots.
   row never shows byte figures. `W-32` is PARTIAL on purpose — the Qt half is done, the web
   surface has not moved. `N-57`: the four reference screenshots are committed under
   `docs/planning/reference/` (`OD-22 = yes`, explicit `N-36` exception).
-- **Register:** 192 DONE · 8 PARTIAL · 14 OPEN · 0 UNTRIAGED · 214 total (at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 193 DONE · 8 PARTIAL · 14 OPEN · 0 UNTRIAGED · 215 total (at S43 start: 192/8/14/0/214; at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -1536,8 +1556,8 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 192 DONE · 8 PARTIAL · 14 OPEN · 0
-   UNTRIAGED · 214 total — but `STATUS.md` itself always wins; sweep rule S2
+   its generated counts line (currently: 193 DONE · 8 PARTIAL · 14 OPEN · 0
+   UNTRIAGED · 215 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the

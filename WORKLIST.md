@@ -463,6 +463,13 @@ Still open from the audit intake (state lives in `STATUS.md`):
    with the seeded engine-oracle matrix. The remaining doc-machine rows are
    U-88/P2-21 + U-89/P2-22 (they edit gate logic, so they are R1 work and need
    mutation testing).
+8. **The UI-parity route** (`docs/planning/XN_CONVERT_REFERENCE.md` §7, researched in
+   `XN_CONVERT_TABS_RESEARCH.md`): slices **A + B + F** (Status tab, tab titles/Settings, Convert/Stop)
+   landed S41, **C** (Input grid) S42, **E** (Output form + honest Format selector) and **D** (Actions
+   card stack, `N-60`) S43. **What is left on this route is the owner's UI review, then nothing —
+   unless he asks for the FFmpeg sidecar**, which is the only way APNG/WebP/MP4/WebM stop being
+   listed-but-disabled (no ffmpeg in the agent sandbox; the encoder recipes are frozen in the
+   research doc §3.1).
 7. **Owner decisions** — `docs/planning/OWNER_DECISIONS.md`: remaining
    OD-03…OD-07, OD-10, OD-13…OD-16 (OD-16 blocks `web/wasm/`). **OD-18 was
    answered `= a` in S37** — the un-prefixed CLI explode keeps writing into the

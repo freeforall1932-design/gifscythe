@@ -76,6 +76,7 @@
 #include "core/version.h"
 
 #include <QAbstractItemModel>
+#include <QAction>
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
@@ -96,6 +97,7 @@
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QMessageBox>
+#include <QMenu>
 #include <QMimeData>
 #include <QMovie>
 #include <QPlainTextEdit>
@@ -2947,6 +2949,244 @@ int main(int argc, char** argv) {
               "the per-format Settings… button exists");
     delete w;
     g_dialogs.clear();
+  }
+
+  // ========== T30: the Actions stack - cards, disable, reset, remove (D) ===
+  //
+  // Slice D copies the reference's Actions tab: one COLLAPSIBLE card per action,
+  // each with `-` (remove from the stack), `↺` (reset), and an Enabled box, plus
+  // `Add action >`, `Clear all` and an `Actions [on/total]` counter that also
+  // rides in the tab title. The points a screenshot cannot prove:
+  //   * a disabled card contributes NOTHING to the command (it is not merely
+  //     greyed out), and re-enabling restores it,
+  //   * `-` removes the card from the stack while the action's values survive,
+  //   * `↺` restores that one card's defaults and leaves the others alone,
+  //   * the stack survives a restart, values included.
+  {
+    g_stage = "T30"; std::printf("== T30 action stack (slice D) ==\n");
+    QTemporaryDir tmp;
+    const QString a = tmp.path() + QStringLiteral("/card.gif");
+    CHECK(copyFile(logo, a));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    dropFiles(w, {a});
+    spinEvents(50);
+
+    auto* addBtn = byName<QToolButton>(w, "addActionButton");
+    auto* clearBtn = byName<QToolButton>(w, "clearActionsButton");
+    auto* counter = byName<QLabel>(w, "actionsCountLabel");
+    CHECK_MSG(addBtn && clearBtn && counter,
+              "the Actions toolbar exists (Add action > / Clear all / counter)");
+    CHECK_MSG(counter && counter->text() == QStringLiteral("Actions [8/8]"),
+              "every action starts in the stack and enabled");
+    CHECK_MSG(x.tabs && x.tabs->tabText(1) == QStringLiteral("Actions [8/8]"),
+              "the tab title carries the count, like the reference");
+
+    // ---- every card has the reference's four affordances ----
+    bool allHeaders = true;
+    for (int id = 0; id < 8; ++id) {
+      auto* c = byName<QWidget>(w, QStringLiteral("actionCard_%1").arg(id));
+      if (!c ||
+          !c->findChild<QToolButton*>(QStringLiteral("actionCardChevron_%1").arg(id)) ||
+          !c->findChild<QToolButton*>(QStringLiteral("actionCardRemove_%1").arg(id)) ||
+          !c->findChild<QToolButton*>(QStringLiteral("actionCardReset_%1").arg(id)) ||
+          !c->findChild<QCheckBox*>(QStringLiteral("actionCardEnabled_%1").arg(id))) {
+        allHeaders = false;
+      }
+    }
+    CHECK_MSG(allHeaders, "each card has chevron / minus / reset / Enabled");
+
+    auto* optimizeCard = byName<QWidget>(w, "actionCard_1");
+    auto* optimizeGroup = byName<QWidget>(w, "optimizeGroup");
+    auto* enabledBox =
+        optimizeCard ? optimizeCard->findChild<QCheckBox*>("actionCardEnabled_1") : nullptr;
+    auto* resetBtn =
+        optimizeCard ? optimizeCard->findChild<QToolButton*>("actionCardReset_1") : nullptr;
+    auto* removeBtn =
+        optimizeCard ? optimizeCard->findChild<QToolButton*>("actionCardRemove_1") : nullptr;
+    auto* chevron =
+        optimizeCard ? optimizeCard->findChild<QToolButton*>("actionCardChevron_1") : nullptr;
+    CHECK_MSG(optimizeCard && optimizeGroup && enabledBox && resetBtn && removeBtn && chevron,
+              "the Optimize action is a card with live controls");
+
+    const auto paneText = [&x]() { return x.pane->toPlainText(); };
+
+    // ---- collapse hides the body, and only the body ----
+    if (chevron && optimizeGroup) {
+      chevron->click();
+      spinEvents(20);
+      CHECK_MSG(optimizeGroup->isHidden(), "the chevron folds the card's body away");
+      CHECK_MSG(paneText().contains(QStringLiteral("-O3")),
+                "a folded card still contributes to the command");
+      chevron->click();
+      spinEvents(20);
+      CHECK_MSG(!optimizeGroup->isHidden(), "a second click unfolds it");
+    }
+
+    // ---- Enabled: off contributes NOTHING, on restores everything ----
+    x.optimize->setValue(2);
+    x.lossy->setValue(40);
+    byName<QCheckBox>(w, "delayCheck")->setChecked(true);
+    byName<QSpinBox>(w, "delaySpin")->setValue(7);
+    spinEvents(30);
+    CHECK_MSG(paneText().contains(QStringLiteral("-O2")), "the Optimize card is in the command");
+    CHECK_MSG(paneText().contains(QStringLiteral("--lossy=40")), "lossy is in the command");
+    if (enabledBox) {
+      enabledBox->setChecked(false);
+      spinEvents(30);
+      CHECK_MSG(!paneText().contains(QStringLiteral("-O2")),
+                "a disabled card leaves the command (no -O)");
+      CHECK_MSG(!paneText().contains(QStringLiteral("--lossy=40")),
+                "a disabled card leaves the command (no --lossy)");
+      CHECK_MSG(paneText().contains(QStringLiteral("-d 7")),
+                "the OTHER cards still contribute");
+      CHECK_MSG(counter && counter->text() == QStringLiteral("Actions [7/8]"),
+                "the counter counts enabled cards");
+      CHECK_MSG(x.tabs && x.tabs->tabText(1) == QStringLiteral("Actions [7/8]"),
+                "the tab title follows the counter");
+      enabledBox->setChecked(true);
+      spinEvents(30);
+      CHECK_MSG(paneText().contains(QStringLiteral("-O2")),
+                "re-enabling restores the card's options");
+    }
+
+    // ---- reset restores THIS card's defaults and nobody else's ----
+    if (resetBtn) {
+      resetBtn->click();
+      spinEvents(30);
+      CHECK_MSG(x.optimize->value() == 3, "reset restores the Optimize default (-O3)");
+      CHECK_MSG(x.lossy->value() == 0, "reset clears lossy");
+      CHECK_MSG(paneText().contains(QStringLiteral("-O3")), "the command shows the default");
+      CHECK_MSG(!paneText().contains(QStringLiteral("--lossy")), "lossy is gone");
+      CHECK_MSG(paneText().contains(QStringLiteral("-d 7")),
+                "reset does not touch the Animation card (the value the user typed)");
+    }
+
+    // ---- minus removes the card, and the action keeps its values ----
+    if (removeBtn && optimizeGroup) {
+      removeBtn->click();
+      spinEvents(30);
+      CHECK_MSG(counter && counter->text() == QStringLiteral("Actions [7/7]"),
+                "removing a card shrinks the stack");
+      CHECK_MSG(optimizeGroup->isHidden(), "a removed card's body leaves the stack");
+      CHECK_MSG(!paneText().contains(QStringLiteral("-O3")),
+                "a removed card contributes nothing");
+      CHECK_MSG(paneText().contains(QStringLiteral("-d 7")),
+                "removing one card leaves the others alone");
+
+      // Add it back through the reference's menu.
+      if (addBtn && addBtn->menu()) {
+        QMenu* menu = addBtn->menu();
+        QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+        QAction* reAdd = nullptr;
+        for (QAction* act : menu->actions()) {
+          if (act->text().startsWith(QStringLiteral("Optimize"))) reAdd = act;
+        }
+        CHECK_MSG(reAdd != nullptr, "the Add action menu offers the removed action again");
+        if (reAdd) {
+          reAdd->trigger();
+          spinEvents(30);
+          CHECK_MSG(counter && counter->text() == QStringLiteral("Actions [8/8]"),
+                    "adding it back restores the stack");
+          CHECK_MSG(!optimizeGroup->isHidden(), "the card is visible again");
+          CHECK_MSG(paneText().contains(QStringLiteral("-O3")),
+                    "the action comes back with the values it had (no silent reset)");
+        }
+      }
+    }
+
+    // ---- Clear all empties the stack, honestly ----
+    if (clearBtn) {
+      clearBtn->click();
+      spinEvents(30);
+      CHECK_MSG(counter && counter->text() == QStringLiteral("Actions [0/0]"),
+                "Clear all empties the stack");
+      CHECK_MSG(x.tabs && x.tabs->tabText(1) == QStringLiteral("Actions [0/0]"),
+                "the tab title follows Clear all");
+      CHECK_MSG(!paneText().contains(QStringLiteral("-O3")) &&
+                    !paneText().contains(QStringLiteral("-d 7")),
+                "an empty stack sends no action flags at all");
+    }
+    delete w;
+    g_dialogs.clear();
+  }
+
+  // ---- T30b: the stack survives a restart, values included ----
+  {
+    g_stage = "T30b"; std::printf("== T30b action stack persistence ==\n");
+    const QByteArray prevEnv = qgetenv("GS_SETTINGS_PATH");
+    QTemporaryDir cfg;
+    CHECK(cfg.isValid());
+    const QString cfgPath = cfg.path() + QStringLiteral("/gifscythe.conf");
+    qputenv("GS_SETTINGS_PATH", QFile::encodeName(cfgPath));
+    QTemporaryDir media;
+    CHECK(media.isValid());
+    const QString a = media.path() + QStringLiteral("/persist.gif");
+    CHECK(copyFile(logo, a));
+
+    {
+      MainWindow* w = makeWindow();
+      spinEvents(20);
+      dropFiles(w, {a});
+      spinEvents(30);
+      auto* card = byName<QWidget>(w, "actionCard_1");
+      auto* box = card ? card->findChild<QCheckBox*>("actionCardEnabled_1") : nullptr;
+      CHECK(box != nullptr);
+      if (box) box->setChecked(false);  // Optimize off
+      spinEvents(20);
+      byName<QSpinBox>(w, "optimizeSpin")->setValue(2);
+      byName<QSpinBox>(w, "lossySpin")->setValue(40);
+      spinEvents(20);
+      auto* rm = byName<QToolButton>(w, "actionCardRemove_2");  // drop Resize
+      CHECK(rm != nullptr);
+      if (rm) rm->click();
+      spinEvents(20);
+      delete w;  // closeEvent -> saveSessionState
+    }
+    CHECK_MSG(QFileInfo::exists(cfgPath), "the session file was written");
+    {
+      QFile f(cfgPath);
+      QString conf;
+      if (f.open(QIODevice::ReadOnly)) conf = QString::fromUtf8(f.readAll());
+      CHECK_MSG(conf.contains(QStringLiteral("card_state = ")),
+                "the session file carries the card stack");
+      CHECK_MSG(conf.contains(QStringLiteral("1:1:0:0")),
+                "card 1 is present but switched off in the saved stack");
+      CHECK_MSG(conf.contains(QStringLiteral("2:0:0:0")),
+                "card 2 is recorded as removed");
+      CHECK_MSG(conf.contains(QStringLiteral("lossy = 40")),
+                "a disabled card's value is in the file (off is not gone)");
+    }
+
+    {
+      MainWindow* w = makeWindow();
+      spinEvents(20);
+      dropFiles(w, {a});
+      spinEvents(30);
+      auto* card = byName<QWidget>(w, "actionCard_1");
+      auto* box = card ? card->findChild<QCheckBox*>("actionCardEnabled_1") : nullptr;
+      CHECK_MSG(box && !box->isChecked(), "the disabled card is still disabled next launch");
+      CHECK_MSG(byName<QWidget>(w, "actionCard_2") == nullptr,
+                "the removed card is still out of the stack next launch");
+      auto* counter = byName<QLabel>(w, "actionsCountLabel");
+      CHECK_MSG(counter && counter->text() == QStringLiteral("Actions [6/7]"),
+                "the counter is restored (7 cards, 6 enabled)");
+      // A disabled card's values must survive too - otherwise turning it back on
+      // next launch silently changes the job.
+      CHECK_MSG(byName<QSpinBox>(w, "optimizeSpin")->value() == 2,
+                "a disabled card keeps the values the user typed");
+      CHECK_MSG(byName<QSpinBox>(w, "lossySpin")->value() == 40,
+                "a disabled card keeps lossy too");
+      if (box) box->setChecked(true);
+      spinEvents(20);
+      CHECK_MSG(byName<QPlainTextEdit>(w, "commandPane")->toPlainText().contains(
+                    QStringLiteral("--lossy=40")),
+                "re-enabling it brings its options back");
+      delete w;
+      g_dialogs.clear();
+    }
+    qputenv("GS_SETTINGS_PATH", prevEnv);
   }
 
   std::printf("==> %d checks, %d failures\n", g_checks, g_failures);

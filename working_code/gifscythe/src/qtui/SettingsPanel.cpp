@@ -1,21 +1,27 @@
 #include "qtui/SettingsPanel.h"
 
+#include <QAction>
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QFont>
 #include <QFormLayout>
+#include <QFrame>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMenu>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QToolButton>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <vector>
 
 namespace {
@@ -56,32 +62,484 @@ QLabel* addDescription(QFormLayout* form, QWidget* parent, const QString& text,
 
 }  // namespace
 
+// ===========================================================================
+// Slice D — the action stack.
+//
+// The reference's Actions tab is a list of CARDS, and the card header is where
+// three different verbs live side by side:
+//   [v] Title            -  (reset)      [x] Enabled  v
+// `-` removes the card from the stack, `Enabled` disables it in place, and the
+// chevron collapses it. (XN_CONVERT_PROGRAM_STUDY.md 4.2/4.4 measured exactly
+// this: the `-` DELETED a card and dropped the counter to [0/0], while the
+// Enabled link kept the card and dropped the counter to [0/1].)
+//
+// Everything here is deliberately a shell around the controls that already
+// exist: the widgets, their objectNames and their tooltips are untouched, so
+// the 325 harness CHECK sites and the honesty guarantees are unchanged.
+// ===========================================================================
+
+ActionCard::ActionCard(int id, const QString& title, QWidget* parent)
+    : QWidget(parent), id_(id) {
+  auto* outer = new QVBoxLayout(this);
+  outer->setContentsMargins(0, 0, 0, 0);
+  outer->setSpacing(0);
+
+  auto* header = new QFrame(this);
+  header->setObjectName(QStringLiteral("actionCardHeader"));
+  header->setFrameShape(QFrame::StyledPanel);
+  // Palette roles only, never a literal colour: dark mode (D-06) must stay
+  // possible, and QL006 fails the gate on hard-coded hex.
+  header->setStyleSheet(QStringLiteral(
+      "QFrame#actionCardHeader { background: palette(midlight); "
+      "border: 1px solid palette(mid); }"));
+  auto* row = new QHBoxLayout(header);
+  row->setContentsMargins(4, 2, 4, 2);
+  row->setSpacing(6);
+
+  chevron_ = new QToolButton(header);
+  chevron_->setObjectName(QStringLiteral("actionCardChevron_%1").arg(id_));
+  chevron_->setAutoRaise(true);
+  chevron_->setCheckable(true);
+  chevron_->setChecked(true);
+  chevron_->setToolTip(QStringLiteral("Collapse this action"));
+  connect(chevron_, &QToolButton::toggled, this, [this](bool expanded) {
+    setCollapsed(!expanded);
+    emit collapsedChanged(id_, !expanded);
+  });
+  row->addWidget(chevron_);
+
+  titleLabel_ = new QLabel(title, header);
+  titleLabel_->setObjectName(QStringLiteral("actionCardTitle"));
+  QFont bold = titleLabel_->font();
+  bold.setBold(true);
+  titleLabel_->setFont(bold);
+  row->addWidget(titleLabel_);
+  row->addStretch();
+
+  auto* remove = new QToolButton(header);
+  remove->setObjectName(QStringLiteral("actionCardRemove_%1").arg(id_));
+  remove->setText(QStringLiteral("−"));  // the reference's minus
+  remove->setAutoRaise(true);
+  remove->setToolTip(QStringLiteral("Remove this action from the stack"));
+  connect(remove, &QToolButton::clicked, this, [this]() { emit removeRequested(id_); });
+  row->addWidget(remove);
+
+  auto* reset = new QToolButton(header);
+  reset->setObjectName(QStringLiteral("actionCardReset_%1").arg(id_));
+  reset->setText(QStringLiteral("↺"));  // the reference's reset arrow
+  reset->setAutoRaise(true);
+  reset->setToolTip(QStringLiteral("Reset this action to its defaults"));
+  connect(reset, &QToolButton::clicked, this, [this]() { emit resetRequested(id_); });
+  row->addWidget(reset);
+
+  enabledCheck_ = new QCheckBox(QStringLiteral("Enabled"), header);
+  enabledCheck_->setObjectName(QStringLiteral("actionCardEnabled_%1").arg(id_));
+  enabledCheck_->setChecked(true);
+  enabledCheck_->setToolTip(QStringLiteral(
+      "Off keeps the card on screen but leaves its options out of the command."));
+  connect(enabledCheck_, &QCheckBox::toggled, this, [this](bool on) {
+    setActionEnabled(on);
+    emit enabledChanged(id_, on);
+  });
+  row->addWidget(enabledCheck_);
+
+  outer->addWidget(header);
+  updateChevron();
+}
+
+QString ActionCard::title() const { return titleLabel_ ? titleLabel_->text() : QString(); }
+
+void ActionCard::setBody(QWidget* body) {
+  // Never destroy a previous body: its controls are the contract with the
+  // harness. Park it instead (removeCard() parents it to the panel).
+  if (body_ && body_ != body) {
+    layout()->removeWidget(body_);
+    body_->setParent(nullptr);
+    body_->hide();
+  }
+  body_ = body;
+  if (!body_) return;
+  // The group box keeps its own title OUT of sight: the header above already
+  // says it, and two titles stacked would look like a mistake.
+  if (auto* box = qobject_cast<QGroupBox*>(body_)) box->setTitle(QString());
+  layout()->addWidget(body_);
+  body_->setVisible(!collapsed_);
+}
+
+QWidget* ActionCard::takeBody() {
+  QWidget* body = body_;
+  body_ = nullptr;
+  if (body) {
+    body->setParent(nullptr);
+    body->hide();
+  }
+  return body;
+}
+
+bool ActionCard::actionEnabled() const {
+  return enabledCheck_ && enabledCheck_->isChecked();
+}
+
+void ActionCard::setActionEnabled(bool on) {
+  if (!enabledCheck_) return;
+  if (enabledCheck_->isChecked() != on) {
+    QSignalBlocker blocker(enabledCheck_);
+    enabledCheck_->setChecked(on);
+  }
+  // A disabled card greyed out is the reference's behaviour and the honest one:
+  // the values stay readable, they just do not reach the command.
+  if (body_) body_->setEnabled(on);
+}
+
+void ActionCard::setCollapsed(bool collapsed) {
+  collapsed_ = collapsed;
+  if (body_) body_->setVisible(!collapsed_);
+  if (chevron_ && chevron_->isChecked() == collapsed) {
+    QSignalBlocker blocker(chevron_);
+    chevron_->setChecked(!collapsed);
+  }
+  updateChevron();
+}
+
+void ActionCard::updateChevron() {
+  if (!chevron_) return;
+  chevron_->setText(collapsed_ ? QStringLiteral("▶") : QStringLiteral("▼"));
+}
+
 SettingsPanel::SettingsPanel(QWidget* parent) : QWidget(parent) {
   buildUi();
   connectChanged();
   updateModeDependentUi();
   updateResizeUi();
+  // Captured last, so it includes whatever the build/refresh passes settled on.
+  // Every card is in the stack here, so the gate inside writeInto() is a no-op.
+  writeInto(defaults_);
+  refreshActionCounts();
+}
+
+// ---------------------------------------------------------------------------
+// The stack plumbing.
+//
+// Removing a card must NOT destroy the controls inside it: their objectNames
+// are a contract with the harness, and the reference's "Add action >" puts the
+// same action back with its values intact. So a removed card hands its body
+// back and ActionCard lets go of it; the body is parked in bodies_ and only
+// re-parented when the card is added again.
+// ---------------------------------------------------------------------------
+
+ActionCard* SettingsPanel::card(int id) const {
+  return (id >= 0 && id < CardCount) ? cards_.value(id) : nullptr;
+}
+
+bool SettingsPanel::cardActive(int id) const {
+  const ActionCard* c = card(id);
+  return c != nullptr && c->actionEnabled();
+}
+
+int SettingsPanel::actionCount() const {
+  int n = 0;
+  for (int i = 0; i < CardCount; ++i) {
+    if (cards_.value(i)) ++n;
+  }
+  return n;
+}
+
+int SettingsPanel::enabledActionCount() const {
+  int n = 0;
+  for (int i = 0; i < CardCount; ++i) {
+    if (cardActive(i)) ++n;
+  }
+  return n;
+}
+
+ActionCard* SettingsPanel::addCard(int id, const QString& title, QWidget* groupBox) {
+  if (cards_.value(id)) return cards_.value(id);
+  if (id < 0 || id >= CardCount) return nullptr;
+  if (groupBox) bodies_[id] = groupBox;
+  QWidget* body = bodies_[id];
+  if (!body) return nullptr;
+
+  auto* c = new ActionCard(id, title, this);
+  c->setObjectName(QStringLiteral("actionCard_%1").arg(id));
+  c->setBody(body);
+  connect(c, &ActionCard::enabledChanged, this, [this](int, bool) {
+    refreshActionCounts();
+    emit actionCountsChanged();
+    emit changed();
+  });
+  connect(c, &ActionCard::removeRequested, this, [this](int cardId) { removeCard(cardId); });
+  connect(c, &ActionCard::resetRequested, this, [this](int cardId) { resetCard(cardId); });
+  connect(c, &ActionCard::collapsedChanged, this, [this](int, bool) {
+    emit actionCountsChanged();  // persistence piggybacks on this signal
+  });
+  cards_[id] = c;
+  // Before the trailing stretch, so the stack grows downwards like a list.
+  if (cardLayout_) {
+    cardLayout_->insertWidget(std::max(0, cardLayout_->count() - 1), c);
+  }
+  refreshActionCounts();
+  emit actionCountsChanged();
+  return c;
+}
+
+void SettingsPanel::removeCard(int id) {
+  ActionCard* c = card(id);
+  if (!c) return;
+  bodies_[id] = c->takeBody();  // keep the controls alive
+  if (bodies_[id]) {
+    // Parent it back to the panel (hidden): an unparented QWidget would leak
+    // for the lifetime of the process, and this one must survive to be added
+    // back with its values.
+    bodies_[id]->setParent(this);
+    bodies_[id]->hide();
+  }
+  cards_[id] = nullptr;
+  // Hide now: deleteLater() only runs when the event loop gets a turn, and a
+  // still-visible empty header would read as a half-removed card.
+  c->hide();
+  c->deleteLater();
+  refreshActionCounts();
+  emit actionCountsChanged();
+  emit changed();
+}
+
+void SettingsPanel::showAddActionMenu() {
+  QMenu* menu = addActionButton_ ? addActionButton_->menu() : nullptr;
+  if (!menu) return;
+  menu->clear();
+  struct Entry { int id; const char* title; const char* hint; };
+  const Entry entries[] = {
+      {CardMode, "Mode", "Batch / Merge / Explode - what the run produces"},
+      {CardOptimize, "Optimize", "Optimization level, lossy, colormap, dither"},
+      {CardResize, "Resize", "Absolute size or a scale factor, plus resampling"},
+      {CardGeometry, "Geometry", "Rotate, flip, position, interlace"},
+      {CardCrop, "Crop", "Rectangle crop, optionally keeping transparency"},
+      {CardAnimation, "Animation", "Delay, loop count, disposal, threads"},
+      {CardColors, "Colors / Transparency", "Gamma, background and transparent colour"},
+      {CardMetadata, "Metadata", "Comments, frame names, unknown extensions"},
+  };
+  for (const Entry& e : entries) {
+    const bool present = cards_.value(e.id) != nullptr;
+    QAction* act = menu->addAction(QString::fromLatin1(e.title));
+    act->setToolTip(QString::fromLatin1(e.hint));
+    act->setEnabled(!present);
+    if (present) act->setText(QStringLiteral("%1  (in the stack)").arg(QString::fromLatin1(e.title)));
+    const int id = e.id;
+    connect(act, &QAction::triggered, this, [this, id]() {
+      // The body is parked in bodies_ from the first buildUi() pass, so adding
+      // a card back restores the SAME widgets - values and objectNames alive.
+      // Deliberately NO writeInto()/readFrom() round trip: writeInto() zeroes
+      // the fields of an inactive card, so a round trip would wipe exactly the
+      // values that parking the body was meant to keep.
+      addCard(id, actionTitle(id), nullptr);
+    });
+  }
+  menu->addSeparator();
+  QAction* all = menu->addAction(QStringLiteral("Add all actions"));
+  all->setEnabled(actionCount() < CardCount);
+  connect(all, &QAction::triggered, this, [this]() {
+    for (int i = 0; i < CardCount; ++i) {
+      if (!cards_.value(i)) addCard(i, actionTitle(i), nullptr);
+    }
+  });
+}
+
+QString SettingsPanel::actionTitle(int id) {
+  switch (id) {
+    case CardMode: return QStringLiteral("Mode");
+    case CardOptimize: return QStringLiteral("Optimize");
+    case CardResize: return QStringLiteral("Resize");
+    case CardGeometry: return QStringLiteral("Geometry");
+    case CardCrop: return QStringLiteral("Crop");
+    case CardAnimation: return QStringLiteral("Animation");
+    case CardColors: return QStringLiteral("Colors / Transparency");
+    case CardMetadata: return QStringLiteral("Metadata");
+    default: return QStringLiteral("Action");
+  }
+}
+
+void SettingsPanel::refreshActionCounts() {
+  const int total = actionCount();
+  const int on = enabledActionCount();
+  if (actionsCountLabel_) {
+    actionsCountLabel_->setText(QStringLiteral("Actions [%1/%2]").arg(on).arg(total));
+  }
+}
+
+QString SettingsPanel::cardState() const {
+  // id:present:enabled:collapsed, semicolon separated. Small, and readable in
+  // the settings file, which is the point of a conf-file format.
+  QStringList parts;
+  for (int i = 0; i < CardCount; ++i) {
+    const ActionCard* c = card(i);
+    parts << QStringLiteral("%1:%2:%3:%4")
+                 .arg(i)
+                 .arg(c ? 1 : 0)
+                 .arg(c && c->actionEnabled() ? 1 : 0)
+                 .arg(c && c->isCollapsed() ? 1 : 0);
+  }
+  return parts.join(QLatin1Char(';'));
+}
+
+void SettingsPanel::setCardState(const QString& state) {
+  if (state.trimmed().isEmpty()) return;
+  // Restoring a session must not look like the user editing eight cards: no
+  // changed() storm, no preview scheduled per card. The caller refreshes once.
+  const QSignalBlocker blocker(this);
+  const QStringList parts = state.split(QLatin1Char(';'), Qt::SkipEmptyParts);
+  for (const QString& part : parts) {
+    const QStringList f = part.split(QLatin1Char(':'));
+    if (f.size() != 4) continue;
+    const int id = f.at(0).toInt();
+    if (id < 0 || id >= CardCount) continue;
+    const bool present = f.at(1) == QStringLiteral("1");
+    const bool enabled = f.at(2) == QStringLiteral("1");
+    const bool collapsed = f.at(3) == QStringLiteral("1");
+    if (present && !cards_.value(id)) addCard(id, actionTitle(id), nullptr);
+    if (!present && cards_.value(id)) removeCard(id);
+    if (cards_.value(id)) {
+      cards_.value(id)->setActionEnabled(enabled);
+      cards_.value(id)->setCollapsed(collapsed);
+    }
+  }
+  refreshActionCounts();
+}
+
+// Copy ONE card's fields between two Settings. Used twice, for the same reason:
+//   * writeInto(): a card that is removed or disabled must contribute the
+//     DEFAULT value of its fields, i.e. nothing. That is what "disabled" means.
+//   * resetCard(): the inverse - restore one card's defaults without touching
+//     the user's work in every other card.
+void SettingsPanel::copyCardFields(int id, const gs::Settings& from, gs::Settings& to) {
+  switch (id) {
+    case CardMode:
+      to.mode = from.mode;
+      to.explode_by_name = from.explode_by_name;
+      break;
+    case CardOptimize:
+      to.optimize_level = from.optimize_level;
+      to.lossy = from.lossy;
+      to.color_count = from.color_count;
+      to.dither = from.dither;
+      to.dither_method = from.dither_method;
+      to.color_method = from.color_method;
+      to.careful = from.careful;
+      break;
+    case CardResize:
+      to.resize_kind = from.resize_kind;
+      to.resize_w = from.resize_w;
+      to.resize_h = from.resize_h;
+      to.scale_x = from.scale_x;
+      to.scale_y = from.scale_y;
+      to.resize_method = from.resize_method;
+      break;
+    case CardGeometry:
+      to.rotation = from.rotation;
+      to.flip_horizontal = from.flip_horizontal;
+      to.flip_vertical = from.flip_vertical;
+      to.position_x = from.position_x;
+      to.position_y = from.position_y;
+      to.has_position = from.has_position;
+      to.interlace = from.interlace;
+      break;
+    case CardCrop:
+      to.crop = from.crop;
+      to.crop_x = from.crop_x;
+      to.crop_y = from.crop_y;
+      to.crop_w = from.crop_w;
+      to.crop_h = from.crop_h;
+      to.crop_transparency = from.crop_transparency;
+      break;
+    case CardAnimation:
+      to.delay_cs = from.delay_cs;
+      to.disposal = from.disposal;
+      to.loopcount = from.loopcount;
+      to.unoptimize = from.unoptimize;
+      to.threads = from.threads;
+      break;
+    case CardColors:
+      to.gamma_str = from.gamma_str;
+      to.gamma = from.gamma;
+      to.background = from.background;
+      to.transparent = from.transparent;
+      break;
+    case CardMetadata:
+      to.remove_comments = from.remove_comments;
+      to.remove_names = from.remove_names;
+      to.remove_extensions = from.remove_extensions;
+      to.comments = from.comments;
+      break;
+    default:
+      break;
+  }
+}
+
+void SettingsPanel::resetCard(int id) {
+  // Read EVERY control (not just the active cards) so that resetting one card
+  // cannot quietly wipe the values parked in a removed or disabled one.
+  gs::Settings current;
+  writeAllInto(current);
+  copyCardFields(id, defaults_, current);
+  readFrom(current);
+  emit changed();
 }
 
 void SettingsPanel::buildUi() {
   auto* outer = new QVBoxLayout(this);
   outer->setContentsMargins(0, 0, 0, 0);
 
+  cards_.fill(nullptr, CardCount);
+  bodies_.fill(nullptr, CardCount);
+
   auto* scroll = new QScrollArea(this);
+  actionsScroll_ = scroll;
   scroll->setObjectName(QStringLiteral("actionsScroll"));
   scroll->setWidgetResizable(true);
   scroll->setFrameShape(QFrame::NoFrame);
   auto* content = new QWidget(scroll);
   auto* lay = new QVBoxLayout(content);
 
+  // ---- toolbar (the reference: "Add action >" left, "Clear all" right) ----
+  auto* toolbar = new QHBoxLayout();
+  addActionButton_ = new QToolButton(content);
+  addActionButton_->setObjectName(QStringLiteral("addActionButton"));
+  addActionButton_->setText(QStringLiteral("Add action >"));
+  addActionButton_->setPopupMode(QToolButton::InstantPopup);
+  addActionButton_->setToolTip(QStringLiteral(
+      "Put an action back into the stack. Removing a card never loses its settings."));
+  auto* addMenu = new QMenu(addActionButton_);
+  addMenu->setObjectName(QStringLiteral("addActionMenu"));
+  addMenu->setToolTipsVisible(true);
+  addActionButton_->setMenu(addMenu);
+  connect(addMenu, &QMenu::aboutToShow, this, [this, addMenu]() { showAddActionMenu(); (void)addMenu; });
+  toolbar->addWidget(addActionButton_);
+
+  actionsCountLabel_ = new QLabel(content);
+  actionsCountLabel_->setObjectName(QStringLiteral("actionsCountLabel"));
+  toolbar->addWidget(actionsCountLabel_);
+  toolbar->addStretch();
+
+  auto* clearAll = new QToolButton(content);
+  clearAll->setObjectName(QStringLiteral("clearActionsButton"));
+  clearAll->setText(QStringLiteral("Clear all"));
+  clearAll->setToolTip(QStringLiteral("Remove every action from the stack"));
+  connect(clearAll, &QToolButton::clicked, this, [this]() {
+    for (int i = 0; i < CardCount; ++i) {
+      if (cards_.value(i)) removeCard(i);
+    }
+  });
+  toolbar->addWidget(clearAll);
+  lay->addLayout(toolbar);
+
   auto* intro = new QLabel(QStringLiteral(
-      "Actions are grouped by purpose. Start with Optimize level and Lossy compression; "
-      "leave the other groups at their defaults until you need them. Hovering a control "
-      "still shows the exact gifsicle option."), content);
+      "One card per action. Drag-free ordering: gifsicle applies these in a fixed pipeline, so the "
+      "stack order is the engine order and the UI does not pretend otherwise. Hover a control for "
+      "the exact gifsicle option."), content);
   intro->setObjectName(QStringLiteral("actionsIntro"));
   intro->setWordWrap(true);
   intro->setTextFormat(Qt::PlainText);
   lay->addWidget(intro);
+  cardLayout_ = lay;
 
   // ================= Mode =================
   QFormLayout* form = nullptr;
@@ -113,7 +571,7 @@ void SettingsPanel::buildUi() {
   addDescription(form, modeBox,
                  QStringLiteral("-E keeps names already stored inside a GIF. It does not invent names for unnamed frames."),
                  QStringLiteral("explodeDescription"));
-  lay->addWidget(modeBox);
+  addCard(CardMode, QStringLiteral("Mode"), modeBox);
 
   // ================= Optimize / quantize =================
   auto* optBox = makeGroup(QStringLiteral("Optimize"), QStringLiteral("optimizeGroup"), &form);
@@ -199,7 +657,7 @@ void SettingsPanel::buildUi() {
                  QStringLiteral("Careful favors compatibility with older or strict GIF players over the smallest "
                                 "possible output."),
                  QStringLiteral("carefulDescription"));
-  lay->addWidget(optBox);
+  addCard(CardOptimize, QStringLiteral("Optimize"), optBox);
 
   // ================= Resize / scale =================
   auto* resizeBox = makeGroup(QStringLiteral("Resize / Scale"), QStringLiteral("resizeGroup"), &form);
@@ -275,7 +733,7 @@ void SettingsPanel::buildUi() {
                  QStringLiteral("Controls how new pixels are calculated. Point is fastest and sharp; Lanczos/Mitchell "
                                 "are smoother quality choices."),
                  QStringLiteral("resizeMethodDescription"));
-  lay->addWidget(resizeBox);
+  addCard(CardResize, QStringLiteral("Resize"), resizeBox);
 
   // ================= Geometry =================
   auto* geoBox = makeGroup(QStringLiteral("Geometry"), QStringLiteral("geometryGroup"), &form);
@@ -334,7 +792,7 @@ void SettingsPanel::buildUi() {
                  QStringLiteral("Interlacing lets some players display a rough preview while the GIF downloads. "
                                 "It is not a compression setting."),
                  QStringLiteral("interlaceDescription"));
-  lay->addWidget(geoBox);
+  addCard(CardGeometry, QStringLiteral("Geometry"), geoBox);
 
   // ================= Crop =================
   auto* cropBox = makeGroup(QStringLiteral("Crop"), QStringLiteral("cropGroup"), &form);
@@ -389,7 +847,7 @@ void SettingsPanel::buildUi() {
                  QStringLiteral("cropTransparencyDescription"));
   for (QSpinBox* s : {cropXSpin_, cropYSpin_, cropWSpin_, cropHSpin_}) s->setEnabled(false);
   cropTransparencyCheck_->setEnabled(false);
-  lay->addWidget(cropBox);
+  addCard(CardCrop, QStringLiteral("Crop"), cropBox);
 
   // ================= Animation =================
   auto* animBox = makeGroup(QStringLiteral("Animation"), QStringLiteral("animationGroup"), &form);
@@ -495,7 +953,7 @@ void SettingsPanel::buildUi() {
                  QStringLiteral("Parallelizes some work. Unchanged uses the engine default; Auto asks the engine for "
                                 "its automatic count. More threads can use more memory on very large GIFs."),
                  QStringLiteral("threadsDescription"));
-  lay->addWidget(animBox);
+  addCard(CardAnimation, QStringLiteral("Animation"), animBox);
 
   // ================= Colors / gamma / transparency =================
   auto* colorBox = makeGroup(QStringLiteral("Colors / Transparency"), QStringLiteral("colorGroup"), &form);
@@ -553,7 +1011,7 @@ void SettingsPanel::buildUi() {
   addDescription(form, colorBox,
                  QStringLiteral("Color treated as transparent. Use a picker or #rrggbb; empty means unchanged."),
                  QStringLiteral("transparentDescription"));
-  lay->addWidget(colorBox);
+  addCard(CardColors, QStringLiteral("Colors / Transparency"), colorBox);
 
   // ================= Metadata =================
   auto* metaBox = makeGroup(QStringLiteral("Metadata"), QStringLiteral("metadataGroup"), &form);
@@ -599,7 +1057,7 @@ void SettingsPanel::buildUi() {
     for (QListWidgetItem* item : commentList_->selectedItems()) delete item;
     emit changed();
   });
-  lay->addWidget(metaBox);
+  addCard(CardMetadata, QStringLiteral("Metadata"), metaBox);
 
   lay->addStretch();
   scroll->setWidget(content);
@@ -705,7 +1163,21 @@ gs::Mode SettingsPanel::mode() const {
   return static_cast<gs::Mode>(modeCombo_->currentData().toInt());
 }
 
+void SettingsPanel::writeSessionInto(gs::Settings& s) const { writeAllInto(s); }
+
 void SettingsPanel::writeInto(gs::Settings& s) const {
+  writeAllInto(s);
+  // ---- slice D: a card that is removed or disabled contributes NOTHING ----
+  // Copying the default value of its fields is exactly that, and it is stronger
+  // than "ignore the widgets": a stale value cannot leak back in after the card
+  // was switched off with something typed into it.
+  const gs::Settings defaults;
+  for (int id = 0; id < CardCount; ++id) {
+    if (!cardActive(id)) copyCardFields(id, defaults, s);
+  }
+}
+
+void SettingsPanel::writeAllInto(gs::Settings& s) const {
   s.mode = mode();
   s.explode_by_name = explodeByNameCheck_->isChecked();
 

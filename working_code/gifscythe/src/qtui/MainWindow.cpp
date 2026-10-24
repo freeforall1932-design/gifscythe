@@ -194,7 +194,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   // guideDescription). Input carries its file count in the title, like the
   // reference ("Input: 10 file(s)"). See docs/planning/XN_CONVERT_REFERENCE.md.
   tabs_->addTab(buildInputTab(), QStringLiteral("Input: 0 file(s)"));
-  tabs_->addTab(buildActionsTab(), QStringLiteral("Actions"));
+  actionsTabIndex_ = tabs_->addTab(buildActionsTab(), QStringLiteral("Actions"));
   tabs_->addTab(buildOutputTab(), QStringLiteral("Output"));
   tabs_->addTab(buildStatusTab(), QStringLiteral("Status"));
   tabs_->addTab(buildSettingsTab(), QStringLiteral("Settings"));
@@ -213,6 +213,12 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     refreshOutputSummary();
     schedulePreview();
   });
+  // Slice D: the Actions tab carries "Actions [enabled/total]" in its title, the
+  // way the reference does. A card being added, removed or switched off is not a
+  // settings change (a disabled card contributes defaults), so it gets its own
+  // signal instead of riding on changed().
+  connect(settingsPanel_, &SettingsPanel::actionCountsChanged, this,
+          [this]() { refreshTabTitles(); });
   connect(outputEdit_, &QLineEdit::textChanged, this, [this]() {
     lastOutputPaths_.clear();
     refreshCommand();
@@ -931,7 +937,10 @@ void MainWindow::savePresetAs() {
     return;
   }
   gs::Settings s;
-  settingsPanel_->writeInto(s);
+  // writeSessionInto: a preset records the WHOLE panel, including a card that is
+  // currently switched off - otherwise loading it back would silently lose the
+  // values that were sitting behind the Enabled box.
+  settingsPanel_->writeSessionInto(s);
   s.inputs.clear();
   s.output.clear();
   std::ostringstream oss;
@@ -942,6 +951,13 @@ void MainWindow::savePresetAs() {
   const QString tmpl = nameTemplateEdit_ ? nameTemplateEdit_->text().trimmed() : QString();
   if (!tmpl.isEmpty() && tmpl != QString::fromLatin1(kDefaultNameTemplate))
     oss << "name_template = " << tmpl.toStdString() << "\n";
+  // Slice D: the stack is part of the preset (presence / enabled / collapsed),
+  // the way an XnConvert preset is an action list and not just a bag of numbers.
+  // A flat list of ids, so a future action can be appended without a format bump.
+  if (settingsPanel_) {
+    const QString cards = settingsPanel_->cardState();
+    if (!cards.isEmpty()) oss << "card_state = " << cards.toStdString() << "\n";
+  }
 
   const QString path = QDir(dir).filePath(safe + QStringLiteral(".conf"));
   QSaveFile file(path);
@@ -984,6 +1000,12 @@ void MainWindow::loadSelectedPreset() {
     const auto it = guiKeys.find(k);
     return it == guiKeys.end() ? QString() : QString::fromStdString(it->second);
   };
+  // Slice D: which actions are in the stack, which are on, which are folded.
+  // Applied AFTER readFrom(), so the values land in the controls first and the
+  // stack then decides which of them the user gets to see.
+  const QString cards = guiKey("card_state");
+  if (!cards.isEmpty()) settingsPanel_->setCardState(cards);
+
   const QString batch = guiKey("batch_dir");
   batchDirEdit_->setText(batch);
   const QString tmpl = guiKey("name_template");
@@ -1941,6 +1963,12 @@ void MainWindow::refreshCommand() {
 void MainWindow::refreshTabTitles() {
   if (!tabs_) return;
   tabs_->setTabText(0, QStringLiteral("Input: %1 file(s)").arg(inputs_.size()));
+  if (settingsPanel_ && actionsTabIndex_ >= 0) {
+    tabs_->setTabText(actionsTabIndex_,
+                      QStringLiteral("Actions [%1/%2]")
+                          .arg(settingsPanel_->enabledActionCount())
+                          .arg(settingsPanel_->actionCount()));
+  }
 }
 
 void MainWindow::beginResultRows(const QStringList& files) {
@@ -2972,6 +3000,8 @@ void MainWindow::loadSessionState() {
 
   settingsPanel_->readFrom(*loaded);
 
+  // Slice D: which actions are in the stack, which are on, which are folded.
+  // Applied AFTER the values, so a card that comes back keeps what it had.
   // GUI-only keys now arrive from the SAME parse as the core settings (audit
   // U-36 / P3-7): load_settings collects every key it does not recognize into
   // `guiKeys`. The former third parser (guiStateKey) re-opened and re-parsed
@@ -2980,6 +3010,8 @@ void MainWindow::loadSessionState() {
     const auto it = guiKeys.find(k);
     return it == guiKeys.end() ? QString() : QString::fromStdString(it->second);
   };
+  const QString cards = guiKey("card_state");
+  if (!cards.isEmpty()) settingsPanel_->setCardState(cards);
   const QString batch = guiKey("batch_dir");
   if (!batch.isEmpty()) batchDirEdit_->setText(batch);
   const QString tmpl = guiKey("name_template");
@@ -3005,7 +3037,10 @@ bool MainWindow::saveSessionState() {
   }
 
   gs::Settings s;
-  settingsPanel_->writeInto(s);
+  // writeSessionInto, not writeInto: a card that is removed or switched off
+  // must still come back with the values the user typed into it. The card stack
+  // itself travels in the GUI key below.
+  settingsPanel_->writeSessionInto(s);
   // Persist ONLY the Actions state + GUI keys below. The queue is session-
   // scoped (files move between sessions) and Save-as is a per-run choice —
   // restoring it could silently overwrite a stale path next launch.
@@ -3020,6 +3055,12 @@ bool MainWindow::saveSessionState() {
   const QString tmpl = nameTemplateEdit_ ? nameTemplateEdit_->text().trimmed() : QString();
   if (!tmpl.isEmpty() && tmpl != QString::fromLatin1(kDefaultNameTemplate))
     oss << "name_template = " << tmpl.toStdString() << "\n";
+  // Slice D: the card stack survives a restart (presence / enabled / collapsed).
+  // A flat list of ids, so a future action can be appended without a format bump.
+  if (settingsPanel_) {
+    const QString cards = settingsPanel_->cardState();
+    if (!cards.isEmpty()) oss << "card_state = " << cards.toStdString() << "\n";
+  }
 
   const QByteArray data = QByteArray::fromStdString(oss.str());
   // Atomic save (audit U-16 / P1-18): QSaveFile writes a sibling temp file and

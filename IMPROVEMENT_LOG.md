@@ -4,6 +4,48 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S43 — 2026-10-24: slice D — the Actions tab is the reference's card stack, and a disabled action contributes nothing
+
+**Changed:**
+
+- **The tab was researched before it was built.** The owner's instruction was to research Input,
+  Actions, Output and Status in the real program first and only then adapt it with ScreenToGif's
+  encoder functions. `docs/planning/XN_CONVERT_TABS_RESEARCH.md` is that research: per tab, the
+  `[OBS]` behaviour of the shipped XnConvert 1.118.0, the `[SRC]` ScreenToGif export pipeline it has
+  to be adapted to (the `ExportFormats` enum, the five `EncoderTypes`, and the verbatim FFmpeg
+  recipes for GIF/APNG/WebP), what gifscythe ships today, and a 1:1/divergence table. Two findings
+  drive the rest: the reference's `-` **deletes** a card (`[0/0]`) while `Enabled` keeps it
+  (`[0/1]`) — two verbs, not one — and its Multipage defaults silently *flatten* an animation
+  (`276.99 KiB -> 16.17 KiB`, -94%), which is why gifscythe inverts it into an on-by-default
+  `Animation` card instead of copying the checkbox.
+- **Slice D (`N-60`): the Actions tab is a card stack.** One card per gifsicle operation group
+  (`actionCard_0..7`: Mode, Optimize, Resize, Geometry, Crop, Animation, Colors/Transparency,
+  Metadata), each header carrying `actionCardChevron_<id>` (fold), `actionCardRemove_<id>` (the
+  reference's `-`), `actionCardReset_<id>` (`↺`) and `actionCardEnabled_<id>` (`Enabled`), over the
+  existing controls untouched — every objectName and tooltip the harness selects on is unchanged.
+  The toolbar is the reference's: `Add action >` (menu, greys out what is already in the stack,
+  plus `Add all actions`), the `Actions [on/total]` counter, and `Clear all`. The same counter rides
+  in the **tab title** (`MainWindow::refreshTabTitles`).
+- **"Disabled" is honoured where it counts, not where it shows.** `writeInto()` copies the *default*
+  of every field belonging to a card that is out of the stack or switched off, so a disabled card
+  contributes nothing the user typed and a stale `-O2` cannot re-enter the command; a new
+  `writeSessionInto()` deliberately bypasses the gate so persistence keeps those values. Removing a
+  card parks its body in `bodies_` (re-parented, hidden) and `Add action >` re-attaches the **same
+  widget**, values intact; `↺` restores the construction defaults captured once into `defaults_`
+  (a Settings round trip, not a second copy of 40 literals). `card_state =
+  id:present:enabled:collapsed;...` is written to the session file **and** to every preset, so a
+  preset is an action set, which is what an XnConvert preset is.
+- **Harness: T30 + T30b** — counter and tab title at `[8/8]`, all four affordances on every card,
+  fold (still contributes), disable (`-O2`/`--lossy` leave the command while `-d 7` stays, counter
+  `[7/8]`), reset (this card only, the other card's typed value survives), remove + re-add (values
+  intact), `Clear all` (`[0/0]`, no action flags at all), and a restart that restores presence,
+  enabled state, and the values inside a disabled card. 325 -> 331 `CHECK(` sites (532 -> 575
+  with `CHECK_MSG`).
+- **No Qt SDK in this sandbox, so CI is the only compiler** — the same standing constraint as
+  S41/S42. Pre-push evidence: `build.sh` engine + CLI + 421/35/54 unit checks green, and
+  `qt_lint src tests CMakeLists.txt --baseline ...` = 7 findings, 0 not in the baseline, exit 0
+  (the CI invocation, run verbatim).
+
 ## S42 — 2026-10-24: the shipped XnConvert was studied as a program, then slice C landed (Input grid + animation facts)
 
 **Changed:**

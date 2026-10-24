@@ -307,6 +307,7 @@ class MainWindow : public QMainWindow {
   QString processStderr_;              // stderr captured while the engine is running
   QString processStdout_;              // bounded stdout capture for the activity log
   int batchIndex_ = -1;
+  int actionsTabIndex_ = -1;  // index of the Actions tab (slice D: title carries the count)
   QStringList batchQueue_;
   // U-58 / P1-38 (F:NF-01): the settings the batch was STARTED with. Batch
   // continuation jobs (onProcessFinished) used to call currentSettings()
