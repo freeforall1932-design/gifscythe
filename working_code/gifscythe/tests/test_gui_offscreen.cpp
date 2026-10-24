@@ -2805,6 +2805,12 @@ int main(int argc, char** argv) {
               "the queue is an icon grid, not a text list");
     CHECK_MSG(!x.list->item(0)->icon().isNull(), "cell 0 has a thumbnail");
     CHECK_MSG(!x.list->item(1)->icon().isNull(), "cell 1 has a thumbnail");
+    // ...and it is a DECODE, not the "GIF" placeholder every failed read draws:
+    // the two fixtures have different dimensions, so two identical icons would
+    // mean both fell back to the placeholder.
+    CHECK_MSG(x.list->item(0)->icon().pixmap(QSize(96, 96)).toImage() !=
+                  x.list->item(1)->icon().pixmap(QSize(96, 96)).toImage(),
+              "the thumbnails are decoded from the files, not the placeholder");
 
     // ---- the caption states the animation facts ----
     CHECK_MSG(x.list->item(0)->text().contains(QStringLiteral("1 frame")),
