@@ -84,6 +84,7 @@
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
+#include <QEvent>
 #include <QEventLoop>
 #include <QPixmap>
 #include <QFile>
@@ -3170,6 +3171,12 @@ int main(int argc, char** argv) {
       spinEvents(20);
       dropFiles(w, {a});
       spinEvents(30);
+      // removeCard() DEFERS the delete (deleting a sender from inside its own
+      // clicked() signal would use-after-free), and processEvents() does not run
+      // DeferredDelete events - a real event loop does. Flush them here so the
+      // "out of the stack" claim is about the restored stack, not about when the
+      // harness happens to drain the queue.
+      QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
       auto* card = byName<QWidget>(w, "actionCard_1");
       auto* box = card ? card->findChild<QCheckBox*>("actionCardEnabled_1") : nullptr;
       CHECK_MSG(box && !box->isChecked(), "the disabled card is still disabled next launch");
