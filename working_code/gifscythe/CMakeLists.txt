@@ -49,6 +49,12 @@ add_executable(test_input_admission tests/test_input_admission.cpp)
 target_link_libraries(test_input_admission PRIVATE gifscythe_core)
 add_test(NAME input_admission COMMAND test_input_admission)
 
+# Slice C: the Input grid's animation facts (frames / duration / loop) come
+# from a Qt-free header walk; this pins the parser on every platform CI builds.
+add_executable(test_gif_facts tests/test_gif_facts.cpp)
+target_link_libraries(test_gif_facts PRIVATE gifscythe_core)
+add_test(NAME gif_facts COMMAND test_gif_facts)
+
 # Lying-engine fixture for the harness's U-17 explode-verification test:
 # exits 0 without writing anything. Tiny, dependency-free, built on every
 # platform so T7 finds it next to test_gui_offscreen (see tests/fake_engine_exit0.cpp).
