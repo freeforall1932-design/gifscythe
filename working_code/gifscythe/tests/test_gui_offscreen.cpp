@@ -2986,7 +2986,8 @@ int main(int argc, char** argv) {
     // ---- every card has the reference's four affordances ----
     bool allHeaders = true;
     for (int id = 0; id < 8; ++id) {
-      auto* c = byName<QWidget>(w, QStringLiteral("actionCard_%1").arg(id));
+      // findChild directly: byName() takes a const char*, and this name is built.
+      auto* c = w->findChild<QWidget*>(QStringLiteral("actionCard_%1").arg(id));
       if (!c ||
           !c->findChild<QToolButton*>(QStringLiteral("actionCardChevron_%1").arg(id)) ||
           !c->findChild<QToolButton*>(QStringLiteral("actionCardRemove_%1").arg(id)) ||
