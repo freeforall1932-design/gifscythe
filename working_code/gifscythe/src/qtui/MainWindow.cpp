@@ -18,6 +18,7 @@
 #include <QApplication>
 #include <QBrush>
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QColor>
 #include <QCoreApplication>
 #include <QDateTime>
@@ -49,6 +50,7 @@
 #include <QScrollBar>
 #include <QSignalBlocker>
 #include <QSplitter>
+#include <QStandardItemModel>
 #include <QStandardPaths>
 #include <QHeaderView>
 #include <QTabWidget>
@@ -167,10 +169,21 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   auto* central = new QWidget(this);
   auto* root = new QVBoxLayout(central);
 
-  auto* splitter = new QSplitter(Qt::Horizontal, central);
-  splitter->setObjectName(QStringLiteral("mainSplitter"));
+  // Owner, 2026-10-24: the reference keeps the Preview INSIDE the Actions tab
+  // (docs/planning/reference/com.xnview.XnConvert-461adbcd7cdb0e2a7e01b211c63fb92c.png:
+  // action stack on the left, "Preview" pane on the right with Before/After).
+  // It used to be a sibling of the whole QTabWidget here, so it showed on
+  // Input, Output, Status, Settings and About too - which is not the reference
+  // and, on a small window, left no room for the tab content. It is created
+  // here so buildActionsTab() can place it, and it lives nowhere else.
+  previewPanel_ = new PreviewPanel(central);
+  previewPanel_->setObjectName(QStringLiteral("previewPanel"));
+  connect(previewPanel_, &PreviewPanel::previewRequested, this, [this]() {
+    forcePreview_ = true;
+    schedulePreview();
+  });
 
-  tabs_ = new QTabWidget(splitter);
+  tabs_ = new QTabWidget(central);
   tabs_->setObjectName(QStringLiteral("mainTabs"));
   // OD-21 = a / N-55 (2026-10-22): the owner's XnConvert reference settles the
   // tab set as Input · Actions · Output · Status · Settings · About. "Guide"
@@ -179,25 +192,12 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   // guideDescription). Input carries its file count in the title, like the
   // reference ("Input: 10 file(s)"). See docs/planning/XN_CONVERT_REFERENCE.md.
   tabs_->addTab(buildInputTab(), QStringLiteral("Input: 0 file(s)"));
-  settingsPanel_ = new SettingsPanel(tabs_);
-  settingsPanel_->setObjectName(QStringLiteral("settingsPanel"));
-  tabs_->addTab(settingsPanel_, QStringLiteral("Actions"));
+  tabs_->addTab(buildActionsTab(), QStringLiteral("Actions"));
   tabs_->addTab(buildOutputTab(), QStringLiteral("Output"));
   tabs_->addTab(buildStatusTab(), QStringLiteral("Status"));
   tabs_->addTab(buildSettingsTab(), QStringLiteral("Settings"));
   tabs_->addTab(buildAboutTab(), QStringLiteral("About"));
-  splitter->addWidget(tabs_);
-
-  previewPanel_ = new PreviewPanel(splitter);
-  previewPanel_->setObjectName(QStringLiteral("previewPanel"));
-  connect(previewPanel_, &PreviewPanel::previewRequested, this, [this]() {
-    forcePreview_ = true;
-    schedulePreview();
-  });
-  splitter->addWidget(previewPanel_);
-  splitter->setStretchFactor(0, 3);
-  splitter->setStretchFactor(1, 2);
-  root->addWidget(splitter, 1);
+  root->addWidget(tabs_, 1);
 
   buildBottomBar(central, root);
   setCentralWidget(central);
@@ -432,6 +432,62 @@ QWidget* MainWindow::buildInputTab() {
   return page;
 }
 
+QWidget* MainWindow::buildActionsTab() {
+  // The reference's Actions tab is TWO panes, not one: the action stack on the
+  // left, the Preview on the right, and a narrow column with a small arrow
+  // handle between them that collapses the preview away (the reference shows
+  // it as a single ">" at the vertical middle).
+  //
+  // Keeping the preview here, instead of beside the whole tab widget, is what
+  // makes the other five tabs full-width - and it is what the owner's
+  // screenshot actually shows.
+  auto* page = new QWidget(tabs_);
+  auto* lay = new QVBoxLayout(page);
+  lay->setContentsMargins(0, 0, 0, 0);
+
+  auto* splitter = new QSplitter(Qt::Horizontal, page);
+  splitter->setObjectName(QStringLiteral("actionsSplitter"));
+  splitter->setChildrenCollapsible(false);
+
+  settingsPanel_ = new SettingsPanel(splitter);
+  settingsPanel_->setObjectName(QStringLiteral("settingsPanel"));
+  splitter->addWidget(settingsPanel_);
+
+  // ---- the collapse handle (reference: a ">" at the middle of the divider) ----
+  auto* handleColumn = new QWidget(splitter);
+  handleColumn->setObjectName(QStringLiteral("actionsSplitterHandle"));
+  auto* handleLayout = new QVBoxLayout(handleColumn);
+  handleLayout->setContentsMargins(2, 0, 2, 0);
+  handleLayout->addStretch();
+  previewToggleButton_ = new QToolButton(handleColumn);
+  previewToggleButton_->setObjectName(QStringLiteral("previewToggleButton"));
+  previewToggleButton_->setAutoRaise(true);
+  previewToggleButton_->setText(QStringLiteral("◀"));  // left-pointing: preview is shown
+  previewToggleButton_->setToolTip(QStringLiteral("Hide the preview pane"));
+  previewToggleButton_->setCheckable(true);
+  previewToggleButton_->setChecked(true);
+  connect(previewToggleButton_, &QToolButton::toggled, this, [this](bool shown) {
+    if (!previewPanel_) return;
+    previewPanel_->setVisible(shown);
+    previewToggleButton_->setText(shown ? QStringLiteral("◀") : QStringLiteral("▶"));
+    previewToggleButton_->setToolTip(shown ? QStringLiteral("Hide the preview pane")
+                                           : QStringLiteral("Show the preview pane"));
+  });
+  handleLayout->addWidget(previewToggleButton_);
+  handleLayout->addStretch();
+  // A handle column, not a fixed width: the reference's arrow sits in its own
+  // gutter, and the splitter still lets the user drag the real divider.
+  handleColumn->setMaximumWidth(24);
+  splitter->addWidget(handleColumn);
+
+  splitter->addWidget(previewPanel_);
+  splitter->setStretchFactor(0, 3);
+  splitter->setStretchFactor(1, 0);
+  splitter->setStretchFactor(2, 2);
+  lay->addWidget(splitter);
+  return page;
+}
+
 QWidget* MainWindow::buildOutputTab() {
   auto* page = new QWidget(tabs_);
   auto* lay = new QVBoxLayout(page);
@@ -476,6 +532,83 @@ QWidget* MainWindow::buildOutputTab() {
   form->addRow(QString(), batchHint);
 
   lay->addWidget(box);
+
+  // ---- Format (the reference's Output > Format + Settings...) --------------
+  // The owner asked for this by name on 2026-10-24: "I can't change it to
+  // whatever format like webp or apng or gif or video like mp4 (h265/h264/
+  // vp9/av1)". The reference has exactly this control - a format combo plus a
+  // per-format "Settings..." button - so the shape is settled.
+  //
+  // HONESTY RULE (the repo's own, OD-21): the combo must never promise an
+  // encode this build cannot perform. gifsicle writes GIF and nothing else, and
+  // APNG/WebP/MP4 need an FFmpeg sidecar that is NOT shipped yet, so those
+  // entries are present (the user can see the plan) but DISABLED with the
+  // reason in the tooltip and in the line underneath. Enabling one before the
+  // encoder exists would mean a run that silently produces nothing.
+  auto* formatBox = new QGroupBox(QStringLiteral("Format"), page);
+  formatBox->setObjectName(QStringLiteral("formatGroup"));
+  auto* formatForm = new QFormLayout(formatBox);
+  formatCombo_ = new QComboBox(formatBox);
+  formatCombo_->setObjectName(QStringLiteral("formatCombo"));
+  struct FormatSpec {
+    const char* label;
+    bool available;
+    const char* why;
+  };
+  const FormatSpec formats[] = {
+      {"Same as original (GIF)", true, nullptr},
+      {"GIF", true, nullptr},
+      {"APNG", false, "needs the FFmpeg sidecar (not shipped yet)"},
+      {"WebP (animated)", false, "needs the FFmpeg sidecar (not shipped yet)"},
+      {"MP4 - H.264", false, "needs the FFmpeg sidecar (not shipped yet)"},
+      {"MP4 - H.265/HEVC", false, "needs the FFmpeg sidecar (not shipped yet)"},
+      {"WebM - VP9", false, "needs the FFmpeg sidecar (not shipped yet)"},
+      {"WebM - AV1", false, "needs the FFmpeg sidecar (not shipped yet)"},
+  };
+  // Disable an unavailable ITEM (not the whole combo) by clearing its
+  // ItemIsEnabled flag in the model: the list stays readable, the entry cannot
+  // be chosen, and the reason is one hover away. Qt 5/6 draw a disabled item as
+  // greyed and refuse the click; Qt 4's "Qt::UserRole - 1" data trick is gone.
+  auto* model = qobject_cast<QStandardItemModel*>(formatCombo_->model());
+  for (const FormatSpec& spec : formats) {
+    formatCombo_->addItem(QString::fromLatin1(spec.label));
+    const int row = formatCombo_->count() - 1;
+    if (!spec.available) {
+      if (model) {
+        if (QStandardItem* item = model->item(row)) {
+          item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
+        }
+      }
+      formatCombo_->setItemData(row, QString::fromLatin1(spec.why), Qt::ToolTipRole);
+    }
+  }
+  formatCombo_->setToolTip(QStringLiteral(
+      "Output container/codec.\n"
+      "GIF is produced by the bundled gifsicle engine.\n"
+      "APNG, WebP and the video formats need an FFmpeg sidecar, which this build does not ship."));
+  formatForm->addRow(QStringLiteral("Output format"), formatCombo_);
+  formatSettingsButton_ = new QPushButton(QStringLiteral("Settings…"), formatBox);
+  formatSettingsButton_->setObjectName(QStringLiteral("formatSettingsButton"));
+  formatSettingsButton_->setToolTip(
+      QStringLiteral("Per-format encoder settings (the reference's Format > Settings…)"));
+  connect(formatSettingsButton_, &QPushButton::clicked, this, [this]() {
+    QMessageBox::information(
+        this, QStringLiteral("Format settings"),
+        QStringLiteral("GIF settings live on the Actions tab, where every gifsicle option "
+                       "already is (colours, lossy, dither, optimise level).\n\n"
+                       "APNG, WebP and the video formats are not available in this build: "
+                       "they need an FFmpeg sidecar, which is not shipped yet."));
+  });
+  formatForm->addRow(QString(), formatSettingsButton_);
+  formatNoteLabel_ = new QLabel(formatBox);
+  formatNoteLabel_->setObjectName(QStringLiteral("formatNote"));
+  formatNoteLabel_->setWordWrap(true);
+  formatNoteLabel_->setText(QStringLiteral(
+      "This build writes GIF only. APNG / WebP / MP4 / WebM are listed so the target is "
+      "visible, but they are disabled until an FFmpeg sidecar is added — converting a moving "
+      "picture to a still one is exactly what we are not here to do."));
+  formatForm->addRow(QString(), formatNoteLabel_);
+  lay->addWidget(formatBox);
 
   outputSummaryLabel_ = new QLabel(page);
   outputSummaryLabel_->setObjectName(QStringLiteral("outputSummary"));

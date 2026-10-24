@@ -75,6 +75,7 @@
 #include "core/ProcessRunner.h"
 #include "core/version.h"
 
+#include <QAbstractItemModel>
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
@@ -104,6 +105,7 @@
 #include <QRegularExpression>
 #include <QScrollArea>
 #include <QSpinBox>
+#include <QStandardItemModel>
 #include <QStandardPaths>
 #include <QTabWidget>
 #include <QTableWidget>
@@ -2874,6 +2876,75 @@ int main(int argc, char** argv) {
     // ---- Add folder… goes through the same admission rule ----
     auto* addFolder = byName<QPushButton>(w, "addFolderButton");
     CHECK_MSG(addFolder != nullptr, "Add folder exists");
+    delete w;
+    g_dialogs.clear();
+  }
+
+  // ========== T29: layout parity - preview in Actions, format selector =====
+  //
+  // Two owner corrections, 2026-10-24, pinned so neither can drift back:
+  //   1. "the preview of the pictures should only be at action" - the reference
+  //      puts Preview INSIDE the Actions tab. It used to be a sibling of the
+  //      whole tab widget, so it also showed on Input/Output/Status/Settings.
+  //   2. the Output tab must offer a format choice, and must never offer one
+  //      this build cannot actually write.
+  {
+    g_stage = "T29"; std::printf("== T29 layout parity (preview + format) ==\n");
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* preview = byName<QWidget>(w, "previewPanel");
+    CHECK_MSG(preview != nullptr, "the preview pane exists");
+    if (preview && x.tabs && x.tabs->count() > 1) {
+      QWidget* actionsPage = x.tabs->widget(1);
+      bool insideActions = false;
+      for (QWidget* p = preview; p != nullptr; p = p->parentWidget()) {
+        if (p == actionsPage) { insideActions = true; break; }
+      }
+      CHECK_MSG(insideActions,
+                "the preview lives INSIDE the Actions tab (the reference's two-pane shape)");
+      // ...and is not floating beside the tab widget.
+      bool besideTabs = preview->parentWidget() == x.tabs->parentWidget();
+      CHECK_MSG(!besideTabs, "the preview is not a sibling of the whole tab widget");
+    }
+    // The handle that collapses it exists and actually hides the pane.
+    auto* toggle = byName<QToolButton>(w, "previewToggleButton");
+    CHECK_MSG(toggle != nullptr, "the Actions splitter has a preview collapse handle");
+    if (toggle && preview) {
+      toggle->setChecked(false);
+      spinEvents(20);
+      CHECK_MSG(!preview->isVisible(), "the handle hides the preview");
+      toggle->setChecked(true);
+      spinEvents(20);
+    }
+
+    // ---- Output > Format ----
+    auto* format = byName<QComboBox>(w, "formatCombo");
+    CHECK_MSG(format != nullptr, "Output has a Format selector");
+    if (format) {
+      QStringList labels;
+      for (int i = 0; i < format->count(); ++i) labels << format->itemText(i);
+      CHECK_MSG(labels.filter(QStringLiteral("GIF")).size() >= 1, "GIF is offered");
+      CHECK_MSG(labels.filter(QStringLiteral("APNG")).size() == 1, "APNG is listed");
+      CHECK_MSG(labels.filter(QStringLiteral("WebP")).size() == 1, "WebP is listed");
+      CHECK_MSG(labels.filter(QStringLiteral("H.264")).size() == 1, "MP4 H.264 is listed");
+      CHECK_MSG(labels.filter(QStringLiteral("AV1")).size() == 1, "AV1 is listed");
+      // The honesty rule: an entry this build cannot encode must be DISABLED,
+      // not merely mentioned - otherwise choosing it starts a run that writes
+      // nothing.
+      int gifRow = -1, mp4Row = -1;
+      for (int i = 0; i < format->count(); ++i) {
+        if (format->itemText(i).startsWith(QStringLiteral("GIF"))) gifRow = i;
+        if (format->itemText(i).contains(QStringLiteral("H.264"))) mp4Row = i;
+      }
+      CHECK_MSG(gifRow >= 0 && format->model()->flags(format->model()->index(gifRow, 0)).testFlag(Qt::ItemIsEnabled),
+                "GIF is selectable (gifsicle writes it)");
+      CHECK_MSG(mp4Row >= 0 && !format->model()->flags(format->model()->index(mp4Row, 0)).testFlag(Qt::ItemIsEnabled),
+                "a format this build cannot write is disabled, not selectable");
+      CHECK_MSG(mp4Row >= 0 && format->itemData(mp4Row, Qt::ToolTipRole).toString().contains(QStringLiteral("FFmpeg")),
+                "the disabled entry says WHY on hover");
+    }
+    CHECK_MSG(byName<QPushButton>(w, "formatSettingsButton") != nullptr,
+              "the per-format Settings… button exists");
     delete w;
     g_dialogs.clear();
   }

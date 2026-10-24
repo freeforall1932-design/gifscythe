@@ -59,6 +59,7 @@
 #include <QVector>
 
 class QLabel;
+class QComboBox;
 class QLineEdit;
 class QListWidget;
 class QListWidgetItem;
@@ -133,6 +134,9 @@ class MainWindow : public QMainWindow {
   void discardPendingPartial();
   // UI construction
   QWidget* buildInputTab();
+  // Owner, 2026-10-24: Actions is a two-pane splitter - the action stack and
+  // the Preview - exactly as the reference screenshot shows.
+  QWidget* buildActionsTab();
   QWidget* buildOutputTab();
   // W-32 / slice A (2026-10-22): the Status tab - one row per operation, per
   // the contract in docs/planning/W32_RESULT_CONTRACT.md.
@@ -231,6 +235,12 @@ class MainWindow : public QMainWindow {
   QPushButton* addFolderButton_ = nullptr;
   QLineEdit* queueFilterEdit_ = nullptr;
   QLabel* queueSelectionDetails_ = nullptr;
+  QToolButton* previewToggleButton_ = nullptr;  // Actions splitter handle
+  // Output > Format (owner, 2026-10-24): the reference's combo + per-format
+  // Settings..., with the entries this build cannot encode disabled.
+  QComboBox* formatCombo_ = nullptr;
+  QPushButton* formatSettingsButton_ = nullptr;
+  QLabel* formatNoteLabel_ = nullptr;
   QVector<QToolButton*> sortButtons_;
   QHash<QString, gs::GifFacts> factsCache_;
   QHash<QString, QPixmap> thumbCache_;
