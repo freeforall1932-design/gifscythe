@@ -4,6 +4,39 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S44 — 2026-10-26: the Output tab's naming, measured against the shipped binary — the rule lands tested, the UI is next
+
+**Changed:**
+
+- **Two owner questions answered with measurement, not memory.** *"Do I just need to approve FFmpeg
+  sidecar?"* — approving it is the gate, but it is five code items, listed in the reply and in §3.1:
+  an `EngineLocator` twin, the (already frozen) FFmpeg recipes, a **format-aware** `OutputVerify`
+  (today it demands a `GIF87a/89a` signature, so it would reject a correct APNG), a preview that
+  says "no preview for this format" instead of showing a blank box, and the per-format Settings
+  dialog. License shape was checked too: the first-party code is Ms-PL and gifsicle is already a
+  separate GPLv2 subprocess, so a GPL FFmpeg build (needed for libx264) is the same "mere
+  aggregation" pattern — notices and a written source offer, never linked.
+- **`{Filename}_result`, tokens, numbering** (`N-61`, owner `OD-23`…`OD-26`). The 1.118.0 binary was
+  re-extracted and read for its own naming symbols (`leFilename`, `sbStartIndex`, `cbKeepFolder`,
+  `cbOverwrite`, `rbSrcFolder`/`rbDstFolder`, `xnconvert.ini`, `*.xbs`) and its token list, and the
+  result is `XN_CONVERT_TABS_RESEARCH.md` §9. `src/core/NameTemplate.h` implements that model as a
+  Qt-free rule: the token renderer, `{Filename}_result` as the default, **the Format owning the
+  extension** (`OD-24 = a`), `template_uses_index()`/`template_is_constant()`, and
+  `disambiguate_names()` for the owner's rule (`OD-23`: first processed keeps the plain name, later
+  collisions get `_1`, `_2`, case-insensitively, because Windows/macOS would lose one otherwise).
+- **The date letters are XnView's, not Qt's — measured.** Its four example templates
+  (`[m_d_Y]`, `[d_m_Y]`, `[Y-m-d_H-M-S]`, `[Y-m-d_H-M]`) are self-consistent under exactly one
+  reading: `m` = month, `M` = minute. Under Qt's letters the third would be
+  year-minute-day_hour-month-second. The header follows the measured reading and records why.
+- **Two real bugs caught before any GUI code existed**, both by `tests/test_name_template.cpp`
+  (60 checks, wired into `build.sh` and ctest): the date map above (my first version used Qt's
+  letters and rendered `2026-30-26`), and a numbering step that could steal a literal name —
+  `{a, a, a_1}` must produce `a, a_2, a_1`, not `a, a_1, a_1_1`.
+- **Honest scope:** `N-61` is **PARTIAL**. The Output tab still shows Save-as + `{name}_opt.gif`;
+  wiring the header into `renderedOutputName`/`plannedBatchTargets`, the `{`-triggered scrolling
+  completion popup, Start index, destination radios and the preset payload (`OD-26`) is the next
+  commit. The rule is frozen and tested, so that work is UI-only.
+
 ## S43 — 2026-10-24: slice D — the Actions tab is the reference's card stack, and a disabled action contributes nothing
 
 **Changed:**

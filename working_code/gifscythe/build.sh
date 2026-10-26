@@ -181,6 +181,13 @@ g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
   -o "$BUILD_DIR/test_gif_facts" "$self/tests/test_gif_facts.cpp" $STDCXXFS \
   || fail "gif-facts test compile failed"
 "$BUILD_DIR/test_gif_facts" || fail "gif-facts tests failed"
+# Slice E2: the Output tab's Filename template (tokens, format-owned extension,
+# duplicate numbering). Qt-free for the same reason as the two above - the GUI
+# only renders what this header decides.
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/test_name_template" "$self/tests/test_name_template.cpp" $STDCXXFS \
+  || fail "name-template test compile failed"
+"$BUILD_DIR/test_name_template" || fail "name-template tests failed"
 
 # 4. GUI (only when requested)
 echo "==> [4/4] Qt6 GUI..."

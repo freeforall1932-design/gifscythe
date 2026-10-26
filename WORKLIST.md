@@ -57,6 +57,11 @@ reads them in a file, not in a conversation.
 
 ## Found this session — pending lines (rule 2)
 
+- **N-61** (S44, the owner's naming priority): `src/core/NameTemplate.h` + its 60-check suite
+  landed; the Output tab still names files the old way. **Next:** wire it in (filename field +
+  `{` popup + Start index + destination), delete `outputEdit`, persist template + destination, then
+  flip the row to DONE.
+
 - **W-33** (S39, found by the `GUI_REUSE_REVIEW.md` handoff from the
   DiscordChatExporter session): the Phase-1 C# spike read the engine's stderr to
   **EOF before** it waited on the process, so an engine that stalls while holding

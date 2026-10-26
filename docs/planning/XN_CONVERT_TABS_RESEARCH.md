@@ -229,3 +229,56 @@ Proof: `tests/test_gui_offscreen.cpp` **T30 / T30b** — counter and title, per-
 fold, disable (flags leave the command, others stay), reset (this card only), remove + re-add
 (values intact), `Clear all`, and a restart that restores presence, enabled state and the values of
 a disabled card. Run by CI only: there is no Qt SDK in the agent sandbox.
+
+---
+
+## 9. Naming and storage, measured (2026-10-26)
+
+Re-read from the shipped 1.118.0 binary's own strings, because the Output tab's naming was the
+owner's next priority and memory is not evidence:
+
+| Element | The reference's own symbols / strings | gifscythe before this slice |
+|---|---|---|
+| Filename field | `leFilename`, `tbFilename`, `cbFilename`, `filenameChanged` | `outputEdit` ("Save as…", a literal path) + a separate `name_template` |
+| Template tokens | `{Filename}`, `{Filename With Ext}`, `{File Type}`, `{File Index}`, `{Width}`, `{Height}`, `{DstWidth}`, `{DstHeight}`, `{Directory}`, `{Folder name}`, `{Format}`, `{Size KB}`, `{Modified Date}`, `{Current Date [...]}`, plus EXIF/Rating/Categories/Annotation | `{name}` only |
+| Default template | `{Filename}_result` (`_result` also exists as a bare default-suffix string); an example is `{Filename}_{Current Date [m_d_Y]}` | `{name}_opt.gif` |
+| Extension | supplied by the Format, never typed in the template | typed into the template, then force-appended `.gif` |
+| Start index | `sbStartIndex`, `startIndex`, `onIndexChanged` | - |
+| Keep folder structure | `cbKeepFolder`, `keepFolder`, `keepParentFolder` | - |
+| Existing file | `cbOverwrite`, `overwriteQuestion`, `onThreadOverwrite`; strings `Skip`, `skipped, file already exists!`, `Destination already has a file named: ` | refuses the whole plan up front |
+| Destination | `rbSrcFolder` ("Source folder") / `rbDstFolder` ("Destination"), `wDstFolder`, `changeFolder` | one `batch_dir`, empty = beside each input |
+| Constant name | `Output filename will be the same for all converted files. ` | refuses a template without `{name}` |
+| Presets | `Presets:` ribbon, `lePreset`, `tbPresetSave`, `tbPresetDel`, `Preset name:`, `.xbs` files, `xnconvert.ini` | `presets/*.conf` + `gifscythe.conf` |
+
+**The date letters are XnView's, not Qt's and not strftime's.** The four example templates in the
+binary (`[m_d_Y]`, `[d_m_Y]`, `[Y-m-d_H-M-S]`, `[Y-m-d_H-M]`) are self-consistent under exactly one
+reading: `m` = month, `M` = minute. Under Qt's letters `[Y-m-d_H-M-S]` would be
+year-minute-day_hour-month-second. `src/core/NameTemplate.h` follows the measured reading and says so
+in the code.
+
+### 9.1 The owner's decisions (2026-10-26)
+
+1. **Tokens:** ship the full set, but the **default is `{Filename}_result`**.
+2. **Duplicates are numbered, not refused:** if two inputs render `go_result.webp`, the first one to
+   be processed keeps the plain name and the others become `_result_1`, `_result_2`, ... — case-only
+   collisions count, because Windows and macOS would otherwise lose a file.
+3. **The Format owns the extension** (`OD-24 = a`); a template that still carries one loses it, with a
+   visible note.
+4. **"Save as…" is dropped** (`OD-25 = a`): Destination + Filename explains every mode.
+5. **Storage:** whatever fits this project without bugs (`OD-26`); the payload is reshaped rather than
+   the file format thrown away.
+6. **Typing `{` offers the tokens**, with a scrolling list, filtering as the user types
+   (`{d` → Duration, `{fi` → Filename / File Index / File Type ...).
+
+### 9.2 What landed in this pass, and what did not
+
+- **Landed, and proven here:** `src/core/NameTemplate.h` — the token renderer, the format-owned
+  extension rule, `template_is_constant()`, `template_uses_index()`, and `disambiguate_names()`;
+  pinned by `tests/test_name_template.cpp` (**60 checks**, run by `build.sh` and ctest, on every
+  platform). Two real bugs were found by that suite before any GUI code existed: the date letters
+  above, and a numbering step that could steal a literal name (`{a, a, a_1}` must give
+  `a, a_2, a_1`, not `a, a_1, a_1_1`).
+- **Not yet wired:** the Output tab still shows the old pair (Save-as + `{name}` template). The
+  service that will use this header (`MainWindow::renderedOutputName`, `plannedBatchTargets`) and the
+  completion popup are the next commit — the rule is already frozen and tested, so that work changes
+  UI only, not naming semantics.

@@ -11,7 +11,26 @@ Based on `main` commit `9629d49` (**S41 re-anchor:** the owner's 2026-10-20 "Add
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-### S43 — what just changed (current session)
+### S44 — what just changed (current session)
+
+The owner's next priority was naming: *"the naming scheme and how it was stored/saved doesn't follow
+XnConvert"*. Two questions were answered and four decisions taken (`OD-23`…`OD-26`).
+
+- **FFmpeg:** approving the sidecar is the gate, but it is five code items — locator, the frozen
+  recipes, a **format-aware** `OutputVerify` (it would reject a valid APNG today), an honest
+  "no preview" path, and per-format settings. GPL shape is already the project's pattern (gifsicle is
+  a separate GPLv2 subprocess).
+- **`src/core/NameTemplate.h` landed and is tested** (`tests/test_name_template.cpp`, 60 checks,
+  `build.sh` + ctest): XnConvert's token vocabulary with `{Filename}_result` as the default, the
+  Format owning the extension, and duplicate numbering where the first processed file keeps the plain
+  name. The date letters are XnView's (`m` = month, `M` = minute) — measured, and the suite proved it
+  by failing on my Qt-flavoured first version.
+- **`N-61` is PARTIAL on purpose:** the Output tab is not rewired yet. Next commit wires the header
+  into `renderedOutputName`/`plannedBatchTargets`, adds the `{`-triggered scrolling popup, Start
+  index, destination radios, drops `outputEdit` (`OD-25 = a`) and reshapes the preset payload
+  (`OD-26`).
+
+### S43 — what just changed (S43; kept for the written history)
 
 Slice **D** of the UI route. The owner asked for the real program to be researched tab by tab
 *before* implementing, and for the result to use ScreenToGif's deployed encoder functions: both are
@@ -545,7 +564,7 @@ Qt evidence comes from CI and is now also captured as screenshots.
   row never shows byte figures. `W-32` is PARTIAL on purpose — the Qt half is done, the web
   surface has not moved. `N-57`: the four reference screenshots are committed under
   `docs/planning/reference/` (`OD-22 = yes`, explicit `N-36` exception).
-- **Register:** 193 DONE · 8 PARTIAL · 14 OPEN · 0 UNTRIAGED · 215 total (at S43 start: 192/8/14/0/214; at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 193 DONE · 9 PARTIAL · 14 OPEN · 0 UNTRIAGED · 216 total (at S44 start: 193/8/14/0/215; at S43 start: 192/8/14/0/214; at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -1557,8 +1576,8 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 193 DONE · 8 PARTIAL · 14 OPEN · 0
-   UNTRIAGED · 215 total — but `STATUS.md` itself always wins; sweep rule S2
+   its generated counts line (currently: 193 DONE · 9 PARTIAL · 14 OPEN · 0
+   UNTRIAGED · 216 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the

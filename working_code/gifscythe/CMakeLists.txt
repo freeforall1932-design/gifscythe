@@ -55,6 +55,12 @@ add_executable(test_gif_facts tests/test_gif_facts.cpp)
 target_link_libraries(test_gif_facts PRIVATE gifscythe_core)
 add_test(NAME gif_facts COMMAND test_gif_facts)
 
+# Slice E2: the Output tab's Filename template is a Qt-free rule (tokens,
+# format-owned extension, duplicate numbering), pinned on every platform.
+add_executable(test_name_template tests/test_name_template.cpp)
+target_link_libraries(test_name_template PRIVATE gifscythe_core)
+add_test(NAME name_template COMMAND test_name_template)
+
 # Lying-engine fixture for the harness's U-17 explode-verification test:
 # exits 0 without writing anything. Tiny, dependency-free, built on every
 # platform so T7 finds it next to test_gui_offscreen (see tests/fake_engine_exit0.cpp).
