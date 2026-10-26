@@ -55,6 +55,55 @@ reads them in a file, not in a conversation.
    flip both **G16** lines to **WORKING PLAN** in the same commit (one-way).
    The gate never auto-edits.
 
+## Next session (S46) — pick up here
+
+> Written at the end of S45 by the agent, from the owner's own words. The two
+> items are ONE slice (the Output form) and they are already spec'd far enough
+> that no further questions are needed. **Read the owner's answers verbatim
+> first** (`SESSION_HANDOFF.md` §S45 "Owner's answers"), because the UI shape he
+> described is unusual and guessing it will waste a session.
+
+- [ ] **N-63 — the Output form's two remaining rows.** *(S45 built it, CI red,
+      commit `7490cb9` **reverted** by `2f72a90`; `Collision.h` + its
+      45-check suite are in that commit's history and should be restored rather
+      than rewritten: `git show 7490cb9 -- Collision.h (restorable from 7490cb9) test_collision.cpp (restorable from 7490cb9)`.)*
+      - **Keep folder structure** — a checkbox, **default ON**. It means BOTH
+        things the owner listed: (a) the two-place choice between *source folder*
+        and *designated folder*, and (b) when a designated folder is used, the
+        source's own nesting is recreated inside it (`in/a/b/c.gif` →
+        `<dest>/a/b/c_result.gif`). A file picked on its own has no tree and
+        stays flat; never invent one.
+      - **If an output file already exists** — NOT a list of four radio buttons
+        (that is what failed to compile and what he corrected). He wants
+        XnConvert's control: one compact **square button** that shows the current
+        choice, sized to the **longest of the option names**, with a ⬇️⬆️ glyph
+        and **no dropdown arrow/tail**; clicking it reveals the other choices,
+        and you pick one by clicking it. Default: **Ask each time** (the owner's
+        earlier answer; in the dialog the choices are Rename / Overwrite / Skip
+        plus "… all"). Overwrite still means replace-after-verify.
+      - **Tally** — a skipped file must appear as its own row in the Status
+        table: `skipped, file already exists` **plus the file name and its full
+        location** (owner: "show in tallying in error segment this file name at
+        this location or straight location/name").
+      - Persist the checkbox and the choice in the session file **and** presets.
+- [ ] **N-64 — "discard the result if it is larger than the original".** He asked
+      for it explicitly *and* for the exception in the same breath: it applies
+      **only when the output format equals the source format**, because GIF,
+      APNG, WebP and MP4 "have different purpose" and a bigger file is not
+      automatically a worse one across containers. Implement as a checkbox in
+      the same Output block, off by default, and only enabled when the selected
+      format is the source's own; when the check fires, the verified result is
+      discarded, the original stays, and the row says so with both sizes.
+- [ ] **N-61 remainder** — the naming/template wiring on the Output tab
+      (`src/core/NameTemplate.h` is written and tested; the tab still uses the
+      old fields). Do it in the same pass as N-63: they touch the same widgets.
+- [ ] Then the **E2 UI wiring** the owner queued before FFmpeg came up.
+
+**Definition of done for that pass:** `build.sh`, `test_package.sh`,
+`check_docs.sh`, `qt_lint --baseline` all green locally, the GUI compiling on
+both CI jobs, and the whole slice visible in the offscreen harness — the last
+attempt failed exactly there (GUI compiled neither on Linux nor on Windows).
+
 ## Found this session — pending lines (rule 2)
 
 - **N-61** (S44, the owner's naming priority): `src/core/NameTemplate.h` + its 60-check suite

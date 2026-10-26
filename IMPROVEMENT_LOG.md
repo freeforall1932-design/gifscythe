@@ -4,6 +4,58 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S45 — 2026-10-26: FFmpeg finished and proven; the Output form built, then reverted rather than left red
+
+**Landed:**
+
+- **Licensing shelved per the owner** (`f4cffb6`): the product reads **UNLICENSED**,
+  every notice moved into `legal/`, and the current-state docs were swept of
+  licence prose. Packaging still ships the third-party texts under `licenses/`,
+  and `test_package.sh` was corrected to look for them there (36/36).
+- **`N-62` DONE — FFmpeg bundled, portable, proven.** `FfmpegLocator.h` (34
+  checks) resolves `GS_FFMPEG` → the copy beside the executable → PATH → the
+  usual install folders, and refuses to fall through a broken override or to run
+  a 0-byte/non-exec candidate. `FfmpegCommand.h` (74 checks) pins `-f` because
+  the staging name is not a format hint, picks `libwebp_anim` over `libwebp` (the
+  still codec succeeds and writes one frame), tags H.265 `hvc1`, and scales to
+  even dimensions so an odd-width GIF does not fail only *sometimes*.
+  `MediaFormat.h` sniffs the produced container, so "file exists and is
+  non-empty" is no longer the test — a still PNG under APNG, a still WebP, VP9
+  under AV1, or a GIF renamed `.mp4` fails the run. `test_ffmpeg_roundtrip.cpp`
+  ran a real ffmpeg 7.0.2 and encoded all six formats from a 65×49 GIF; a real
+  79.8 MB sidecar was staged, packaged with `--require-ffmpeg`, audit-verified as
+  "FFmpeg bundled", and the round-trip then found `bundled: ./ffmpeg` **from
+  inside the package** and encoded all six again. The GUI enables a format only
+  when the encoder exists, says where it found it, freezes the format for the
+  run, refuses non-GIF Merge/Explode instead of faking it, and prints the real
+  command. `test_package.sh` 42/42.
+- **Two bugs my own tests caught before they shipped:** the locator skipped the
+  sidecar entirely when `app_dir` was empty (i.e. the copy in the folder — the
+  whole point — was invisible to any caller without an absolute path), and a
+  staging name that ate a `.part-` marker, which would have let two runs collide
+  on one temp file.
+- **One bug CI caught and this sandbox could not:** the doc-gate's comment masker
+  does not understand character literals, so `QLatin1Char('"')` desynchronised
+  its line map and made five old findings look new.
+
+**Reverted, deliberately:** `N-63` (the Output form: keep-folder-structure +
+the "already exists" control). The core was written and tested — `Collision.h`,
+45 checks, asking/renaming/overwriting/skipping as pure functions with the disk
+injected — but the GUI half **failed to compile on both CI jobs**, and with no
+Qt6 here I could not see it before pushing. The branch was reverted to the last
+green tree (`2f72a90` = `c0a868d`) rather than left red, and the owner's answers
+plus the exact shape he described are recorded in `WORKLIST.md` and
+`SESSION_HANDOFF.md` so the next session restores the proven core instead of
+rewriting it. **The lesson is in the handoff:** no GUI change goes out again
+without either a local Qt6 or a CI log that names the error.
+
+**Owner answers captured:** Keep folder structure = checkbox, **default on**,
+covering both the source-vs-designated choice and the original nesting; the
+size guard is **same-format only** (across containers a bigger file is not a
+worse one); the collision control is a **compact square** showing the current
+choice (longest option name + ⬇️⬆️, no dropdown tail), click to reveal the other
+choices; a skipped file gets its own tally row with name and location.
+
 ## S44b — 2026-10-26: licence text consolidated, and FFmpeg becomes a portable sidecar with a real fallback
 
 **Changed:**

@@ -11,6 +11,102 @@ Based on `main` commit `9629d49` (**S41 re-anchor:** the owner's 2026-10-20 "Add
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
+### S45 — what changed (current session, 2026-10-26)
+
+**Register at this write-up: 194 DONE · 9 PARTIAL · 16 OPEN · 0 UNTRIAGED · 219 total.**
+
+- **Licensing is shelved by the owner's instruction, and implemented.** The
+  product is **UNLICENSED** (no grant, all rights reserved) until he says
+  otherwise after a provably working build; every notice lives in `legal/`, and
+  no current-state MD outside that folder discusses licensing. Packages still
+  carry the third-party texts under `licenses/`. **Do not raise the subject
+  again unprompted** — his words: "burned out and move on".
+- **FFmpeg is bundled, portable, and proven (`N-62` DONE → row in `STATUS.md`).**
+  Precedence is exactly his: `GS_FFMPEG` → **the copy beside the executable** →
+  PATH → the usual install folders, with the local copy always winning. The argv
+  builder pins `-f` (the staging name is `….part-3f2a`, so an extension-inferred
+  muxer is a coin flip), uses `libwebp_anim` (not `libwebp`, which silently
+  writes one frame), tags H.265 as `hvc1`, and scales to even dimensions for
+  H.264/H.265. `MediaFormat.h` sniffs the produced container, so a still WebP
+  under "animated WebP" or HEVC under an "H.264" label **fails the run**.
+  Evidence: `tests/test_ffmpeg_roundtrip.cpp` ran a real ffmpeg 7.0.2 and
+  encoded all six formats from an odd 65×49 GIF; a real 79.8 MB sidecar was then
+  staged, packaged (`--require-ffmpeg`), audit-verified ("FFmpeg bundled"), and
+  the same test re-ran **from inside the package** and found `bundled: ./ffmpeg`.
+  It prints an explicit SKIP on machines without FFmpeg (that is CI).
+- **`N-63` was built and had to be reverted.** `7490cb9` (core `Collision.h` +
+  45 checks + the UI) failed to compile the GUI on **both** CI jobs; with no Qt6
+  in this sandbox I could not see the error before pushing, and I will not leave
+  a red branch, so `2f72a90` reverts it. The tree now equals `c0a868d`, which was
+  green. **The core in that commit is good and should be restored, not
+  rewritten** — see `WORKLIST.md` §"Next session (S46)".
+- **CI:** green on `c0a868d` (linux + windows + portability + docs + `ci-ok`).
+  The revert `2f72a90` restores that exact tree. Nothing merged; PR #17 open.
+
+#### Owner's answers (verbatim, then the shape they imply) — read before N-63
+
+> "For folder structure if you mean the 2 choice between source and designated
+> folder then yes do it like that if you mean how the folder was structure as in
+> folder inside of folder inside of folder where the original was located if I
+> use designated folder location then yes also implement that and do you already
+> implement if size bigger than original file then the result is discarded but
+> this is an exception for this project this checkmark option only work on same
+> format because gif apng webp mp4 etc have different purpose as for output file
+> that already exist we can simply use clickable option like in original
+> XnConvert the default is rename or skip if I'm not wrong but when you click it
+> there's other 2 option that's visible to choose like that preset but only
+> clickable you can choose simply by clicking not visible like those say 3 option
+> I can read and click the circle ⭕ 🔴 of I mean like square the length should be
+> the longest name of the 3 option plus icon of ⬇️⬆️ but without tail kind of
+> square"
+
+Reading that back as a specification (he also confirmed earlier answers in the
+same session: FFmpeg "as is"; Keep folder structure "a checkbox, default on"):
+
+1. **Keep folder structure = ON by default**, and it covers BOTH readings:
+   source-vs-designated destination, and (when a designated folder is used) the
+   original nesting recreated inside it.
+2. **Size guard** = a checkbox, **same-format only** — because across GIF / APNG
+   / WebP / MP4 "a bigger file" is not a worse file, the formats "have different
+   purpose". Result bigger than the source → result discarded, original kept,
+   reported.
+3. **Collision control** = the XnConvert shape, **not** a list of four radios:
+   one compact **square** button sized to the **longest option name**, showing
+   the current choice, with a ⬇️⬆️ glyph and **no dropdown tail**; clicking it
+   reveals the other choices and you pick one by clicking. Default per his
+   earlier answer: **Ask each time**.
+4. **Tally** = a skipped file is a row: `skipped, file already exists` + the file
+   name + its full location.
+
+#### Audit review for the next session (do this before writing code)
+
+1. **Read the current state, don't trust this file alone:** `git log --oneline -6`,
+   `gh run list --branch arena/fd6e2d05-gifscythe`, and `STATUS.md` counts.
+   Anything below this section that contradicts them is the older text.
+2. **Confirm the revert landed green.** The last green tree is `c0a868d`; the
+   revert `2f72a90` should reproduce it exactly
+   (`git diff --stat c0a868d 2f72a90` must be empty). If the branch is red, fix
+   that before adding anything.
+3. **Recover N-63's core instead of retyping it:**
+   `git show 7490cb9:working_code/gifscythe/Collision.h (restorable from 7490cb9)` and the test.
+   Re-run its 45 checks as the first thing after restoring.
+4. **The compile failure must be found before the next push.** Reproduce it with
+   the CI log (`gh run view <id> --log-failed`), or read the changed GUI hunks
+   with the specific suspicion that the `QMessageBox`/`QButtonGroup` interaction
+   and the `std::filesystem` lambda in `resolveBatchTargets` were the new
+   surface. Do not push GUI code again without either a local Qt6 or a log that
+   names the error.
+5. **Re-run the full local gate** before pushing: `./build.sh`,
+   `./scripts/test_package.sh`, `./scripts/check_docs.sh`,
+   `python3 tools/qt_lint/qt_lint.py --baseline tools/qt_lint/qt_lint.baseline.json src tests`,
+   and `./scripts/verify_reference_pins.sh` (the licence sweep needed a
+   deliberate re-pin; any doc edit near a pinned file will need another).
+6. **Do not turn the collision control into a settings dialog.** The owner's
+   correction was about the CONTROL's shape; the four policies themselves were
+   agreed. Ask remains the default and "… all" lives in the ask dialog.
+7. **Never merge.** The owner reviews the UI first; PR #17 stays open until he
+   says so.
+
 ### S44c — what just changed (current session)
 
 - **FFmpeg is bundled, portable, and PROVEN (`N-62` DONE).** Locator precedence is
@@ -591,7 +687,7 @@ Qt evidence comes from CI and is now also captured as screenshots.
   row never shows byte figures. `W-32` is PARTIAL on purpose — the Qt half is done, the web
   surface has not moved. `N-57`: the four reference screenshots are committed under
   `docs/planning/reference/` (`OD-22 = yes`, explicit `N-36` exception).
-- **Register:** 194 DONE · 9 PARTIAL · 14 OPEN · 0 UNTRIAGED · 217 total (at S44c start: 193/10/14/0/217; at S44b start: 193/9/14/0/216; at S44 start: 193/8/14/0/215; at S43 start: 192/8/14/0/214; at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 194 DONE · 9 PARTIAL · 16 OPEN · 0 UNTRIAGED · 219 total (at S44c start: 193/10/14/0/217; at S44b start: 193/9/14/0/216; at S44 start: 193/8/14/0/215; at S43 start: 192/8/14/0/214; at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -1603,8 +1699,8 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 194 DONE · 9 PARTIAL · 14 OPEN · 0
-   UNTRIAGED · 217 total — but `STATUS.md` itself always wins; sweep rule S2
+   its generated counts line (currently: 194 DONE · 9 PARTIAL · 16 OPEN · 0
+   UNTRIAGED · 219 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the
