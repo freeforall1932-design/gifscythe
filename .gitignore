@@ -43,3 +43,6 @@ ui-shots/
 # PINS.txt IS tracked - a pin nobody can see pins nothing.
 vendor/ffmpeg/*
 !vendor/ffmpeg/PINS.txt
+
+# Python bytecode (qt_lint is imported by its own tests)
+__pycache__/
