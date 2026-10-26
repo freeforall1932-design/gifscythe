@@ -83,7 +83,6 @@ class SettingsPanel;
 #include "core/GifsicleCommand.h"
 #include "core/OutputPlan.h"
 #include "core/ExplodeVerify.h"
-#include "core/Collision.h"
 #include "core/FfmpegCommand.h"
 #include "core/FfmpegLocator.h"
 #include "core/OutputVerify.h"
@@ -197,13 +196,6 @@ class MainWindow : public QMainWindow {
   // data, not from a hard-coded index, so reordering the list cannot silently
   // change what a run encodes.
   gs::OutputFormat selectedOutputFormat() const;
-  // "If an output file already exists": the four policies, read from the
-  // dedicated block on the Output tab (ask is the default).
-  gs::CollisionPolicy collisionPolicy() const;
-  // Resolve every planned target against the disk BEFORE the run starts:
-  // rename/overwrite are applied, skips are reported with their full path and
-  // dropped from the queue, and "ask" turns into a question per collision.
-  QStringList resolveBatchTargets(const QStringList& targets, int* skipped);
   // Update the Format controls from the cached locator answer. `relocate` also
   // re-runs the search (start-up, and Format > Settings… after the user
   // installed FFmpeg); a plain selection change must NOT re-scan the disk.
@@ -280,10 +272,6 @@ class MainWindow : public QMainWindow {
   QPushButton* formatSettingsButton_ = nullptr;
   QLabel* formatNoteLabel_ = nullptr;
   QLabel* ffmpegStatusLabel_ = nullptr;
-  // Output form (owner, 2026-10-26): keep folder structure defaults ON; the
-  // collision policy sits in its own clickable block, ask by default.
-  QCheckBox* keepStructureCheck_ = nullptr;
-  QButtonGroup* collisionGroup_ = nullptr;
   QVector<QToolButton*> sortButtons_;
   QHash<QString, gs::GifFacts> factsCache_;
   QHash<QString, QPixmap> thumbCache_;
@@ -294,9 +282,6 @@ class MainWindow : public QMainWindow {
   // "stop sorting from here on" and could never restore what a sort displaced —
   // and queue order is the Merge order, so that would be a semantic lie.
   QStringList manualOrder_;
-  // Folders the user added with "Add folder…". "Keep folder structure" is only
-  // meaningful relative to one of these; a file picked on its own stays flat.
-  QStringList inputRoots_;
   SettingsPanel* settingsPanel_ = nullptr;
   QLineEdit* outputEdit_ = nullptr;
   QLineEdit* batchDirEdit_ = nullptr;

@@ -200,12 +200,6 @@ g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
   -o "$BUILD_DIR/test_ffmpeg_command" "$self/tests/test_ffmpeg_command.cpp" $STDCXXFS \
   || fail "ffmpeg-command test compile failed"
 "$BUILD_DIR/test_ffmpeg_command" || fail "ffmpeg-command tests failed"
-# What happens when the destination already holds a file (owner, 2026-10-26):
-# ask by default, and never guess in a way that destroys something.
-g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
-  -o "$BUILD_DIR/test_collision" "$self/tests/test_collision.cpp" $STDCXXFS \
-  || fail "collision test compile failed"
-"$BUILD_DIR/test_collision" || fail "collision tests failed"
 # End-to-end: run the real encoder when this machine has one (it skips, loudly,
 # when it does not - a GIF-only checkout must still build green). This is the
 # only test that proves an argument list actually produces a playable file.

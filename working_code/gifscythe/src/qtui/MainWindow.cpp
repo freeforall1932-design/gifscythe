@@ -31,10 +31,6 @@
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QFrame>
-#include <QAbstractButton>
-#include <QButtonGroup>
-#include <QCheckBox>
-#include <QRadioButton>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -70,7 +66,6 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
-#include <filesystem>
 #include <functional>
 #include <map>
 #include <numeric>
@@ -564,54 +559,13 @@ QWidget* MainWindow::buildOutputTab() {
   batchRow->addWidget(batchDirEdit_);
   batchRow->addWidget(batchDirBrowse_);
   form->addRow(QStringLiteral("Batch folder"), batchRow);
-
-  // ---- Output form (owner, 2026-10-26) -------------------------------------
-  // "Keep folder structure" is a checkbox and it starts ON: a folder added with
-  // Add folder… is a tree, and flattening it silently loses the shape the user
-  // already had. "If an output file already exists" is its own clickable block
-  // with the four answers, ask by default.
-  keepStructureCheck_ = new QCheckBox(
-      QStringLiteral("Keep folder structure (sub-folders are recreated in the batch folder)"), box);
-  keepStructureCheck_->setObjectName(QStringLiteral("keepStructureCheck"));
-  keepStructureCheck_->setChecked(true);
-  keepStructureCheck_->setToolTip(QStringLiteral(
-      "On by default. Files added with Add folder… keep their sub-folder under the batch "
-      "folder; a file you picked on its own is written flat, because there is no tree to keep."));
-  form->addRow(QString(), keepStructureCheck_);
   auto* batchHint = new QLabel(QStringLiteral(
       "Optional folder for Batch results. Leave empty to save beside each source GIF."), box);
   batchHint->setWordWrap(true);
   batchHint->setObjectName(QStringLiteral("batchFolderHint"));
   form->addRow(QString(), batchHint);
-  lay->addWidget(box);
 
-  auto* collideBox = new QGroupBox(QStringLiteral("If an output file already exists"), page);
-  collideBox->setObjectName(QStringLiteral("collisionGroup"));
-  auto* collideLay = new QVBoxLayout(collideBox);
-  collisionGroup_ = new QButtonGroup(collideBox);
-  struct PolicySpec { const char* label; const char* why; int value; };
-  const PolicySpec policies[] = {
-      {"Ask each time (default)",
-       "Never guess: a collision asks, and the dialog offers rename, overwrite, skip — plus "
-       "\"all\" so a 200-file batch is one decision.", 0},
-      {"Rename (numbered)",
-       "Nothing is ever destroyed: go_result.webp, go_result_1.webp, go_result_2.webp.", 1},
-      {"Overwrite",
-       "Replace the old file. The replacement is written aside and verified first, so a failed "
-       "run cannot leave a half-written file over the last good one.", 2},
-      {"Skip",
-       "Leave the existing file alone and record \"skipped, file already exists\" with its full "
-       "path in the log and the tally.", 3},
-  };
-  for (const PolicySpec& spec : policies) {
-    auto* radio = new QRadioButton(QString::fromLatin1(spec.label), collideBox);
-    radio->setObjectName(QStringLiteral("collisionRadio%1").arg(spec.value));
-    radio->setToolTip(QString::fromLatin1(spec.why));
-    collisionGroup_->addButton(radio, spec.value);
-    collideLay->addWidget(radio);
-    if (spec.value == 0) radio->setChecked(true);
-  }
-  lay->addWidget(collideBox);
+  lay->addWidget(box);
 
   // ---- Format (the reference's Output > Format + Settings...) --------------
   // The owner asked for this by name on 2026-10-24: "I can't change it to
@@ -1067,10 +1021,6 @@ void MainWindow::savePresetAs() {
   const QString tmpl = nameTemplateEdit_ ? nameTemplateEdit_->text().trimmed() : QString();
   if (!tmpl.isEmpty() && tmpl != QString::fromLatin1(kDefaultNameTemplate))
     oss << "name_template = " << tmpl.toStdString() << "\n";
-  // The output form belongs to the same state: a preset that forgets "keep
-  // folder structure" or the collision answer rebuilds a different job.
-  oss << "keep_structure = " << (keepStructureCheck_ && keepStructureCheck_->isChecked() ? 1 : 0) << "\n";
-  oss << "collision = " << gs::collision_policy_token(collisionPolicy()) << "\n";
   // The output format is part of the naming/action state (owner: a preset must
   // remember everything that changes the result). Written only when it is not
   // the default, so old presets stay byte-identical and readable.
@@ -1137,18 +1087,6 @@ void MainWindow::loadSelectedPreset() {
   const QString tmpl = guiKey("name_template");
   nameTemplateEdit_->setText(tmpl.isEmpty() ? QString::fromLatin1(kDefaultNameTemplate) : tmpl);
   applyOutputFormatToken(guiKey("output_format"));
-  if (keepStructureCheck_) {
-    const QString keep = guiKey("keep_structure");
-    // Default stays ON for a file that predates the key.
-    keepStructureCheck_->setChecked(keep.isEmpty() ? true : keep != QStringLiteral("0"));
-  }
-  if (collisionGroup_) {
-    const gs::CollisionPolicy policy = gs::collision_policy_from_token(guiKey("collision").toStdString());
-    const int id = policy == gs::CollisionPolicy::Rename ? 1
-                 : policy == gs::CollisionPolicy::Overwrite ? 2
-                 : policy == gs::CollisionPolicy::Skip ? 3 : 0;
-    if (QAbstractButton* b = collisionGroup_->button(id)) b->setChecked(true);
-  }
 
   lastOutputPaths_.clear();
   refreshCommand();
@@ -1305,80 +1243,6 @@ gs::OutputFormat MainWindow::selectedOutputFormat() const {
   // "gif" is both "Same as original" and "GIF": they are the same encoder and
   // the same file, and pretending otherwise would be a lie in the session file.
   return gs::output_format_from_token(token.toStdString());
-}
-
-gs::CollisionPolicy MainWindow::collisionPolicy() const {
-  if (!collisionGroup_) return gs::CollisionPolicy::Ask;
-  const int id = collisionGroup_->checkedId();
-  switch (id) {
-    case 1: return gs::CollisionPolicy::Rename;
-    case 2: return gs::CollisionPolicy::Overwrite;
-    case 3: return gs::CollisionPolicy::Skip;
-    default: return gs::CollisionPolicy::Ask;
-  }
-}
-
-QStringList MainWindow::resolveBatchTargets(const QStringList& targets, int* skipped) {
-  QStringList resolved;
-  resolved.reserve(targets.size());
-  if (skipped) *skipped = 0;
-  const gs::CollisionPolicy policy = collisionPolicy();
-  // "All" answers for the rest of THIS run, never remembered in the session: a
-  // decision made while looking at one collision must not silently become the
-  // user's permanent policy.
-  gs::CollisionPolicy remembered = policy;
-  bool have_remembered = (policy != gs::CollisionPolicy::Ask);
-
-  const auto file_exists = [](const std::string& p) {
-    std::error_code ec;
-    return std::filesystem::exists(gs::u8path_compat(p), ec) &&
-           !std::filesystem::is_directory(gs::u8path_compat(p), ec);
-  };
-
-  for (const QString& target : targets) {
-    const std::string t = target.toStdString();
-    gs::CollisionPolicy use = have_remembered ? remembered : policy;
-    if (use == gs::CollisionPolicy::Ask && file_exists(t)) {
-      QMessageBox box(this);
-      box.setWindowTitle(QStringLiteral("File already exists"));
-      box.setIcon(QMessageBox::Question);
-      box.setText(QStringLiteral("%1\n\nWhat should happen?").arg(QDir::toNativeSeparators(target)));
-      box.setInformativeText(QStringLiteral(
-          "The path above is the exact destination. Rename never destroys anything; Overwrite "
-          "replaces it only after the new file verifies; Skip leaves it exactly as it is."));
-      QPushButton* renameOne = box.addButton(QStringLiteral("Rename"), QMessageBox::AcceptRole);
-      QPushButton* overwriteOne = box.addButton(QStringLiteral("Overwrite"), QMessageBox::DestructiveRole);
-      QPushButton* skipOne = box.addButton(QStringLiteral("Skip"), QMessageBox::RejectRole);
-      box.addButton(QStringLiteral("Rename all"), QMessageBox::ActionRole);
-      box.addButton(QStringLiteral("Overwrite all"), QMessageBox::ActionRole);
-      box.addButton(QStringLiteral("Skip all"), QMessageBox::ActionRole);
-      box.setDefaultButton(renameOne);
-      box.exec();
-      QAbstractButton* clicked = box.clickedButton();
-      const QString label = clicked ? clicked->text() : QStringLiteral("Skip");
-      if (label == QStringLiteral("Rename all")) { remembered = gs::CollisionPolicy::Rename; have_remembered = true; }
-      else if (label == QStringLiteral("Overwrite all")) { remembered = gs::CollisionPolicy::Overwrite; have_remembered = true; }
-      else if (label == QStringLiteral("Skip all")) { remembered = gs::CollisionPolicy::Skip; have_remembered = true; }
-      else if (label == QStringLiteral("Rename")) use = gs::CollisionPolicy::Rename;
-      else if (label == QStringLiteral("Overwrite")) use = gs::CollisionPolicy::Overwrite;
-      else use = gs::CollisionPolicy::Skip;
-      (void)renameOne; (void)overwriteOne; (void)skipOne;
-    }
-    const gs::CollisionDecision d = gs::decide_collision(t, use, file_exists);
-    if (d.action == gs::CollisionAction::Skip) {
-      // The owner's wording: the tally carries the file name AND its location.
-      appendLog(QStringLiteral("%1: %2").arg(QString::fromStdString(gs::collision_action_name(d.action)),
-                                             QDir::toNativeSeparators(target)));
-      if (skipped) ++(*skipped);
-      resolved << QString();
-      continue;
-    }
-    const QString chosen = QString::fromStdString(d.final_path);
-    if (d.action == gs::CollisionAction::Rename)
-      appendLog(QStringLiteral("already exists; writing %1 instead").arg(QDir::toNativeSeparators(chosen)));
-    resolved << chosen;
-  }
-  return resolved;
 }
 
 void MainWindow::applyOutputFormatToken(const QString& token) {
@@ -1905,7 +1769,6 @@ void MainWindow::chooseInputFolder() {
     updateStatus(QStringLiteral("No .gif files in %1").arg(QDir::toNativeSeparators(dir)));
     return;
   }
-  if (!inputRoots_.contains(dir)) inputRoots_ << dir;
   appendInputs(files);
 }
 
@@ -2140,21 +2003,7 @@ bool MainWindow::templateIsConstant() const {
 
 QString MainWindow::defaultOutputFor(const QString& input) const {
   const QFileInfo fi(input);
-  QString dir = batchDir().isEmpty() ? fi.absolutePath() : batchDir();
-  // "Keep folder structure" (owner, 2026-10-26; a checkbox that starts ON).
-  // It only means something relative to a folder the user ADDED: a file picked
-  // on its own has no tree to keep, and inventing one would scatter results
-  // into folders nobody asked for.
-  if (keepStructureCheck_ && keepStructureCheck_->isChecked()) {
-    for (const QString& root : inputRoots_) {
-      const std::string rel =
-          gs::relative_under_root(input.toStdString(), root.toStdString());
-      if (rel.empty()) continue;
-      const std::string sub = gs::relative_dir_part(rel);
-      if (!sub.empty()) dir = QString::fromStdString(gs::join_path(dir.toStdString(), sub));
-      break;
-    }
-  }
+  const QString dir = batchDir().isEmpty() ? fi.absolutePath() : batchDir();
   return dir + QLatin1Char('/') + renderedOutputName(fi);
 }
 
@@ -2648,39 +2497,6 @@ void MainWindow::runCommand() {
       return;
     }
     batchTargets_ = plannedBatchTargets();
-    // "If an output file already exists" is answered HERE, before a single
-    // process starts: rename/overwrite adjust the target, skip drops that input
-    // with its full path in the log - never a run that discovers the collision
-    // after it has already written to it.
-    {
-      int skippedCount = 0;
-      const QStringList resolved = resolveBatchTargets(batchTargets_, &skippedCount);
-      if (skippedCount > 0) {
-        QStringList keptInputs;
-        QStringList keptTargets;
-        for (int i = 0; i < batchTargets_.size(); ++i) {
-          if (resolved.value(i).isEmpty()) continue;
-          keptInputs << inputs_.value(i);
-          keptTargets << resolved.value(i);
-        }
-        if (keptInputs.isEmpty()) {
-          updateStatus(QStringLiteral("Nothing to do — every result already exists (%1 skipped).")
-                           .arg(skippedCount));
-          QMessageBox::information(this, QStringLiteral("Gifscythe"),
-              QStringLiteral("Every planned result already exists and the choice was Skip, so "
-                             "nothing was written.\n\nPick Rename or Overwrite to replace them, "
-                             "or move the sources somewhere else."));
-          return;
-        }
-        inputs_ = keptInputs;
-        batchTargets_ = keptTargets;
-        settings.inputs.clear();
-        for (const QString& p : inputs_) settings.inputs.push_back(p.toStdString());
-        updateStatus(QStringLiteral("%1 file(s) skipped: already exists").arg(skippedCount));
-      } else {
-        batchTargets_ = resolved;
-      }
-    }
     // W-32: install one row per planned job NOW, from the plan - not from the
     // live queue, which the user can still change while the run is in flight.
     beginResultRows(inputs_);
@@ -3573,8 +3389,6 @@ bool MainWindow::saveSessionState() {
   const gs::OutputFormat sessionFormat = selectedOutputFormat();
   if (sessionFormat != gs::OutputFormat::Gif)
     oss << "output_format = " << gs::output_format_token(sessionFormat) << "\n";
-  oss << "keep_structure = " << (keepStructureCheck_ && keepStructureCheck_->isChecked() ? 1 : 0) << "\n";
-  oss << "collision = " << gs::collision_policy_token(collisionPolicy()) << "\n";
   // Slice D: the card stack survives a restart (presence / enabled / collapsed).
   // A flat list of ids, so a future action can be appended without a format bump.
   if (settingsPanel_) {
