@@ -298,11 +298,11 @@ Still open from the audit intake (state lives in `STATUS.md`):
       Fixed S33/S34 (N-31 + the full-history `docs` job); run 36967608254 is green.
 
 - [x] **U-97** (found AND fixed in S27 — rule 2's strong form): the 2026-09-22
-      zip re-creation of the GitHub repo lost the root license set
-      (`COPYING.ms-pl` / `COPYING.lgplv3` / `COPYING.gplv3` / `COPYING.gifsicle`),
+      zip re-creation of the GitHub repo lost the root notice set (now `legal/`)
+      (`legal/COPYING.ms-pl` / `legal/COPYING.lgplv3` / `legal/COPYING.gplv3` / `legal/COPYING.gifsicle`),
       so both packagers fail closed — that is where CI windows "Package
       portable" died on all three runs of the new main (executed local repro:
-      `ERROR: COPYING.ms-pl missing or empty`, exit 1). Restored from canonical
+      `ERROR: legal/COPYING.ms-pl missing or empty`, exit 1). Restored from canonical
       sources (URLs + sha256 digests in the S27 log entry); repro flipped to
       `Package created` exit 0; the repair PR's CI packaging steps are the
       platform proof.
@@ -326,7 +326,7 @@ Still open from the audit intake (state lives in `STATUS.md`):
             zero pinned as parity, empty-vs-zero pinned over HTTP (transport
             72 → 79 cases).
       - [x] **U-95** → **P1-45** — the published Release predates the Ms-PL
-            relicence: owner release-notes edit (mark superseded/pre-release,
+            notices: owner release-notes edit (mark superseded/pre-release,
             never delete), then the P0-4 re-cut + tag-triggered asset gate.
             **DONE (S33)** — moot by verification: the same releases API check
             that confirmed the defect (S24) now returns 0 releases on the live
@@ -428,7 +428,7 @@ Still open from the audit intake (state lives in `STATUS.md`):
    offscreen suite if that agent has CMake + Qt6; report findings without
    merging absent owner approval.
 2. **U-09 / P0-4 + U-95 / P1-45** — re-cut release artifacts from one exact
-   tagged SHA; the owner marks the pre-relicence `snapshot-2026-09-07` release
+   tagged SHA; the owner marks the superseded `snapshot-2026-09-07` release
    superseded in its notes (never delete — rollback policy).
 3. **W-18 clean-Windows smoke + W-19 desktop probes** — real machine, published
    artifact: `docs/ci/README.md` §2–§3. Nothing in a Linux sandbox can close
@@ -494,7 +494,7 @@ deliberately not started until GIF 1.0.0 ships.
 - Frame editor, text/watermark overlays, presets, richer previews.
 - Optional: logging framework, i18n, dark mode, system tray.
 - **Web client-side wasm** (`web/wasm/`, D-07): scaffolded S19, unbuilt, and
-  NOT SHIPPABLE until `OD-16` (in-process licence — `docs/legal/README.md` §3)
+  NOT SHIPPABLE until `OD-16` (in-process terms — `legal/README.md` §2)
   + a real emcc proof (the bar is a same-libc native oracle, decided S34 — N-32;
   no emcc build has been run through it). The Node server stays the shipped web path.
   History of the option analysis: `web/README.md` §History.
@@ -503,7 +503,7 @@ deliberately not started until GIF 1.0.0 ships.
 - **Stills → animated / video endpoints** (owner request 2026-09-14, asked again
   2026-10-08: "should we add ffmpeg too"): gated by U-90/P3-19 and now tracked as
   **`OD-20`** — a PROJECT_VISION amendment (the owner's words, in writing) + a decode
-  sidecar (FFmpeg, with its own LGPL/GPL licence note) must land before any code.
+  sidecar (FFmpeg, with its own notice set) must land before any code.
   The parked C# plan's item (4) already sketches this as conversion-endpoint-only.
 
 ## Build commands

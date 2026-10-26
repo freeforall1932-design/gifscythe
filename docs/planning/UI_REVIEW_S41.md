@@ -129,7 +129,7 @@ records what a reviewer can see now, and what is still deliberately missing.
 
 **B — the tab set.** Six tabs, in the reference's order: `Input: 0 file(s)` · `Actions` · `Output` ·
 **`Status`** · `Settings` · **`About`**. The old `Guide` tab did not disappear; it became **About**,
-with a version/licence block above it, and kept the `guideScroll` / `guideIntro` /
+with a version block above it, and kept the `guideScroll` / `guideIntro` /
 `guideDescription` objectNames, so every probe written against the old tab still finds its widget.
 `Settings` shows the three app-level facts the probes already produce — the resolved engine path,
 the version it reports, and the output folder with a working *Open folder* button. The Input title

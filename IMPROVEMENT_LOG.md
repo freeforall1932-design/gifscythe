@@ -477,7 +477,7 @@ behaviour; it says the existing surfaces did not break.
   only GIF encoder; no editing/timeline/capture/playback; **argv subprocess
   only**, never linked into the Ms-PL UI; the FFmpeg build's licence (LGPL or GPL
   per configuration) identified at build time with its notices shipped
-  (`docs/legal/README.md` §5); and not on the 1.0.0 critical path. **The
+  (`legal/README.md` §5); and not on the 1.0.0 critical path. **The
   amendment is not a work order**: `U-90` stays OPEN until `P3-19` adds the
   deferred rows that own this scope by name, so no stills/video code starts yet.
   The XNConvert four-tab UI ask (Input = explorer-like
@@ -567,7 +567,7 @@ line, the U-91 note, the deferred bucket's `OD-20`, constraints note),
 `COMPILED_AUDIT.md` (base line), `docs/planning/PLANNING.md` (§2 header +
 state, §6.1/§6.2 wording), `docs/planning/OWNER_DECISIONS.md` (OD-20 asked **and answered `= a`**,
 `OD-C7 = resume`), `PROJECT_VISION.md` (the adopted conversion-endpoint
-amendment + the hard-scope bullet + the resumed C# lane), `docs/legal/README.md`
+amendment + the hard-scope bullet + the resumed C# lane), `legal/README.md`
 (new §5: the FFmpeg sidecar's three-licence rules), `COMPILED_AUDIT.md` (the
 `U-90` and `P3-19` rows re-stated around the answered question),
 `csharp/README.md`, `docs/ci/README.md` (csharp-spike now described as the
@@ -2090,36 +2090,36 @@ section, the verification table, the toolchain section), `WORKLIST.md` (road to
   suite green), transport's 79-case write-up in the handoff. The unpack merge
   itself changed nothing: `git diff ce5fd51..824bf20` is empty.
 - **The re-creation lost the four root license files — new finding U-97, found
-  AND fixed in-session (rule 2's strong form).** `COPYING.ms-pl`,
-  `COPYING.lgplv3`, `COPYING.gplv3`, `COPYING.gifsicle` were absent while
+  AND fixed in-session (rule 2's strong form).** `legal/COPYING.ms-pl`,
+  `legal/COPYING.lgplv3`, `legal/COPYING.gplv3`, `legal/COPYING.gifsicle` were absent while
   `package_common.sh` hard-requires the first three (`copy_required`, fail-closed
   since U-02/U-08; the fourth has an in-tree fallback). That is where CI windows
   "Package portable (Windows)" died (run 35684055250; every build/test step
   before it green, manifest assert + artifact upload skipped after). **Executed
   local repro** — the licence check is platform-independent, so no Windows
   runner was needed: real `package_portable.sh --engine-cli-only`, fixture
-  binaries on gitignored paths, REAL repo root → `ERROR: COPYING.ms-pl missing
+  binaries on gitignored paths, REAL repo root → `ERROR: legal/COPYING.ms-pl missing
   or empty (no usable same-target candidate)`, exit 1. The linux packaging step
   would have failed identically once the doc gate passed.
 - **Restored from canonical sources, provenance recorded here per the legal
   README's rule (6):**
-  - `COPYING.gplv3` — GNU GPLv3 text, 35147 B, sha256
+  - `legal/COPYING.gplv3` — GNU GPLv3 text, 35147 B, sha256
     `8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903`, fetched
     from `raw.githubusercontent.com/gcc-mirror/gcc/master/COPYING3` (gnu.org is
     unreachable from this sandbox; the gcc mirror carries the GNU text verbatim —
     size and head/tail match gnu.org's `gpl-3.0.txt`).
-  - `COPYING.lgplv3` — standalone GNU LGPLv3, 7639 B, sha256
+  - `legal/COPYING.lgplv3` — standalone GNU LGPLv3, 7639 B, sha256
     `a853c2ffec17057872340eee242ae4d96cbf2b520ae27d903e1b2fef1a5f9d1c`, same
     mirror, `COPYING3.LIB`. The SPDX `LGPL-3.0-only.txt` was fetched first and
     **rejected**: 42098 B because it concatenates the GPLv3 text at offset 7428 —
-    the canonical `COPYING.lgplv3` is the standalone text (the GPLv3 companion
-    ships separately as `COPYING.gplv3`, which is the repo's documented layout).
-  - `COPYING.ms-pl` — canonical Ms-PL, 2663 B, sha256
+    the canonical `legal/COPYING.lgplv3` is the standalone text (the GPLv3 companion
+    ships separately as `legal/COPYING.gplv3`, which is the repo's documented layout).
+  - `legal/COPYING.ms-pl` — canonical Ms-PL, 2663 B, sha256
     `7a162b1da10f1c22db4c68f07bec4a8355259f8d4aab5b00a2b2bbd423d833dd`, from
     `raw.githubusercontent.com/spdx/license-list-data/main/text/MS-PL.txt`;
     structure verified (sections 1 Definitions / 2 Grant of Rights / 3
     Conditions and Limitations, ending with the as-is clause (E)).
-  - `COPYING.gifsicle` — byte-copy of `reference_code/gifsicle/COPYING` (GPL v2,
+  - `legal/COPYING.gifsicle` — byte-copy of `reference_code/gifsicle/COPYING` (GPL v2,
     18092 B), sha256 `8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643`
     identical on both sides of the copy. Nothing was written INTO the read-only
     tree.
@@ -2171,7 +2171,7 @@ call, unchanged.
 (G10 ×2 docs, G11, G15) / 2 skipped; after the edits + `--emit`: see the S27
 handoff verification table for the final measurement · `scripts/sweep_stale.sh`
 5/0/0 · `python3 tests/test_sweep_stale.py` 20/20 · packager repro before
-(exit 1, `COPYING.ms-pl`) and after (exit 0, `Package created`) · engine-free
+(exit 1, `legal/COPYING.ms-pl`) and after (exit 0, `Package created`) · engine-free
 web suites green: numeric-honesty, request-guard, device-names (27 rows),
 body-limit, static-hygiene; server-bounds 3/5 here (its 2 failures need a
 discoverable engine — environmental, printed as `Engine [none]`) ·
@@ -2192,8 +2192,8 @@ Base line, §5 heading + U-97 row), `SESSION_HANDOFF.md` (header block, ledger
 separator + new-repo rows, S27 section, toolchain bullet, verification table,
 orientation counts), `WORKLIST.md` (U-97 line, 97-row), `STATUS.md`
 (regenerated via `--emit` — never hand-edited), `IMPROVEMENT_LOG.md` (this
-entry). Root license files restored: `COPYING.ms-pl`, `COPYING.lgplv3`,
-`COPYING.gplv3`, `COPYING.gifsicle`.
+entry). Root license files restored: `legal/COPYING.ms-pl`, `legal/COPYING.lgplv3`,
+`legal/COPYING.gplv3`, `legal/COPYING.gifsicle`.
 
 ---
 
@@ -2463,7 +2463,7 @@ parity/transport suites are unavailable in this sandbox.
   PROJECT_VISION.md (architecture + the flag-map table with VP-5's crop-form
   correction applied; verify_audit.sh E7 re-pointed — the only gate-script edit
   this session); WEB_FEASIBILITY → web/README.md §History; WHY_MSPL +
-  COPYING_RULES + WASM_LICENSE_QUESTION → docs/legal/README.md §1-§4;
+  COPYING_RULES + WASM_LICENSE_QUESTION → legal/README.md §1-§4;
   CLEAN_WINDOWS_SMOKE + DESKTOP_PROBES → docs/ci/README.md §2-§3 (its §1
   rewritten for the resolved drift); THIRD_PARTY_NOTICES → web/wasm/README.md;
   csharp/spike/README → csharp/README.md (spike exit-code collision with the
@@ -2546,7 +2546,7 @@ parity/transport suites are unavailable in this sandbox.
   (rewritten), README.md (rewritten), PROJECT_VISION.md (rewritten; absorbed
   the feasibility review), docs/archive/AUDIT_HISTORY.md (new),
   docs/planning/PLANNING.md (new), docs/ci/README.md (merged+rewritten),
-  docs/legal/README.md (merged), docs/release/RELEASE_PROCEDURE.md (blockers
+  legal/README.md (merged), docs/release/RELEASE_PROCEDURE.md (blockers
   table + refs), docs/planning/OWNER_DECISIONS.md (OD-08 resolved + refs),
   web/README.md (§History), web/WEB_PLAN_TEMPLATE.md (3 refs),
   web/wasm/README.md (notices folded), csharp/README.md (spike folded),
@@ -2555,7 +2555,7 @@ parity/transport suites are unavailable in this sandbox.
   (cygpath line re-synced); deleted: the four root review files,
   FEASIBILITY_REVIEW.md, the five docs/audit snapshots, the two docs/archive
   reviews, docs/web/WEB_FEASIBILITY.md, docs/ci/{CLEAN_WINDOWS_SMOKE,
-  DESKTOP_PROBES,PENDING_WORKFLOW_CHANGE}.md, docs/legal/{WHY_MSPL,
+  DESKTOP_PROBES,PENDING_WORKFLOW_CHANGE}.md, legal/{README,LICENSE.md-pl.proposed,COPYING.ms-pl,COPYING.gifsicle,COPYING.lgplv3,COPYING.gplv3} (formerly docs/legal/{WHY_MSPL,
   COPYING_RULES,WASM_LICENSE_QUESTION}.md, docs/planning/{CSHARP_SHELL_PLAN,
   OFFLINE_BUILD_REVIEW,SKILLOPT_INTEGRATION_QUERY,NEXT_SESSION_PROMPT,
   SEQUENTIAL_WORK_HANDOFF}.md, web/wasm/THIRD_PARTY_NOTICES.md,
@@ -3003,7 +3003,7 @@ upload dropped, Windows packaging gates),
   `PARKED`, `csharp/spike/` inert but still CI-run, offline-review §4
   reinstated. The S18 "Phase 2 GO" verdict is suspended, not deleted.
 - `U-08` closed (was the last licence-set remainder): verbatim
-  `COPYING.lgplv3` + `COPYING.gplv3` staged by both packagers
+  `legal/COPYING.lgplv3` + `legal/COPYING.gplv3` staged by both packagers
   (`package_common.sh`), generated `QT_NOTICE.txt` in GUI packages only
   (version via `qmake -query`, `unknown` fallback), packaging suite 36/36
   (4 new required-file negatives fire by name), CI manifest (live +
@@ -3012,7 +3012,7 @@ upload dropped, Windows packaging gates),
 - Owner answers executed: `OD-11 = a` (stay 0.1.0 — `W-29` stays OPEN, no
   version file touched) and `OD-12 = a` (two-way CLI out — `W-26` DONE, no
   code change). `OD-16` added for the wasm in-process licence question
-  (`docs/legal/WASM_LICENSE_QUESTION.md`, open, blocks shippable).
+  (`legal/README.md` §2, open, blocks shippable).
 - Desktop evidence docs: `docs/ci/CLEAN_WINDOWS_SMOKE.md` re-pointed at a
   green CI artifact (run id + commit recorded; banked snapshot disqualified
   — it cannot validate the current tree); new `docs/ci/DESKTOP_PROBES.md`
@@ -3021,7 +3021,7 @@ upload dropped, Windows packaging gates),
 - Wasm MVP scaffold (`web/wasm/`, additive — `web/command.mjs`,
   `web/validate.mjs`, server, page untouched): `build_wasm.sh` (emcc,
   single-threaded `config.wasm.h`, same source list as the native engine,
-  MEMFS only, stages `COPYING.gifsicle`), one-screen `index.html` +
+  MEMFS only, stages `legal/COPYING.gifsicle`), one-screen `index.html` +
   `wasm.js` (main-thread sync `callMain`, no Worker; 6 setting groups;
   live pane and run refusal via the verbatim builders), `prove_wasm.mjs`
   byte-proof script, `THIRD_PARTY_NOTICES.md`. Register now 89/7/26/0
@@ -3045,10 +3045,10 @@ blockers `GS-204`/`GS-208`/`U-09`/`DS-06`.
 
 - `./build.sh`: engine `LCDF Gifsicle 1.96` + CLI + unit suite
   **296 checks, 0 failures**; `test_engine.sh` 5/5; `smoke_cli.sh` 40/40;
-  `test_package.sh` **36 passed, 0 failed** (new `COPYING.lgplv3` /
-  `COPYING.gplv3` missing-cases fail by name, both kinds).
+  `test_package.sh` **36 passed, 0 failed** (new `legal/COPYING.lgplv3` /
+  `legal/COPYING.gplv3` missing-cases fail by name, both kinds).
 - Real packager: headless bundle carries both texts; hiding
-  `COPYING.lgplv3` makes `package_system.sh` ERROR with no stale
+  `legal/COPYING.lgplv3` makes `package_system.sh` ERROR with no stale
   directory; GUI-scope run generates `QT_NOTICE.txt` in both branches
   (`unknown` without qmake, `6.4.2` with a stub qmake6); headless runs
   omit the notice (pinned by the suite).
@@ -3091,12 +3091,12 @@ GS-204 count, parked spike, OD answers, wasm note), `SESSION_HANDOFF.md`
 `docs/planning/OWNER_DECISIONS.md` (OD-11/OD-12 answers, OD-16),
 `docs/planning/CSHARP_SHELL_PLAN.md` (PARKED + OD-C7),
 `docs/planning/SEQUENTIAL_WORK_HANDOFF.md` (GS-204 count),
-`docs/planning/NEXT_SESSION_PROMPT.md` (S19 refresh), `docs/legal/`
+`docs/planning/NEXT_SESSION_PROMPT.md` (S19 refresh), `legal/`
 (WASM_LICENSE_QUESTION.md new; WHY_MSPL.md pointer; README.md state),
 `docs/release/RELEASE_PROCEDURE.md` (blockers four, §4 file list),
 `docs/ci/CLEAN_WINDOWS_SMOKE.md` (CI-artifact asset),
 `docs/ci/DESKTOP_PROBES.md` (new), `README.md` (licence lines, parked
-spike), `LICENSE` (Qt texts pointer), `web/wasm/` (new track).
+spike), `legal/LICENSE.md-pl.proposed` (Qt texts pointer), `web/wasm/` (new track).
 
 ---
 
@@ -3128,11 +3128,11 @@ spike), `LICENSE` (Qt texts pointer), `web/wasm/` (new track).
 - Outcome pending: first CI run decides Phase 2 go/no-go. A red run is a
   valid, decision-grade result, not a failure to hide.
 
-## S18 follow-up — licence story consolidated into docs/legal/ (2026-09-14)
+## S18 follow-up — licence story consolidated into one folder (2026-09-14)
 
 **Changed:**
 
-- New `docs/legal/` folder (owner request): `README.md` (licence single source of truth + maintenance contract), `WHY_MSPL.md` (full OD-09 = b / OD-C6 rationale, rejected alternatives, accepted costs, one-way-door warning), `COPYING_RULES.md` (per-file fork-copying checklist). Live docs now point here instead of carrying their own rationale prose: vision UI-approach, plan §1.4, offline S18 note, OD-09 answer, `LICENSE` pointer line.
+- New notice folder (owner request; moved to `legal/` on 2026-10-26): `README.md` (licence single source of truth + maintenance contract), `WHY_MSPL.md` (full OD-09 = b / OD-C6 rationale, rejected alternatives, accepted costs, one-way-door warning), `COPYING_RULES.md` (per-file fork-copying checklist). Live docs now point here instead of carrying their own rationale prose: vision UI-approach, plan §1.4, offline S18 note, OD-09 answer, `legal/LICENSE.md-pl.proposed` pointer line.
 - Stale/confusing leftovers fixed: README auto-fetch line no longer lists the retired Caesium trees; nested `reference_code/.gitignore` drops `caesium-source/` (guard comment forbids re-add); manifest fetch note rewritten (retired absence is policy, not fetch-away). Dated history (old log entries, dated reviews, audit evidence, intake reports) deliberately left verbatim as evidence.
 
 **Partial:** none — docs only.
@@ -3147,7 +3147,7 @@ spike), `LICENSE` (Qt texts pointer), `web/wasm/` (new track).
 
 - CI's verdict on this commit (not yet pushed at write time).
 
-**Docs touched:** `docs/legal/README.md`, `docs/legal/WHY_MSPL.md`, `docs/legal/COPYING_RULES.md`, `LICENSE`, `PROJECT_VISION.md`, `README.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/planning/OWNER_DECISIONS.md`, `docs/planning/CSHARP_SHELL_PLAN.md`, `reference_code/REFERENCE_MANIFEST.md`, `reference_code/.gitignore`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`.
+**Docs touched:** `legal/README.md` (and, before the 2026-10-26 consolidation, `docs/legal/WHY_MSPL.md`, `docs/legal/COPYING_RULES.md`, `legal/LICENSE.md-pl.proposed`, `PROJECT_VISION.md`, `README.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/planning/OWNER_DECISIONS.md`, `docs/planning/CSHARP_SHELL_PLAN.md`, `reference_code/REFERENCE_MANIFEST.md`, `reference_code/.gitignore`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`.
 
 ---
 
@@ -3155,7 +3155,7 @@ spike), `LICENSE` (Qt texts pointer), `web/wasm/` (new track).
 
 **Changed:**
 
-- Run `34801397493` (relicense commit `161e862`) concluded success on both jobs (2026-09-14): the manifest step asserts `COPYING.ms-pl` in the package, and the packaging-negative step passes with both new required-file cases (fixture-pure, run before any artifact-dependent case in each kind), confirming the 30 — 32 count by construction plus the executed portable delta. Pre-push hook green 23/0/3. The `build.yml` push itself is the workflows-scope proof, so the pending marker now tracks only the 1-line cygpath drift.
+- Run `34801397493` (relicense commit `161e862`) concluded success on both jobs (2026-09-14): the manifest step asserts `legal/COPYING.ms-pl` in the package, and the packaging-negative step passes with both new required-file cases (fixture-pure, run before any artifact-dependent case in each kind), confirming the 30 — 32 count by construction plus the executed portable delta. Pre-push hook green 23/0/3. The `build.yml` push itself is the workflows-scope proof, so the pending marker now tracks only the 1-line cygpath drift.
 
 **Partial:** none — close-out entry.
 
@@ -3177,9 +3177,9 @@ spike), `LICENSE` (Qt texts pointer), `web/wasm/` (new track).
 
 **Changed:**
 
-- **Relicense executed (`OD-09 = b`, `OD-C6`):** first-party code is now Ms-PL. `LICENSE` rewritten (with revision note), full text added as `COPYING.ms-pl`, both packagers hard-require it (`package_common.sh` + fixture/negative case in `test_package.sh`), CI manifest (live + proposed) asserts it. No third-party code was in the tree (verified: no foreign copyright headers, empty `assets/`/`resources/`), so the relicense needed no outside permission. Engine untouched (GPLv2 subprocess); Qt LGPL line kept.
+- **Relicense executed (`OD-09 = b`, `OD-C6`):** first-party code is now Ms-PL. `legal/LICENSE.md-pl.proposed` rewritten (with revision note), full text added as `legal/COPYING.ms-pl`, both packagers hard-require it (`package_common.sh` + fixture/negative case in `test_package.sh`), CI manifest (live + proposed) asserts it. No third-party code was in the tree (verified: no foreign copyright headers, empty `assets/`/`resources/`), so the relicense needed no outside permission. Engine untouched (GPLv2 subprocess); Qt LGPL line kept.
 - **Caesium dropped:** the base was never incorporated (zero files in the tree; the 74 MB binary bundle was removed in S7 and only a packaging pattern was ever taken from it). Vision UI-approach rewritten to open-parts rebuild (system fonts, MIT/Apache icon sets); `reference_code/REFERENCE_MANIFEST.md` rows retired (provenance kept, re-fetch forbidden); `.gitignore` lines + README layout lines removed; dated reviews annotated, not rewritten.
-- **U-08 narrowed (stays PARTIAL):** "no full text / grant unstated" closed by the Ms-PL text + `LICENSE` grant; still missing: Qt LGPL notices. Packaging count 30 — 32 (one new required-file case per kind).
+- **U-08 narrowed (stays PARTIAL):** "no full text / grant unstated" closed by the Ms-PL text + `legal/LICENSE.md-pl.proposed` grant; still missing: Qt LGPL notices. Packaging count 30 — 32 (one new required-file case per kind).
 - **OD-C1 superseded:** fork is no longer reference-only — Ms-PL fork files may now be copied with notices retained (plan §1.4/§8 updated, OD-C6 recorded).
 
 **Partial:** Qt LGPL notices still unstaged (U-08 remainder); full 32-green packaging run needs real artifacts (CI).
@@ -3195,7 +3195,7 @@ spike), `LICENSE` (Qt texts pointer), `web/wasm/` (new track).
 
 - The full 32-case packaging green (needs `build/` artifacts); CI's verdict on this commit, including whether the granted `workflows` scope accepts the live `build.yml` change (if rejected, the change is reverted from live and the pending marker extended).
 
-**Docs touched:** `LICENSE`, `COPYING.ms-pl`, `COMPILED_AUDIT.md`, `STATUS.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`, `PROJECT_VISION.md`, `README.md`, `FEASIBILITY_REVIEW.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/planning/OWNER_DECISIONS.md`, `docs/planning/CSHARP_SHELL_PLAN.md`, `docs/release/RELEASE_PROCEDURE.md`, `reference_code/REFERENCE_MANIFEST.md`, `.gitignore`, `.github/workflows/build.yml`, `docs/ci/build.yml.proposed`, `working_code/gifscythe/scripts/package_common.sh`, `working_code/gifscythe/scripts/test_package.sh`.
+**Docs touched:** `legal/LICENSE.md-pl.proposed`, `legal/COPYING.ms-pl`, `COMPILED_AUDIT.md`, `STATUS.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`, `PROJECT_VISION.md`, `README.md`, `FEASIBILITY_REVIEW.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/planning/OWNER_DECISIONS.md`, `docs/planning/CSHARP_SHELL_PLAN.md`, `docs/release/RELEASE_PROCEDURE.md`, `reference_code/REFERENCE_MANIFEST.md`, `.gitignore`, `.github/workflows/build.yml`, `docs/ci/build.yml.proposed`, `working_code/gifscythe/scripts/package_common.sh`, `working_code/gifscythe/scripts/test_package.sh`.
 
 ---
 
@@ -5220,7 +5220,7 @@ without touching WebP/APNG.
 - Live command pane wired to all controls; `shell_quote` for display only.
 - `GifsicleCommand` stores `Settings` by value (no dangling ref).
 - Packaging probes `gifsicle`/`gifsicle.exe` and all GUI output dirs; ships
-  `COPYING.gifsicle` + `LICENSE`; optional `windeployqt`.
+  `legal/COPYING.gifsicle` + `legal/LICENSE.md-pl.proposed`; optional `windeployqt`.
 - `build.sh` honest GUI branch (fails non-zero when `--all` and Qt missing).
 - FEASIBILITY mapping table corrected (delay 1/100 s, crop `+` form); live pane
   doc descoped to honest **one-way** sync (two-way = optional later).

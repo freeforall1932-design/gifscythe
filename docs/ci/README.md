@@ -166,7 +166,7 @@ run (`37527057333`), with a per-asset sha256 `158d551bfdbd214e1d7e4c91cdf0dcd8d6
 but predates PR #12; prefer the newest. It is produced by the `release-snapshot`
 job in the tag's own run, so the published bytes are the ones that run's `windows`
 job asserted. **Do not use `snapshot-2026-09-07`**: it predates S7 while its notes
-pinned a newer SHA (U-09) and predates the S18 Ms-PL relicence (U-95) — and it no
+pinned a newer SHA (U-09) and predates the current notice set (U-95) — and it no
 longer exists in this repo anyway (the 2026-09-22 re-creation lost it). A fallback
 asset remains the `gifscythe-windows` artifact of a green run (record run id +
 built commit; retention 14 days), but it needs a GitHub login to fetch. Contents: `build/`

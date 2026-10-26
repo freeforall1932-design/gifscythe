@@ -5,7 +5,7 @@ gifsicle engine compiled to WebAssembly with Emscripten, driven
 synchronously from the main thread, behind a one-screen page. **Status S19
 (2026-09-14): scaffold only — no `.wasm` binary has been built anywhere
 yet, and the track is not shippable until owner decision `OD-16` answers
-the in-process licence question** (`docs/legal/README.md` §3).
+the in-process terms question** (`legal/README.md` §2).
 Until both land, the Node server (`web/server.mjs`) stays the shipped web
 path; nothing in `web/` outside this directory was touched for this track.
 
@@ -43,7 +43,7 @@ node web/wasm/prove_wasm.mjs      # proof on logo.gif; add --oracle PATH for the
 `build_wasm.sh` stages `config.wasm.h` as `config.h` in a temp include
 dir (the reference tree stays untouched, same pattern as the native
 `scripts/build_engine.sh`), builds the same source list as the native
-engine, and stages the `COPYING.gifsicle` engine licence text into the
+engine, and stages the `legal/COPYING.gifsicle` engine notice text into the
 output dir — every build ships it. Notices: §Third-party notices below
 (the standalone notices file was folded into this README in S24).
 

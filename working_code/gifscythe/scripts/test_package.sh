@@ -14,11 +14,12 @@ fixture() {
   cp "$self/scripts/"package*.sh "$t/scripts/"
   printf 'Current version: 0.1.0\n' > "$t/VERSION.md"
   printf 'product\n' > "$t/README.md"
-  printf 'license\n' > "$root/LICENSE"
-  printf 'engine license\n' > "$root/COPYING.gifsicle"
-  printf 'first-party license\n' > "$root/COPYING.ms-pl"
-  printf 'qt lgpl text\n' > "$root/COPYING.lgplv3"
-  printf 'qt gpl companion text\n' > "$root/COPYING.gplv3"
+  mkdir -p "$root/legal"
+  printf 'engine text\n' > "$root/legal/COPYING.gifsicle"
+  printf 'first-party text\n' > "$root/legal/COPYING.ms-pl"
+  printf 'qt lgpl text\n' > "$root/legal/COPYING.lgplv3"
+  printf 'qt gpl companion text\n' > "$root/legal/COPYING.gplv3"
+  printf 'proposed first-party notice\n' > "$root/legal/LICENSE.md-pl.proposed"
   printf '#!/bin/sh\nexit 0\n' > "$t/build/gifscythe-cli"
   cp "$t/build/gifscythe-cli" "$t/release/0.1.0/gifsicle"
   chmod +x "$t/build/gifscythe-cli" "$t/release/0.1.0/gifsicle"
@@ -33,7 +34,7 @@ echo "==> Packaging negative tests"
 for kind in portable system; do
   folder=Gifscythe; [[ "$kind" == system ]] && folder=Gifscythe-system
   fixture; label="no GUI"; refused
-  for missing in build/gifscythe-cli release/0.1.0/gifsicle ../../LICENSE ../../COPYING.gifsicle ../../COPYING.ms-pl ../../COPYING.lgplv3 ../../COPYING.gplv3; do
+  for missing in build/gifscythe-cli release/0.1.0/gifsicle ../../legal/COPYING.gifsicle ../../legal/COPYING.ms-pl ../../legal/COPYING.lgplv3 ../../legal/COPYING.gplv3 ../../legal/LICENSE.md-pl.proposed; do
     fixture; rm "$t/$missing"; mkdir -p "$out"; echo stale > "$out/STALE"
     label="missing $missing"; refused --engine-cli-only
   done
@@ -45,13 +46,13 @@ for kind in portable system; do
   cp "$t/build/gifscythe-cli" "$t/build/gifscythe"
   if "$t/scripts/package_$kind.sh" --engine-cli-only >"$ROOT/log" 2>&1 \
      && [[ ! -e "$out/STALE" && ! -e "$out/gifscythe" && -s "$out/MANIFEST.txt" ]] \
-     && [[ ! -e "$out/QT_NOTICE.txt" && -s "$out/COPYING.lgplv3" && -s "$out/COPYING.gplv3" ]] \
+     && [[ ! -e "$out/QT_NOTICE.txt" && -s "$out/licenses/COPYING.lgplv3" && -s "$out/licenses/COPYING.gplv3" ]] \
      && grep -q 'no GUI, by request' "$out/README.txt"; then
     ok "$kind explicit headless excludes even an available GUI and wipes stale files"
   else bad "$kind headless manifest/scope/staging"; fi
   fixture; cp "$t/build/gifscythe-cli" "$t/build/gifscythe"
   if "$t/scripts/package_$kind.sh" >"$ROOT/log" 2>&1 && [[ -x "$out/gifscythe" ]] \
-     && [[ -s "$out/QT_NOTICE.txt" && -s "$out/COPYING.lgplv3" && -s "$out/COPYING.gplv3" ]]; then
+     && [[ -s "$out/QT_NOTICE.txt" && -s "$out/licenses/COPYING.lgplv3" && -s "$out/licenses/COPYING.gplv3" ]]; then
     ok "$kind complete native GUI fixture stages required files"
   else bad "$kind complete GUI fixture"; fi
   fixture

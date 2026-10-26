@@ -23,20 +23,21 @@ velocity ×2, size ×2, native feel ×2, multi-format ×2): C++/Qt ~258, Rust+Ta
 ~205, Go+Wails ~199, Electron ~174, Python/PySide6 ~161, Flutter ~153. Tauri's
 size win erases itself against the portable promise once the WebView2
 fixed-version runtime (~120 MB+) is bundled; Electron is portable but ~150 MB+.
-**S18 note:** the first-party UI licence is Ms-PL (`OD-09 = b`; rationale:
-`docs/legal/README.md`); the subprocess-separation design is unchanged.
+**S18 note:** the first-party terms were settled in S18 (`OD-09 = b`) and are **superseded
+2026-10-26: the product is UNLICENSED until the owner settles it** (`legal/README.md`; rationale:
+`legal/README.md`); the subprocess-separation design is unchanged.
 **S14 amendment:** the `web/` build is a supported, self-hosted product surface
 (not "demo only" as first scoped here) — `web/WEB_PLAN_TEMPLATE.md` §1.
 
 **Why the subprocess decides a lot:** gifsicle is GPL v2-only; keeping it a
-separate process keeps the licence boundary clean in any language. A rewrite
+separate process keeps the boundary clean in any language. A rewrite
 buys less than usual here — the hard part (argv spawning + honest exit codes)
 is trivial everywhere; the cost of a rewrite is discarding verified behavior.
 
 **Revisit the language only on a documented trigger** (this is register row
 `D-08`, trigger-based): (a) bundle must drop under ~15 MB → prototype Rust +
 Tauri; (b) UI must be web-tech → Tauri or Electron; (c) must run in a browser →
-the wasm track (`web/wasm/`, additive, licence-blocked by `OD-16`). The 2026-09-16
+the wasm track (`web/wasm/`, additive, terms-blocked by `OD-16`). The 2026-09-16
 external repo review argued trigger (b) already fired because `web/` exists; that
 is an owner call, not a session call — the standing decisions (S19: exe stays
 C++17/Qt6 through 1.0.0; `OD-C7 = park`; D-08 trigger-based) are unchanged until
@@ -103,7 +104,7 @@ not a port — register row **W-32** (OPEN).
 FFmpeg sidecar for video → GIF is **approved as a conversion endpoint** and
 `PROJECT_VISION.md` now carries the adopted amendment — decode in via one
 subprocess sidecar, gifsicle still does all the GIF work, no editing/timeline/
-capture, its own licence note, and not on the 1.0.0 critical path. **What still
+capture, its own notice set, and not on the 1.0.0 critical path. **What still
 gates the code:** `U-90`/`P3-19` — the deferred rows that own this scope by name
 must exist (and name their preconditions) before a line of it is written.
 
@@ -141,11 +142,11 @@ strictly as endpoints (no editing/timeline/capture); (5) ezgif-class frame ops.
 narrow the vision's "Not photos, not video" to *conversion endpoints only*, and
 the owner adopted exactly that amendment on 2026-10-08: `PROJECT_VISION.md` now
 says photos and video are **inputs to a conversion endpoint, never the subject**
-(one FFmpeg sidecar, decode-only, argv subprocess, its own licence note, not on
+(one FFmpeg sidecar, decode-only, argv subprocess, its own notice set, not on
 the 1.0.0 path). The "words change first" rule is satisfied. Engine precondition
 still stands: gifsicle reads GIF inputs only, so stills and video need a decode
-step — the FFmpeg sidecar, with **its licence identified at build time**
-(`docs/legal/README.md` §5). **The scope is registered as `U-90`, still OPEN for
+step — the FFmpeg sidecar, with **its terms identified at build time**
+(`legal/README.md` §5). **The scope is registered as `U-90`, still OPEN for
 a different reason:** the vision blocker is gone, but the deferred rows that own
 this work by name (`P3-19`) do not exist yet, and a session must not read the
 amendment as pre-approved work.
@@ -154,8 +155,8 @@ amendment as pre-approved work.
 same day by OD-C6) · OD-C2 = c (phased: sidecar through Phase 2, commit at
 Phase 3 — cheap proof first, commit exactly when building twice would hurt) ·
 OD-C3 = a (no recorder + scope above) · OD-C4 = a (WPF) · OD-C5 = a (archive Qt
-at cutover; C++ CLI stays the oracle) · OD-C6 = b (UI relicensed Ms-PL; fork
-files copyable with notices per `docs/legal/README.md`) · OD-C7 = park (S19).
+at cutover; C++ CLI stays the oracle) · OD-C6 = b (first-party terms settled; fork
+files copyable with notices per `legal/README.md`) · OD-C7 = park (S19).
 
 **Risks (with mitigations):** parity drift → Phase-2 oracle tests; re-introducing
 fixed audit bugs → Phase-3 replays harness categories with audit ids per control;
@@ -223,7 +224,7 @@ section supplies execution detail for the three PARTIAL handoffs.
 | Finding | Already implemented/proved | Remaining work / required environment |
 |---|---|---|
 | **GS-210 / P2-13 — PARTIAL** | Both build scripts parse every argument before side effects; unknown rc=2, help rc=0; 12 isolated cases pass (originals fail all 12); native build passes | Qt6 + CMake/qmake: choose and test CMake-first/only dispatch, remove the `.pro` version drift using the product source of truth, exercise missing/broken tools and clean output trees. Do not assume the qmake-first path was changed |
-| **GS-204 / P1-26 — PARTIAL** | Both packagers share `package_common.sh`, private staging, required non-empty manifests, explicit target extensions, strict headless scope; 36 Linux checks incl. real native artifacts; Windows CI packages + asserts the manifest (run 34812043127, S20) | Dependency/architecture inspection, clean-machine GUI startup + encode, system-package test with documented installed Qt. Keep the U-09 release/artifact provenance blocker (U-08 licensing closed S19) |
+| **GS-204 / P1-26 — PARTIAL** | Both packagers share `package_common.sh`, private staging, required non-empty manifests, explicit target extensions, strict headless scope; 36 Linux checks incl. real native artifacts; Windows CI packages + asserts the manifest (run 34812043127, S20) | Dependency/architecture inspection, clean-machine GUI startup + encode, system-package test with documented installed Qt. Keep the U-09 release/artifact provenance blocker (U-08 closed S19) |
 | **GS-203 / P1-25 — PARTIAL** | Core `OutputVerify.h` + JS `output-verify.mjs`: new-or-changed, non-empty regular file with exact GIF87a/89a prefix; wired into CLI explicit outputs and web `/optimize`+`/run` (serve the verified buffer) | Qt-equipped agent: integrate the core helper into `MainWindow` single/queue/Merge lifecycles — capture before launch, verify only after exit zero, keep busy/cancel/error state honest. Test no-write, stale-valid, text/PNG/short output, valid refresh, source preservation, cancellation. Offscreen + real-desktop probes. Do not silently buffer binary stdout or break `--info` |
 
 **Contract limits (not hidden completion claims):** GIF magic is not full
@@ -266,7 +267,7 @@ CONTINUATION — gifscythe (freeforall1932-design/gifscythe), after S24.
    re-run the §17.1 validation order, failing test FIRST, hunt new pits (§19.3 pairings,
    incl. the S24 addition U-22<->U-62). Windows-only rows (U-55/U-70/U-71) cannot close
    on Linux - PARTIAL with the exact remaining proof, never DONE. Highest-priority open
-   rows: U-59 (P0-7 data loss), U-09 + U-95 (release re-cut + pre-relicence asset note),
+   rows: U-59 (P0-7 data loss), U-09 + U-95 (release re-cut + superseded-asset note),
    GS-203 GUI half (P1-25), U-58 (P1-38), U-78/U-87 (P1-44 web numeric honesty).
 
 3. SKILLOPT: OD-15 answered = b (S41) for the vendored Qt lint; SkillOpt ITSELF is still
@@ -342,7 +343,7 @@ ones are done). ~~1. Finish the GUI's partial-write safety (U-59/P0-7)~~ —
 **done, see the reconciliation above; the list starts at 2:**
 
 2. Release re-cut: U-09/P0-4 + the U-95 release-notes edit (owner action first:
-   mark the pre-relicence Release superseded/pre-release, never delete).
+   mark the superseded Release superseded/pre-release, never delete).
 3. Clean-Windows smoke test (W-18) — re-point at a real green CI run (see
    N-26 — closed S34; run 36967608254 is a fully green run), then actually run it on real hardware (a CI artifact is not the same
    as a clean-machine run).
@@ -428,7 +429,7 @@ projects, and at least one installs cleanly in a network-restricted sandbox
 | Package | Target | Notes |
 |---|---|---|
 | [`gifsicle-wasm-browser`](https://github.com/renzhezhilu/gifsicle-wasm-browser) (npm) | Browser | Single ~336KB bundled file, no separate `.wasm` fetch, `gifsicle.run({input, command})` API accepting real CLI-style argv. **Installed successfully via `npm install` in that sandbox** — the GCS wall does not block npm. Restores **gifsicle 1.92** behavior — not the project's vendored 1.96, so it will not byte-match the existing oracle; a new correctness baseline would be needed. Could not fully execute it in a plain Node test there (it appears to assume real browser Worker semantics) — untested past install. |
-| [`@wasm-codecs/gifsicle`](https://www.npmjs.com/package/@wasm-codecs/gifsicle) (npm) | Node.js only | Clean `encode(buffer, options)` API, MIT license, part of the `cyrilwanner/wasm-codecs` monorepo. No browser build yet per its own README — would need porting for a client-side page. |
+| [`@wasm-codecs/gifsicle`](https://www.npmjs.com/package/@wasm-codecs/gifsicle) (npm) | Node.js only | Clean `encode(buffer, options)` API, permissively released, part of the `cyrilwanner/wasm-codecs` monorepo. No browser build yet per its own README — would need porting for a client-side page. |
 | [`gifsicle-bin`](https://pypi.org/project/gifsicle-bin/) (PyPI) | Python wheel + WASM/JS | Explicitly built for "frontend developers... without needing a backend." Worth a closer look if Option A stays blocked. |
 
 **Task:** if Option A stays blocked for longer than the owner is willing to wait,
@@ -436,12 +437,9 @@ spike `gifsicle-wasm-browser` in a real browser (not Node) against the same
 `logo.gif` oracle used elsewhere in the project, and decide whether a
 1.92-vs-1.96 behavioral diff is acceptable for a first shippable web build.
 
-**Licensing note — applies to both options equally:** adopting someone
-else's compiled binary does not change the OD-16 question at all. It's
-still GPLv2 engine code running in-process alongside Ms-PL first-party
-code; the origin of the `.wasm` file is irrelevant to that analysis. Don't
-let "we didn't compile it ourselves" read as "so the license question
-doesn't apply here."
+**Note — applies to both options equally:** adopting someone else's compiled binary does not
+change the OD-16 question at all: the engine would still run in-process, and where the `.wasm` file
+came from is irrelevant to that. The reasoning lives in `legal/README.md` §2.
 
 #### Automatic crash/failure diagnostics (applies to whichever option ships)
 
@@ -469,7 +467,7 @@ needs a live debugging session to explain. Concretely:
 
 ### 6.4 Open decisions this report doesn't make for the owner
 
-- **OD-16** (`docs/legal/README.md` §3–4): may `web/wasm/` ship with the
+- **OD-16** (`legal/README.md` §3–4): may `web/wasm/` ship with the
   GPLv2 engine in-process alongside Ms-PL code? Currently answered
   "(a) no, until counsel actually answers" — that's a real, load-bearing
   answer, not a placeholder. Needs an actual owner/counsel decision before
@@ -484,7 +482,7 @@ needs a live debugging session to explain. Concretely:
 
 Repo docs referenced: `README.md`, `PROJECT_VISION.md`, `STATUS.md`,
 `WORKLIST.md`, `SESSION_HANDOFF.md`, `docs/planning/OWNER_DECISIONS.md`,
-`docs/planning/PLANNING.md`, `docs/legal/README.md`,
+`docs/planning/PLANNING.md`, `legal/README.md`,
 `web/WEB_PLAN_TEMPLATE.md`, `.github/workflows/build.yml`, and the two
    external-audit files at repo root ("space bunny review", independent
    read-only review via the public GitHub API — since folded into

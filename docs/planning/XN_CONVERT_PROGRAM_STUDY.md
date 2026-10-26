@@ -457,7 +457,7 @@ still-image product.
 | Primary button `Convert` → `Stop` while running | **ADOPT** | Shipped in slice F; keep `Stop`, not `Cancel` |
 | `Actions [enabled/total]` with delete ≠ disable | **ADOPT** | Slice D's counter; the two affordances must be visually distinct |
 | Card = collapse + title + `−` + `Enabled` + parameter body | **ADOPT** | Slice D's card widget |
-| Slider + spin + reset triple per numeric parameter | **ADOPT** | Adopt as a *widget*, not as a licence to add photo filters |
+| Slider + spin + reset triple per numeric parameter | **ADOPT** | Adopt as a *widget*, not as a mandate to add photo filters |
 | Ordered stack, top→bottom, drag to reorder | **ADOPT** | Slice D |
 | Add-action menu of 12 groups / 131 actions | **REJECT as-is** | Vocabulary only; gifscythe's actions are gifsicle operations over a stream (§11.3) |
 | Preview = one still frame, arrows step *files* | **REJECT** | Ours previews **motion**: play/pause, frame step, duration, loop. The arrows stay for files, but motion needs its own control |
@@ -538,7 +538,7 @@ for guessing: the reference is now documented from the running program, not from
   pixel offsets as design values.
 - **One unanswered detail:** the page-parenthetical rule in §7.2 and the `x6` vs 12-images mismatch
   (§7.2) are observed but not explained.
-- **Vendor licence.** XnConvert is freeware for private/educational use; nothing here is copied, and
+- **Vendor terms.** XnConvert is freeware for private/educational use; nothing here is copied, and
   `OD-22`/`N-36` continue to forbid shipping its binaries or assets.
 
 ---

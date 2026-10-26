@@ -39,6 +39,7 @@ copy_required() { # exact name + ordered same-target candidates
   for cand in "$@"; do
     [[ -f "$cand" && -s "$cand" ]] || continue
     case "$name" in gifsicle|gifscythe-cli|gifscythe) [[ -x "$cand" ]] || continue ;; esac
+    mkdir -p "$stage/$(dirname "$name")"
     cp "$cand" "$stage/$name"
     required+=("$name")
     return 0
@@ -66,11 +67,14 @@ if [[ "$engine_cli_only" == 0 ]]; then
 fi
 copy_required VERSION.md "$self/VERSION.md"
 copy_required README.md "$self/README.md"
-copy_required LICENSE "$repo_root/LICENSE" "$repo_root/COPYING"
-copy_required COPYING.gifsicle "$repo_root/COPYING.gifsicle" "$repo_root/reference_code/gifsicle/COPYING"
-copy_required COPYING.ms-pl "$repo_root/COPYING.ms-pl"
-copy_required COPYING.lgplv3 "$repo_root/COPYING.lgplv3"
-copy_required COPYING.gplv3 "$repo_root/COPYING.gplv3"
+# Since 2026-10-26 every notice text lives in <repo>/legal/ (the product is
+# UNLICENSED until the owner settles it); the third-party texts below are still
+# obligations that travel with every package.
+copy_required licenses/LICENSE.md-pl.proposed "$repo_root/legal/LICENSE.md-pl.proposed"
+copy_required licenses/COPYING.gifsicle "$repo_root/legal/COPYING.gifsicle" "$repo_root/reference_code/gifsicle/COPYING"
+copy_required licenses/COPYING.ms-pl "$repo_root/legal/COPYING.ms-pl"
+copy_required licenses/COPYING.lgplv3 "$repo_root/legal/COPYING.lgplv3"
+copy_required licenses/COPYING.gplv3 "$repo_root/legal/COPYING.gplv3"
 runtime="Qt runtime is not bundled on this target; GUI requires system Qt6."
 if [[ "$package_kind" == portable && "$windows" == 1 && "$engine_cli_only" == 0 ]]; then
   runtime="Qt runtime deployed by windeployqt; clean-Windows smoke is still required."
@@ -96,8 +100,10 @@ Gifscythe $version — $package_kind package
 Contents: $scope
 $runtime
 Run gifscythe-cli for the command-line interface; GUI is present only in GUI packages.
-gifsicle is GPL v2-only — see COPYING.gifsicle. First-party code is Ms-PL — see LICENSE and COPYING.ms-pl.
-Qt is LGPLv3 — see COPYING.lgplv3 and COPYING.gplv3 (GUI packages also carry QT_NOTICE.txt).
+Third-party notices are in licenses/: gifsicle is GPL v2-only (COPYING.gifsicle), Qt is LGPLv3
+(COPYING.lgplv3 + companion COPYING.gplv3; GUI packages also carry QT_NOTICE.txt).
+The first-party code is UNLICENSED: no licence is granted, and licenses/LICENSE.md-pl.proposed
+is only a proposal (see the repository's legal/ folder).
 EOF
 required+=(README.txt)
 printf '%s\n' "${required[@]}" > "$stage/MANIFEST.txt"

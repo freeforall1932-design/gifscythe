@@ -6,9 +6,6 @@ work until 1.0.0 ships on C++17/Qt6") was the owner's call and is the owner's to
 reverse; `docs/planning/OWNER_DECISIONS.md` records the reversal. The plan
 itself is `docs/planning/PLANNING.md` §2.
 
-Licence: Ms-PL like the rest of the first-party code (`LICENSE`,
-`COPYING.ms-pl`). Copying rules for fork files: `docs/legal/README.md` §2.
-
 ## What is here
 
 - `Gifscythe.Core/` — the port of the Qt-independent control layer
@@ -75,5 +72,5 @@ grammar before a push, but that is not a build and is not claimed as one.
 
 - Plan and phases: `docs/planning/PLANNING.md` §2.
 - Owner decisions (park, resume, video scope): `docs/planning/OWNER_DECISIONS.md`.
-- Copying ScreenToGif fork files (licence-compatible, checklist):
-  `docs/legal/README.md` §2.
+- Copying ScreenToGif fork files (compatibility checklist):
+  `legal/README.md` §2.

@@ -190,8 +190,8 @@ mirror ScreenToGif's real exporter options (`-loop 0`, per-frame delay, `-plays 
   re-extracting the owner's archives.
 - `[SRC]` facts are from `ScreenToGif-fork@master`; the parameter strings are the presets' defaults
   and can be edited by users in ScreenToGif, so they are *recipes we adopt*, not a frozen ABI.
-- Nothing here licenses copying ScreenToGif code into this tree: MS-PL is compatible, and
-  `docs/legal/README.md` §2 already carries the checklist for when we do.
+- Nothing here authorises copying ScreenToGif code into this tree; the checklist for when it might
+  is in `legal/README.md`.
 
 ---
 

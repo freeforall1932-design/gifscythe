@@ -47,8 +47,8 @@ if [[ ! -f "$CONFIG_SOURCE" ]]; then
   echo "ERROR: missing wasm build config at $CONFIG_SOURCE" >&2
   exit 1
 fi
-if [[ ! -f "$REPO_ROOT/COPYING.gifsicle" ]]; then
-  echo "ERROR: missing engine licence text at $REPO_ROOT/COPYING.gifsicle" >&2
+if [[ ! -f "$REPO_ROOT/legal/COPYING.gifsicle" ]]; then
+  echo "ERROR: missing engine licence text at $REPO_ROOT/legal/COPYING.gifsicle" >&2
   exit 1
 fi
 
@@ -88,7 +88,7 @@ emcc -O3 -DHAVE_CONFIG_H -DVERSION='"1.96"' \
     exit 1
   }
 
-cp "$REPO_ROOT/COPYING.gifsicle" "$OUT/COPYING.gifsicle"
+cp "$REPO_ROOT/legal/COPYING.gifsicle" "$OUT/COPYING.gifsicle"
 
 for f in "$OUT/gifsicle.js" "$OUT/gifsicle.wasm" "$OUT/COPYING.gifsicle"; do
   [[ -s "$f" ]] || { echo "ERROR: build incomplete: missing or empty $f" >&2; exit 1; }

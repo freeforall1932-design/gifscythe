@@ -253,7 +253,7 @@ Qt evidence comes from CI and is now also captured as screenshots.
   decode-only (gifsicle still does all the GIF work), argv subprocess never a
   link, no editing/timeline/capture/playback, its own licence note, and not on the
   1.0.0 critical path. `PROJECT_VISION.md` carries the adopted amendment;
-  `docs/legal/README.md` §5 carries the licence conditions (FFmpeg is LGPL **or**
+  `legal/README.md` §5 carries the licence conditions (FFmpeg is LGPL **or**
   GPL per build configuration — identify it at build time, ship its notices with
   the binary). **What the answer does NOT unlock: code today.** `U-90` stays OPEN
   for the register half — the deferred rows (`P3-19`) that own this scope by name
@@ -748,7 +748,7 @@ this ledger exists to make obvious.
 | PR (new repo) | Handoff said "session …" at that merge | Branch | Merged as | What it did |
 |---|---|---|---|---|
 | #1 | S26 (the uploaded tree's own header) | `arena/01a0c72c-gifscythe` | `824bf20` | The platform unpack: zip upload (`60d3df4`) unpacked to root + zip removed (`ce5fd51`); content = the old repo's S26 state minus the four root license files (the loss is registered as U-97 and restored in S27). `git diff ce5fd51..824bf20` is empty — the merge took the branch tree as-is |
-| #2 | S27 | `s27-recreation-repair` | `e06b5db` | Opened 2026-09-23. S27: the re-creation repair — root license set restored (**U-97 ✅ FIXED**; executed packager fail-closed repro flipped exit 1 `ERROR: COPYING.ms-pl missing or empty` → exit 0 `Package created`, 11/11 required files non-empty; canonical texts, digests in the S27 log entry) + doc-gate re-sync (G10 enforced lines → `824bf20`; G11 entry dated 2026-09-23) + old/new-repo ledger separator + register re-emitted 122/8/38/0 → **123/8/38/0 = 169**. Gates: check_docs 24/0/2, sweep 5/0/0, python 20/20, review_change 4/0/1 ×2 (no R1), pr_preflight P1/P2/P3/P3b PASS (P4/P6 SKIP — no gh; API-equivalents via urllib). CI on this PR is the packaging + engine-suite proof (no toolchain in the S27 sandbox) |
+| #2 | S27 | `s27-recreation-repair` | `e06b5db` | Opened 2026-09-23. S27: the re-creation repair — root license set restored (**U-97 ✅ FIXED**; executed packager fail-closed repro flipped exit 1 `ERROR: legal/COPYING.ms-pl missing or empty` → exit 0 `Package created`, 11/11 required files non-empty; canonical texts, digests in the S27 log entry) + doc-gate re-sync (G10 enforced lines → `824bf20`; G11 entry dated 2026-09-23) + old/new-repo ledger separator + register re-emitted 122/8/38/0 → **123/8/38/0 = 169**. Gates: check_docs 24/0/2, sweep 5/0/0, python 20/20, review_change 4/0/1 ×2 (no R1), pr_preflight P1/P2/P3/P3b PASS (P4/P6 SKIP — no gh; API-equivalents via urllib). CI on this PR is the packaging + engine-suite proof (no toolchain in the S27 sandbox) |
 
 | #3 | S28 | `arena/01a0dbc8-gifscythe` | `42306bb` | Opened 2026-09-26. S28: **U-59/P0-7 CLI/core half** (the only registered data-loss row) fixed test-first — the engine now writes `<target>.gs-partial` and the target is renamed onto only after verification, so a cancel, a signal or a refusal leaves the previous bytes intact (3 smoke cases run RED first, `cmp=DIFFERS`; smoke 54 → **58/58**, `test_output_verify.sh` 12 → **25 assertions**, unit 372/0, transport 79 cases, `verify_audit.sh` 30/1/5) + the Qt half deliberately left (no Qt6 here) so **U-59 is PARTIAL** + the `set -e`/`wait` harness trap fixed + the **P6 doc sync to PR #2** (the header had lagged one merge) + the S28 log entry that **clears G11**, the red main on `e06b5db` (run 35904935321) + the whole OPEN board triaged against this sandbox's measured toolchain. Gates: check_docs 24/0/1, sweep 5/0/0, python 20/20, review_change 4/0/1 (no R1), pr_preflight P1/P2/P3/P3b/P4/P6 PASS. CI on this PR is the Windows/MinGW compile proof. *(Batch 2 landed in the same PR before the merge — U-92/U-84/U-85/U-93/U-86/U-81/U-83 also closed — so the MERGED totals are smoke 61/61, transport 86 cases, body-limit 13, server-bounds 10 groups, register **130/9/30/0**; the numbers above are batch 1's, kept as written rather than rewritten. Merged 2026-09-26 as `42306bb`, linux + windows + csharp-spike green on run 36218477342.)* |
 
@@ -975,12 +975,12 @@ write-up in this file.
 1. **The root license set restored (U-97 — found AND fixed in-session, rule 2's
    strong form).** The windows CI failure was reproduced locally before fixing:
    the real `package_portable.sh` with fixture binaries on gitignored paths and
-   the REAL repo root answers `ERROR: COPYING.ms-pl missing or empty (no usable
+   the REAL repo root answers `ERROR: legal/COPYING.ms-pl missing or empty (no usable
    same-target candidate)`, exit 1 — the packager's fail-closed licence check
    (U-02/U-08) is platform-independent, so no Windows runner was needed to prove
-   the cause. Restored: `COPYING.gplv3` (GNU GPLv3, 35147 B), `COPYING.lgplv3`
+   the cause. Restored: `legal/COPYING.gplv3` (GNU GPLv3, 35147 B), `legal/COPYING.lgplv3`
    (standalone GNU LGPLv3, 7639 B — the 42 KB SPDX combined text was rejected),
-   `COPYING.ms-pl` (canonical Ms-PL, 2663 B), `COPYING.gifsicle` (byte-copy of
+   `legal/COPYING.ms-pl` (canonical Ms-PL, 2663 B), `legal/COPYING.gifsicle` (byte-copy of
    `reference_code/gifsicle/COPYING`, digests identical both sides); fetch URLs +
    sha256 digests are in the S27 log entry. Repro flipped: `Package created`,
    exit 0, all 11 required files verified non-empty by the packager's own check.
@@ -1137,7 +1137,7 @@ already worked on. Executed:
    (architecture + the flag-map table, with VP-5's crop-form correction
    applied; `verify_audit.sh` E7 re-pointed); WEB_FEASIBILITY → `web/README.md`
    §History; WHY_MSPL + COPYING_RULES + WASM_LICENSE_QUESTION →
-   `docs/legal/README.md`; CLEAN_WINDOWS_SMOKE + DESKTOP_PROBES →
+   `legal/README.md`; CLEAN_WINDOWS_SMOKE + DESKTOP_PROBES →
    `docs/ci/README.md` §2–§3; THIRD_PARTY_NOTICES → `web/wasm/README.md`;
    csharp/spike/README → `csharp/README.md`. Rewritten brief: root `README.md`
    (session narrative removed — it duplicated the log), `PROJECT_VISION.md`,
@@ -1338,7 +1338,7 @@ only stick if they are in files a new session reads, not in a conversation.
   WebP/APNG before the GIF UI is stable.
 - Keep gifsicle as a **subprocess** (GPL v2-only engine vs Ms-PL UI). The
   experimental `web/wasm/` in-process track is the open `OD-16` question
-  (`docs/legal/README.md` §3) and is NOT shippable until answered. Do not
+  (`legal/README.md` §3) and is NOT shippable until answered. Do not
   extend the in-process pattern anywhere else.
 - Do **not** "fix" `--loopcount=0`, `-O0`, crop `+` form, or gamma sentinel —
   verified correct (§15.1 VP-1..VP-5).
@@ -1561,7 +1561,7 @@ count (**G9** compares like with like).
 | `README.md` | Public front page: pitch, quick start, layout, doc guide |
 | `docs/planning/OWNER_DECISIONS.md` | The active owner-question register (OD-01..OD-18) |
 | `docs/planning/PLANNING.md` | Direction review (§1), C# shell plan - resumed S38, `OD-C7 = resume` (§2), SkillOpt query (§3), sequential-work handoff (§4), next-session prompt (§5) |
-| `docs/legal/README.md` | Licence single source of truth: Ms-PL rationale (§1), copying rules (§2), the wasm OD-16 question (§3–§4) |
+| `legal/README.md` | Licence single source of truth: Ms-PL rationale (§1), copying rules (§2), the wasm OD-16 question (§3–§4) |
 | `docs/ci/README.md` | Workflow status (§1), clean-Windows smoke (§2), desktop probes (§3) |
 | `docs/release/RELEASE_PROCEDURE.md` | How to cut snapshots/releases, incl. the doc gate + rollback policy |
 | `docs/archive/AUDIT_HISTORY.md` | Condensed index of the seven dated audit snapshots (full texts in git history) |

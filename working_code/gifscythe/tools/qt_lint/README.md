@@ -15,9 +15,9 @@ A static scan for Qt 6 / CMake anti-patterns, vendored from the owner's
 | `qt_lint.baseline.json` | **generated here**, not copied — see below |
 | Vendored | S41, 2026-10-22 |
 
-`dionysus` declares no `LICENSE` file. It is the same repository owner's own work,
+`dionysus` declares no terms of its own. It is the same repository owner's own work,
 vendored here by that owner's direction; this note records the fact so that a
-future licence decision upstream can be reconciled rather than discovered.
+future decision upstream can be reconciled rather than discovered.
 Nothing else from `dionysus` is vendored: the skills prose, references and
 templates stay outside this repo (see `docs/planning/SKILLS_INTAKE.md`).
 
