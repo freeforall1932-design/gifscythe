@@ -106,13 +106,13 @@ QString shellishJoin(const QString& program, const std::vector<std::string>& arg
     parts << QStringLiteral("\"%1\"").arg(program);
   else
     parts << program;
-  // 0x22 rather than a character literal: the lint tool's comment masker does
-  // not understand chars and a bare double quote inside one desynchronises its
-  // line map (found the hard way - it made five old findings look new).
-  const QChar quote(0x22);
+  // A string literal rather than a character literal: the doc-gate's comment
+  // masker does not understand chars, and a bare quote inside one desynchronises
+  // its line map (found the hard way - it made five old findings look new).
+  const QString kQuote = QStringLiteral("\"");
   for (const auto& a : args) {
     const QString arg = QString::fromStdString(a);
-    if (arg.isEmpty() || arg.contains(QLatin1Char(' ')) || arg.contains(quote))
+    if (arg.isEmpty() || arg.contains(QLatin1Char(' ')) || arg.contains(kQuote))
       parts << QStringLiteral("\"%1\"").arg(arg);
     else
       parts << arg;
@@ -1331,7 +1331,9 @@ bool MainWindow::configureEncoder(const gs::Settings& one, const QString& input,
                                   QString* error) {
   QStringList qargs;
   if (!gs::output_format_needs_ffmpeg(format)) {
-    const gs::GifsicleCommand cmd(one);
+    // args() is non-const by design (it materialises the argv once), so this
+    // command object must not be const - the compiler caught it on CI, not here.
+    gs::GifsicleCommand cmd(one);
     for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
     process_->setProgram(enginePath_);
     process_->setArguments(qargs);
