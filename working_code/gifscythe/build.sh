@@ -188,6 +188,12 @@ g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
   -o "$BUILD_DIR/test_name_template" "$self/tests/test_name_template.cpp" $STDCXXFS \
   || fail "name-template test compile failed"
 "$BUILD_DIR/test_name_template" || fail "name-template tests failed"
+# N-63 / N-64: existing-file collision policy, relative folder nesting, and
+# same-format size guard, proven with no filesystem races.
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/test_collision" "$self/tests/test_collision.cpp" $STDCXXFS \
+  || fail "collision test compile failed"
+"$BUILD_DIR/test_collision" || fail "collision tests failed"
 # Sidecar: which ffmpeg the app would run, and why. Qt-free, fixture-driven, so
 # the precedence (bundled > PATH > installed) is pinned rather than hoped for.
 g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \

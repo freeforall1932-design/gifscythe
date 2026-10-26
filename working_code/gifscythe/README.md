@@ -237,8 +237,24 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   and removing it never destroys its values — `Add action >` puts the same
   widgets back. The stack (with each disabled card's values) is saved to the
   session file and to every preset.
-- Regression net: `tests/test_gui_offscreen.cpp` — T1–T30 plus the S23 desktop
-  round-trip block, 331 `CHECK(` sites in source (which is more runtime
+- **Output form & naming/collision/size-guard/encoder controls (slice E + N-61/N-63/N-64/N-65, S46)** —
+  XnConvert-parity Output tab: `Source folder` vs designated `Folder` radios
+  (`outputEdit` Save-as field removed per `OD-25 = a`), `Filename` template
+  (`{Filename}_result` default, `{name}` alias preserved, Format owns extension
+  per `OD-24 = a`) with a `{`-triggered scrolling token-completion popup and
+  `▶` token-insert menu (`src/core/NameTemplate.h`), `Start index`, duplicate
+  disambiguation (`_1`, `_2`, `OD-23`), `If an output file already exists` as a
+  compact clickable square button (`Ask each time ⇅` default, `QMenu::NoArrow`,
+  modal Rename / Overwrite / Skip + `… all`), `Keep folder structure` checkbox
+  (default ON, recreating nested subfolders under designated `Folder` while
+  standalone files stay flat), `Discard result if larger than original (same
+  format only)` checkbox (default OFF, enabled only when target format matches
+  source format), and `Format ▸ Settings…` per-format quality / frame-rate +
+  FFmpeg location dialog (`N-65`). Skipped existing files appear as rows in the
+  Status `resultTable` (`skipped, file already exists` + filename + full path).
+  All fields persist in `gifscythe.conf` and in presets (`OD-26`).
+- Regression net: `tests/test_gui_offscreen.cpp` — T1–T34 plus `T30b` and the S23 desktop
+  round-trip block, 397 `CHECK(` sites in source (which is more runtime
   assertions than sites, because several groups loop). T21 (S31, finding N-10)
   asserts that cancelling an Explode run reports the frame set as possibly
   incomplete; T22–T24 (S36) are the behavioural cases for the three S35 patch
@@ -246,7 +262,7 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   completion consumes the latch, the NEXT genuine failure still surfaces), the
   U-70 non-ASCII `GS_ENGINE` path (preview must reach the engine), and the U-58
   mid-batch settings mutation (job 2 runs the batch-start snapshot, proven from
-  the fixture's argv log), and T26 (S37) the event-loop heartbeat: a 10 ms timer
+  the fixture's argv log), T26 (S37) the event-loop heartbeat: a 10 ms timer
   watches for UI-thread stalls across the five blocking waits U-12 names, using
   `tests/fake_engine_orphan_pipe.cpp` — a fixture whose forked child keeps the
   inherited pipes open after the parent is killed, i.e. the worst case a
@@ -254,8 +270,13 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   1000-5000 ms deadlines (measured, with the target provably alive), so the row's
   freeze is not reachable through these sites; the leg bounds are half a
   deadline, so any future change that starts consuming them fails the harness.
+  T31–T34 (S46) cover the Output tab end to end (`N-61` template + `{` popup +
+  disambiguation + presets, `N-63` compact collision button + Ask/Skip/Rename/Overwrite
+  + Keep folder structure nesting + Status tally rows, `N-64` same-format size
+  guard, and `N-65` `Format ▸ Settings…` quality/fps + persistence).
   Last measured at
-  **436 runtime checks** in the S37 sandbox (Qt 6.8.3 built from source) —
+  **697 runtime checks** in the S46 sandbox (Qt 6.8.3 built from source; 436 in
+  S37) —
   figure rises with every added case, so read it as a measurement, not a target;
   324 in the S11 sandbox (Qt 6.4.2) before T21 existed, 306 in S10. Runs in CI
   and in any Qt6-equipped sandbox — and `scripts/build_qt6_local.sh` lets a

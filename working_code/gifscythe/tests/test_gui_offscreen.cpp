@@ -81,11 +81,14 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDateTime>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
 #include <QEvent>
 #include <QEventLoop>
+#include <QKeyEvent>
 #include <QPixmap>
 #include <QFile>
 #include <QFileInfo>
@@ -105,6 +108,7 @@
 #include <QProcess>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QRegularExpression>
 #include <QScrollArea>
 #include <QSpinBox>
@@ -122,12 +126,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
-// S37 (windows CI red at the GUI BUILD step): T25 reads tests/stem_cases.txt with
-// std::ifstream, and <fstream> was being pulled in TRANSITIVELY on Linux. MinGW's
-// libstdc++ does not do that, so the file must be included explicitly — a
-// platform difference in the include graph, not in the code. (Same lesson as the
-// T23 premise: what compiles here is not what compiles everywhere.)
 #include <fstream>
+#include <functional>
 #include <thread>
 #include <string>
 #include <vector>
@@ -151,6 +151,7 @@ void check(bool cond, const char* what, int line) {
 
 // ---- DialogKiller: record + close any modal dialog so tests never block ----
 std::vector<QString> g_dialogs;
+std::function<bool(QWidget*)> g_modalHandler;
 
 class DialogKiller : public QObject {
  public:
@@ -161,6 +162,7 @@ class DialogKiller : public QObject {
   void sweep() {
     QWidget* m = qApp->activeModalWidget();
     if (!m) return;
+    if (g_modalHandler && g_modalHandler(m)) return;
     if (auto* mb = qobject_cast<QMessageBox*>(m)) {
       g_dialogs.push_back(mb->text() + QStringLiteral(" | ") + mb->informativeText());
     } else {
@@ -189,8 +191,10 @@ struct Widgets {
   QComboBox* mode = nullptr;
   QSpinBox* optimize = nullptr;
   QSpinBox* lossy = nullptr;
-  QLineEdit* output = nullptr;
+  QRadioButton* destSource = nullptr;
+  QRadioButton* destFolder = nullptr;
   QLineEdit* batchDir = nullptr;
+  QLineEdit* tmpl = nullptr;
   QPushButton* run = nullptr;
   QPushButton* cancel = nullptr;
   QPushButton* remove = nullptr;
@@ -214,8 +218,10 @@ Widgets findWidgets(QWidget* w) {
   x.mode = byName<QComboBox>(w, "modeCombo");
   x.optimize = byName<QSpinBox>(w, "optimizeSpin");
   x.lossy = byName<QSpinBox>(w, "lossySpin");
-  x.output = byName<QLineEdit>(w, "outputEdit");
+  x.destSource = byName<QRadioButton>(w, "destSourceRadio");
+  x.destFolder = byName<QRadioButton>(w, "destFolderRadio");
   x.batchDir = byName<QLineEdit>(w, "batchDirEdit");
+  x.tmpl = byName<QLineEdit>(w, "nameTemplateEdit");
   x.run = byName<QPushButton>(w, "runButton");
   x.cancel = byName<QPushButton>(w, "cancelButton");
   x.remove = byName<QPushButton>(w, "removeButton");
@@ -231,6 +237,15 @@ Widgets findWidgets(QWidget* w) {
   x.previewBefore = byName<QLabel>(w, "previewBefore");
   x.previewAfter = byName<QLabel>(w, "previewAfter");
   return x;
+}
+
+// Configure Folder destination + literal filename stem for single-output cases
+// after OD-25 = a dropped the legacy Save-as field.
+void setDestFile(QWidget* w, const QString& fullPath) {
+  const QFileInfo fi(fullPath);
+  if (auto* df = byName<QRadioButton>(w, "destFolderRadio")) df->setChecked(true);
+  if (auto* bd = byName<QLineEdit>(w, "batchDirEdit")) bd->setText(fi.path());
+  if (auto* nt = byName<QLineEdit>(w, "nameTemplateEdit")) nt->setText(fi.completeBaseName());
 }
 
 bool waitForStatus(QWidget* w, const QString& needle, int timeoutMs = 45000) {
@@ -625,37 +640,35 @@ int main(int argc, char** argv) {
     g_stage = "T1"; std::printf("== T1 defaults + tabs ==\n");
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
-    CHECK(x.list && x.pane && x.mode && x.optimize && x.lossy && x.output &&
+    CHECK(x.list && x.pane && x.mode && x.optimize && x.lossy &&
+          x.destSource && x.destFolder && x.batchDir && x.tmpl &&
           x.run && x.run->text() == QStringLiteral("Convert") && x.cancel &&
           x.remove && x.clear && x.progress && x.process && x.tabs &&
           x.countLabel && x.outputSummary && x.previewCaption);
+    // OD-25 = a: Save-as (outputEdit) is dropped; Output tab owns destination + template.
+    CHECK(byName<QLineEdit>(w, "outputEdit") == nullptr);
+    CHECK(x.destSource->isChecked() && !x.destFolder->isChecked());
     CHECK(byName<QPlainTextEdit>(w, "logPane") != nullptr);
     CHECK(byName<QListWidget>(w, "outputFilesList") != nullptr);
     CHECK(byName<QPushButton>(w, "previewPlayButton") != nullptr);
     CHECK(byName<QPushButton>(w, "previewStopButton") != nullptr);
     CHECK(byName<QPushButton>(w, "previewGenerateButton") != nullptr);
     CHECK(byName<QScrollArea>(w, "guideScroll") != nullptr);
-    // S7 additions: reorder buttons + naming template (default = historical
-    // <name>_opt.gif behavior, audit E4).
     CHECK(byName<QPushButton>(w, "moveUpButton") != nullptr);
     CHECK(byName<QPushButton>(w, "moveDownButton") != nullptr);
     auto* tmplEdit = byName<QLineEdit>(w, "nameTemplateEdit");
-    CHECK(tmplEdit && tmplEdit->text() == QStringLiteral("{name}_opt.gif"));
+    CHECK(tmplEdit && tmplEdit->text() == QStringLiteral("{Filename}_result"));
     if (x.tabs) {
-      // N-55 / slice B: the reference's tab ORDER is Input, Actions, Output,
-      // Status, Settings, About - the old Guide tab is now the About tab
-      // (guideScroll/guideIntro keep their objectNames, so old probes still
-      // find them). The Input title carries its count.
       CHECK(x.tabs->count() == 6);
       CHECK(x.tabs->tabText(0) == QStringLiteral("Input: 0 file(s)"));
-      // Slice D: the Actions title carries the reference's counter.
       CHECK(x.tabs->tabText(1) == QStringLiteral("Actions [8/8]"));
       CHECK(x.tabs->tabText(2) == QStringLiteral("Output"));
       CHECK(x.tabs->tabText(3) == QStringLiteral("Status"));
       CHECK(x.tabs->tabText(4) == QStringLiteral("Settings"));
       CHECK(x.tabs->tabText(5) == QStringLiteral("About"));
-      CHECK(tmplEdit && x.tabs->widget(0)->isAncestorOf(tmplEdit) &&
-            !x.tabs->widget(2)->isAncestorOf(tmplEdit));
+      // N-61: Filename template lives on Output (tab 2), not Input (tab 0).
+      CHECK(tmplEdit && x.tabs->widget(2)->isAncestorOf(tmplEdit) &&
+            !x.tabs->widget(0)->isAncestorOf(tmplEdit));
       auto* guide = byName<QScrollArea>(w, "guideScroll");
       CHECK(guide && x.tabs->widget(5)->isAncestorOf(guide));
     }
@@ -705,7 +718,7 @@ int main(int argc, char** argv) {
     CHECK(pane.contains(gs::shell_quote(g_engine.toStdString()).c_str()));
     // Batch runs one per-file Auto command — never a single "-b …" line.
     CHECK(!pane.contains(QStringLiteral(" -b ")));
-    CHECK(pane.contains(QStringLiteral("a_opt.gif")));       // real derived output
+    CHECK(pane.contains(QStringLiteral("a_result.gif")));    // real derived output
 
     x.optimize->setValue(2);
     spinEvents(20);
@@ -720,7 +733,7 @@ int main(int argc, char** argv) {
     CHECK(x.pane->toPlainText().contains(QStringLiteral("-m")));
 
     const QString spaced = tmp.path() + QStringLiteral("/dir with space/out.gif");
-    x.output->setText(spaced);
+    setDestFile(w, spaced);
     spinEvents(20);
     pane = x.pane->toPlainText();
     CHECK_MSG(pane.contains(QLatin1Char('\'')), "space path is shell-quoted in pane");
@@ -805,8 +818,8 @@ int main(int argc, char** argv) {
               "Run click returns within waitForStarted(5000) (no waitForFinished block)");
 
     CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "batch reports complete");
-    const QString aOut = tmp.path() + QStringLiteral("/a_opt.gif");
-    const QString bOut = tmp.path() + QStringLiteral("/b_opt.gif");
+    const QString aOut = tmp.path() + QStringLiteral("/a_result.gif");
+    const QString bOut = tmp.path() + QStringLiteral("/b_result.gif");
     CHECK(QFileInfo::exists(aOut));
     CHECK(QFileInfo::exists(bOut));
     CHECK(!QFileInfo::exists(aOut + QStringLiteral(".gs-partial")));
@@ -817,7 +830,7 @@ int main(int argc, char** argv) {
     CHECK_MSG(frameCount(bOut) == 1, "batch preserves frame count (b: 1)");
     delete w;
 
-    // E1: single file + explicit Save-as path is honored (not only _opt.gif)
+    // Single file + custom literal name + Overwrite replaces existing target cleanly
     QTemporaryDir tmp2;
     const QString a2 = tmp2.path() + QStringLiteral("/a.gif");
     CHECK(copyFile(logo, a2));
@@ -831,7 +844,8 @@ int main(int argc, char** argv) {
       CHECK(f.open(QIODevice::WriteOnly));
       CHECK(f.write(oldOutput) == oldOutput.size());
     }
-    x2.output->setText(explicitOut);
+    w2->setCollisionPolicy(gs::CollisionPolicy::Overwrite);
+    setDestFile(w2, explicitOut);
     x2.run->click();
     CHECK_MSG(waitForStatus(w2, QStringLiteral("complete")), "explicit-output batch completes");
     CHECK(QFileInfo::exists(explicitOut));
@@ -841,7 +855,7 @@ int main(int argc, char** argv) {
       CHECK(f.read(6).startsWith("GIF8"));  // verified partial promoted to target
     }
     CHECK(!QFileInfo::exists(explicitOut + QStringLiteral(".gs-partial")));
-    CHECK(!QFileInfo::exists(tmp2.path() + QStringLiteral("/a_opt.gif")));
+    CHECK(!QFileInfo::exists(tmp2.path() + QStringLiteral("/a_result.gif")));
     delete w2;
   }
 
@@ -859,18 +873,18 @@ int main(int argc, char** argv) {
     dropFiles(w, {a, b});
     x.mode->setCurrentIndex(1);  // Merge (explicit choice)
     const QString merged = tmp.path() + QStringLiteral("/merged.gif");
-    x.output->setText(merged);
+    setDestFile(w, merged);
     x.run->click();
     CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "merge reports complete");
     CHECK(QFileInfo::exists(merged));
     CHECK_MSG(frameCount(merged) == 13, "merge frame count = 12 + 1");
-    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));  // not batch
+    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_result.gif")));  // not batch
     delete w;
   }
 
-  // ================= T6: Merge empty output refuses (B12) ================
+  // ================= T6: Empty Folder destination refuses (B12) ==========
   {
-    g_stage = "T6"; std::printf("== T6 merge refuse ==\n");
+    g_stage = "T6"; std::printf("== T6 destination refuse ==\n");
     QTemporaryDir tmp;
     const QString a = tmp.path() + QStringLiteral("/a.gif");
     const QString b = tmp.path() + QStringLiteral("/b.gif");
@@ -881,14 +895,16 @@ int main(int argc, char** argv) {
     auto x = findWidgets(w);
     dropFiles(w, {a, b});
     x.mode->setCurrentIndex(1);  // Merge
-    x.output->clear();
+    x.destFolder->setChecked(true);
+    x.batchDir->clear();
+    spinEvents(20);
     g_dialogs.clear();
     x.run->click();
     spinEvents(120);
-    CHECK_MSG(dialogsContain(QStringLiteral("output")),
-              "merge w/o output warns via dialog");
+    CHECK_MSG(dialogsContain(QStringLiteral("destination folder")),
+              "Folder destination w/o folder warns via dialog");
     CHECK(x.process->state() == QProcess::NotRunning);  // never started
-    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));
+    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_result.gif")));
     CHECK(x.outputSummary->text().contains(QStringLiteral("REQUIRED")));
     delete w;
   }
@@ -904,31 +920,20 @@ int main(int argc, char** argv) {
     auto x = findWidgets(w);
     dropFiles(w, {a});
     x.mode->setCurrentIndex(2);  // Explode
-    x.output->clear();
     x.run->click();
     CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "explode reports complete");
     // gifsicle -e -o <stem>_frame writes <stem>_frame.NNN
     const QString prefix = tmp.path() + QStringLiteral("/a_frame");
     CHECK(QFileInfo::exists(prefix + QStringLiteral(".000")));
     CHECK(QFileInfo::exists(prefix + QStringLiteral(".011")));
-    // U-17: the completion status must carry the VERIFIED frame count
-    // (logo.gif = 12 frames), not just the word "complete".
     CHECK_MSG(x.status->text().contains(QStringLiteral("12 frame")),
               "explode completion reports the verified frame count");
-    // AUD-02: frames are written under a partial prefix and PROMOTED; nothing
-    // of the staging set may be left behind after a successful run.
     CHECK_MSG(QDir(tmp.path()).entryList({QStringLiteral("*.gs-partial*")},
                                          QDir::Files).isEmpty(),
               "explode leaves no .gs-partial frames after promotion");
     delete w;
 
     // ---- N-05: multi-input explode is REFUSED before the engine starts ----
-    // The engine would explode every queued input except the last into the
-    // process CWD (verified: `gifsicle -e a.gif b.gif -o p`, rc=0) and the
-    // U-17 prefix verification would then report the leftover single frame
-    // as "complete". The validate() warning makes runCommand refuse.
-    // (Own temp dir: the happy-path explode above legitimately left
-    // a_frame.* files in tmp.)
     {
       QTemporaryDir tmpN;
       const QString an = tmpN.path() + QStringLiteral("/a.gif");
@@ -939,7 +944,6 @@ int main(int argc, char** argv) {
       auto xn = findWidgets(wn);
       dropFiles(wn, {an, bn});
       xn.mode->setCurrentIndex(2);  // Explode
-      xn.output->clear();
       g_dialogs.clear();
       xn.run->click();
       spinEvents(150);
@@ -954,11 +958,6 @@ int main(int argc, char** argv) {
     }
 
     // ---- U-17 (P1-19): rc=0 + ZERO frames written must NOT claim success. ----
-    // The lying engine (tests/fake_engine_exit0.cpp, built next to this
-    // harness) exits 0 without writing anything — the audit's exact repro.
-    // Before the fix this reported "Optimization complete." over an empty
-    // directory; now it must say "No frames produced", surface the prefix in
-    // a dialog, leave no frame files behind, and clear busy honestly.
     QString fake = QCoreApplication::applicationDirPath()
                  + QStringLiteral("/fake_engine_exit0");
 #ifdef _WIN32
@@ -972,16 +971,12 @@ int main(int argc, char** argv) {
       QTemporaryDir tmp2;
       const QString b = tmp2.path() + QStringLiteral("/b.gif");
       CHECK(copyFile(logo, b));
-      MainWindow* w2 = makeWindow();  // ctor locates the lying engine via GS_ENGINE
+      MainWindow* w2 = makeWindow();
       auto x2 = findWidgets(w2);
-      // Basename match on purpose: locate_engine() returns NATIVE separators
-      // (backslashes on Windows) while applicationDirPath() uses forward
-      // slashes — a full-path contains() failed only on CI-windows (S11).
       CHECK_MSG(x2.status->text().contains(QStringLiteral("fake_engine_exit0")),
                 "window picked up the lying engine");
       dropFiles(w2, {b});
       x2.mode->setCurrentIndex(2);  // Explode
-      x2.output->clear();
       g_dialogs.clear();
       x2.run->click();
       CHECK_MSG(waitForStatus(w2, QStringLiteral("No frames")),
@@ -992,7 +987,7 @@ int main(int argc, char** argv) {
       CHECK_MSG(dialogsContain(QStringLiteral("b_frame")),
                 "the dialog names the exact prefix searched");
       CHECK(x2.process->state() == QProcess::NotRunning);
-      CHECK(x2.run->isEnabled());   // busy cleared honestly
+      CHECK(x2.run->isEnabled());
       CHECK(!x2.cancel->isEnabled());
       delete w2;
     }
@@ -1064,7 +1059,7 @@ int main(int argc, char** argv) {
 
     // Now a genuine failed RUN: real GIF input, output inside a directory that
     // does not exist, so the real engine exits nonzero.
-    x.output->setText(tmp.path() + QStringLiteral("/no-such-dir/out.gif"));
+    setDestFile(w, tmp.path() + QStringLiteral("/no-such-dir/out.gif"));
     g_dialogs.clear();
     x.run->click();
     CHECK_MSG(waitForStatus(w, QStringLiteral("failed")), "failed run says failed");
@@ -1100,7 +1095,8 @@ int main(int argc, char** argv) {
       MainWindow* wf = makeWindow();
       auto xf = findWidgets(wf);
       dropFiles(wf, {input});
-      xf.output->setText(target);
+      wf->setCollisionPolicy(gs::CollisionPolicy::Overwrite);
+      setDestFile(wf, target);
       g_dialogs.clear();
       xf.run->click();
       CHECK_MSG(waitForStatus(wf, QStringLiteral("failed")),
@@ -1125,7 +1121,7 @@ int main(int argc, char** argv) {
     g_stage = "T9"; std::printf("== T9 cancel mid-run ==\n");
     QTemporaryDir tmp;
     const QString big = tmp.path() + QStringLiteral("/big.gif");
-    const QString existingOutput = tmp.path() + QStringLiteral("/big_opt.gif");
+    const QString existingOutput = tmp.path() + QStringLiteral("/big_result.gif");
     const QByteArray knownGood("previous output survives cancellation");
     {
       QFile f(existingOutput);
@@ -1137,6 +1133,7 @@ int main(int argc, char** argv) {
 
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
+    w->setCollisionPolicy(gs::CollisionPolicy::Overwrite);
     dropFiles(w, {big});
     x.optimize->setValue(3);
     x.lossy->setValue(100);  // slow path
@@ -1491,24 +1488,25 @@ int main(int argc, char** argv) {
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
     dropFiles(w, {a, b});
-    CHECK(x.outputSummary->text().contains(QStringLiteral("_opt.gif")));
-    x.batchDir->setText(outDir);
+    CHECK(x.outputSummary->text().contains(QStringLiteral("_result.gif")));
+    x.batchDir->setText(outDir);  // auto-switches destination radio to Folder
     spinEvents(30);
+    CHECK(x.destFolder->isChecked());
     CHECK(x.outputSummary->text().contains(outDir));
     // The live pane must describe the real per-file runs, not a single -b.
     {
       const QString pane = x.pane->toPlainText();
       CHECK(pane.contains(QStringLiteral("# batch")));
-      CHECK(pane.contains(QStringLiteral("a_opt.gif")));
-      CHECK(pane.contains(QStringLiteral("b_opt.gif")));
+      CHECK(pane.contains(QStringLiteral("a_result.gif")));
+      CHECK(pane.contains(QStringLiteral("b_result.gif")));
       CHECK(!pane.contains(QStringLiteral(" -b ")));
     }
 
     x.run->click();
     CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "batch with custom folder completes");
-    CHECK(QFileInfo::exists(outDir + QStringLiteral("/a_opt.gif")));
-    CHECK(QFileInfo::exists(outDir + QStringLiteral("/b_opt.gif")));
-    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));  // not beside inputs
+    CHECK(QFileInfo::exists(outDir + QStringLiteral("/a_result.gif")));
+    CHECK(QFileInfo::exists(outDir + QStringLiteral("/b_result.gif")));
+    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_result.gif")));  // not beside inputs
     CHECK(byName<QPushButton>(w, "openDirButton") != nullptr);
     delete w;
   }
@@ -1614,11 +1612,11 @@ int main(int argc, char** argv) {
       CHECK(comments && comments->item(0)->text() == QStringLiteral("persist me"));
       CHECK(byName<QLineEdit>(w, "batchDirEdit")->text() ==
             cfg.path() + QStringLiteral("/outdir"));
+      CHECK(byName<QRadioButton>(w, "destFolderRadio")->isChecked());
       CHECK(byName<QLineEdit>(w, "nameTemplateEdit")->text() ==
             QStringLiteral("{name}_small"));
-      // NOT restored (documented decision): queue and Save-as.
+      // NOT restored (documented decision): queue.
       CHECK(x.list->count() == 0);
-      CHECK(x.output->text().isEmpty());
       // The live pane reflects the restored state (constructor refresh).
       const QString pane = x.pane->toPlainText();
       CHECK(pane.contains(QStringLiteral("--lossy=42")));
@@ -1745,7 +1743,7 @@ int main(int argc, char** argv) {
     // Merge consumes the queue in order — the live pane must show c,a,b.
     x.mode->setCurrentIndex(1);  // Merge
     const QString merged = tmp.path() + QStringLiteral("/m.gif");
-    x.output->setText(merged);
+    setDestFile(w, merged);
     spinEvents(20);
     {
       const QString pane = x.pane->toPlainText();
@@ -1760,7 +1758,7 @@ int main(int argc, char** argv) {
     delete w;
   }
 
-  // ================= T16: naming templates (S3-25) =======================
+  // ================= T16: naming templates (S3-25 + N-61 / OD-23) ========
   {
     g_stage = "T16"; std::printf("== T16 naming templates ==\n");
     QTemporaryDir tmp;
@@ -1774,10 +1772,10 @@ int main(int argc, char** argv) {
     auto* tmpl = byName<QLineEdit>(w, "nameTemplateEdit");
     CHECK(tmpl != nullptr);
     dropFiles(w, {a});
-    // Default template renders the historical <name>_opt.gif (audit E4).
-    CHECK(x.pane->toPlainText().contains(QStringLiteral("a_opt.gif")));
+    // Default template renders <Filename>_result.gif (N-61).
+    CHECK(x.pane->toPlainText().contains(QStringLiteral("a_result.gif")));
 
-    // Custom template (no extension) -> ".gif" appended, pane + summary follow.
+    // Legacy {name} alias (no extension) -> ".gif" appended, pane + summary follow.
     tmpl->setText(QStringLiteral("{name}_small"));
     spinEvents(20);
     CHECK(x.pane->toPlainText().contains(QStringLiteral("a_small.gif")));
@@ -1795,22 +1793,23 @@ int main(int argc, char** argv) {
       CHECK(!pane.contains(QStringLiteral("../../")));
     }
 
-    // Constant template + 2 files = collision -> summary warns and the run
-    // is REFUSED with an explanatory dialog (no silent overwrite).
+    // Constant template + 2 files -> OD-23 disambiguates duplicates (_1, _2, ...)
+    // rather than refusing, and templateNoteLabel warns that the name is constant.
     dropFiles(w, {b});
     tmpl->setText(QStringLiteral("same_name.gif"));
     spinEvents(20);
-    CHECK(x.outputSummary->text().contains(QStringLiteral("refused")));
-    g_dialogs.clear();
+    auto* tmplNote = byName<QLabel>(w, "templateNoteLabel");
+    CHECK(tmplNote && tmplNote->text().contains(QStringLiteral("constant")));
+    CHECK(x.pane->toPlainText().contains(QStringLiteral("same_name.gif")));
+    CHECK(x.pane->toPlainText().contains(QStringLiteral("same_name_1.gif")));
     x.run->click();
-    spinEvents(120);
-    CHECK_MSG(dialogsContain(QStringLiteral("{name}")),
-              "collision refusal dialog explains the {name} requirement");
-    CHECK(x.process->state() == QProcess::NotRunning);  // never started
-    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/same_name.gif")));
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")),
+              "constant-template 2-file batch completes with numbered duplicates (OD-23)");
+    CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/same_name.gif")));
+    CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/same_name_1.gif")));
 
-    // With {name} back, both files run to their own outputs.
-    tmpl->setText(QStringLiteral("{name}_x.gif"));
+    // With {Filename}, each file gets its own stem directly.
+    tmpl->setText(QStringLiteral("{Filename}_x.gif"));
     spinEvents(20);
     x.run->click();
     CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "templated 2-file batch completes");
@@ -1819,12 +1818,7 @@ int main(int argc, char** argv) {
     delete w;
   }
 
-  // ============ T17: batch output planning (audit U-01) ==================
-  // The old code derived each batch output inside the run loop and never
-  // compared targets, so (a) a template like "{name}.gif" with an empty batch
-  // folder wrote the output ON TOP OF THE SOURCE, and (b) two queued files
-  // sharing a base name both landed on <batchdir>/<stem>_opt.gif and the
-  // second silently deleted the first. Both are now planned and refused.
+  // ============ T17: batch output planning (audit U-01 + OD-23) ==========
   {
     g_stage = "T17"; std::printf("== T17 batch output planning ==\n");
     QTemporaryDir tmp;
@@ -1845,25 +1839,23 @@ int main(int argc, char** argv) {
     dropFiles(w, {h1, h2});
     CHECK(x.list->count() == 2);
 
-    // (a) Same base name + one batch folder + the DEFAULT template -> both
-    //     render out/hero_opt.gif. The label must warn and the run refuse.
+    // (a) Same base name + shared Folder destination -> OD-23 disambiguates
+    //     into out/hero_result.gif and out/hero_result_1.gif (no overwrite).
     x.batchDir->setText(tmp.path() + QStringLiteral("/out"));
     spinEvents(20);
-    CHECK_MSG(x.outputSummary->text().contains(QStringLiteral("refused")),
-              "summary warns about the duplicate target before Run");
-    g_dialogs.clear();
+    CHECK_MSG(!x.outputSummary->text().contains(QStringLiteral("refused")),
+              "shared folder disambiguates duplicate stems with _1 (OD-23)");
     x.run->click();
-    spinEvents(120);
-    CHECK_MSG(!g_dialogs.empty(), "duplicate-target run is refused with a dialog");
-    CHECK(x.process->state() == QProcess::NotRunning);   // never started
-    CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/out/hero_opt.gif")));
-    CHECK(QFileInfo(h1).size() == h1_before);            // sources untouched
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "disambiguated shared-folder batch completes");
+    CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/out/hero_result.gif")));
+    CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/out/hero_result_1.gif")));
+    CHECK(QFileInfo(h1).size() == h1_before);
     CHECK(QFileInfo(h2).size() == h2_before);
 
-    // (b) The self-overwrite case: template "{name}.gif" with NO batch folder
-    //     resolves each output to the input itself.
-    x.batchDir->clear();
-    tmpl->setText(QStringLiteral("{name}.gif"));
+    // (b) The self-overwrite case (U-01): template "{Filename}" with Source
+    //     folder resolves each output to the input itself -> still REFUSED.
+    x.destSource->setChecked(true);
+    tmpl->setText(QStringLiteral("{Filename}"));
     spinEvents(20);
     CHECK_MSG(x.outputSummary->text().contains(QStringLiteral("refused")),
               "summary warns that the target is a source file");
@@ -1876,12 +1868,8 @@ int main(int argc, char** argv) {
     CHECK(QFileInfo(h1).size() == h1_before);            // source NOT replaced
     CHECK(QFileInfo(h2).size() == h2_before);
 
-    // (c) Positive control. Both queued files are called hero.gif, so the only
-    //     way to get distinct targets from one template is to let each write
-    //     next to its own input (no batch folder): d1/hero_x.gif and
-    //     d2/hero_x.gif. That must run, and must not touch the sources.
-    x.batchDir->clear();
-    tmpl->setText(QStringLiteral("{name}_x.gif"));
+    // (c) Positive control: Source folder + "{Filename}_x" writes beside each source.
+    tmpl->setText(QStringLiteral("{Filename}_x"));
     spinEvents(20);
     CHECK_MSG(!x.outputSummary->text().contains(QStringLiteral("refused")),
               "distinct targets are not refused");
@@ -1892,21 +1880,10 @@ int main(int argc, char** argv) {
     CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/d2/hero_x.gif")));
     CHECK(QFileInfo(h1).size() == h1_before);
     CHECK(QFileInfo(h2).size() == h2_before);
-
-    // (d) And the same stems ARE refused as soon as a shared batch folder
-    //     makes the two targets coincide again.
-    x.batchDir->setText(tmp.path() + QStringLiteral("/out"));
-    spinEvents(20);
-    CHECK_MSG(x.outputSummary->text().contains(QStringLiteral("refused")),
-              "a shared batch folder turns distinct inputs into one target");
     delete w;
   }
 
   // ============ T18: busy output-group lock (audit U-45/U-35) ==============
-  // While a run is in flight the WHOLE output group must be locked — both
-  // Browse buttons included — and even a programmatic setText() on the
-  // (disabled) batch-folder field must not redirect the running plan: the
-  // outputs go where they were planned, not where the field now points.
   {
     g_stage = "T18"; std::printf("== T18 busy output lock ==\n");
     QTemporaryDir tmp;
@@ -1919,26 +1896,32 @@ int main(int argc, char** argv) {
 
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
-    auto* browseOut = byName<QPushButton>(w, "browseOutputButton");
     auto* browseDir = byName<QPushButton>(w, "browseBatchDirButton");
-    CHECK(browseOut != nullptr && browseDir != nullptr);
+    auto* collBtn = byName<QPushButton>(w, "collisionButton");
+    auto* fmtSettingsBtn = byName<QPushButton>(w, "formatSettingsButton");
+    CHECK(browseDir != nullptr && collBtn != nullptr && fmtSettingsBtn != nullptr);
     dropFiles(w, {a});
     x.batchDir->setText(outDir);
     spinEvents(30);
-    CHECK(browseOut->isEnabled() && browseDir->isEnabled());  // idle: unlocked
+    CHECK(x.destSource->isEnabled() && x.destFolder->isEnabled() &&
+          browseDir->isEnabled() && collBtn->isEnabled() && fmtSettingsBtn->isEnabled());
 
     x.run->click();  // returns once the engine has started; still busy here
-    CHECK_MSG(!browseOut->isEnabled(), "Save-as Browse locked during the run");
+    CHECK_MSG(!x.destSource->isEnabled() && !x.destFolder->isEnabled(),
+              "Destination radios locked during the run");
     CHECK_MSG(!browseDir->isEnabled(), "batch-folder Browse locked during the run");
+    CHECK_MSG(!collBtn->isEnabled() && !fmtSettingsBtn->isEnabled(),
+              "collision and format Settings locked during the run");
     CHECK(!x.batchDir->isEnabled());
     browseDir->click();                     // a click on a locked button is a no-op
     x.batchDir->setText(otherDir);          // what the old picker path could still do
     spinEvents(30);
     CHECK(x.batchDir->text() == otherDir);  // the field took the edit...
     CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "locked batch completes");
-    CHECK(QFileInfo::exists(outDir + QStringLiteral("/a_opt.gif")));    // ...but the
-    CHECK(!QFileInfo::exists(otherDir + QStringLiteral("/a_opt.gif"))); // plan held
-    CHECK(browseOut->isEnabled() && browseDir->isEnabled());  // unlocked after
+    CHECK(QFileInfo::exists(outDir + QStringLiteral("/a_result.gif")));    // ...but the
+    CHECK(!QFileInfo::exists(otherDir + QStringLiteral("/a_result.gif"))); // plan held
+    CHECK(x.destSource->isEnabled() && x.destFolder->isEnabled() &&
+          browseDir->isEnabled() && collBtn->isEnabled() && fmtSettingsBtn->isEnabled());
     CHECK_MSG(x.run->isEnabled(), "Run re-enabled through the engine re-check (U-35)");
     delete w;
   }
@@ -2111,7 +2094,6 @@ int main(int argc, char** argv) {
     auto x = findWidgets(w);
     dropFiles(w, {a});
     x.mode->setCurrentIndex(2);  // Explode
-    x.output->clear();
     x.run->click();
     CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "explode run completes");
     // The cancel button is disabled once a run is over (T9 asserts that state).
@@ -2240,7 +2222,7 @@ int main(int argc, char** argv) {
       CHECK(x.process->state() == QProcess::NotRunning);
       CHECK(!x.cancel->isEnabled());
       CHECK(x.run->isEnabled());
-      CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));
+      CHECK(!QFileInfo::exists(tmp.path() + QStringLiteral("/a_result.gif")));
 
       qputenv("GS_FAKE_SLEEP_MS", "0");
       qputenv("GS_FAKE_EXIT", "9");
@@ -2413,8 +2395,8 @@ int main(int argc, char** argv) {
       CHECK_MSG(waitForStatus(w, QStringLiteral("complete"), 60000),
                 "batch completes after the mid-batch mutation");
       CHECK_MSG(g_dialogs.empty(), "the mid-batch mutation raised no dialog");
-      CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/a_opt.gif")));
-      CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/b_opt.gif")));
+      CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/a_result.gif")));
+      CHECK(QFileInfo::exists(tmp.path() + QStringLiteral("/b_result.gif")));
 
       const QStringList runs = batchRunLines(argvLog);
       CHECK_MSG(runs.size() >= 2, "the fixture logged both batch jobs");
@@ -2546,7 +2528,7 @@ int main(int argc, char** argv) {
 
       MainWindow* w = makeWindow();
       auto x = findWidgets(w);
-      x.output->setText(outPath);
+      setDestFile(w, outPath);
       dropFiles(w, {input});
 
       // ---- Leg A: preview supersede --------------------------------------
@@ -2623,7 +2605,7 @@ int main(int argc, char** argv) {
         copyFile(logo, in2);
         MainWindow* w2 = makeWindow();
         auto y = findWidgets(w2);
-        y.output->setText(tmp2.path() + QStringLiteral("/out.gif"));
+        setDestFile(w2, tmp2.path() + QStringLiteral("/out.gif"));
         dropFiles(w2, {in2});
         heartbeatSettle(1600);  // preview debounce: same single-file plan
         heartbeatReset();
@@ -2764,7 +2746,7 @@ int main(int argc, char** argv) {
     auto x3 = findWidgets(w3);
     dropFiles(w3, {r1, r2});
     x3.mode->setCurrentIndex(1);            // Merge
-    x3.output->setText(r1);                 // ...over its own input
+    setDestFile(w3, r1);                    // ...over its own input
     spinEvents(30);
     x3.run->click();
     spinEvents(80);
@@ -3114,6 +3096,9 @@ int main(int argc, char** argv) {
     w->close();  // closeEvent -> saveSessionState (delete alone never closes)
     spinEvents(20);
     delete w;
+    // Clean up T30's "Clear all" session state so subsequent tests start with
+    // the fresh 8/8 default stack (Batch mode + enabled action cards).
+    QFile::remove(QString::fromLocal8Bit(qgetenv("GS_SETTINGS_PATH")));
     g_dialogs.clear();
   }
 
@@ -3202,6 +3187,487 @@ int main(int argc, char** argv) {
       g_dialogs.clear();
     }
     qputenv("GS_SETTINGS_PATH", prevEnv);
+  }
+
+  // ========== T31: Filename template tokens, `{` popup & presets (N-61) ====
+  {
+    g_stage = "T31"; std::printf("== T31 Filename template + { popup + presets (N-61) ==\n");
+    const QByteArray prevEnv = qgetenv("GS_SETTINGS_PATH");
+    QTemporaryDir cfg;
+    CHECK(cfg.isValid());
+    const QString cfgPath = cfg.path() + QStringLiteral("/gifscythe.conf");
+    qputenv("GS_SETTINGS_PATH", QFile::encodeName(cfgPath));
+
+    QTemporaryDir tmp;
+    CHECK(tmp.isValid());
+    const QString a = tmp.path() + QStringLiteral("/alpha.gif");   // 12 frames
+    const QString b = tmp.path() + QStringLiteral("/beta.gif");    // 1 frame
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* popup = byName<QListWidget>(w, "tokenPopup");
+    auto* startIdx = byName<QSpinBox>(w, "startIndexSpin");
+    auto* note = byName<QLabel>(w, "templateNoteLabel");
+    auto* tokenBtn = byName<QToolButton>(w, "tokenMenuButton");
+    CHECK(popup && startIdx && note && tokenBtn);
+    CHECK(startIdx && startIdx->value() == 1);
+
+    dropFiles(w, {a, b});
+    spinEvents(30);
+
+    // Live `{` completion popup opens, filters as user types, and inserts on Return.
+    x.tmpl->setText(QStringLiteral("{"));
+    x.tmpl->setCursorPosition(1);
+    QMetaObject::invokeMethod(x.tmpl, "textEdited", Q_ARG(QString, x.tmpl->text()));
+    spinEvents(30);
+    CHECK_MSG(popup->isVisible(), "typing '{' opens the token completion popup");
+    CHECK_MSG(popup->count() == static_cast<int>(gs::template_tokens().size()),
+              "bare '{' lists every template token");
+
+    x.tmpl->setText(QStringLiteral("{fi"));
+    x.tmpl->setCursorPosition(3);
+    QMetaObject::invokeMethod(x.tmpl, "textEdited", Q_ARG(QString, x.tmpl->text()));
+    spinEvents(30);
+    CHECK_MSG(popup->isVisible() && popup->count() >= 3 &&
+                  popup->count() < static_cast<int>(gs::template_tokens().size()),
+              "typing '{fi' narrows the completion popup");
+    CHECK_MSG(popup->item(0)->data(Qt::UserRole).toString() == QStringLiteral("{Filename}"),
+              "prefix match '{Filename}' ranks first");
+
+    QKeyEvent enterPress(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
+    QCoreApplication::sendEvent(x.tmpl, &enterPress);
+    spinEvents(20);
+    CHECK_MSG(!popup->isVisible(), "accepting a token closes the popup");
+    CHECK_MSG(x.tmpl->text() == QStringLiteral("{Filename}"),
+              "accepting inserts the full token in place of '{fi'");
+
+    // Start index + {Frames} + {Width}x{Height} + Format-owned extension (OD-24).
+    startIdx->setValue(10);
+    x.tmpl->setText(QStringLiteral("{Filename}_{Frames}f_{Width}x{Height}_{File Index}.mp4"));
+    spinEvents(30);
+    CHECK_MSG(note->text().contains(QStringLiteral("ignored")),
+              "OD-24 warns when a typed media extension is stripped");
+    const gs::GifFacts fa = gs::read_gif_facts(a.toStdString());
+    const gs::GifFacts fb = gs::read_gif_facts(b.toStdString());
+    const QString wantA = tmp.path() + QStringLiteral("/alpha_%1f_%2x%3_10.gif")
+                                           .arg(fa.frames).arg(fa.width).arg(fa.height);
+    const QString wantB = tmp.path() + QStringLiteral("/beta_%1f_%2x%3_11.gif")
+                                           .arg(fb.frames).arg(fb.width).arg(fb.height);
+    CHECK(x.pane->toPlainText().contains(wantA));
+    CHECK(x.pane->toPlainText().contains(wantB));
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "multi-token templated batch completes");
+    CHECK(QFileInfo::exists(wantA));
+    CHECK(QFileInfo::exists(wantB));
+
+    // Preset round-trip (OD-26): destination, template, start_index, collision,
+    // keep_folder_structure, and discard_if_larger all survive preset save/load.
+    const QString customFolder = tmp.path() + QStringLiteral("/preset_out");
+    CHECK(QDir().mkpath(customFolder));
+    x.destFolder->setChecked(true);
+    x.batchDir->setText(customFolder);
+    x.tmpl->setText(QStringLiteral("{Filename}_preset_{File Index}"));
+    startIdx->setValue(42);
+    w->setCollisionPolicy(gs::CollisionPolicy::Skip);
+    byName<QCheckBox>(w, "keepStructureCheck")->setChecked(false);
+    byName<QCheckBox>(w, "discardLargerCheck")->setChecked(true);
+    spinEvents(20);
+    CHECK_MSG(w->savePresetByName(QStringLiteral("workflow_n61")),
+              "preset saved cleanly");
+
+    // Mutate everything away, then reload preset from presetCombo.
+    x.destSource->setChecked(true);
+    x.batchDir->clear();
+    x.tmpl->setText(QStringLiteral("{Filename}_result"));
+    startIdx->setValue(1);
+    w->setCollisionPolicy(gs::CollisionPolicy::Ask);
+    byName<QCheckBox>(w, "keepStructureCheck")->setChecked(true);
+    byName<QCheckBox>(w, "discardLargerCheck")->setChecked(false);
+    spinEvents(20);
+
+    auto* presetCombo = byName<QComboBox>(w, "presetCombo");
+    CHECK(presetCombo != nullptr);
+    const int pRow = presetCombo ? presetCombo->findText(QStringLiteral("workflow_n61")) : -1;
+    CHECK_MSG(pRow > 0, "saved preset appears in presetCombo");
+    if (presetCombo && pRow > 0) {
+      presetCombo->setCurrentIndex(pRow);
+      QMetaObject::invokeMethod(presetCombo, "activated", Q_ARG(int, pRow));
+      spinEvents(30);
+    }
+    CHECK(x.destFolder->isChecked());
+    CHECK(x.batchDir->text() == customFolder);
+    CHECK(x.tmpl->text() == QStringLiteral("{Filename}_preset_{File Index}"));
+    CHECK(startIdx->value() == 42);
+    CHECK(w->collisionPolicy() == gs::CollisionPolicy::Skip);
+    CHECK(!byName<QCheckBox>(w, "keepStructureCheck")->isChecked());
+    CHECK(byName<QCheckBox>(w, "discardLargerCheck")->isChecked());
+
+    delete w;
+    qputenv("GS_SETTINGS_PATH", prevEnv);
+    g_dialogs.clear();
+  }
+
+  // ========== T32: Collision policy & Keep folder structure (N-63) =========
+  {
+    g_stage = "T32"; std::printf("== T32 Collision policy + Keep folder structure (N-63) ==\n");
+    QTemporaryDir tmp;
+    CHECK(tmp.isValid());
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* optGroup = byName<QWidget>(w, "outputOptionsGroup");
+    auto* collBtn = byName<QPushButton>(w, "collisionButton");
+    auto* keepCheck = byName<QCheckBox>(w, "keepStructureCheck");
+    CHECK(optGroup && collBtn && keepCheck);
+    // Owner UI shape rule (S45): single clickable square button with ⇅ glyph,
+    // NO dropdown menu indicator (menu() == nullptr), NO radio buttons in Options,
+    // default "Ask each time", and Keep folder structure default ON.
+    CHECK_MSG(collBtn->menu() == nullptr,
+              "collisionButton has no attached QPushButton::menu() tail");
+    CHECK_MSG(collBtn->text().contains(QStringLiteral("Ask each time")) &&
+                  collBtn->text().contains(QStringLiteral("\u21c5")),
+              "collisionButton displays 'Ask each time' + ⇅ by default");
+    CHECK_MSG(optGroup->findChildren<QRadioButton*>().isEmpty(),
+              "Options group contains zero radio buttons (compact square only)");
+    CHECK_MSG(keepCheck->isChecked(), "Keep folder structure is ON by default");
+
+    // ---- (a) Skip policy + Status tally ("skipped, file already exists") ----
+    const QString sDir = tmp.path() + QStringLiteral("/skip_case");
+    CHECK(QDir().mkpath(sDir));
+    const QString a = sDir + QStringLiteral("/a.gif");
+    const QString b = sDir + QStringLiteral("/b.gif");
+    CHECK(copyFile(logo, a));
+    CHECK(copyFile(logo1, b));
+    const QString aExisting = sDir + QStringLiteral("/a_result.gif");
+    const QByteArray keepBytes("keep my existing result untouched");
+    {
+      QFile f(aExisting);
+      CHECK(f.open(QIODevice::WriteOnly));
+      CHECK(f.write(keepBytes) == keepBytes.size());
+    }
+    auto* collMenu = byName<QMenu>(w, "collisionMenu");
+    CHECK(collMenu != nullptr);
+    if (auto* skipAct = byName<QAction>(w, "collisionAction_skip")) {
+      skipAct->trigger();
+    }
+    spinEvents(20);
+    CHECK(w->collisionPolicy() == gs::CollisionPolicy::Skip);
+    CHECK(collBtn->text().contains(QStringLiteral("Skip")));
+
+    dropFiles(w, {a, b});
+    spinEvents(30);
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "batch with 1 skipped + 1 written completes");
+    {
+      QFile f(aExisting);
+      CHECK(f.open(QIODevice::ReadOnly));
+      CHECK_MSG(f.readAll() == keepBytes, "Skip left pre-existing a_result.gif untouched");
+    }
+    CHECK_MSG(QFileInfo::exists(sDir + QStringLiteral("/b_result.gif")),
+              "non-colliding b_result.gif was written");
+    auto* table = byName<QTableWidget>(w, "resultTable");
+    auto* summary = byName<QLabel>(w, "resultSummaryLabel");
+    CHECK(table && table->rowCount() == 2);
+    if (table && table->rowCount() == 2) {
+      CHECK_MSG(table->item(0, 0)->text() == QStringLiteral("a.gif"),
+                "skipped row names the file");
+      CHECK_MSG(table->item(0, 4)->text() == QStringLiteral("skipped"),
+                "skipped existing file gets state 'skipped'");
+      CHECK_MSG(table->item(0, 5)->text().contains(QStringLiteral("skipped, file already exists")) &&
+                    table->item(0, 5)->text().contains(QDir::toNativeSeparators(aExisting)),
+                "skipped row states 'skipped, file already exists' + full location");
+      CHECK_MSG(table->item(0, 2)->text().isEmpty() && table->item(0, 3)->text().isEmpty(),
+                "skipped row carries no After/Change byte figures (W-32)");
+      CHECK_MSG(table->item(1, 4)->text() == QStringLiteral("succeeded"),
+                "second file succeeded");
+    }
+    CHECK(summary && summary->text().contains(QStringLiteral("1 succeeded")) &&
+          summary->text().contains(QStringLiteral("1 skipped")));
+
+    // ---- (b) Rename policy writes _1 and leaves original intact ----
+    x.clear->click();
+    spinEvents(20);
+    if (auto* renAct = byName<QAction>(w, "collisionAction_rename")) {
+      renAct->trigger();
+    }
+    spinEvents(20);
+    dropFiles(w, {a});
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "Rename collision run completes");
+    {
+      QFile f(aExisting);
+      CHECK(f.open(QIODevice::ReadOnly));
+      CHECK_MSG(f.readAll() == keepBytes, "Rename left a_result.gif untouched");
+    }
+    CHECK_MSG(QFileInfo::exists(sDir + QStringLiteral("/a_result_1.gif")),
+              "Rename wrote a_result_1.gif");
+
+    // ---- (c) Ask modal + run-scoped Apply-to-all ----
+    x.clear->click();
+    spinEvents(20);
+    if (auto* askAct = byName<QAction>(w, "collisionAction_ask")) {
+      askAct->trigger();
+    }
+    spinEvents(20);
+    // Both a_result.gif AND b_result.gif exist now; Ask with Apply-to-all must
+    // prompt ONCE and apply Rename to both files (a_result_2.gif, b_result_1.gif).
+    int askPrompts = 0;
+    g_modalHandler = [&askPrompts](QWidget* modal) -> bool {
+      if (modal->objectName() != QStringLiteral("collisionAskDialog")) return false;
+      ++askPrompts;
+      auto* applyAll = modal->findChild<QCheckBox*>(QStringLiteral("askApplyAllCheck"));
+      auto* renBtn = modal->findChild<QPushButton*>(QStringLiteral("askRenameButton"));
+      if (applyAll) applyAll->setChecked(true);
+      if (renBtn) renBtn->click();
+      return true;
+    };
+    dropFiles(w, {a, b});
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "Ask + Apply-to-all batch completes");
+    g_modalHandler = nullptr;
+    CHECK_MSG(askPrompts == 1, "Apply-to-all prompted once across 2 colliding files");
+    CHECK_MSG(QFileInfo::exists(sDir + QStringLiteral("/a_result_2.gif")) &&
+                  QFileInfo::exists(sDir + QStringLiteral("/b_result_1.gif")),
+              "Ask Rename-all numbered both colliding outputs");
+
+    // ---- (d) Keep folder structure: nested Add folder… vs flat + standalone ----
+    x.clear->click();
+    spinEvents(20);
+    w->setCollisionPolicy(gs::CollisionPolicy::Overwrite);
+    const QString inRoot = tmp.path() + QStringLiteral("/tree_in");
+    const QString outNested = tmp.path() + QStringLiteral("/tree_out_nested");
+    const QString outFlat = tmp.path() + QStringLiteral("/tree_out_flat");
+    const QString soloDir = tmp.path() + QStringLiteral("/solo_src");
+    CHECK(QDir().mkpath(inRoot + QStringLiteral("/packA/sub")));
+    CHECK(QDir().mkpath(inRoot + QStringLiteral("/packB")));
+    CHECK(QDir().mkpath(outNested));
+    CHECK(QDir().mkpath(outFlat));
+    CHECK(QDir().mkpath(soloDir));
+    const QString nested1 = inRoot + QStringLiteral("/packA/sub/one.gif");
+    const QString nested2 = inRoot + QStringLiteral("/packB/two.gif");
+    const QString solo = soloDir + QStringLiteral("/solo.gif");
+    CHECK(copyFile(logo, nested1));
+    CHECK(copyFile(logo1, nested2));
+    CHECK(copyFile(logo1, solo));
+
+    w->appendInputFolder(inRoot);
+    dropFiles(w, {solo});  // standalone file alongside folder-admitted files
+    spinEvents(30);
+    CHECK_MSG(x.list->count() == 3, "appendInputFolder recursively queued 2 GIFs + 1 standalone");
+
+    keepCheck->setChecked(true);
+    x.destFolder->setChecked(true);
+    x.batchDir->setText(outNested);
+    spinEvents(30);
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "Keep-structure ON batch completes");
+    CHECK_MSG(QFileInfo::exists(outNested + QStringLiteral("/packA/sub/one_result.gif")),
+              "nested sub-folder packA/sub recreated inside designated Folder");
+    CHECK_MSG(QFileInfo::exists(outNested + QStringLiteral("/packB/two_result.gif")),
+              "nested sub-folder packB recreated inside designated Folder");
+    CHECK_MSG(QFileInfo::exists(outNested + QStringLiteral("/solo_result.gif")),
+              "standalone dropped file stays flat at root of designated Folder");
+
+    // Toggle Keep folder structure OFF -> everything lands flat in outFlat.
+    keepCheck->setChecked(false);
+    x.batchDir->setText(outFlat);
+    spinEvents(30);
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "Keep-structure OFF batch completes");
+    CHECK_MSG(QFileInfo::exists(outFlat + QStringLiteral("/one_result.gif")) &&
+                  QFileInfo::exists(outFlat + QStringLiteral("/two_result.gif")) &&
+                  QFileInfo::exists(outFlat + QStringLiteral("/solo_result.gif")),
+              "Keep-structure OFF writes every file flat into designated Folder");
+
+    delete w;
+    g_dialogs.clear();
+  }
+
+  // ========== T33: Same-format size guard (N-64) ===========================
+  {
+    g_stage = "T33"; std::printf("== T33 Same-format size guard (N-64) ==\n");
+    QTemporaryDir tmp;
+    CHECK(tmp.isValid());
+    const QString tiny = tmp.path() + QStringLiteral("/tiny.gif");
+    CHECK(copyFile(logo1, tiny));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* guard = byName<QCheckBox>(w, "discardLargerCheck");
+    CHECK(guard != nullptr);
+    CHECK_MSG(!guard->isChecked(), "same-format size guard is OFF by default");
+    CHECK_MSG(guard->isEnabled(), "enabled when output format is GIF (same format)");
+
+    // Inflate output size deterministically (Exact resize 600x600 + comment).
+    byName<QComboBox>(w, "resizeKindCombo")->setCurrentIndex(3);  // Exact
+    byName<QSpinBox>(w, "resizeWSpin")->setValue(600);
+    byName<QSpinBox>(w, "resizeHSpin")->setValue(600);
+    byName<QLineEdit>(w, "commentEdit")->setText(
+        QStringLiteral("padding comment to guarantee output exceeds tiny 1-frame source GIF"));
+    byName<QPushButton>(w, "addCommentButton")->click();
+    dropFiles(w, {tiny});
+    spinEvents(30);
+
+    // Guard ON: larger GIF result is discarded after verify, before promotion.
+    guard->setChecked(true);
+    const QString outDirOn = tmp.path() + QStringLiteral("/guard_on");
+    CHECK(QDir().mkpath(outDirOn));
+    x.destFolder->setChecked(true);
+    x.batchDir->setText(outDirOn);
+    spinEvents(20);
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "guarded batch completes");
+    CHECK_MSG(!QFileInfo::exists(outDirOn + QStringLiteral("/tiny_result.gif")),
+              "larger same-format result was discarded (not promoted)");
+    CHECK_MSG(QDir(outDirOn).entryList(QDir::Files).isEmpty(),
+              "no .gs-partial stray left in output folder");
+    auto* table = byName<QTableWidget>(w, "resultTable");
+    CHECK(table && table->rowCount() == 1);
+    if (table && table->rowCount() == 1) {
+      CHECK_MSG(table->item(0, 4)->text() == QStringLiteral("skipped"),
+                "discarded larger result is tallied as skipped");
+      CHECK_MSG(table->item(0, 5)->text().contains(QStringLiteral("discarded: result")) &&
+                    table->item(0, 5)->text().contains(QStringLiteral("larger than original")),
+                "row note reports both sizes and why it was discarded");
+      CHECK_MSG(table->item(0, 2)->text().isEmpty(),
+                "discarded row shows no succeeded After figure");
+    }
+
+    // Guard OFF: exact same inflated output IS written.
+    guard->setChecked(false);
+    const QString outDirOff = tmp.path() + QStringLiteral("/guard_off");
+    CHECK(QDir().mkpath(outDirOff));
+    x.batchDir->setText(outDirOff);
+    spinEvents(20);
+    x.run->click();
+    CHECK_MSG(waitForStatus(w, QStringLiteral("complete")), "unguarded batch completes");
+    const QString written = outDirOff + QStringLiteral("/tiny_result.gif");
+    CHECK_MSG(QFileInfo::exists(written) && QFileInfo(written).size() > QFileInfo(tiny).size(),
+              "with size guard OFF, the larger GIF is written normally");
+
+    delete w;
+    g_dialogs.clear();
+  }
+
+  // ========== T34: Format > Settings… + FFmpeg prefs round-trip (N-65) =====
+  {
+    g_stage = "T34"; std::printf("== T34 Format > Settings + FFmpeg prefs (N-65) ==\n");
+    const QByteArray prevCfg = qgetenv("GS_SETTINGS_PATH");
+    const QByteArray prevFf = qgetenv("GS_FFMPEG");
+    QTemporaryDir cfg;
+    CHECK(cfg.isValid());
+    const QString cfgPath = cfg.path() + QStringLiteral("/gifscythe.conf");
+    qputenv("GS_SETTINGS_PATH", QFile::encodeName(cfgPath));
+
+    QTemporaryDir tmp;
+    CHECK(tmp.isValid());
+    const QString a = tmp.path() + QStringLiteral("/clip.gif");
+    CHECK(copyFile(logo, a));
+
+    // Point GS_FFMPEG at a real executable (fake_engine_exit0 exists on both
+    // Linux and Windows builds) so locate_ffmpeg() finds an executable sidecar!
+    const QString fakeFf = fixturePath("fake_engine_exit0");
+    CHECK(QFileInfo::exists(fakeFf));
+    setEnvU8("GS_FFMPEG", fakeFf);
+
+    {
+      MainWindow* w = makeWindow();
+      auto x = findWidgets(w);
+      auto* format = byName<QComboBox>(w, "formatCombo");
+      auto* settingsBtn = byName<QPushButton>(w, "formatSettingsButton");
+      auto* guard = byName<QCheckBox>(w, "discardLargerCheck");
+      CHECK(format && settingsBtn && guard);
+      dropFiles(w, {a});
+      spinEvents(30);
+
+      // Select WebP (animated) -> enabled because GS_FFMPEG resolved; size guard
+      // disables automatically because GIF -> WebP is cross-format (N-64)!
+      int webpRow = -1;
+      for (int i = 0; i < format->count(); ++i) {
+        if (format->itemData(i, Qt::UserRole).toString() == QStringLiteral("webp")) {
+          webpRow = i;
+          break;
+        }
+      }
+      CHECK(webpRow >= 0);
+      format->setCurrentIndex(webpRow);
+      spinEvents(30);
+      CHECK_MSG(!guard->isEnabled(),
+                "same-format size guard disables on cross-format output (GIF -> WebP)");
+
+      // Open Format > Settings… modal, verify FFmpeg read-back line, and set
+      // WebP quality = 82, fps = 15, loop = false.
+      QString ffmpegReadback;
+      g_modalHandler = [&ffmpegReadback](QWidget* modal) -> bool {
+        if (modal->objectName() != QStringLiteral("formatSettingsDialog")) return false;
+        if (auto* ffLbl = modal->findChild<QLabel*>(QStringLiteral("formatDialogFfmpegLine"))) {
+          ffmpegReadback = ffLbl->text();
+        }
+        if (auto* qSpin = modal->findChild<QSpinBox*>(QStringLiteral("formatQualitySpin"))) {
+          qSpin->setValue(82);
+        }
+        if (auto* fSpin = modal->findChild<QSpinBox*>(QStringLiteral("formatFpsSpin"))) {
+          fSpin->setValue(15);
+        }
+        if (auto* lChk = modal->findChild<QCheckBox*>(QStringLiteral("formatLoopCheck"))) {
+          lChk->setChecked(false);
+        }
+        if (auto* box = modal->findChild<QDialogButtonBox*>()) {
+          if (QPushButton* ok = box->button(QDialogButtonBox::Ok)) ok->click();
+        }
+        return true;
+      };
+      settingsBtn->click();
+      spinEvents(40);
+      g_modalHandler = nullptr;
+
+      CHECK_MSG(ffmpegReadback.startsWith(QStringLiteral("FFmpeg: ")) &&
+                    ffmpegReadback.contains(QStringLiteral("fake_engine_exit0")),
+                "Format > Settings… displays 'FFmpeg: <source>: <path>'");
+      const QString pane = x.pane->toPlainText();
+      CHECK_MSG(pane.contains(QStringLiteral("-q:v 82")) &&
+                    pane.contains(QStringLiteral("-r 15")) &&
+                    pane.contains(QStringLiteral("-loop 1")),
+                "live FFmpeg command reflects WebP quality=82, fps=15, play-once");
+
+      w->setCollisionPolicy(gs::CollisionPolicy::Rename);
+      byName<QCheckBox>(w, "keepStructureCheck")->setChecked(false);
+      guard->setChecked(true);
+      spinEvents(20);
+      w->close();  // saveSessionState
+      spinEvents(30);
+      delete w;
+    }
+
+    // Relaunch and prove every N-63 / N-64 / N-65 / E2 setting persisted.
+    {
+      MainWindow* w2 = makeWindow();
+      auto x2 = findWidgets(w2);
+      dropFiles(w2, {a});
+      spinEvents(30);
+      auto* format2 = byName<QComboBox>(w2, "formatCombo");
+      CHECK(format2 && format2->currentData(Qt::UserRole).toString() == QStringLiteral("webp"));
+      CHECK(w2->ffmpegFormatPrefs().webpQuality == 82);
+      CHECK(w2->ffmpegFormatPrefs().fps == 15);
+      CHECK(w2->ffmpegFormatPrefs().loop == false);
+      CHECK(w2->collisionPolicy() == gs::CollisionPolicy::Rename);
+      CHECK(!byName<QCheckBox>(w2, "keepStructureCheck")->isChecked());
+      CHECK(byName<QCheckBox>(w2, "discardLargerCheck")->isChecked());
+      CHECK(!byName<QCheckBox>(w2, "discardLargerCheck")->isEnabled());  // still WebP
+      const QString pane2 = x2.pane->toPlainText();
+      CHECK_MSG(pane2.contains(QStringLiteral("-q:v 82")) &&
+                    pane2.contains(QStringLiteral("-r 15")) &&
+                    pane2.contains(QStringLiteral("-loop 1")),
+                "restored FFmpeg prefs drive the live command after relaunch");
+      delete w2;
+    }
+
+    if (prevFf.isNull()) qunsetenv("GS_FFMPEG");
+    else qputenv("GS_FFMPEG", prevFf);
+    qputenv("GS_SETTINGS_PATH", prevCfg);
+    g_dialogs.clear();
   }
 
   std::printf("==> %d checks, %d failures\n", g_checks, g_failures);
