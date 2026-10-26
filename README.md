@@ -67,16 +67,13 @@ gifscythe/                        (repo root)
   SESSION_HANDOFF.md              notes for the next session (start-at-top header)
   IMPROVEMENT_LOG.md              decision/change log (append-only, newest first)
   COMPILED_AUDIT.md               master audit register v4 (start here for reviews)
-  LICENSE / COPYING.ms-pl / COPYING.gifsicle / COPYING.lgplv3 / COPYING.gplv3
-                                  license notices (Ms-PL UI + GPLv2 engine + LGPLv3 Qt)
+  legal/                          the only place notices live (see legal/README.md)
   README.md                       this file
   INSTALL.md                      current-source installation and Qt build guide
   TESTING.md                      desktop and offscreen GUI verification checklist
   docs/
     archive/AUDIT_HISTORY.md      condensed index of the seven dated audit snapshots
     ci/README.md                  workflow status + clean-Windows smoke + desktop probes
-    legal/README.md               licence single source of truth (Ms-PL why, copying
-                                  rules, the wasm OD-16 question)
     planning/OWNER_DECISIONS.md   open owner questions (OD-01..OD-20)
     planning/PLANNING.md          direction review, C# shell plan (resumed S38), SkillOpt query,
                                   sequential-work handoff, next-session prompt
@@ -131,10 +128,3 @@ syncs it into the committed `src/core/version.h` fallback, while CMake
 generates its own copy inside the build tree only (S11, audit U-15).
 0.1.0 (now) → 1.0.0–1.9.9 (finished GIF product) → 2.0.0–3.0.0 (WebP + APNG).
 **Never call it 1.0.0 until the UI/UX task is done.**
-
-## License note
-gifsicle remains a **separate subprocess** (GPL v2-only). The first-party
-UI/control layer is Ms-PL (`LICENSE`, full text `COPYING.ms-pl`); the engine text
-is `COPYING.gifsicle`; Qt is LGPLv3 (`COPYING.lgplv3` + companion `COPYING.gplv3`,
-plus a generated `QT_NOTICE.txt` in GUI packages). Rationale + copying rules:
-`docs/legal/README.md`.

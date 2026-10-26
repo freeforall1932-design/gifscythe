@@ -61,6 +61,27 @@ int main(int argc, char** argv) {
   gs::discard_partial(gs::path_u8string(partial));  // idempotent: must not throw
   check(!fs::exists(partial));
 
+  // AUD-01: the staging-path claim must never pick (and so never later delete)
+  // a path that already exists — e.g. an INPUT named `<target>.gs-partial`.
+  {
+    const auto tgt = gs::path_u8string(dir / "claim.gif");
+    const auto p0 = tgt + ".gs-partial";
+    check(gs::claim_partial_output_path(tgt) == p0);  // free: base name
+    { std::ofstream out(gs::u8path_compat(p0), std::ios::binary); out << "USER INPUT"; }
+    const auto p1 = gs::claim_partial_output_path(tgt);
+    check(p1 == p0 + ".1");                           // occupied: next name
+    check(fs::exists(gs::u8path_compat(p0)));          // ...and untouched
+    { std::ifstream in(gs::u8path_compat(p0), std::ios::binary);
+      const std::string body((std::istreambuf_iterator<char>(in)), {});
+      check(body == "USER INPUT"); }
+    std::error_code sec;
+    fs::create_symlink(gs::u8path_compat(gs::path_u8string(dir / "nowhere")),
+                       gs::u8path_compat(p1), sec);
+    if (!sec) check(gs::claim_partial_output_path(tgt) == p0 + ".2");  // dangling link = occupied
+    fs::remove(gs::u8path_compat(p0));
+    fs::remove(gs::u8path_compat(p1), sec);
+  }
+
   std::cout << "Output verifier: " << tests << " assertions, " << failures << " failures\n";
   return failures ? 1 : 0;
 }

@@ -37,3 +37,12 @@ reference_code/gifsicle-upstream/
 # Locally installed tooling (pip-provided cmake; not committed)
 .tools/
 .env
+ui-shots/
+
+# FFmpeg sidecar (fetched, never committed: 70-200 MB per platform).
+# PINS.txt IS tracked - a pin nobody can see pins nothing.
+vendor/ffmpeg/*
+!vendor/ffmpeg/PINS.txt
+
+# Python bytecode (qt_lint is imported by its own tests)
+__pycache__/

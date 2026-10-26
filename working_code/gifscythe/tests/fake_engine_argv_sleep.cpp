@@ -23,6 +23,12 @@
 //                      (default 800; the harness's mutation/cancel window).
 //   GS_FAKE_EXIT       explicit exit code. Unset = 0 when output was written,
 //                      64 when it was not (the other fixtures' convention).
+//   GS_FAKE_FAIL_INPUT a substring of the job's INPUT path. When it matches,
+//                      this run writes nothing and exits 1 - a failing job in
+//                      the MIDDLE of a batch. The GUI refuses non-GIF bytes at
+//                      admission (GS-205), so a "corrupt input" cannot produce
+//                      this state any more; the fixture is the only honest way
+//                      to reach W-32 R2 (file 2 of 3 fails, file 3 skipped).
 //
 // Input/output discovery understands the shape GifsicleCommand builds for a
 // default single-file job (src/core/GifsicleCommand.h): flags, then the input
@@ -94,6 +100,13 @@ int main(int argc, char** argv) {
       input = args[i];
       break;
     }
+  }
+
+  // Optional forced failure for ONE input, so a batch can fail mid-list.
+  const std::string failInput = envOr("GS_FAKE_FAIL_INPUT", "");
+  if (!failInput.empty() && input.find(failInput) != std::string::npos) {
+    std::cerr << "fake_engine_argv_sleep: forced failure for " << input << "\n";
+    return 1;
   }
 
   bool wroteOutput = false;

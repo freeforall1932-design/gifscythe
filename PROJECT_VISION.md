@@ -59,11 +59,11 @@ boundaries below.
    exactly like gifsicle — never linked into the Ms-PL UI, never vendored
    in-process. (The in-process carve-out in this file belongs to the
    experimental `web/wasm/` track alone and does not extend here.)
-3. **Its own licence note ships with it.** FFmpeg builds are LGPL **or** GPL
-   depending on configuration, so the build's licence must be identified, its
+3. **Its own notice ships with it.** FFmpeg builds are LGPL **or** GPL
+   depending on configuration, so the build's terms must be identified, its
    text staged beside the binary, and its notices carried in the package —
-   per `docs/legal/README.md` §5. The engine stays GPLv2-only and the first-party
-   UI stays Ms-PL; the sidecar adds a third, separately-licensed piece.
+   per `legal/README.md` §5. The engine stays GPLv2-only and the first-party
+   the sidecar adds a third, separately-governed piece.
 4. **Not on the 1.0.0 critical path.** The shipped 1.0.0 artifact is still the
    Windows GIF tool (`OD-17 = a`); this is additive scope with its own rows.
 
@@ -82,11 +82,11 @@ want the full gifsicle terminal control underneath.
 - **Feature-richness of eZgif** for GIF-style options + a "Convert / other"
   branch (convert between formats, explode, merge, reorder frames, and so on).
 
-## UI approach (owner decision — licence story lives in `docs/legal/README.md`)
+## UI approach (owner decision)
 
 - **No Caesium base** (dropped S18, `OD-09 = b`): the look-and-feel is rebuilt
-  from open parts — system fonts and MIT/Apache-licensed icon sets — with no
-  third-party files. Rationale: `docs/legal/README.md` §1.
+  from open parts — system fonts and permissively-licensed icon sets — with no
+  third-party files. Rationale: `legal/README.md` §1.
 - Model the layout/feel on **XNConvert** for ease of use. Workflow imitation
   uses no third-party files; no branding copied.
 - **Desktop UI direction (S19/OD-C7, resumed S38):** the shipped exe stays
@@ -101,7 +101,7 @@ want the full gifsicle terminal control underneath.
 - **Exclusively** animated GIF, APNG, and WebP — the *subject* is the moving
   picture. Photos and video are **inputs to a conversion endpoint only**, never
   the subject (adopted 2026-10-08, `OD-20 = a`: one FFmpeg sidecar, decode-only,
-  subprocess, its own licence note — see the amendment above).
+  subprocess, its own notice — see the amendment above).
 - Portable, click-and-run (no installer, no admin). Windows-first (S20/OD-17:
   the shipped product is the Windows exe + the web app; Linux is the CI/sandbox
   test battery and ships nothing).
@@ -112,7 +112,7 @@ want the full gifsicle terminal control underneath.
   shell injection).
 - gifsicle stays a **subprocess** (GPL v2-only engine vs Ms-PL UI). The one
   carve-out is the experimental `web/wasm/` in-process track, which is exactly
-  why `OD-16` blocks it from shipping (`docs/legal/README.md` §3–§4).
+  why `OD-16` blocks it from shipping (`legal/README.md` §3–§4).
 - **Never call it 1.0.0** until the UI/UX task is done and the release criteria
   in `docs/release/RELEASE_PROCEDURE.md` are met (0.2.0 may come first per the
   minor-bump rule; version stays 0.1.0 per `OD-11 = a`).
@@ -122,16 +122,17 @@ want the full gifsicle terminal control underneath.
 - **GIF:** gifsicle (existing, native) — current focus through 1.0.0.
 - **APNG + animated WebP:** **bucket-list / future task** — only after the
   GIF UI/UX retrofit is complete and 1.0.0 ships, via the common frame model
-  (`STATUS.md` D-01..D-04), as separate subprocess helpers to keep the licence
+  (`STATUS.md` D-01..D-04), as separate subprocess helpers to keep the
   boundary. See `WORKLIST.md` deferred bucket.
 
 ## Architecture (of record — from the 2026-09-06 feasibility review)
 
 **Verdict then, unchanged since:** this is a new desktop app *around* gifsicle,
-not a tweak inside it. Two things were genuinely hard — licence mixing (solved
-by the subprocess boundary + the S18 Ms-PL relicence) and WebP/APNG codecs
+not a tweak inside it. Two things were genuinely hard — keeping the engine at
+arm's length (solved by the subprocess boundary) and WebP/APNG codecs
 (gifsicle reads/writes GIF only; `grep webp|apng|png` over its source: zero
-hits — hence the deferred multi-format phase with its own codec subprocesses).
+hits — which is why multi-format output goes through a **separate codec
+subprocess**, FFmpeg, shipped with the program since S45 rather than deferred).
 
 ```
   +---------------------------------------------------------------+
@@ -154,9 +155,9 @@ hits — hence the deferred multi-format phase with its own codec subprocesses).
   +---------------------------------------------------------------+
 ```
 
-- **MVP wiring (shipped):** subprocess wrapper — cleanest for licensing, zero
+- **MVP wiring (shipped):** subprocess wrapper — cleanest separation, zero
   engine refactor, portable. The later "in-process libgifsicle" idea is exactly
-  what the wasm track explores, and it changes the licence math (OD-16).
+  what the wasm track explores, and it changes the terms question (OD-16).
 - **Preview vs truth:** Qt `QImage`/`QMovie` is fine for UI preview, but real
   animated encode/decode semantics (delay/disposal/transparency) belong to the
   codec layer — never infer engine behavior from QImage.
@@ -209,5 +210,5 @@ One table, no narrative (history: `IMPROVEMENT_LOG.md`; live state: `STATUS.md`)
 | Qt GUI | Retrofit + polish + honesty fixes done through S23; offscreen-harness proven; real-desktop probes (W-19) and clean-Windows smoke (W-18) still OPEN — the shipped-behaviour proof debt |
 | Web build | Supported product surface (S14): all four modes, bounds (S23), eight test suites in CI; open intake rows U-78/U-84/U-85/U-87/U-92/U-93 (S24) |
 | Audit machine | Ten reviews compiled (`COMPILED_AUDIT.md` v4, 96 findings); register enforced by gates + CI doc step |
-| Packaging / licences | Ms-PL UI + GPLv2 engine subprocess + LGPLv3 Qt notices staged (U-08 closed S19); published Release predates the relicence (U-95) and predates its own claimed SHA (U-09) |
+| Packaging | engine + CLI + GUI staged with their notices inside `legal/` (U-08 closed S19); published Release predates the current tree (U-95) and predates its own claimed SHA (U-09) |
 | 1.0.0 | **Not yet** — release criteria in `docs/release/RELEASE_PROCEDURE.md`: no open Critical/High (U-59/P0-7 is the last data-loss row), package-negative tests green, clean-Windows smoke + desktop probes against the exact tagged SHA, owner version decision |

@@ -221,17 +221,26 @@ if ./scripts/package_portable.sh ${pkg_args+"${pkg_args[@]}"} >/dev/null 2>&1; t
   miss=""
   [[ -x "$pkg/gifsicle" ]] || miss+=" engine"
   [[ -x "$pkg/gifscythe-cli" ]] || miss+=" cli"
-  [[ -s "$pkg/LICENSE" ]] || miss+=" LICENSE"
-  [[ -s "$pkg/COPYING.gifsicle" ]] || miss+=" COPYING.gifsicle"
-  [[ -s "$pkg/COPYING.ms-pl" ]] || miss+=" COPYING.ms-pl"
-  [[ -s "$pkg/COPYING.lgplv3" ]] || miss+=" COPYING.lgplv3"
-  [[ -s "$pkg/COPYING.gplv3" ]] || miss+=" COPYING.gplv3"
+  [[ -s "$pkg/licenses/COPYING.gifsicle" ]] || miss+=" licenses/COPYING.gifsicle"
+  [[ -s "$pkg/licenses/COPYING.ms-pl" ]] || miss+=" licenses/COPYING.ms-pl"
+  [[ -s "$pkg/licenses/COPYING.lgplv3" ]] || miss+=" licenses/COPYING.lgplv3"
+  [[ -s "$pkg/licenses/COPYING.gplv3" ]] || miss+=" licenses/COPYING.gplv3"
   if [[ "$gui_built" == "1" ]]; then
     { [[ -f "$pkg/gifscythe" ]] || [[ -f "$pkg/gifscythe.exe" ]]; } || miss+=" GUI"
     [[ -s "$pkg/QT_NOTICE.txt" ]] || miss+=" QT_NOTICE.txt"
   fi
+  # N-62: the FFmpeg sidecar is optional, but the package must never be
+  # AMBIGUOUS about it. Either the binary is there with its notice, or the
+  # README states plainly that it is not. A package that says neither is a
+  # package that will be debugged as "the converter is broken".
+  if [[ -f "$pkg/ffmpeg" || -f "$pkg/ffmpeg.exe" ]]; then
+    [[ -s "$pkg/FFMPEG_NOTICE.txt" ]] || miss+=" FFMPEG_NOTICE.txt"
+    grep -q 'FFmpeg is bundled' "$pkg/README.txt" || miss+=" README(bundled note)"
+  else
+    grep -q 'FFmpeg is NOT bundled' "$pkg/README.txt" || miss+=" README(no-ffmpeg note)"
+  fi
   if [[ -z "$miss" ]]; then
-    ok "D1/D2" "portable package complete (engine+CLI+licenses$([[ $gui_built == 1 ]] && echo '+GUI' || echo ', headless by request'))"
+    ok "D1/D2" "portable package complete (engine+CLI+licenses, FFmpeg $( [[ -f "$pkg/ffmpeg" ]] && echo bundled || echo 'absent and declared so')$([[ $gui_built == 1 ]] && echo '+GUI' || echo ', headless by request'))"
   else bad "D1/D2" "package missing:$miss"; fi
 else bad "D" "package_portable.sh failed${pkg_args:+ (headless mode)}"; fi
 

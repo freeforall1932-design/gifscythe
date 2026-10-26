@@ -174,6 +174,52 @@ g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
   -o "$BUILD_DIR/test_input_admission" "$self/tests/test_input_admission.cpp" $STDCXXFS \
   || fail "input-admission test compile failed"
 "$BUILD_DIR/test_input_admission" || fail "input-admission tests failed"
+# Slice C: the animation facts the Input grid displays (frames / duration /
+# loop) are read by a Qt-free header walk, so they are pinned here rather than
+# only being visible in a screenshot.
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/test_gif_facts" "$self/tests/test_gif_facts.cpp" $STDCXXFS \
+  || fail "gif-facts test compile failed"
+"$BUILD_DIR/test_gif_facts" || fail "gif-facts tests failed"
+# Slice E2: the Output tab's Filename template (tokens, format-owned extension,
+# duplicate numbering). Qt-free for the same reason as the two above - the GUI
+# only renders what this header decides.
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/test_name_template" "$self/tests/test_name_template.cpp" $STDCXXFS \
+  || fail "name-template test compile failed"
+"$BUILD_DIR/test_name_template" || fail "name-template tests failed"
+# Sidecar: which ffmpeg the app would run, and why. Qt-free, fixture-driven, so
+# the precedence (bundled > PATH > installed) is pinned rather than hoped for.
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/test_ffmpeg_locator" "$self/tests/test_ffmpeg_locator.cpp" $STDCXXFS \
+  || fail "ffmpeg-locator test compile failed"
+"$BUILD_DIR/test_ffmpeg_locator" || fail "ffmpeg-locator tests failed"
+# The encoder contract: argv per format, staging names, and the format-aware
+# postcondition. No FFmpeg binary is needed to prove what the command says.
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/test_ffmpeg_command" "$self/tests/test_ffmpeg_command.cpp" $STDCXXFS \
+  || fail "ffmpeg-command test compile failed"
+"$BUILD_DIR/test_ffmpeg_command" || fail "ffmpeg-command tests failed"
+# End-to-end: run the real encoder when this machine has one (it skips, loudly,
+# when it does not - a GIF-only checkout must still build green). This is the
+# only test that proves an argument list actually produces a playable file.
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/test_ffmpeg_roundtrip" "$self/tests/test_ffmpeg_roundtrip.cpp" $STDCXXFS \
+  || fail "ffmpeg-roundtrip test compile failed"
+# If a sidecar has been fetched into vendor/ffmpeg/, test THAT binary - the one
+# that will ship - rather than whatever happens to be on PATH.
+ffmpeg_sidecar_platform=""
+case "$(uname -s)" in
+  Linux*)  ffmpeg_sidecar_platform="linux64" ;;
+  Darwin*) ffmpeg_sidecar_platform="macos-$( [[ "$(uname -m)" == arm64 ]] && echo arm64 || echo x64 )" ;;
+  *)       ffmpeg_sidecar_platform="win64" ;;
+esac
+if [[ -z "${GS_FFMPEG:-}" && -x "$self/vendor/ffmpeg/$ffmpeg_sidecar_platform/bin/ffmpeg" ]]; then
+  GS_FFMPEG="$self/vendor/ffmpeg/$ffmpeg_sidecar_platform/bin/ffmpeg"
+  export GS_FFMPEG
+  echo "==> round-trip uses the staged sidecar: $GS_FFMPEG"
+fi
+"$BUILD_DIR/test_ffmpeg_roundtrip" || fail "ffmpeg round-trip failed"
 
 # 4. GUI (only when requested)
 echo "==> [4/4] Qt6 GUI..."

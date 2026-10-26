@@ -35,6 +35,7 @@ HEADERS += \
     src/qtui/DropListWidget.h \
     src/qtui/SettingsPanel.h \
     src/qtui/PreviewPanel.h \
+    src/core/GifFacts.h \
     src/core/GifsicleSettings.h \
     src/core/GifsicleCommand.h \
     src/core/SettingsIO.h \

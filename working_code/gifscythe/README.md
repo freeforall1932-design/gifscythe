@@ -228,8 +228,17 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   location (`%APPDATA%\Gifscythe\` on Windows); override the path with
   `GS_SETTINGS_PATH`. The queue and Save-as field are deliberately *not*
   restored. Corrupt files apply their valid keys and warn in the status bar.
-- Regression net: `tests/test_gui_offscreen.cpp` — T1–T24 plus the S23 desktop
-  round-trip block, 292 `CHECK(` sites in source (which is more runtime
+- **Actions card stack (slice D, S43)** — the reference's Actions tab: one
+  collapsible card per gifsicle operation group (`actionCard_0..7`) with fold,
+  `-` (remove from the stack), `↺` (reset) and `Enabled`, over the same
+  controls (same objectNames) as before; `Add action >`, `Actions [on/total]`
+  and `Clear all` in the toolbar, and the counter in the tab title. A card that
+  is removed or switched off contributes **nothing** to the generated command,
+  and removing it never destroys its values — `Add action >` puts the same
+  widgets back. The stack (with each disabled card's values) is saved to the
+  session file and to every preset.
+- Regression net: `tests/test_gui_offscreen.cpp` — T1–T30 plus the S23 desktop
+  round-trip block, 331 `CHECK(` sites in source (which is more runtime
   assertions than sites, because several groups loop). T21 (S31, finding N-10)
   asserts that cancelling an Explode run reports the frame set as possibly
   incomplete; T22–T24 (S36) are the behavioural cases for the three S35 patch

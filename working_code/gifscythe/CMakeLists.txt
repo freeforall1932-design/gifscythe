@@ -49,6 +49,37 @@ add_executable(test_input_admission tests/test_input_admission.cpp)
 target_link_libraries(test_input_admission PRIVATE gifscythe_core)
 add_test(NAME input_admission COMMAND test_input_admission)
 
+# Slice C: the Input grid's animation facts (frames / duration / loop) come
+# from a Qt-free header walk; this pins the parser on every platform CI builds.
+add_executable(test_gif_facts tests/test_gif_facts.cpp)
+target_link_libraries(test_gif_facts PRIVATE gifscythe_core)
+add_test(NAME gif_facts COMMAND test_gif_facts)
+
+# Slice E2: the Output tab's Filename template is a Qt-free rule (tokens,
+# format-owned extension, duplicate numbering), pinned on every platform.
+add_executable(test_name_template tests/test_name_template.cpp)
+target_link_libraries(test_name_template PRIVATE gifscythe_core)
+add_test(NAME name_template COMMAND test_name_template)
+
+# The FFmpeg sidecar locator: bundled copy first, PATH/installed only as a
+# fallback. Fixture-driven so the precedence is proven, not assumed.
+add_executable(test_ffmpeg_locator tests/test_ffmpeg_locator.cpp)
+target_link_libraries(test_ffmpeg_locator PRIVATE gifscythe_core)
+add_test(NAME ffmpeg_locator COMMAND test_ffmpeg_locator)
+
+# What each format's encoder command must say, and what its output must look like
+# afterwards (a still WebP under "animated WebP" is a failure, not a result).
+add_executable(test_ffmpeg_command tests/test_ffmpeg_command.cpp)
+target_link_libraries(test_ffmpeg_command PRIVATE gifscythe_core)
+add_test(NAME ffmpeg_command COMMAND test_ffmpeg_command)
+
+# Runs the real FFmpeg when the machine has one and prints SKIP when it does not
+# (exit 0 either way), so "the formats work" is a measured claim, not a hope.
+add_executable(test_ffmpeg_roundtrip tests/test_ffmpeg_roundtrip.cpp)
+target_link_libraries(test_ffmpeg_roundtrip PRIVATE gifscythe_core)
+add_test(NAME ffmpeg_roundtrip COMMAND test_ffmpeg_roundtrip)
+set_tests_properties(ffmpeg_roundtrip PROPERTIES SKIP_RETURN_CODE 77)
+
 # Lying-engine fixture for the harness's U-17 explode-verification test:
 # exits 0 without writing anything. Tiny, dependency-free, built on every
 # platform so T7 finds it next to test_gui_offscreen (see tests/fake_engine_exit0.cpp).

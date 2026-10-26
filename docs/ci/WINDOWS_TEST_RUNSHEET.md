@@ -14,7 +14,7 @@ was lost to exactly that.
 ## 0. Three ways to get the zip — pick one
 
 There is nothing to build by hand unless you want to; all three produce the same portable tree
-(engine + CLI + Qt6 GUI + windeployqt runtime + licences).
+(engine + CLI + Qt6 GUI + windeployqt runtime + notices).
 
 | route | what to do | why / why not |
 |---|---|---|
@@ -44,7 +44,7 @@ tag is an older commit, and its notes are honest about which one.
 * Previous snapshot: `snapshot-2026-10-06` (commit `6aaabcf`), 23 777 470 B, sha256
   `add856c850076b2bf3a37ad01b25d4c5d8ab8d0d60890f4f591be60e90d8096e` — honest, but it predates PR #12.
 * The zip is produced by the tag's own run, so the published bytes are the ones that run asserted.
-* **Do not use `snapshot-2026-09-07`** (predates S18 relicence + pinned a wrong SHA).
+* **Do not use `snapshot-2026-09-07`** (predates the current tree + pinned a wrong SHA).
 
 Check it first, in PowerShell:
 

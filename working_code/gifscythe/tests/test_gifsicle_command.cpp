@@ -1207,6 +1207,23 @@ int main() {
     CHECK(r.suspicious.size() == 2);
     CHECK(r.describe().find("none is a valid GIF") != std::string::npos);
 
+    // AUD-02: the partial-prefix claim never selects a prefix that already
+    // has files under it (a user file named "<prefix>.gs-partial.000" used to
+    // be DELETED by the pre-run cleanup) and never deletes anything itself.
+    {
+      const std::string q = (dir / "q").string();
+      CHECK(claim_partial_explode_prefix(q) == q + ".gs-partial");
+      { std::ofstream f(q + ".gs-partial.000", std::ios::binary); f << "USER"; }
+      CHECK(claim_partial_explode_prefix(q) == q + ".gs-partial.1");
+      CHECK(fs::exists(q + ".gs-partial.000"));
+      { std::ofstream f(q + ".gs-partial.1", std::ios::binary); f << "x"; }  // exact name
+      CHECK(claim_partial_explode_prefix(q) == q + ".gs-partial.2");
+      CHECK(claim_partial_explode_prefix("").empty());
+      CHECK(claim_partial_explode_prefix((dir / "no_such_dir" / "r").string()).empty());
+      fs::remove(q + ".gs-partial.000");
+      fs::remove(q + ".gs-partial.1");
+    }
+
     // A CHANGED pre-existing file counts as written by this run.
     { std::ofstream f(prefix + ".000", std::ios::binary); f << "GIF89a-fresh-longer"; }
     r = verify_explode_frames(prefix, before);

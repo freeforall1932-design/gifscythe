@@ -7,6 +7,8 @@
 #include "core/OutputName.h"
 #include "core/InputAdmission.h"
 #include "core/OutputPlan.h"
+#include "core/FfmpegCommand.h"
+#include "core/FfmpegLocator.h"
 #include "core/OutputVerify.h"
 #include "core/SettingsIO.h"
 #include "core/Validate.h"
@@ -18,6 +20,7 @@
 #include <QApplication>
 #include <QBrush>
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QColor>
 #include <QCoreApplication>
 #include <QDateTime>
@@ -30,6 +33,9 @@
 #include <QFrame>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QIcon>
+#include <QInputDialog>
+#include <QImageReader>
 #include <QKeySequence>
 #include <QListWidget>
 #include <QListWidgetItem>
@@ -39,21 +45,30 @@
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPainter>
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QScrollBar>
+#include <QSignalBlocker>
 #include <QSplitter>
+#include <QStandardItem>
+#include <QStandardItemModel>
 #include <QStandardPaths>
+#include <QHeaderView>
 #include <QTabWidget>
+#include <QTableWidget>
 #include <QTimer>
+#include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
 
 #include <algorithm>
 #include <functional>
 #include <map>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -82,12 +97,50 @@ void configureHeadless(QProcess* process) {
 #endif
 }
 
+// The Command pane must show the command that will ACTUALLY run. FFmpeg jobs
+// are a different program with a different argv (N-62), so the pane would be a
+// work of fiction if it kept printing the gifsicle line.
+QString shellishJoin(const QString& program, const std::vector<std::string>& args) {
+  QStringList parts;
+  if (program.contains(QLatin1Char(' ')))
+    parts << QStringLiteral("\"%1\"").arg(program);
+  else
+    parts << program;
+  // A string literal rather than a character literal: the doc-gate's comment
+  // masker does not understand chars, and a bare quote inside one desynchronises
+  // its line map (found the hard way - it made five old findings look new).
+  const QString kQuote = QStringLiteral("\"");
+  for (const auto& a : args) {
+    const QString arg = QString::fromStdString(a);
+    if (arg.isEmpty() || arg.contains(QLatin1Char(' ')) || arg.contains(kQuote))
+      parts << QStringLiteral("\"%1\"").arg(arg);
+    else
+      parts << arg;
+  }
+  return parts.join(QLatin1Char(' '));
+}
+
 QString humanSize(qint64 bytes) {
   if (bytes >= 1024 * 1024)
     return QStringLiteral("%1 MB").arg(double(bytes) / (1024.0 * 1024.0), 0, 'f', 2);
   if (bytes >= 1024)
     return QStringLiteral("%1 KB").arg(double(bytes) / 1024.0, 0, 'f', 1);
   return QStringLiteral("%1 B").arg(bytes);
+}
+
+// Slice C: a duration a person can read. Deliberately explicit for the three
+// states the grid must distinguish, because they mean different things and a
+// single "0 s" would blur them:
+//   0 ms            -> "no delay"   (multi-frame GIF with zero delays: fast, legal)
+//   under a minute  -> "2.40 s"
+//   over a minute   -> "1m 05s"
+QString formatDuration(qint64 ms) {
+  if (ms <= 0) return QStringLiteral("no delay");
+  if (ms < 60000) return QStringLiteral("%1 s").arg(double(ms) / 1000.0, 0, 'f', 2);
+  const qint64 total_seconds = (ms + 500) / 1000;
+  return QStringLiteral("%1m %2s")
+      .arg(total_seconds / 60)
+      .arg(total_seconds % 60, 2, 10, QLatin1Char('0'));
 }
 
 // Default batch auto-name template (S3-25). {name} = the input's base name.
@@ -144,29 +197,35 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   auto* central = new QWidget(this);
   auto* root = new QVBoxLayout(central);
 
-  auto* splitter = new QSplitter(Qt::Horizontal, central);
-  splitter->setObjectName(QStringLiteral("mainSplitter"));
-
-  tabs_ = new QTabWidget(splitter);
-  tabs_->setObjectName(QStringLiteral("mainTabs"));
-  tabs_->addTab(buildInputTab(), QStringLiteral("Input"));
-  settingsPanel_ = new SettingsPanel(tabs_);
-  settingsPanel_->setObjectName(QStringLiteral("settingsPanel"));
-  tabs_->addTab(settingsPanel_, QStringLiteral("Actions"));
-  tabs_->addTab(buildOutputTab(), QStringLiteral("Output"));
-  tabs_->addTab(buildGuideTab(), QStringLiteral("Guide"));
-  splitter->addWidget(tabs_);
-
-  previewPanel_ = new PreviewPanel(splitter);
+  // Owner, 2026-10-24: the reference keeps the Preview INSIDE the Actions tab
+  // (docs/planning/reference/com.xnview.XnConvert-461adbcd7cdb0e2a7e01b211c63fb92c.png:
+  // action stack on the left, "Preview" pane on the right with Before/After).
+  // It used to be a sibling of the whole QTabWidget here, so it showed on
+  // Input, Output, Status, Settings and About too - which is not the reference
+  // and, on a small window, left no room for the tab content. It is created
+  // here so buildActionsTab() can place it, and it lives nowhere else.
+  previewPanel_ = new PreviewPanel(central);
   previewPanel_->setObjectName(QStringLiteral("previewPanel"));
   connect(previewPanel_, &PreviewPanel::previewRequested, this, [this]() {
     forcePreview_ = true;
     schedulePreview();
   });
-  splitter->addWidget(previewPanel_);
-  splitter->setStretchFactor(0, 3);
-  splitter->setStretchFactor(1, 2);
-  root->addWidget(splitter, 1);
+
+  tabs_ = new QTabWidget(central);
+  tabs_->setObjectName(QStringLiteral("mainTabs"));
+  // OD-21 = a / N-55 (2026-10-22): the owner's XnConvert reference settles the
+  // tab set as Input · Actions · Output · Status · Settings · About. "Guide"
+  // was never part of it; its plain-language content moved into About, which
+  // keeps every objectName the harness selects on (guideScroll/guideIntro/
+  // guideDescription). Input carries its file count in the title, like the
+  // reference ("Input: 10 file(s)"). See docs/planning/XN_CONVERT_REFERENCE.md.
+  tabs_->addTab(buildInputTab(), QStringLiteral("Input: 0 file(s)"));
+  actionsTabIndex_ = tabs_->addTab(buildActionsTab(), QStringLiteral("Actions"));
+  tabs_->addTab(buildOutputTab(), QStringLiteral("Output"));
+  tabs_->addTab(buildStatusTab(), QStringLiteral("Status"));
+  tabs_->addTab(buildSettingsTab(), QStringLiteral("Settings"));
+  tabs_->addTab(buildAboutTab(), QStringLiteral("About"));
+  root->addWidget(tabs_, 1);
 
   buildBottomBar(central, root);
   setCentralWidget(central);
@@ -179,6 +238,18 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     refreshCommand();
     refreshOutputSummary();
     schedulePreview();
+  });
+  // Slice D: the Actions tab carries "Actions [enabled/total]" in its title, the
+  // way the reference does, and adding/removing/disabling a card DOES change the
+  // generated command (a card that is out or off contributes defaults), so this
+  // signal refreshes the same three surfaces changed() does - plus the title.
+  connect(settingsPanel_, &SettingsPanel::actionCountsChanged, this, [this]() {
+    forcePreview_ = false;
+    lastOutputPaths_.clear();
+    refreshCommand();
+    refreshOutputSummary();
+    schedulePreview();
+    refreshTabTitles();
   });
   connect(outputEdit_, &QLineEdit::textChanged, this, [this]() {
     lastOutputPaths_.clear();
@@ -208,6 +279,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   refreshCommand();
   refreshOutputSummary();
   refreshQueueLabel();
+  updateQueueDetails();
 }
 
 MainWindow::~MainWindow() {
@@ -223,35 +295,131 @@ MainWindow::~MainWindow() {
 }
 
 QWidget* MainWindow::buildInputTab() {
+  // Slice C (2026-10-24): the Input tab now follows the reference's shape —
+  // toolbar, then a THUMBNAIL GRID, then the counts — instead of a flat text
+  // list. Two things are deliberately different from the reference, both from
+  // docs/planning/XN_CONVERT_PROGRAM_STUDY.md §11.1:
+  //   * the caption and the tooltip carry ANIMATION facts (frames, duration,
+  //     fps, loop), because XnConvert's Input tab has no such column anywhere;
+  //   * sorting is a header of buttons over the real queue, not a table header
+  //     over a proxy model, because Merge concatenates in queue order and a
+  //     sort that the engine ignored would be a lie about the output.
   auto* page = new QWidget(tabs_);
   auto* left = new QVBoxLayout(page);
-  left->addWidget(new QLabel(QStringLiteral("Animation queue — drop GIFs here"), page));
 
+  // ---- toolbar (reference: Add files / Add folder / Remove / Remove all) ----
+  auto* queueBtns = new QHBoxLayout();
+  auto* addButton = new QPushButton(QStringLiteral("Add files…"), page);
+  addButton->setObjectName(QStringLiteral("addButton"));
+  addButton->setToolTip(QStringLiteral("Queue GIF files (drop them on the grid below instead, if you prefer)"));
+  connect(addButton, &QPushButton::clicked, this, &MainWindow::chooseInputs);
+  addFolderButton_ = new QPushButton(QStringLiteral("Add folder…"), page);
+  addFolderButton_->setObjectName(QStringLiteral("addFolderButton"));
+  addFolderButton_->setToolTip(
+      QStringLiteral("Queue every GIF in a folder (one level; sub-folders are not walked).\n"
+                     "Each file still passes the same admission rule as a drop."));
+  connect(addFolderButton_, &QPushButton::clicked, this, &MainWindow::chooseInputFolder);
+  removeButton_ = new QPushButton(QStringLiteral("Remove"), page);
+  removeButton_->setObjectName(QStringLiteral("removeButton"));
+  connect(removeButton_, &QPushButton::clicked, this, &MainWindow::removeSelected);
+  clearButton_ = new QPushButton(QStringLiteral("Remove all"), page);
+  clearButton_->setObjectName(QStringLiteral("clearButton"));
+  connect(clearButton_, &QPushButton::clicked, this, &MainWindow::clearQueue);
+  queueBtns->addWidget(addButton);
+  queueBtns->addWidget(addFolderButton_);
+  queueBtns->addWidget(removeButton_);
+  queueBtns->addWidget(clearButton_);
+  queueBtns->addStretch();
+
+  // ---- Quick filter (reference: a funnel + a "Quick filter" line edit) ----
+  // It hides rows; it never removes them, so the queue — and the batch plan —
+  // is unchanged by typing. Hidden rows keep their row index, which is what
+  // keeps inputs_ index-aligned with the list.
+  auto* filterLabel = new QLabel(QStringLiteral("Filter"), page);
+  queueFilterEdit_ = new QLineEdit(page);
+  queueFilterEdit_->setObjectName(QStringLiteral("queueFilterEdit"));
+  queueFilterEdit_->setPlaceholderText(QStringLiteral("Quick filter"));
+  queueFilterEdit_->setClearButtonEnabled(true);
+  queueFilterEdit_->setMaximumWidth(220);
+  connect(queueFilterEdit_, &QLineEdit::textChanged, this, [this]() { applyQueueFilter(); });
+  queueBtns->addWidget(filterLabel);
+  queueBtns->addWidget(queueFilterEdit_);
+  left->addLayout(queueBtns);
+
+  // ---- sort header (the reference's columns, animation-aware) ----
+  auto* sortRow = new QHBoxLayout();
+  sortRow->addWidget(new QLabel(QStringLiteral("Sort"), page));
+  struct SortSpec {
+    const char* label;
+    int key;
+    const char* object_name;
+  };
+  const SortSpec specs[] = {
+      {"Queue order", SortQueueOrder, "sortQueueOrder"},
+      {"Name", SortName, "sortName"},
+      {"Size", SortSize, "sortSize"},
+      {"Modified", SortModified, "sortModified"},
+      {"Frames", SortFrames, "sortFrames"},
+      {"Duration", SortDuration, "sortDuration"},
+  };
+  for (const SortSpec& spec : specs) {
+    auto* button = new QToolButton(page);
+    button->setObjectName(QString::fromLatin1(spec.object_name));
+    button->setText(QString::fromLatin1(spec.label));
+    button->setCheckable(true);
+    button->setChecked(spec.key == SortQueueOrder);
+    button->setAutoRaise(true);
+    button->setProperty("sortKey", spec.key);
+    const int key = spec.key;
+    connect(button, &QToolButton::clicked, this, [this, key]() {
+      if (queueSortKey_ == key) {
+        // Second click on the active key flips the direction — except for
+        // Queue order, which has only one direction.
+        if (key != SortQueueOrder) queueSortAscending_ = !queueSortAscending_;
+      } else {
+        queueSortKey_ = key;
+        queueSortAscending_ = true;
+      }
+      updateSortButtonLabels();
+      applyQueueSort();
+    });
+    sortButtons_.append(button);
+    sortRow->addWidget(button);
+  }
+  sortRow->addStretch();
+  left->addLayout(sortRow);
+
+  // ---- the grid ----
   inputList_ = new DropListWidget(page);
   inputList_->setObjectName(QStringLiteral("queueList"));
   inputList_->setMinimumWidth(300);
   inputList_->setSelectionMode(QAbstractItemView::ExtendedSelection);
+  // IconMode + a uniform cell = the reference's grid: image on a transparent
+  // background, name underneath, one file per cell. No literal colours here:
+  // the palette decides (the canvas rule — no #202020-style constants, so the
+  // dark theme stays possible).
+  inputList_->setViewMode(QListView::IconMode);
+  inputList_->setIconSize(QSize(96, 96));
+  inputList_->setGridSize(QSize(132, 152));
+  inputList_->setResizeMode(QListView::Adjust);
+  inputList_->setMovement(QListView::Static);
+  inputList_->setUniformItemSizes(true);
+  inputList_->setWordWrap(true);
+  inputList_->setTextElideMode(Qt::ElideMiddle);
+  inputList_->setSpacing(4);
   left->addWidget(inputList_, 1);
+
+  // The reference has one selected cell and a preview bound to it; the facts
+  // strip under the grid says the same thing in words for the keyboard user
+  // and for anyone who cannot read the 96-px thumbnail.
+  queueSelectionDetails_ = new QLabel(page);
+  queueSelectionDetails_->setObjectName(QStringLiteral("queueSelectionDetails"));
+  queueSelectionDetails_->setWordWrap(true);
+  left->addWidget(queueSelectionDetails_);
 
   queueCountLabel_ = new QLabel(QStringLiteral("0 files"), page);
   queueCountLabel_->setObjectName(QStringLiteral("queueCountLabel"));
   left->addWidget(queueCountLabel_);
-
-  auto* queueBtns = new QHBoxLayout();
-  auto* addButton = new QPushButton(QStringLiteral("Add GIF files…"), page);
-  addButton->setObjectName(QStringLiteral("addButton"));
-  connect(addButton, &QPushButton::clicked, this, &MainWindow::chooseInputs);
-  removeButton_ = new QPushButton(QStringLiteral("Remove"), page);
-  removeButton_->setObjectName(QStringLiteral("removeButton"));
-  connect(removeButton_, &QPushButton::clicked, this, &MainWindow::removeSelected);
-  clearButton_ = new QPushButton(QStringLiteral("Clear"), page);
-  clearButton_->setObjectName(QStringLiteral("clearButton"));
-  connect(clearButton_, &QPushButton::clicked, this, &MainWindow::clearQueue);
-  queueBtns->addWidget(addButton);
-  queueBtns->addWidget(removeButton_);
-  queueBtns->addWidget(clearButton_);
-  queueBtns->addStretch();
-  left->addLayout(queueBtns);
 
   // Queue order matters for Merge (frames concatenate in queue order) — S3-9.
   auto* orderRow = new QHBoxLayout();
@@ -292,13 +460,65 @@ QWidget* MainWindow::buildInputTab() {
   namingForm->addRow(QString(), tmplHint);
   left->addWidget(namingBox);
 
-  runButton_ = new QPushButton(QStringLiteral("Start"), page);
-  runButton_->setObjectName(QStringLiteral("runButton"));
-  runButton_->setMinimumHeight(38);
-  runButton_->setToolTip(QStringLiteral("Start processing the queued GIF files"));
-  runButton_->setEnabled(false);
-  connect(runButton_, &QPushButton::clicked, this, &MainWindow::runCommand);
-  left->addWidget(runButton_);
+  // The primary action is NOT here: the reference puts Convert in the footer,
+  // beside Close, where it is reachable from every tab (owner, 2026-10-24 -
+  // the Input tab used to own it, which is not the reference's layout).
+  return page;
+}
+
+QWidget* MainWindow::buildActionsTab() {
+  // The reference's Actions tab is TWO panes, not one: the action stack on the
+  // left, the Preview on the right, and a narrow column with a small arrow
+  // handle between them that collapses the preview away (the reference shows
+  // it as a single ">" at the vertical middle).
+  //
+  // Keeping the preview here, instead of beside the whole tab widget, is what
+  // makes the other five tabs full-width - and it is what the owner's
+  // screenshot actually shows.
+  auto* page = new QWidget(tabs_);
+  auto* lay = new QVBoxLayout(page);
+  lay->setContentsMargins(0, 0, 0, 0);
+
+  auto* splitter = new QSplitter(Qt::Horizontal, page);
+  splitter->setObjectName(QStringLiteral("actionsSplitter"));
+  splitter->setChildrenCollapsible(false);
+
+  settingsPanel_ = new SettingsPanel(splitter);
+  settingsPanel_->setObjectName(QStringLiteral("settingsPanel"));
+  splitter->addWidget(settingsPanel_);
+
+  // ---- the collapse handle (reference: a ">" at the middle of the divider) ----
+  auto* handleColumn = new QWidget(splitter);
+  handleColumn->setObjectName(QStringLiteral("actionsSplitterHandle"));
+  auto* handleLayout = new QVBoxLayout(handleColumn);
+  handleLayout->setContentsMargins(2, 0, 2, 0);
+  handleLayout->addStretch();
+  previewToggleButton_ = new QToolButton(handleColumn);
+  previewToggleButton_->setObjectName(QStringLiteral("previewToggleButton"));
+  previewToggleButton_->setAutoRaise(true);
+  previewToggleButton_->setText(QStringLiteral("◀"));  // left-pointing: preview is shown
+  previewToggleButton_->setToolTip(QStringLiteral("Hide the preview pane"));
+  previewToggleButton_->setCheckable(true);
+  previewToggleButton_->setChecked(true);
+  connect(previewToggleButton_, &QToolButton::toggled, this, [this](bool shown) {
+    if (!previewPanel_) return;
+    previewPanel_->setVisible(shown);
+    previewToggleButton_->setText(shown ? QStringLiteral("◀") : QStringLiteral("▶"));
+    previewToggleButton_->setToolTip(shown ? QStringLiteral("Hide the preview pane")
+                                           : QStringLiteral("Show the preview pane"));
+  });
+  handleLayout->addWidget(previewToggleButton_);
+  handleLayout->addStretch();
+  // A handle column, not a fixed width: the reference's arrow sits in its own
+  // gutter, and the splitter still lets the user drag the real divider.
+  handleColumn->setMaximumWidth(24);
+  splitter->addWidget(handleColumn);
+
+  splitter->addWidget(previewPanel_);
+  splitter->setStretchFactor(0, 3);
+  splitter->setStretchFactor(1, 0);
+  splitter->setStretchFactor(2, 2);
+  lay->addWidget(splitter);
   return page;
 }
 
@@ -347,6 +567,121 @@ QWidget* MainWindow::buildOutputTab() {
 
   lay->addWidget(box);
 
+  // ---- Format (the reference's Output > Format + Settings...) --------------
+  // The owner asked for this by name on 2026-10-24: "I can't change it to
+  // whatever format like webp or apng or gif or video like mp4 (h265/h264/
+  // vp9/av1)". The reference has exactly this control - a format combo plus a
+  // per-format "Settings..." button - so the shape is settled.
+  //
+  // HONESTY RULE (the repo's own, OD-21): the combo must never promise an
+  // encode this build cannot perform. gifsicle writes GIF and nothing else, and
+  // APNG/WebP/MP4 need an FFmpeg sidecar that is NOT shipped yet, so those
+  // entries are present (the user can see the plan) but DISABLED with the
+  // reason in the tooltip and in the line underneath. Enabling one before the
+  // encoder exists would mean a run that silently produces nothing.
+  auto* formatBox = new QGroupBox(QStringLiteral("Format"), page);
+  formatBox->setObjectName(QStringLiteral("formatGroup"));
+  auto* formatForm = new QFormLayout(formatBox);
+  formatCombo_ = new QComboBox(formatBox);
+  formatCombo_->setObjectName(QStringLiteral("formatCombo"));
+  struct FormatSpec {
+    const char* label;
+    bool available;
+    const char* why;
+  };
+  const FormatSpec formats[] = {
+      {"Same as original (GIF)", true, nullptr},
+      {"GIF", true, nullptr},
+      {"APNG", false, "needs FFmpeg - not found (Settings... looks again)"},
+      {"WebP (animated)", false, "needs FFmpeg - not found (Settings... looks again)"},
+      {"MP4 - H.264", false, "needs FFmpeg - not found (Settings... looks again)"},
+      {"MP4 - H.265/HEVC", false, "needs FFmpeg - not found (Settings... looks again)"},
+      {"WebM - VP9", false, "needs FFmpeg - not found (Settings... looks again)"},
+      {"WebM - AV1", false, "needs FFmpeg - not found (Settings... looks again)"},
+  };
+  // The token is what the run path reads (selectedOutputFormat()), so the order
+  // of this list is a presentation detail and can never change the meaning of
+  // a saved session or an enabled entry.
+  const char* const formatTokens[] = {"gif", "gif", "apng", "webp",
+                                      "mp4-h264", "mp4-h265", "webm-vp9", "webm-av1"};
+  static_assert(sizeof(formats) / sizeof(formats[0]) == sizeof(formatTokens) / sizeof(formatTokens[0]),
+                "every format entry needs a token");
+  // Disable an unavailable ITEM (not the whole combo) by clearing its
+  // ItemIsEnabled flag in the model: the list stays readable, the entry cannot
+  // be chosen, and the reason is one hover away. Qt 5/6 draw a disabled item as
+  // greyed and refuse the click; Qt 4's "Qt::UserRole - 1" data trick is gone.
+  auto* model = qobject_cast<QStandardItemModel*>(formatCombo_->model());
+  for (int i = 0; i < static_cast<int>(sizeof(formats) / sizeof(formats[0])); ++i) {
+    const FormatSpec& spec = formats[i];
+    formatCombo_->addItem(QString::fromLatin1(spec.label));
+    const int row = formatCombo_->count() - 1;
+    formatCombo_->setItemData(row, QString::fromLatin1(formatTokens[i]), Qt::UserRole);
+    if (!spec.available) {
+      if (model) {
+        if (QStandardItem* item = model->item(row)) {
+          item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
+        }
+      }
+      formatCombo_->setItemData(row, QString::fromLatin1(spec.why), Qt::ToolTipRole);
+    }
+  }
+  formatCombo_->setToolTip(QStringLiteral(
+      "Output container/codec.\n"
+      "GIF is produced by the bundled gifsicle engine.\n"
+      "Everything else is produced by FFmpeg: the copy shipped beside this program if there "
+      "is one, otherwise one found on this computer."));
+  formatForm->addRow(QStringLiteral("Output format"), formatCombo_);
+  formatSettingsButton_ = new QPushButton(QStringLiteral("Settings…"), formatBox);
+  formatSettingsButton_->setObjectName(QStringLiteral("formatSettingsButton"));
+  formatSettingsButton_->setToolTip(
+      QStringLiteral("Per-format encoder settings (the reference's Format > Settings…)"));
+  connect(formatSettingsButton_, &QPushButton::clicked, this, [this]() {
+    // "Where did it find FFmpeg?" is the first question anyone asks when a
+    // format is greyed out, and the honest answer is a path - so this button
+    // re-runs the search (people install FFmpeg while the app is open) and then
+    // says exactly what it found and in which of the four places.
+    refreshFfmpegStatus(true);
+    const gs::OutputFormat fmt = selectedOutputFormat();
+    QString body = QStringLiteral("FFmpeg: %1\n\n")
+                       .arg(QString::fromStdString(gs::ffmpeg_location_summary(ffmpegLocation_)));
+    if (ffmpegLocation_.found()) {
+      body += QStringLiteral("Places it looked, in order: GS_FFMPEG, the copy beside this "
+                             "program, PATH, then the usual install folders. The bundled copy "
+                             "always wins, so a package behaves the same on every machine.\n\n");
+    } else {
+      body += QStringLiteral("Without FFmpeg, GIF still works (the bundled gifsicle engine) but "
+                             "APNG, WebP and the video formats cannot be produced, so they stay "
+                             "disabled instead of failing at the end of a run.\n\n");
+    }
+    if (gs::output_format_needs_ffmpeg(fmt) && ffmpegLocation_.found()) {
+      body += QStringLiteral("Selected: %1 (%2). Encoder: %3.\n")
+                  .arg(QString::fromLatin1(gs::output_format_name(fmt)),
+                       QString::fromLatin1(gs::output_format_token(fmt)),
+                       QString::fromStdString(gs::ffmpeg_encode_label(fmt)));
+    } else {
+      body += QStringLiteral("GIF settings live on the Actions tab, where every gifsicle option "
+                             "already is (colours, lossy, dither, optimise level).");
+    }
+    QMessageBox::information(this, QStringLiteral("Format settings"), body);
+  });
+  formatForm->addRow(QString(), formatSettingsButton_);
+  formatNoteLabel_ = new QLabel(formatBox);
+  formatNoteLabel_->setObjectName(QStringLiteral("formatNote"));
+  formatNoteLabel_->setWordWrap(true);
+  formatForm->addRow(QString(), formatNoteLabel_);
+  ffmpegStatusLabel_ = new QLabel(formatBox);
+  ffmpegStatusLabel_->setObjectName(QStringLiteral("ffmpegStatus"));
+  ffmpegStatusLabel_->setWordWrap(true);
+  ffmpegStatusLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  formatForm->addRow(QString(), ffmpegStatusLabel_);
+  lay->addWidget(formatBox);
+
+  // Locate the encoder NOW, before the user can pick a format, and keep the
+  // combo in step whenever the selection changes.
+  connect(formatCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+          [this](int) { refreshFfmpegStatus(false); });
+  refreshFfmpegStatus(true);  // the first search of the session
+
   outputSummaryLabel_ = new QLabel(page);
   outputSummaryLabel_->setObjectName(QStringLiteral("outputSummary"));
   outputSummaryLabel_->setWordWrap(true);
@@ -384,10 +719,171 @@ QWidget* MainWindow::buildOutputTab() {
   return page;
 }
 
-QWidget* MainWindow::buildGuideTab() {
+// ---------------------------------------------------------------------------
+// Status tab (W-32 / slice A, OD-21 = a 2026-10-22)
+//
+// The contract in docs/planning/W32_RESULT_CONTRACT.md is the source of truth:
+// one row per OPERATION (not per input), six columns, named failure reasons, and
+// the honesty rule that a row which did not succeed shows NO byte figures - not
+// zero, because "0 bytes saved" for work that never ran is the lie the contract
+// exists to prevent. Rows are installed once at Start from the planned jobs and
+// are never re-derived from the live queue: the queue may change mid-run.
+// ---------------------------------------------------------------------------
+QWidget* MainWindow::buildStatusTab() {
+  auto* page = new QWidget(tabs_);
+  auto* lay = new QVBoxLayout(page);
+
+  resultHeaderLabel_ = new QLabel(QStringLiteral("Processing list: 0 of 0 files"), page);
+  resultHeaderLabel_->setObjectName(QStringLiteral("resultHeaderLabel"));
+  lay->addWidget(resultHeaderLabel_);
+
+  resultTable_ = new QTableWidget(0, 6, page);
+  resultTable_->setObjectName(QStringLiteral("resultTable"));
+  resultTable_->setHorizontalHeaderLabels({QStringLiteral("File"), QStringLiteral("Before"),
+                                           QStringLiteral("After"), QStringLiteral("Change"),
+                                           QStringLiteral("State"), QStringLiteral("Detail")});
+  resultTable_->verticalHeader()->setVisible(false);
+  resultTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  resultTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
+  resultTable_->setAlternatingRowColors(true);
+  resultTable_->setWordWrap(false);
+  resultTable_->horizontalHeader()->setStretchLastSection(true);
+  resultTable_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Interactive);
+  resultTable_->setColumnWidth(0, 260);
+  resultTable_->setColumnWidth(1, 90);
+  resultTable_->setColumnWidth(2, 90);
+  resultTable_->setColumnWidth(3, 90);
+  resultTable_->setColumnWidth(4, 90);
+  lay->addWidget(resultTable_, 1);
+
+  resultSummaryLabel_ = new QLabel(QStringLiteral("No run yet."), page);
+  resultSummaryLabel_->setObjectName(QStringLiteral("resultSummaryLabel"));
+  resultSummaryLabel_->setWordWrap(true);
+  lay->addWidget(resultSummaryLabel_);
+
+  auto* note = new QLabel(QStringLiteral(
+      "One row per operation. Batch is one row per file; Merge is one row with every input; "
+      "Explode is one row whose After is the sum of its frames. A row that did not succeed "
+      "shows no sizes, because the work did not happen."), page);
+  note->setObjectName(QStringLiteral("resultNoteLabel"));
+  note->setWordWrap(true);
+  note->setTextFormat(Qt::PlainText);
+  lay->addWidget(note);
+
+  // ---- the command preview and the activity log -------------------------
+  // Owner, 2026-10-24: they used to sit under the whole window, which the
+  // reference does not have and which made every tab look like a console. The
+  // reference's Status tab IS the "what is happening" surface, so they live
+  // here now - same object names (commandPane / logPane / clearLogButton), so
+  // the honesty guarantees and every harness contract are unchanged.
+  auto* commandTitle = new QLabel(
+      QStringLiteral("Command preview · read-only · controls \u2192 exact engine arguments"), page);
+  commandTitle->setObjectName(QStringLiteral("commandTitle"));
+  lay->addWidget(commandTitle);
+  commandPane_ = new QPlainTextEdit(page);
+  commandPane_->setObjectName(QStringLiteral("commandPane"));
+  commandPane_->setReadOnly(true);
+  commandPane_->setMaximumHeight(64);
+  commandPane_->setPlaceholderText(QStringLiteral("Add a GIF to generate a command\u2026"));
+  lay->addWidget(commandPane_);
+
+  auto* logHeader = new QHBoxLayout();
+  auto* logTitle = new QLabel(QStringLiteral("Activity log"), page);
+  logTitle->setObjectName(QStringLiteral("logTitle"));
+  logHeader->addWidget(logTitle);
+  auto* clearLog = new QPushButton(QStringLiteral("Clear"), page);
+  clearLog->setObjectName(QStringLiteral("clearLogButton"));
+  logHeader->addWidget(clearLog);
+  logHeader->addStretch();
+  lay->addLayout(logHeader);
+  logPane_ = new QPlainTextEdit(page);
+  logPane_->setObjectName(QStringLiteral("logPane"));
+  logPane_->setReadOnly(true);
+  logPane_->setMaximumBlockCount(250);
+  logPane_->setMaximumHeight(120);
+  logPane_->setPlaceholderText(QStringLiteral("Run messages will appear here\u2026"));
+  connect(clearLog, &QPushButton::clicked, this, [this]() { resetRunLog(); });
+  lay->addWidget(logPane_);
+  return page;
+}
+
+// Settings tab (slice B): app-level facts, all read from the running build or
+// the engine probe. Deliberately no editable controls yet - a settings field
+// that nothing reads would be worse than none.
+QWidget* MainWindow::buildSettingsTab() {
+  auto* page = new QWidget(tabs_);
+  auto* lay = new QVBoxLayout(page);
+
+  auto* engineBox = new QGroupBox(QStringLiteral("Engine"), page);
+  engineBox->setObjectName(QStringLiteral("settingsEngineGroup"));
+  auto* engineForm = new QFormLayout(engineBox);
+  auto* enginePath = new QLabel(enginePath_.isEmpty() ? QStringLiteral("(not located yet)") : enginePath_,
+                                engineBox);
+  enginePath->setObjectName(QStringLiteral("settingsEnginePath"));
+  enginePath->setWordWrap(true);
+  enginePath->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  engineForm->addRow(QStringLiteral("gifsicle"), enginePath);
+  auto* engineVersion = new QLabel(QStringLiteral("probe on demand (status bar shows the result)"),
+                                   engineBox);
+  engineVersion->setObjectName(QStringLiteral("settingsEngineVersion"));
+  engineVersion->setWordWrap(true);
+  engineForm->addRow(QStringLiteral("Version"), engineVersion);
+  lay->addWidget(engineBox);
+
+  auto* filesBox = new QGroupBox(QStringLiteral("Files"), page);
+  filesBox->setObjectName(QStringLiteral("settingsFilesGroup"));
+  auto* filesForm = new QFormLayout(filesBox);
+  auto* sessionPath = new QLabel(sessionFilePath().isEmpty()
+                                     ? QStringLiteral("(no writable config location)")
+                                     : sessionFilePath(),
+                                 filesBox);
+  sessionPath->setObjectName(QStringLiteral("settingsFilePath"));
+  sessionPath->setWordWrap(true);
+  sessionPath->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  filesForm->addRow(QStringLiteral("Session file"), sessionPath);
+  auto* openFolder = new QPushButton(QStringLiteral("Show settings folder"), filesBox);
+  openFolder->setObjectName(QStringLiteral("settingsOpenFolderButton"));
+  connect(openFolder, &QPushButton::clicked, this, [this]() {
+    const QString path = sessionFilePath();
+    if (path.isEmpty()) {
+      updateStatus(QStringLiteral("No writable settings location on this system."));
+      return;
+    }
+    QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(path).absolutePath()));
+  });
+  filesForm->addRow(QString(), openFolder);
+  lay->addWidget(filesBox);
+
+  lay->addStretch();
+  return page;
+}
+
+QWidget* MainWindow::buildAboutTab() {
   auto* page = new QWidget(tabs_);
   auto* outer = new QVBoxLayout(page);
   outer->setContentsMargins(0, 0, 0, 0);
+
+  // The About block: the facts a user (or a bug report) needs. Everything here
+  // is read from the binary or the engine probe, not typed in by hand.
+  auto* about = new QGroupBox(QStringLiteral("Gifscythe"), page);
+  about->setObjectName(QStringLiteral("aboutGroup"));
+  auto* aboutLay = new QVBoxLayout(about);
+  auto* ver = new QLabel(QStringLiteral("Version %1 · engine: gifsicle (LCDF) · licence: Ms-PL")
+                             .arg(QStringLiteral(GS_VERSION)), about);
+  ver->setObjectName(QStringLiteral("aboutVersion"));
+  ver->setWordWrap(true);
+  ver->setTextFormat(Qt::PlainText);
+  aboutLay->addWidget(ver);
+  auto* aboutNote = new QLabel(QStringLiteral(
+      "Gifscythe is a desktop front end for the gifsicle GIF engine. Output is written "
+      "beside a staging file, verified, and only then moved into place; the pictures you "
+      "already have are never touched by a cancelled or failed run."), about);
+  aboutNote->setObjectName(QStringLiteral("aboutNote"));
+  aboutNote->setWordWrap(true);
+  aboutNote->setTextFormat(Qt::PlainText);
+  aboutLay->addWidget(aboutNote);
+  outer->addWidget(about);
+
   auto* scroll = new QScrollArea(page);
   scroll->setObjectName(QStringLiteral("guideScroll"));
   scroll->setWidgetResizable(true);
@@ -458,56 +954,245 @@ QWidget* MainWindow::buildGuideTab() {
   return page;
 }
 
-void MainWindow::buildBottomBar(QWidget* central, QVBoxLayout* root) {
-  auto* commandTitle = new QLabel(QStringLiteral(
-      "Command preview · read-only · controls → exact engine arguments"), central);
-  commandTitle->setObjectName(QStringLiteral("commandTitle"));
-  root->addWidget(commandTitle);
-  commandPane_ = new QPlainTextEdit(central);
-  commandPane_->setObjectName(QStringLiteral("commandPane"));
-  commandPane_->setReadOnly(true);
-  commandPane_->setMaximumHeight(92);
-  commandPane_->setPlaceholderText(QStringLiteral("Add a GIF to generate a command…"));
-  root->addWidget(commandPane_);
+// ---------------------------------------------------------------------------
+// Presets — the reference footer's left-hand group.
+//
+// A preset is one file: the same key=value payload saveSessionState() writes,
+// so it round-trips through gs::save_settings / gs::load_settings and cannot
+// drift from the session format. Stored one-per-file so a preset can be read,
+// edited or deleted by hand — a blob in one settings file would not be.
+// ---------------------------------------------------------------------------
 
-  auto* logHeader = new QHBoxLayout();
-  auto* logTitle = new QLabel(QStringLiteral("Activity log"), central);
-  logTitle->setObjectName(QStringLiteral("logTitle"));
-  logHeader->addWidget(logTitle);
-  auto* clearLog = new QPushButton(QStringLiteral("Clear"), central);
-  clearLog->setObjectName(QStringLiteral("clearLogButton"));
-  logHeader->addWidget(clearLog);
-  logHeader->addStretch();
-  root->addLayout(logHeader);
-  logPane_ = new QPlainTextEdit(central);
-  logPane_->setObjectName(QStringLiteral("logPane"));
-  logPane_->setReadOnly(true);
-  logPane_->setMaximumBlockCount(250);
-  logPane_->setMaximumHeight(92);
-  logPane_->setPlaceholderText(QStringLiteral("Run messages will appear here…"));
-  connect(clearLog, &QPushButton::clicked, this, [this]() { resetRunLog(); });
-  root->addWidget(logPane_);
+QString MainWindow::presetDir() const {
+  const QString session = sessionFilePath();
+  if (session.isEmpty()) return {};
+  return QFileInfo(session).absolutePath() + QStringLiteral("/presets");
+}
+
+void MainWindow::refreshPresetList() {
+  if (!presetCombo_) return;
+  const QString previous = presetCombo_->currentText();
+  QSignalBlocker blocker(presetCombo_);
+  presetCombo_->clear();
+  presetCombo_->addItem(QStringLiteral("(no preset)"));
+  const QString dir = presetDir();
+  if (!dir.isEmpty()) {
+    const QDir folder(dir);
+    const auto entries = folder.entryInfoList({QStringLiteral("*.conf")}, QDir::Files, QDir::Name);
+    for (const QFileInfo& entry : entries) {
+      presetCombo_->addItem(entry.completeBaseName());
+    }
+  }
+  const int restored = presetCombo_->findText(previous);
+  if (restored > 0) presetCombo_->setCurrentIndex(restored);
+}
+
+void MainWindow::savePresetAs() {
+  const QString dir = presetDir();
+  if (dir.isEmpty()) {
+    updateStatus(QStringLiteral("No writable settings folder — presets are unavailable here."));
+    return;
+  }
+  bool ok = false;
+  const QString name = QInputDialog::getText(
+      this, QStringLiteral("Save preset"), QStringLiteral("Preset name:"),
+      QLineEdit::Normal, presetCombo_ ? presetCombo_->currentText() : QString(), &ok);
+  if (!ok || name.trimmed().isEmpty()) return;
+  // Strip anything a filename cannot carry: a preset name must not become a
+  // path (the same rule OutputName applies to the batch template).
+  QString safe = name.trimmed();
+  safe.replace(QRegularExpression(QStringLiteral("[\\\\/:*?\"<>|]")), QStringLiteral("_"));
+  if (!QDir().mkpath(dir)) {
+    updateStatus(QStringLiteral("Could not create the preset folder: %1").arg(dir));
+    return;
+  }
+  gs::Settings s;
+  // writeSessionInto: a preset records the WHOLE panel, including a card that is
+  // currently switched off - otherwise loading it back would silently lose the
+  // values that were sitting behind the Enabled box.
+  settingsPanel_->writeSessionInto(s);
+  s.inputs.clear();
+  s.output.clear();
+  std::ostringstream oss;
+  gs::save_settings(oss, s);
+  oss << "# Gifscythe preset (GUI keys are ignored by the CLI)\n";
+  const QString bd = batchDir();
+  if (!bd.isEmpty()) oss << "batch_dir = " << bd.toStdString() << "\n";
+  const QString tmpl = nameTemplateEdit_ ? nameTemplateEdit_->text().trimmed() : QString();
+  if (!tmpl.isEmpty() && tmpl != QString::fromLatin1(kDefaultNameTemplate))
+    oss << "name_template = " << tmpl.toStdString() << "\n";
+  // The output format is part of the naming/action state (owner: a preset must
+  // remember everything that changes the result). Written only when it is not
+  // the default, so old presets stay byte-identical and readable.
+  const gs::OutputFormat presetFormat = selectedOutputFormat();
+  if (presetFormat != gs::OutputFormat::Gif)
+    oss << "output_format = " << gs::output_format_token(presetFormat) << "\n";
+  // Slice D: the stack is part of the preset (presence / enabled / collapsed),
+  // the way an XnConvert preset is an action list and not just a bag of numbers.
+  // A flat list of ids, so a future action can be appended without a format bump.
+  if (settingsPanel_) {
+    const QString cards = settingsPanel_->cardState();
+    if (!cards.isEmpty()) oss << "card_state = " << cards.toStdString() << "\n";
+  }
+
+  const QString path = QDir(dir).filePath(safe + QStringLiteral(".conf"));
+  QSaveFile file(path);
+  if (!file.open(QIODevice::WriteOnly)) {
+    updateStatus(QStringLiteral("Could not write the preset: %1").arg(path));
+    return;
+  }
+  const QByteArray data = QByteArray::fromStdString(oss.str());
+  file.write(data);
+  if (!file.commit()) {
+    updateStatus(QStringLiteral("Could not save the preset: %1").arg(path));
+    return;
+  }
+  refreshPresetList();
+  if (presetCombo_) {
+    const int row = presetCombo_->findText(safe);
+    if (row > 0) presetCombo_->setCurrentIndex(row);
+  }
+  updateStatus(QStringLiteral("Preset saved: %1").arg(safe));
+}
+
+void MainWindow::loadSelectedPreset() {
+  if (!presetCombo_ || presetCombo_->currentIndex() <= 0) return;
+  const QString name = presetCombo_->currentText();
+  const QString path = QDir(presetDir()).filePath(name + QStringLiteral(".conf"));
+  // load_settings_file returns nullopt for an unreadable file and collects
+  // unknown keys + per-key warnings by pointer; the GUI-only batch_dir /
+  // name_template keys arrive in that same map (U-36 / P3-7).
+  std::vector<gs::LoadWarning> warnings;
+  std::map<std::string, std::string> guiKeys;
+  auto loaded = gs::load_settings_file(path.toStdString(), &warnings, &guiKeys);
+  if (!loaded) {
+    updateStatus(QStringLiteral("Could not read the preset %1 — it may have been removed.")
+                     .arg(name));
+    refreshPresetList();
+    return;
+  }
+  settingsPanel_->readFrom(*loaded);
+  auto guiKey = [&guiKeys](const char* k) -> QString {
+    const auto it = guiKeys.find(k);
+    return it == guiKeys.end() ? QString() : QString::fromStdString(it->second);
+  };
+  // Slice D: which actions are in the stack, which are on, which are folded.
+  // Applied AFTER readFrom(), so the values land in the controls first and the
+  // stack then decides which of them the user gets to see.
+  const QString cards = guiKey("card_state");
+  if (!cards.isEmpty()) settingsPanel_->setCardState(cards);
+
+  const QString batch = guiKey("batch_dir");
+  batchDirEdit_->setText(batch);
+  const QString tmpl = guiKey("name_template");
+  nameTemplateEdit_->setText(tmpl.isEmpty() ? QString::fromLatin1(kDefaultNameTemplate) : tmpl);
+  applyOutputFormatToken(guiKey("output_format"));
+
+  lastOutputPaths_.clear();
+  refreshCommand();
+  refreshOutputSummary();
+  schedulePreview();
+  updateStatus(warnings.empty()
+                   ? QStringLiteral("Preset applied: %1").arg(name)
+                   : QStringLiteral("Preset applied: %1 — %2 warning(s), see the log")
+                         .arg(name)
+                         .arg(warnings.size()));
+}
+
+void MainWindow::deleteSelectedPreset() {
+  if (!presetCombo_ || presetCombo_->currentIndex() <= 0) return;
+  const QString name = presetCombo_->currentText();
+  const QString path = QDir(presetDir()).filePath(name + QStringLiteral(".conf"));
+  const auto answer = QMessageBox::question(
+      this, QStringLiteral("Delete preset"),
+      QStringLiteral("Delete the preset \"%1\"?").arg(name));
+  if (answer != QMessageBox::Yes) return;
+  if (!QFile::remove(path)) {
+    updateStatus(QStringLiteral("Could not delete the preset: %1").arg(path));
+    return;
+  }
+  refreshPresetList();
+  updateStatus(QStringLiteral("Preset deleted: %1").arg(name));
+}
+
+void MainWindow::buildBottomBar(QWidget* central, QVBoxLayout* root) {
+  // Owner, 2026-10-24: this is the reference's footer, left to right -
+  //   Presets: [combo] [+] [x] ... [Convert] [Close]
+  // The old bar carried the command preview and the activity log across the
+  // whole window, which the reference does not have at all and which is why
+  // the window did not look like XnConvert. Both moved into the Status tab
+  // (same object names, so every harness contract still holds): Status is the
+  // reference's "what is happening" tab, and a log belongs there.
+  auto* bar = new QHBoxLayout();
+
+  auto* presetsLabel = new QLabel(QStringLiteral("Presets:"), central);
+  bar->addWidget(presetsLabel);
+  presetCombo_ = new QComboBox(central);
+  presetCombo_->setObjectName(QStringLiteral("presetCombo"));
+  presetCombo_->setMinimumWidth(170);
+  presetCombo_->setToolTip(
+      QStringLiteral("Saved action sets. A preset stores every gifsicle option on the Actions "
+                     "tab plus the batch folder and file-name pattern."));
+  connect(presetCombo_, &QComboBox::activated, this, [this](int) { loadSelectedPreset(); });
+  bar->addWidget(presetCombo_);
+
+  auto* savePreset = new QToolButton(central);
+  savePreset->setObjectName(QStringLiteral("presetSaveButton"));
+  savePreset->setText(QStringLiteral("+"));
+  savePreset->setToolTip(QStringLiteral("Save the current settings as a preset"));
+  connect(savePreset, &QToolButton::clicked, this, &MainWindow::savePresetAs);
+  bar->addWidget(savePreset);
+
+  auto* deletePreset = new QToolButton(central);
+  deletePreset->setObjectName(QStringLiteral("presetDeleteButton"));
+  deletePreset->setText(QStringLiteral("\u00d7"));
+  deletePreset->setToolTip(QStringLiteral("Delete the selected preset"));
+  connect(deletePreset, &QToolButton::clicked, this, &MainWindow::deleteSelectedPreset);
+  bar->addWidget(deletePreset);
+
+  bar->addStretch();
+
+  // The two controls that describe a run rather than a tab: what is happening
+  // (status line) and how far it got (progress).
+  statusLabel_ = new QLabel(central);
+  statusLabel_->setObjectName(QStringLiteral("statusLabel"));
+  statusLabel_->setWordWrap(false);
+  statusLabel_->setMinimumWidth(200);
+  bar->addWidget(statusLabel_, 1);
 
   progressBar_ = new QProgressBar(central);
   progressBar_->setObjectName(QStringLiteral("progressBar"));
   progressBar_->setRange(0, 0);  // indeterminate for one large engine run
-  progressBar_->setFormat(QStringLiteral("Working…"));
+  progressBar_->setFormat(QStringLiteral("Working\u2026"));
   progressBar_->setVisible(false);
-  root->addWidget(progressBar_);
+  progressBar_->setMaximumWidth(220);
+  bar->addWidget(progressBar_);
 
-  auto* actions = new QHBoxLayout();
+  // Slice F semantics unchanged: the primary control reads "Convert"; the
+  // secondary one reads "Stop" while a run is in flight (setBusy swaps it) and
+  // "Cancel" when idle. The U-72 latch is untouched.
   cancelButton_ = new QPushButton(QStringLiteral("Cancel"), central);
   cancelButton_->setObjectName(QStringLiteral("cancelButton"));
   cancelButton_->setEnabled(false);
   connect(cancelButton_, &QPushButton::clicked, this, &MainWindow::cancelRun);
-  actions->addWidget(cancelButton_);
-  actions->addStretch();
-  statusLabel_ = new QLabel(central);
-  statusLabel_->setObjectName(QStringLiteral("statusLabel"));
-  statusLabel_->setWordWrap(true);
-  statusLabel_->setMinimumWidth(260);
-  actions->addWidget(statusLabel_, 1);
-  root->addLayout(actions);
+  bar->addWidget(cancelButton_);
+
+  runButton_ = new QPushButton(QStringLiteral("Convert"), central);
+  runButton_->setObjectName(QStringLiteral("runButton"));
+  runButton_->setMinimumHeight(30);
+  runButton_->setMinimumWidth(96);
+  runButton_->setToolTip(QStringLiteral("Start processing the queued GIF files"));
+  runButton_->setEnabled(false);
+  connect(runButton_, &QPushButton::clicked, this, &MainWindow::runCommand);
+  bar->addWidget(runButton_);
+
+  auto* closeButton = new QPushButton(QStringLiteral("Close"), central);
+  closeButton->setObjectName(QStringLiteral("closeButton"));
+  connect(closeButton, &QPushButton::clicked, this, &QWidget::close);
+  bar->addWidget(closeButton);
+
+  root->addLayout(bar);
+  refreshPresetList();
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {
@@ -542,6 +1227,141 @@ bool MainWindow::ensureEngine() {
   return false;
 }
 
+// ---------------------------------------------------------------------------
+// N-62: the FFmpeg sidecar, from the GUI's side.
+//
+// The owner's one sentence was "add ffmpeg directly into the project ... just
+// make it portable but add fallback if ffmpeg gone it will search for ffmpeg
+// program on computer ... only called when ffmpeg local into the folder not
+// found". All four of those steps live in core/FfmpegLocator.h; this is the part
+// that (a) tells the truth about the answer and (b) refuses to offer a format it
+// cannot write.
+// ---------------------------------------------------------------------------
+gs::OutputFormat MainWindow::selectedOutputFormat() const {
+  if (!formatCombo_ || formatCombo_->currentIndex() < 0) return gs::OutputFormat::Gif;
+  const QString token = formatCombo_->currentData(Qt::UserRole).toString();
+  // "gif" is both "Same as original" and "GIF": they are the same encoder and
+  // the same file, and pretending otherwise would be a lie in the session file.
+  return gs::output_format_from_token(token.toStdString());
+}
+
+void MainWindow::applyOutputFormatToken(const QString& token) {
+  if (!formatCombo_) return;
+  if (token.isEmpty()) return;
+  for (int row = 0; row < formatCombo_->count(); ++row) {
+    if (formatCombo_->itemData(row, Qt::UserRole).toString() != token) continue;
+    const QSignalBlocker block(formatCombo_);
+    formatCombo_->setCurrentIndex(row);
+    refreshFfmpegStatus(false);  // apply tooltips/notes for the restored choice
+    return;
+  }
+  // Unknown token: leave the current selection alone rather than guessing.
+}
+
+void MainWindow::refreshFfmpegStatus(bool relocate) {
+  if (!formatCombo_) return;
+  if (relocate || !ffmpegLocated_) {
+    // applicationDirPath(), not applicationFilePath(): the locator appends the
+    // executable's directory itself and the sidecar lives beside the binary.
+    ffmpegLocation_ = gs::locate_ffmpeg(QCoreApplication::applicationDirPath().toStdString());
+    ffmpegPath_ = QString::fromStdString(ffmpegLocation_.path);
+    ffmpegLocated_ = true;
+  }
+  const bool have = ffmpegLocation_.found();
+
+  auto* model = qobject_cast<QStandardItemModel*>(formatCombo_->model());
+  for (int row = 0; row < formatCombo_->count(); ++row) {
+    const gs::OutputFormat f = gs::output_format_from_token(
+        formatCombo_->itemData(row, Qt::UserRole).toString().toStdString());
+    if (!gs::output_format_needs_ffmpeg(f)) continue;
+    if (QStandardItem* item = model ? model->item(row) : nullptr) {
+      // Enable = the encoder is actually there. Nothing is enabled "in
+      // principle": a greyed entry that fails after a two-minute batch is the
+      // exact experience the owner asked us to delete.
+      item->setFlags(have ? (item->flags() | Qt::ItemIsEnabled)
+                          : (item->flags() & ~Qt::ItemIsEnabled));
+    }
+    formatCombo_->setItemData(
+        row,
+        have ? QStringLiteral("Encoded by FFmpeg: %1")
+                   .arg(QString::fromStdString(gs::ffmpeg_encode_label(f)))
+             : QStringLiteral("%1 needs FFmpeg, which was not found. Click Settings… to search "
+                              "again after installing it.").arg(QString::fromLatin1(
+                                   gs::output_format_name(f))),
+        Qt::ToolTipRole);
+  }
+  // A selection whose encoder vanished must not stay selected: the run path
+  // would have to refuse it, and refusing AFTER the user pressed Run is worse
+  // than moving the selection now.
+  if (!have && gs::output_format_needs_ffmpeg(selectedOutputFormat())) {
+    const QSignalBlocker block(formatCombo_);  // no re-entry; the state is already applied
+    formatCombo_->setCurrentIndex(1);          // plain GIF
+  }
+
+  if (ffmpegStatusLabel_) {
+    if (have) {
+      ffmpegStatusLabel_->setText(
+          QStringLiteral("FFmpeg: %1")
+              .arg(QString::fromStdString(gs::ffmpeg_location_summary(ffmpegLocation_))));
+    } else {
+      ffmpegStatusLabel_->setText(QStringLiteral(
+          "FFmpeg not found — GIF works; APNG, WebP, MP4 and WebM stay disabled. "
+          "Put an ffmpeg next to this program, or click Settings… after installing one."));
+    }
+  }
+  if (formatNoteLabel_) {
+    const gs::OutputFormat f = selectedOutputFormat();
+    if (gs::output_format_needs_ffmpeg(f)) {
+      formatNoteLabel_->setText(
+          QStringLiteral("Results will be written as .%1 (%2). The Actions-tab GIF settings do "
+                         "not apply to this format; FFmpeg encodes it directly.")
+              .arg(QString::fromLatin1(gs::output_format_extension(f)),
+                   QString::fromStdString(gs::ffmpeg_encode_label(f))));
+    } else {
+      formatNoteLabel_->setText(QStringLiteral(
+          "GIF is produced by the bundled gifsicle engine, with every Actions-tab setting "
+          "applied. Converting a moving picture to a still one is exactly what we are not "
+          "here to do."));
+    }
+  }
+}
+
+bool MainWindow::configureEncoder(const gs::Settings& one, const QString& input,
+                                  const QString& partial, gs::OutputFormat format,
+                                  QString* error) {
+  QStringList qargs;
+  if (!gs::output_format_needs_ffmpeg(format)) {
+    // args() is non-const by design (it materialises the argv once), so this
+    // command object must not be const - the compiler caught it on CI, not here.
+    gs::GifsicleCommand cmd(one);
+    for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
+    process_->setProgram(enginePath_);
+    process_->setArguments(qargs);
+    return true;
+  }
+  if (ffmpegPath_.isEmpty() || !ffmpegLocation_.found()) {
+    if (error) {
+      *error = QStringLiteral("No FFmpeg was found, so %1 cannot be written.\n%2")
+                   .arg(QString::fromLatin1(gs::output_format_name(format)),
+                        QString::fromStdString(gs::ffmpeg_location_summary(ffmpegLocation_)));
+    }
+    return false;
+  }
+  gs::FfmpegEncodeRequest request;
+  request.input = input.toStdString();
+  request.partial = partial.toStdString();
+  request.format = format;
+  const std::string refusal = gs::ffmpeg_request_refusal(request);
+  if (!refusal.empty()) {
+    if (error) *error = QString::fromStdString(refusal);
+    return false;
+  }
+  for (const auto& a : gs::ffmpeg_encode_args(request)) qargs << QString::fromStdString(a);
+  process_->setProgram(ffmpegPath_);
+  process_->setArguments(qargs);
+  return true;
+}
+
 void MainWindow::appendInputs(const QStringList& files) {
   // GS-205 / P1-27 (S37): ONE admission rule for the picker, the drop list and
   // anything else that queues input — gs::admit_input() in core/InputAdmission.h.
@@ -560,21 +1380,28 @@ void MainWindow::appendInputs(const QStringList& files) {
       continue;
     }
     inputs_.append(f);
-    const QFileInfo fi(f);
-    auto* item = new QListWidgetItem(
-        QStringLiteral("%1 — %2").arg(fi.fileName(), humanSize(fi.size())));
+    manualOrder_.append(f);
+    auto* item = new QListWidgetItem();
     item->setData(Qt::UserRole, f);
-    item->setToolTip(f);
+    // Slice C: the cell is a thumbnail + the animation facts, and the tooltip
+    // keeps the full path (the grid elides it, the tooltip must not).
+    applyQueueItemFacts(item, f);
     inputList_->addItem(item);
     ++added;
   }
   if (added > 0) {
     lastOutputPaths_.clear();
     runButton_->setEnabled(!busy_ && ensureEngine() && !inputs_.isEmpty());
+    // A new file lands in insertion order, then the active sort is re-applied
+    // so an explicit "sort by frames" cannot quietly hold a hand-placed row at
+    // the end; the filter is re-applied so a typed needle covers new arrivals.
+    if (queueSortKey_ != SortQueueOrder) applyQueueSort();
+    applyQueueFilter();
     refreshQueueLabel();
     refreshCommand();
     refreshOutputSummary();
     if (inputList_->currentRow() < 0) inputList_->setCurrentRow(0);
+    updateQueueDetails();
     schedulePreview();
   }
   if (!refused.isEmpty()) {
@@ -598,19 +1425,317 @@ void MainWindow::appendInputs(const QStringList& files) {
 void MainWindow::refreshQueueLabel() {
   qint64 total = 0;
   int existing = 0;
+  // Slice C: the queue total is an ANIMATION total, not only a byte total —
+  // "24 files" says nothing about whether this is a 2-second flipbook or four
+  // minutes of video, which is the first thing a moving-picture tool must say.
+  qint64 frames = 0;
+  qint64 duration_ms = 0;
   for (const auto& f : inputs_) {
     const QFileInfo fi(f);
     if (fi.exists()) {
       total += fi.size();
       ++existing;
     }
+    const gs::GifFacts facts = factsFor(f);
+    if (facts.ok) {
+      frames += facts.frames;
+      duration_ms += facts.duration_ms;
+    }
   }
-  queueCountLabel_->setText(QStringLiteral("%1 file(s) · %2 on disk%3")
-                                .arg(inputs_.size())
-                                .arg(humanSize(total),
-                                     existing == inputs_.size()
-                                         ? QString()
-                                         : QStringLiteral(" (%1 missing)").arg(inputs_.size() - existing)));
+  QString text = QStringLiteral("%1 file(s) · %2 frame(s) · %3 · %4 on disk")
+                     .arg(inputs_.size())
+                     .arg(frames)
+                     .arg(formatDuration(duration_ms))
+                     .arg(humanSize(total));
+  if (existing != inputs_.size()) {
+    text += QStringLiteral(" (%1 missing)").arg(inputs_.size() - existing);
+  }
+  // When a filter hides rows, say how many are actually showing: a grid that
+  // silently drops six of ten files looks like data loss, not a filter.
+  int hidden = 0;
+  if (inputList_) {
+    for (int i = 0; i < inputList_->count(); ++i) {
+      if (inputList_->item(i)->isHidden()) ++hidden;
+    }
+  }
+  if (hidden > 0) text += QStringLiteral(" · %1 hidden by filter").arg(hidden);
+  if (queueCountLabel_) queueCountLabel_->setText(text);
+  refreshTabTitles();
+}
+
+// ---------------------------------------------------------------------------
+// Slice C — the Input grid's data helpers.
+//
+// Everything below is deliberately cheap and synchronous: the facts come from
+// a header walk (no LZW), thumbnails are scaled by QImageReader BEFORE decode
+// (so a 1200x1200 GIF costs a 96x96 allocation, not a 5 MB one), and both are
+// cached per path. A queue of hundreds of files must still feel like a list.
+// ---------------------------------------------------------------------------
+
+gs::GifFacts MainWindow::factsFor(const QString& path) {
+  auto it = factsCache_.find(path);
+  if (it == factsCache_.end()) {
+    it = factsCache_.insert(path, gs::read_gif_facts(path.toStdString()));
+  }
+  return it.value();
+}
+
+QPixmap MainWindow::thumbnailFor(const QString& path) {
+  const QFileInfo fi(path);
+  // Key on size+mtime as well as the path: a file re-encoded in place (the
+  // common "fix it in another tool then re-drop" loop) must not keep showing
+  // the old animation's first frame.
+  const QString key = QStringLiteral("%1|%2|%3")
+                          .arg(path)
+                          .arg(fi.size())
+                          .arg(fi.lastModified().toMSecsSinceEpoch());
+  auto it = thumbCache_.constFind(key);
+  if (it != thumbCache_.constEnd()) return it.value();
+
+  QPixmap pixmap;
+  QImageReader reader(path);
+  reader.setAutoTransform(true);
+  const QSize native = reader.size();
+  if (native.isValid()) {
+    const QSize target = native.scaled(QSize(96, 96), Qt::KeepAspectRatio);
+    if (!target.isEmpty()) reader.setScaledSize(target);
+  }
+  const QImage image = reader.read();
+  if (!image.isNull()) {
+    pixmap = QPixmap::fromImage(image);
+  } else {
+    // No Qt image plugin, or a GIF whose first frame will not decode: a
+    // labelled placeholder, never an empty cell that looks like a bug.
+    pixmap = QPixmap(96, 96);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setPen(palette().color(QPalette::Mid));
+    painter.drawRect(0, 0, pixmap.width() - 1, pixmap.height() - 1);
+    painter.drawText(pixmap.rect(), Qt::AlignCenter, QStringLiteral("GIF"));
+    painter.end();
+  }
+  // Bounded cache: a session that drops thousands of files through the grid
+  // must not grow a pixmap per file for the whole life of the window.
+  if (thumbCache_.size() > 512) thumbCache_.clear();
+  thumbCache_.insert(key, pixmap);
+  return pixmap;
+}
+
+void MainWindow::applyQueueItemFacts(QListWidgetItem* item, const QString& path) {
+  if (!item) return;
+  const QFileInfo fi(path);
+  const gs::GifFacts facts = factsFor(path);
+
+  QStringList caption;
+  QStringList detail;
+  detail << path;
+  if (facts.ok) {
+    caption << (facts.frames == 1 ? QStringLiteral("1 frame")
+                                  : QStringLiteral("%1 frames").arg(facts.frames));
+    // A multi-frame GIF whose delays are all zero is a real and common file
+    // (screen recordings, some exporters). It has frames but no duration, and
+    // saying "0.00 s" would read as a broken file rather than a fast one.
+    if (facts.duration_ms > 0) {
+      caption << formatDuration(facts.duration_ms);
+    } else if (facts.frames > 1) {
+      caption << QStringLiteral("no delay");
+    }
+    detail << QStringLiteral("%1×%2").arg(facts.width).arg(facts.height);
+    detail << QStringLiteral("%1 frame(s)").arg(facts.frames);
+    detail << QStringLiteral("duration %1").arg(formatDuration(facts.duration_ms));
+    if (facts.fps() > 0.0) {
+      detail << QStringLiteral("%1 fps").arg(QString::number(facts.fps(), 'f', 2));
+    }
+    detail << (facts.loop_count < 0
+                   ? QStringLiteral("plays once")
+                   : (facts.loop_count == 0
+                          ? QStringLiteral("loops forever")
+                          : QStringLiteral("loops %1×").arg(facts.loop_count)));
+  } else {
+    caption << QStringLiteral("header unreadable");
+    detail << QStringLiteral("could not read the GIF header (queued anyway: the engine decides)");
+  }
+  if (fi.exists()) detail << humanSize(fi.size());
+
+  item->setText(QStringLiteral("%1\n%2").arg(fi.fileName(), caption.join(QStringLiteral(" · "))));
+  item->setIcon(QIcon(thumbnailFor(path)));
+  item->setToolTip(detail.join(QStringLiteral("\n")));
+}
+
+void MainWindow::updateQueueDetails() {
+  if (!queueSelectionDetails_) return;
+  const QString selected = selectedInput();
+  if (selected.isEmpty()) {
+    queueSelectionDetails_->setText(
+        inputs_.isEmpty()
+            ? QStringLiteral("No files queued — drop GIFs on the grid, or use Add files… / Add folder…")
+            : QStringLiteral("Select a file to see its animation facts"));
+    return;
+  }
+  const gs::GifFacts facts = factsFor(selected);
+  const QFileInfo fi(selected);
+  QStringList bits;
+  bits << fi.fileName();
+  if (facts.ok) {
+    bits << QStringLiteral("%1×%2").arg(facts.width).arg(facts.height);
+    bits << QStringLiteral("%1 frame(s)").arg(facts.frames);
+    bits << formatDuration(facts.duration_ms);
+    if (facts.fps() > 0.0) bits << QStringLiteral("%1 fps").arg(QString::number(facts.fps(), 'f', 2));
+    bits << (facts.loop_count < 0
+                 ? QStringLiteral("plays once")
+                 : (facts.loop_count == 0 ? QStringLiteral("loops forever")
+                                          : QStringLiteral("loops %1×").arg(facts.loop_count)));
+  } else {
+    bits << QStringLiteral("header unreadable");
+  }
+  if (fi.exists()) bits << humanSize(fi.size());
+  queueSelectionDetails_->setText(bits.join(QStringLiteral("  ·  ")));
+}
+
+void MainWindow::updateSortButtonLabels() {
+  // The active key gets an arrow so the grid always answers "sorted by what?"
+  // without a second label. Queue order has one direction only.
+  for (QToolButton* button : sortButtons_) {
+    if (!button) continue;
+    const int key = button->property("sortKey").toInt();
+    button->setChecked(key == queueSortKey_);
+    QString label;
+    switch (key) {
+      case SortQueueOrder: label = QStringLiteral("Queue order"); break;
+      case SortName: label = QStringLiteral("Name"); break;
+      case SortSize: label = QStringLiteral("Size"); break;
+      case SortModified: label = QStringLiteral("Modified"); break;
+      case SortFrames: label = QStringLiteral("Frames"); break;
+      default: label = QStringLiteral("Duration"); break;
+    }
+    if (key == queueSortKey_ && key != SortQueueOrder) {
+      label += queueSortAscending_ ? QStringLiteral(" ↑") : QStringLiteral(" ↓");
+    }
+    button->setText(label);
+  }
+}
+
+void MainWindow::applyQueueSort() {
+  if (inputs_.size() < 2 || !inputList_) {
+    updateSortButtonLabels();
+    return;
+  }
+  const int count = inputs_.size();
+  QVector<int> order(count);
+  std::iota(order.begin(), order.end(), 0);
+
+  if (queueSortKey_ == SortQueueOrder) {
+    // Back to the order the user built by hand. Every queued path still has a
+    // rank there (appendInputs and removeSelected keep manualOrder_ in step),
+    // and a path that somehow has none sorts last instead of vanishing.
+    QHash<QString, int> rank;
+    for (int i = 0; i < manualOrder_.size(); ++i) rank.insert(manualOrder_.at(i), i);
+    std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+      return rank.value(inputs_.at(a), count) < rank.value(inputs_.at(b), count);
+    });
+  } else {
+    // Pre-compute every key once: the comparator runs O(n log n) times and a
+    // QFileInfo or a GIF header walk inside it would make a 500-file sort slow.
+    QVector<qint64> sizes(count, 0);
+    QVector<qint64> modified(count, 0);
+    QVector<int> frames(count, 0);
+    QVector<qint64> durations(count, 0);
+    QVector<QString> names(count);
+    for (int i = 0; i < count; ++i) {
+      const QFileInfo fi(inputs_.at(i));
+      names[i] = fi.fileName();
+      sizes[i] = fi.size();
+      modified[i] = fi.lastModified().toSecsSinceEpoch();
+      const gs::GifFacts facts = factsFor(inputs_.at(i));
+      frames[i] = facts.ok ? facts.frames : 0;
+      durations[i] = facts.ok ? facts.duration_ms : 0;
+    }
+    const bool ascending = queueSortAscending_;
+    const int key = queueSortKey_;
+    std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+      int cmp = 0;
+      switch (key) {
+        case SortName:
+          cmp = QString::compare(names[a], names[b], Qt::CaseInsensitive);
+          break;
+        case SortSize:
+          cmp = sizes[a] < sizes[b] ? -1 : (sizes[a] > sizes[b] ? 1 : 0);
+          break;
+        case SortModified:
+          cmp = modified[a] < modified[b] ? -1 : (modified[a] > modified[b] ? 1 : 0);
+          break;
+        case SortFrames:
+          cmp = frames[a] < frames[b] ? -1 : (frames[a] > frames[b] ? 1 : 0);
+          break;
+        case SortDuration:
+          cmp = durations[a] < durations[b] ? -1 : (durations[a] > durations[b] ? 1 : 0);
+          break;
+        default:
+          break;
+      }
+      // Ties keep INSERTION order in both directions: a reversed tie-break
+      // would silently reshuffle equal files when the user flips the arrow,
+      // and Merge order is the output order.
+      if (cmp == 0) return a < b;
+      return ascending ? cmp < 0 : cmp > 0;
+    });
+  }
+
+  // Rebuild BOTH halves of the queue in one move: inputs_ (the engine's order)
+  // and the widget's items. Taking the items out first keeps them alive across
+  // the re-add, so icons, facts and the selection's identity survive.
+  const QString keepSelected = selectedInput();
+  QVector<QListWidgetItem*> items;
+  items.reserve(count);
+  while (inputList_->count() > 0) items.append(inputList_->takeItem(0));
+
+  QStringList reordered;
+  reordered.reserve(count);
+  for (int i : order) reordered << inputs_.at(i);
+  inputs_ = reordered;
+  for (int i : order) inputList_->addItem(items.at(i));
+
+  const int restored = inputs_.indexOf(keepSelected);
+  if (restored >= 0) inputList_->setCurrentRow(restored);
+  lastOutputPaths_.clear();
+  refreshQueueLabel();
+  refreshCommand();
+  refreshOutputSummary();
+  updateQueueDetails();
+}
+
+void MainWindow::applyQueueFilter() {
+  if (!inputList_) return;
+  const QString needle =
+      queueFilterEdit_ ? queueFilterEdit_->text().trimmed() : QString();
+  int visible = 0;
+  int firstVisible = -1;
+  for (int i = 0; i < inputList_->count(); ++i) {
+    QListWidgetItem* item = inputList_->item(i);
+    if (!item) continue;
+    const QString path = item->data(Qt::UserRole).toString();
+    const bool match =
+        needle.isEmpty() || item->text().contains(needle, Qt::CaseInsensitive) ||
+        path.contains(needle, Qt::CaseInsensitive);
+    item->setHidden(!match);
+    if (match) {
+      ++visible;
+      if (firstVisible < 0) firstVisible = i;
+    }
+  }
+  // Never leave the selection on a hidden row: the preview and the facts strip
+  // would describe a file the user cannot see.
+  QListWidgetItem* current = inputList_->currentItem();
+  if (current && current->isHidden() && firstVisible >= 0) {
+    inputList_->setCurrentRow(firstVisible);
+  }
+  if (visible == 0 && !needle.isEmpty()) {
+    queueSelectionDetails_->setText(
+        QStringLiteral("No queued file matches \"%1\"").arg(needle));
+  } else {
+    updateQueueDetails();
+  }
+  refreshQueueLabel();
 }
 
 void MainWindow::chooseInputs() {
@@ -618,6 +1743,33 @@ void MainWindow::chooseInputs() {
       this, QStringLiteral("Open GIF files"), QString(),
       QStringLiteral("GIF files (*.gif *.GIF);;All files (*)"));
   if (!files.isEmpty()) appendInputs(files);
+}
+
+void MainWindow::chooseInputFolder() {
+  // Slice C. The reference's "Add folder…" is a convenience for selecting a
+  // batch of files, so it must not become a second, looser input path: every
+  // entry goes through appendInputs(), i.e. through gs::admit_input(). One
+  // level only — walking sub-folders silently would queue files the user did
+  // not see, and this queue's ORDER is meaningful (Merge concatenates in it).
+  const QString dir = QFileDialog::getExistingDirectory(
+      this, QStringLiteral("Add every GIF in a folder"), QString());
+  if (dir.isEmpty()) return;
+  const QDir folder(dir);
+  QStringList files;
+  const auto entries = folder.entryInfoList(QDir::Files | QDir::Readable, QDir::Name);
+  for (const QFileInfo& entry : entries) {
+    // The SUFFIX is only a pre-filter to keep the walk cheap; the bytes still
+    // decide (a .gif that is really a JPEG is refused downstream, and a GIF
+    // named oddly inside the folder is simply not picked up by this shortcut).
+    if (entry.suffix().compare(QStringLiteral("gif"), Qt::CaseInsensitive) == 0) {
+      files << entry.absoluteFilePath();
+    }
+  }
+  if (files.isEmpty()) {
+    updateStatus(QStringLiteral("No .gif files in %1").arg(QDir::toNativeSeparators(dir)));
+    return;
+  }
+  appendInputs(files);
 }
 
 void MainWindow::onFilesDropped(const QStringList& files) {
@@ -643,7 +1795,10 @@ void MainWindow::removeSelected() {
   std::sort(rows.begin(), rows.end(), std::greater<int>());
   lastOutputPaths_.clear();
   for (int row : rows) {
-    if (row >= 0 && row < inputs_.size()) inputs_.removeAt(row);
+    if (row >= 0 && row < inputs_.size()) {
+      manualOrder_.removeAll(inputs_.at(row));
+      inputs_.removeAt(row);
+    }
     delete inputList_->takeItem(row);
   }
   runButton_->setEnabled(!busy_ && !inputs_.isEmpty() && ensureEngine());
@@ -658,6 +1813,13 @@ void MainWindow::clearQueue() {
   lastOutputPaths_.clear();
   inputs_.clear();
   inputList_->clear();
+  factsCache_.clear();
+  thumbCache_.clear();
+  manualOrder_.clear();
+  if (queueFilterEdit_) {
+    QSignalBlocker blocker(queueFilterEdit_);  // no filter pass over an empty list
+    queueFilterEdit_->clear();
+  }
   runButton_->setEnabled(false);
   refreshQueueLabel();
   updateStatus(QStringLiteral("Queue cleared."));
@@ -792,9 +1954,20 @@ QString MainWindow::renderedOutputName(const QFileInfo& fi) const {
   // Empty render (e.g. the template was only separators) falls back to the
   // historical default instead of writing a nameless/"." file.
   name = safe.isEmpty() ? fi.completeBaseName() + QStringLiteral("_opt") : safe;
-  // The engine always writes GIF; keep the extension honest.
-  if (!name.endsWith(QStringLiteral(".gif"), Qt::CaseInsensitive))
-    name += QStringLiteral(".gif");
+  // The FORMAT owns the extension (owner's naming decision, 2026-10-26). A
+  // template never carries one, and a name typed with the wrong one must not
+  // produce "go_1.gif.mp4" or, worse, an .mp4 that is really a GIF: any known
+  // media extension is stripped and the encoder's own extension is appended.
+  const gs::OutputFormat fmt = selectedOutputFormat();
+  static const char* kKnownExtensions[] = {".gif", ".png", ".apng", ".webp", ".mp4", ".webm"};
+  for (const char* ext : kKnownExtensions) {
+    const QString suffix = QString::fromLatin1(ext);
+    if (name.endsWith(suffix, Qt::CaseInsensitive)) {
+      name.chop(suffix.size());
+      break;
+    }
+  }
+  name += QStringLiteral(".") + QString::fromLatin1(gs::output_format_extension(fmt));
   return name;
 }
 
@@ -843,6 +2016,13 @@ void MainWindow::moveCurrent(int delta) {
   lastOutputPaths_.clear();
   QListWidgetItem* item = inputList_->takeItem(row);
   if (!item) return;
+  // Keep the manual order in step even while a sort is active: a move the user
+  // performed is intent, and "Queue order" must not undo it later.
+  const int manualRow = manualOrder_.indexOf(inputs_.at(row));
+  const int manualTarget = manualOrder_.indexOf(inputs_.at(target));
+  if (manualRow >= 0 && manualTarget >= 0 && manualRow != manualTarget) {
+    manualOrder_.move(manualRow, manualTarget);
+  }
   inputList_->insertItem(target, item);
   // Keep inputs_ index-aligned with the list rows.
   const QString path = inputs_.takeAt(row);
@@ -982,17 +2162,158 @@ void MainWindow::refreshCommand() {
       QString out = explicitOut;
       if (n > 1 || out.isEmpty()) out = defaultOutputFor(in);
       one.output = out.toStdString();
-      gs::GifsicleCommand cmd(one);
-      lines << engine + QLatin1Char(' ') + QString::fromStdString(cmd.toString());
+      if (gs::output_format_needs_ffmpeg(selectedOutputFormat())) {
+        gs::FfmpegEncodeRequest req;
+        req.input = in.toStdString();
+        req.partial = out.toStdString();
+        req.format = selectedOutputFormat();
+        lines << shellishJoin(ffmpegPath_, gs::ffmpeg_encode_args(req));
+      } else {
+        gs::GifsicleCommand cmd(one);
+        lines << engine + QLatin1Char(' ') + QString::fromStdString(cmd.toString());
+      }
     }
     commandPane_->setPlainText(lines.join(QLatin1Char('\n')));
     return;
   }
 
+  if (gs::output_format_needs_ffmpeg(selectedOutputFormat())) {
+    gs::FfmpegEncodeRequest req;
+    req.input = inputs_.value(0).toStdString();
+    req.partial = gs::ffmpeg_staging_name(settings.output, selectedOutputFormat());
+    req.format = selectedOutputFormat();
+    commandPane_->setPlainText(shellishJoin(ffmpegPath_, gs::ffmpeg_encode_args(req)));
+    return;
+  }
   gs::GifsicleCommand cmd(settings);
   commandPane_->setPlainText(
       engine + QLatin1Char(' ')
       + QString::fromStdString(cmd.toString()));
+}
+
+// ---------------------------------------------------------------------------
+// Status tab result rows (W-32 / slice A)
+//
+// Cardinality follows the contract: Batch installs one row per queued file,
+// Merge/Auto one row whose Before is the SUM of its inputs, Explode one row
+// whose After is the SUM of its frames. Byte figures appear only on a
+// `succeeded` row - the contract's honesty rule.
+// ---------------------------------------------------------------------------
+void MainWindow::refreshTabTitles() {
+  if (!tabs_) return;
+  tabs_->setTabText(0, QStringLiteral("Input: %1 file(s)").arg(inputs_.size()));
+  if (settingsPanel_ && actionsTabIndex_ >= 0) {
+    tabs_->setTabText(actionsTabIndex_,
+                      QStringLiteral("Actions [%1/%2]")
+                          .arg(settingsPanel_->enabledActionCount())
+                          .arg(settingsPanel_->actionCount()));
+  }
+}
+
+void MainWindow::beginResultRows(const QStringList& files) {
+  if (!resultTable_) return;
+  resultTable_->setRowCount(0);
+  resultBeforeBytes_.clear();
+  resultActiveRow_ = -1;
+  if (files.isEmpty()) {
+    refreshResultSummary();
+    return;
+  }
+  resultTable_->setRowCount(files.size());
+  for (int i = 0; i < files.size(); ++i) {
+    const QFileInfo fi(files.at(i));
+    const qint64 bytes = fi.exists() ? fi.size() : -1;
+    resultBeforeBytes_.append(bytes);
+    auto* name = new QTableWidgetItem(fi.fileName());
+    name->setToolTip(files.at(i));
+    resultTable_->setItem(i, 0, name);
+    resultTable_->setItem(i, 1, new QTableWidgetItem(bytes >= 0 ? humanSize(bytes)
+                                                               : QStringLiteral("—")));
+    for (int c = 2; c <= 5; ++c) resultTable_->setItem(i, c, new QTableWidgetItem(QString()));
+    resultTable_->item(i, 4)->setText(QStringLiteral("pending"));
+  }
+  refreshResultSummary();
+}
+
+void MainWindow::beginSingleResultRow(const QString& label, qint64 beforeBytes) {
+  if (!resultTable_) return;
+  resultTable_->setRowCount(0);
+  resultBeforeBytes_.clear();
+  resultActiveRow_ = 0;
+  resultTable_->setRowCount(1);
+  resultTable_->setItem(0, 0, new QTableWidgetItem(label));
+  resultTable_->setItem(0, 1, new QTableWidgetItem(beforeBytes >= 0 ? humanSize(beforeBytes)
+                                                                    : QStringLiteral("—")));
+  for (int c = 2; c <= 5; ++c) resultTable_->setItem(0, c, new QTableWidgetItem(QString()));
+  resultBeforeBytes_.append(beforeBytes);
+  resultTable_->item(0, 4)->setText(QStringLiteral("pending"));
+  refreshResultSummary();
+}
+
+void MainWindow::setResultState(int row, const QString& state, const QString& detail,
+                                qint64 afterBytes) {
+  if (!resultTable_ || row < 0 || row >= resultTable_->rowCount()) return;
+  auto* stateItem = resultTable_->item(row, 4);
+  if (stateItem) stateItem->setText(state);
+  auto* detailItem = resultTable_->item(row, 5);
+  if (detailItem) detailItem->setText(detail);
+  // The contract's rule: a row that did not succeed shows NO byte figures.
+  if (state == QStringLiteral("succeeded") && afterBytes >= 0) {
+    if (auto* after = resultTable_->item(row, 2)) after->setText(humanSize(afterBytes));
+    const qint64 before = row < resultBeforeBytes_.size() ? resultBeforeBytes_.at(row) : -1;
+    if (auto* change = resultTable_->item(row, 3)) {
+      if (before > 0 && afterBytes >= 0) {
+        const double pct = 100.0 * static_cast<double>(afterBytes - before) /
+                           static_cast<double>(before);
+        change->setText(QStringLiteral("%1%2%")
+                            .arg(afterBytes == before ? QString() : (afterBytes > before ? QStringLiteral("+") : QStringLiteral("−")),
+                                 QString::number(qAbs(pct), 'f', 1)));
+      } else {
+        change->setText(QStringLiteral("—"));
+      }
+    }
+  }
+  refreshResultSummary();
+}
+
+void MainWindow::markRemainingSkipped(int fromRow) {
+  if (!resultTable_) return;
+  for (int r = std::max(0, fromRow); r < resultTable_->rowCount(); ++r) {
+    auto* st = resultTable_->item(r, 4);
+    if (!st) continue;
+    if (st->text() == QStringLiteral("pending") || st->text() == QStringLiteral("running")) {
+      st->setText(QStringLiteral("skipped"));
+      if (auto* d = resultTable_->item(r, 5))
+        d->setText(QStringLiteral("not attempted - the run stopped before this file"));
+    }
+  }
+  refreshResultSummary();
+}
+
+void MainWindow::refreshResultSummary() {
+  if (!resultTable_) return;
+  int succeeded = 0, failed = 0, skipped = 0, cancelled = 0, done = 0;
+  const int total = resultTable_->rowCount();
+  for (int r = 0; r < total; ++r) {
+    auto* st = resultTable_->item(r, 4);
+    if (!st) continue;
+    const QString s = st->text();
+    if (s == QStringLiteral("succeeded")) { ++succeeded; ++done; }
+    else if (s == QStringLiteral("failed")) { ++failed; ++done; }
+    else if (s == QStringLiteral("skipped")) { ++skipped; ++done; }
+    else if (s == QStringLiteral("cancelled")) { ++cancelled; ++done; }
+  }
+  if (resultHeaderLabel_) {
+    resultHeaderLabel_->setText(QStringLiteral("Processing list: %1 of %2 files")
+                                    .arg(done).arg(total));
+  }
+  if (resultSummaryLabel_) {
+    resultSummaryLabel_->setText(
+        total == 0
+            ? QStringLiteral("No run yet.")
+            : QStringLiteral("%1 succeeded · %2 failed · %3 skipped · %4 cancelled")
+                  .arg(succeeded).arg(failed).arg(skipped).arg(cancelled));
+  }
 }
 
 void MainWindow::setBusy(bool busy) {
@@ -1004,10 +2325,23 @@ void MainWindow::setBusy(bool busy) {
   // must not stomp the caller's "Optimizing…" / it would re-probe per file).
   runButton_->setEnabled(!busy && !inputs_.isEmpty() && ensureEngine());
   cancelButton_->setEnabled(busy);
+  // Slice F: the reference labels the in-flight control "Stop"; idle it is a
+  // plain "Cancel". Same slot (U-72's cancel latch), honest label.
+  if (cancelButton_) cancelButton_->setText(busy ? QStringLiteral("Stop")
+                                                 : QStringLiteral("Cancel"));
   removeButton_->setEnabled(!busy);
   clearButton_->setEnabled(!busy);
   moveUpButton_->setEnabled(!busy);
   moveDownButton_->setEnabled(!busy);
+  // Slice C: the queue's shape is part of the RUN's plan, so the controls that
+  // change it (add from a folder, filter, sort) are locked with Remove/Clear.
+  // Filtering is a view, but a filter that hides a file mid-run and reorders
+  // nothing still invites the reading that the run lost it.
+  if (addFolderButton_) addFolderButton_->setEnabled(!busy);
+  if (queueFilterEdit_) queueFilterEdit_->setEnabled(!busy);
+  for (QToolButton* button : sortButtons_) {
+    if (button) button->setEnabled(!busy);
+  }
   settingsPanel_->setEnabled(!busy);
   // Audit U-45 / P1-23: lock the WHOLE output group, Browse buttons included.
   // Disabling only the text fields left a hole: a picker dialog can still call
@@ -1077,6 +2411,39 @@ void MainWindow::runCommand() {
     return;
   }
 
+  // ---- N-62: which encoder runs, and may it? -------------------------------
+  // The format is frozen for the whole run here, exactly like batchSettings_
+  // (U-58): the plan below is computed against one format, so a batch must not
+  // change encoder halfway because the combo moved.
+  activeFormat_ = selectedOutputFormat();
+  if (gs::output_format_needs_ffmpeg(activeFormat_)) {
+    // People install FFmpeg while the app is open; re-look before refusing.
+    refreshFfmpegStatus(true);
+    if (!ffmpegLocation_.found()) {
+      QMessageBox::critical(
+          this, QStringLiteral("Gifscythe"),
+          QStringLiteral("%1 needs FFmpeg, and none was found.\n\n%2\n\n"
+                         "GIF still works: pick GIF, or put an ffmpeg next to this program "
+                         "and try again.")
+              .arg(QString::fromLatin1(gs::output_format_name(activeFormat_)),
+                   QString::fromStdString(gs::ffmpeg_location_summary(ffmpegLocation_))));
+      return;
+    }
+    // Merge and Explode are GIF operations on gifsicle's own frame model - they
+    // combine or split GIF frames, not encode a container. Running one as MP4
+    // would produce something that is not what the label says, so it is refused
+    // BEFORE anything is written.
+    if (settings.mode != gs::Mode::Auto && settings.mode != gs::Mode::Batch) {
+      QMessageBox::warning(
+          this, QStringLiteral("Gifscythe"),
+          QStringLiteral("%1 output is available for single-file and Batch runs only.\n\n"
+                         "Merge and Explode work on GIF frames and stay GIF: switch the output "
+                         "format back to GIF, or use a single file / a batch.")
+              .arg(QString::fromLatin1(gs::output_format_name(activeFormat_))));
+      return;
+    }
+  }
+
   batchMode_ = settings.mode;
   resetRunLog();
   lastOutputPaths_.clear();
@@ -1118,24 +2485,42 @@ void MainWindow::runCommand() {
     // result while the UI reported "Optimization complete — 2 file(s).".
     const gs::OutputPlan plan = planBatch();
     if (!plan.ok) {
+      // W-32 R5: the run was refused BEFORE any process started, so every
+      // planned row is `refusedBeforeRun` - not `failed`, and with no figures.
+      beginResultRows(inputs_);
+      for (int r = 0; r < resultTable_->rowCount(); ++r)
+        setResultState(r, QStringLiteral("refusedBeforeRun"),
+                       QStringLiteral("the planned output would overwrite user data"));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
           QStringLiteral("Refusing to run — the planned output would overwrite user data:\n\n%1")
               .arg(QString::fromStdString(plan.describe())));
       return;
     }
     batchTargets_ = plannedBatchTargets();
+    // W-32: install one row per planned job NOW, from the plan - not from the
+    // live queue, which the user can still change while the run is in flight.
+    beginResultRows(inputs_);
 
     // Process one file at a time, using the PLANNED target for each file.
     batchQueue_ = inputs_;
     batchIndex_ = 0;
     explodeSnapshot_.clear();  // batch never explodes; keep the snapshot honest
     setBusy(true);
+    resultActiveRow_ = 0;
+    setResultState(0, QStringLiteral("running"), QStringLiteral("optimizing…"));
     updateStatus(QStringLiteral("Optimizing 1/%1…").arg(batchQueue_.size()));
     QString in = batchQueue_.at(0);
     pendingOutput_ = batchTargets_.value(0);  // from the plan, not re-derived
     pendingPartial_ = QString::fromStdString(
-        gs::partial_output_path(pendingOutput_.toStdString()));
-    gs::discard_partial(pendingPartial_.toStdString());  // self-heal a prior hard kill
+        gs::claim_partial_output_path(pendingOutput_.toStdString()));  // AUD-01: never delete a file we do not own
+    if (pendingPartial_.isEmpty()) {
+      batchQueue_.clear();
+      batchIndex_ = -1;
+      setBusy(false);
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QStringLiteral("Batch stopped — no free staging path beside %1").arg(pendingOutput_));
+      return;
+    }
     partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
     // U-58 / P1-38: freeze the settings for the WHOLE batch at start —
     // every continuation job (onProcessFinished) builds its argv from this
@@ -1147,17 +2532,29 @@ void MainWindow::runCommand() {
     one.mode = gs::Mode::Auto;  // single-file, no -b needed
     one.inputs = {in.toStdString()};
     one.output = pendingPartial_.toStdString();
-    gs::GifsicleCommand cmd(one);
-    QStringList qargs;
-    for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
-    process_->setProgram(enginePath_);
-    process_->setArguments(qargs);
+    QString encodeError;
+    if (!configureEncoder(one, in, pendingPartial_, activeFormat_, &encodeError)) {
+      discardPendingPartial();
+      pendingPartial_.clear();
+      batchQueue_.clear();
+      batchIndex_ = -1;
+      setBusy(false);
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("encoderUnavailable: %1").arg(encodeError.left(120)));
+      resultActiveRow_ = -1;
+      QMessageBox::critical(this, QStringLiteral("Gifscythe"), encodeError);
+      return;
+    }
     appendLog(QStringLiteral("Optimizing %1/%2: %3")
                   .arg(batchIndex_ + 1).arg(batchQueue_.size()).arg(in));
     process_->start();
     if (!process_->waitForStarted(5000)) {
-      gs::discard_partial(pendingPartial_.toStdString());
+      discardPendingPartial();
       pendingPartial_.clear();
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("engineNotStartable: %1").arg(process_->errorString()));
+      markRemainingSkipped(resultActiveRow_ + 1);
+      resultActiveRow_ = -1;
       setBusy(false);
       QMessageBox::critical(this, QStringLiteral("Gifscythe"),
           QStringLiteral("Could not start the GIF engine: %1").arg(process_->errorString()));
@@ -1190,6 +2587,9 @@ void MainWindow::runCommand() {
     for (const QString& p : inputs_) plan_inputs.push_back(p.toStdString());
     const gs::OutputPlan one_plan = gs::plan_outputs(plan_inputs, {settings.output});
     if (!one_plan.ok) {
+      beginSingleResultRow(QFileInfo(QString::fromStdString(settings.output)).fileName(), -1);
+      setResultState(0, QStringLiteral("refusedBeforeRun"),
+                     QStringLiteral("the planned output would overwrite user data"));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
           QStringLiteral("Refusing to run — the planned output would overwrite user data:\n\n%1")
               .arg(QString::fromStdString(one_plan.describe())));
@@ -1200,12 +2600,28 @@ void MainWindow::runCommand() {
   pendingOutput_ = QString::fromStdString(settings.output);
   if (settings.mode != gs::Mode::Explode) {
     pendingPartial_ = QString::fromStdString(
-        gs::partial_output_path(pendingOutput_.toStdString()));
-    gs::discard_partial(pendingPartial_.toStdString());  // self-heal a prior hard kill
+        gs::claim_partial_output_path(pendingOutput_.toStdString()));  // AUD-01: never delete a file we do not own
+    if (pendingPartial_.isEmpty()) {
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QStringLiteral("Refusing to run — no free staging path beside %1").arg(pendingOutput_));
+      return;
+    }
     partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
     settings.output = pendingPartial_.toStdString();
   } else {
-    pendingPartial_.clear();
+    // AUD-02 / N-10 parity with the CLI: the engine opens every <prefix>.NNN
+    // with truncating semantics, so writing the user's prefix directly let a
+    // cancel or failure leave the PREVIOUS frame set short or half-written.
+    // Write under a claimed partial prefix (nothing is deleted to get it) and
+    // promote only after the frames verify.
+    pendingPartial_ = QString::fromStdString(
+        gs::claim_partial_explode_prefix(pendingOutput_.toStdString()));
+    if (pendingPartial_.isEmpty()) {
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QStringLiteral("Refusing to run — no free staging prefix beside %1").arg(pendingOutput_));
+      return;
+    }
+    settings.output = pendingPartial_.toStdString();
   }
   batchIndex_ = -1;
   batchQueue_.clear();
@@ -1214,31 +2630,80 @@ void MainWindow::runCommand() {
   // least one NEW or CHANGED real GIF frame instead of trusting rc=0 (and so
   // stale frames from an earlier run cannot fake a success).
   if (settings.mode == gs::Mode::Explode) {
-    explodeSnapshot_ = gs::snapshot_explode_candidates(pendingOutput_.toStdString());
+    explodeSnapshot_ = gs::snapshot_explode_candidates(pendingPartial_.toStdString());
   } else {
     explodeSnapshot_.clear();
   }
 
-  gs::GifsicleCommand cmd(settings);
-  QStringList qargs;
-  for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
 
+  // W-32 cardinality: Merge/Auto are N->1 and Explode is 1->N, so each is ONE
+  // row. Before is the sum of the inputs for a merge, the single input for an
+  // explode; the After figure is filled in only after verification.
+  {
+    qint64 beforeBytes = -1;
+    if (batchMode_ == gs::Mode::Explode) {
+      const QFileInfo in(inputs_.value(0));
+      beforeBytes = in.exists() ? in.size() : -1;
+      beginSingleResultRow(in.fileName() + QStringLiteral(" (all frames)"), beforeBytes);
+    } else {
+      qint64 sum = 0;
+      bool any = false;
+      for (const QString& f : inputs_) {
+        const QFileInfo fi(f);
+        if (fi.exists()) { sum += fi.size(); any = true; }
+      }
+      beforeBytes = any ? sum : -1;
+      const QString label = QFileInfo(pendingOutput_).fileName() +
+                            (inputs_.size() > 1
+                                 ? QStringLiteral(" (merged from %1 files)").arg(inputs_.size())
+                                 : QString());
+      beginSingleResultRow(label, beforeBytes);
+    }
+    resultActiveRow_ = 0;
+    setResultState(0, QStringLiteral("running"), QStringLiteral("optimizing…"));
+  }
+  // One place decides engine vs FFmpeg for this job. It runs AFTER the result
+  // row exists, so a refusal lands in that row instead of in an empty status
+  // table (the row is the thing the user is looking at).
+  {
+    QString encodeError;
+    if (!configureEncoder(settings, inputs_.value(0), pendingPartial_, activeFormat_,
+                          &encodeError)) {
+      discardPendingPartial();
+      pendingPartial_.clear();
+      setBusy(false);
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("encoderUnavailable: %1").arg(encodeError.left(120)));
+      resultActiveRow_ = -1;
+      QMessageBox::critical(this, QStringLiteral("Gifscythe"), encodeError);
+      return;
+    }
+  }
   setBusy(true);
   updateStatus(QStringLiteral("Running…"));
   appendLog(QStringLiteral("Optimizing %1 → %2")
                 .arg(QString::fromStdString(settings.inputs.empty() ? std::string() : settings.inputs.front()),
                      QString::fromStdString(settings.output)));
-  process_->setProgram(enginePath_);
-  process_->setArguments(qargs);
   process_->start();
   if (!process_->waitForStarted(5000)) {
-    gs::discard_partial(pendingPartial_.toStdString());
+    discardPendingPartial();
     pendingPartial_.clear();
+    setResultState(resultActiveRow_, QStringLiteral("failed"),
+                   QStringLiteral("engineNotStartable: %1").arg(process_->errorString()));
+    resultActiveRow_ = -1;
     setBusy(false);
     QMessageBox::critical(this, QStringLiteral("Gifscythe"),
         QStringLiteral("Could not start the GIF engine: %1").arg(process_->errorString()));
     return;  // U-28: the batch path returns here; this one has to as well
   }
+}
+
+void MainWindow::discardPendingPartial() {
+  if (pendingPartial_.isEmpty()) return;
+  if (batchMode_ == gs::Mode::Explode)
+    gs::discard_explode_frames(pendingPartial_.toStdString());
+  else
+    gs::discard_partial(pendingPartial_.toStdString());
 }
 
 void MainWindow::cancelRun() {
@@ -1277,22 +2742,24 @@ void MainWindow::cancelRun() {
     return;
   }
 
-  gs::discard_partial(pendingPartial_.toStdString());
+  discardPendingPartial();
   pendingPartial_.clear();
   batchQueue_.clear();
   batchIndex_ = -1;
   invalidatePreview();  // P1-10: a cancelled run invalidates any preview state
   setBusy(false);
-  // N-10: this front end has no partial-output guard for Explode — the engine
-  // opens each <prefix>.NNN with truncating semantics, so a cancelled explode
-  // can leave a frame set that is short or half-written. A flat "Cancelled."
-  // reads as though nothing happened; say what the state actually is.
-  if (batchMode_ == gs::Mode::Explode) {
-    updateStatus(QStringLiteral(
-        "Cancelled - frames already written may be incomplete."));
-  } else {
-    updateStatus(QStringLiteral("Cancelled."));
+  // AUD-02: Explode now writes a partial frame set too (discarded above), so
+  // the previous frames are untouched and the flat message is accurate for
+  // every mode. (N-10's "may be incomplete" warning described the old,
+  // unguarded write.)
+  // W-32: completed rows keep their figures; the row the engine was working on
+  // is `cancelled`; everything after it was never attempted.
+  if (resultActiveRow_ >= 0) {
+    setResultState(resultActiveRow_, QStringLiteral("cancelled"), QStringLiteral("stopped by the user"));
+    markRemainingSkipped(resultActiveRow_ + 1);
+    resultActiveRow_ = -1;
   }
+  updateStatus(QStringLiteral("Cancelled."));
 }
 
 void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
@@ -1316,12 +2783,20 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       // cancelRun() finishes the cleanup and sets the "Cancelled." status.
       return;
     }
-    gs::discard_partial(pendingPartial_.toStdString());
+    discardPendingPartial();
     pendingPartial_.clear();
     setBusy(false);
     batchQueue_.clear();
     batchIndex_ = -1;
     appendLog(QStringLiteral("Engine failed with exit code %1.").arg(exitCode));
+    // W-32: named reason, and every row after this one is `skipped` - it never
+    // ran, so it gets no byte figures and is not blamed as a failure.
+    if (resultActiveRow_ >= 0) {
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("engineFailed: exit %1").arg(exitCode));
+      markRemainingSkipped(resultActiveRow_ + 1);
+      resultActiveRow_ = -1;
+    }
     updateStatus(QStringLiteral("Optimization failed (exit %1).").arg(exitCode));
     QMessageBox::warning(this, QStringLiteral("Gifscythe"),
         err.isEmpty() ? QStringLiteral("The GIF engine returned an error (exit %1).").arg(exitCode)
@@ -1335,24 +2810,62 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
   // or CHANGED real GIF under the prefix, and name the prefix on failure.
   if (batchMode_ == gs::Mode::Explode) {
     const gs::ExplodeResult vr =
-        gs::verify_explode_frames(pendingOutput_.toStdString(), explodeSnapshot_);
+        gs::verify_explode_frames(pendingPartial_.toStdString(), explodeSnapshot_);
     explodeSnapshot_.clear();
     if (!vr.ok) {
+      discardPendingPartial();
+      pendingPartial_.clear();
       setBusy(false);
       batchQueue_.clear();
       batchIndex_ = -1;
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("outputMissing: the engine exited 0 but wrote no frame this run"));
+      resultActiveRow_ = -1;
       updateStatus(QStringLiteral("No frames produced — engine exited 0 but wrote none."));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
           QString::fromStdString(vr.describe()));
       return;
     }
+    // Only now do the user's frames change (AUD-02 / N-10).
+    const std::string perr = gs::promote_explode_frames(
+        pendingPartial_.toStdString(), pendingOutput_.toStdString());
+    if (!perr.empty()) {
+      discardPendingPartial();
+      pendingPartial_.clear();
+      setBusy(false);
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("outputUnverifiable: the verified frames could not be promoted"));
+      resultActiveRow_ = -1;
+      updateStatus(QStringLiteral("Explode failed while replacing frames."));
+      QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+          QStringLiteral("Could not promote the exploded frames: %1\n\n"
+                         "Some frames under %2 may have been replaced.")
+              .arg(QString::fromStdString(perr), pendingOutput_));
+      return;
+    }
+    // vr.frames are named under the partial prefix; report the promoted names.
+    const QString partialBase = QFileInfo(pendingPartial_).fileName();
+    const QString outBase = QFileInfo(pendingOutput_).fileName();
+    pendingPartial_.clear();
     lastOutputPaths_.clear();
     const QString frameDir = QFileInfo(pendingOutput_).absolutePath();
-    for (const std::string& frame : vr.frames)
-      lastOutputPaths_ << QDir(frameDir).filePath(QString::fromStdString(frame));
+    for (const std::string& frame : vr.frames) {
+      QString name = QString::fromStdString(frame);
+      if (name.startsWith(partialBase + QLatin1Char('.')))
+        name = outBase + name.mid(partialBase.size());
+      lastOutputPaths_ << QDir(frameDir).filePath(name);
+    }
     refreshOutputFiles();
     setBusy(false);
     appendLog(QStringLiteral("Explode verified %1 frame(s) on disk.").arg(vr.frames.size()));
+    {
+      qint64 frameBytes = 0;
+      for (const QString& p : lastOutputPaths_) frameBytes += QFileInfo(p).size();
+      setResultState(resultActiveRow_, QStringLiteral("succeeded"),
+                     QStringLiteral("%1 frame(s) verified on disk").arg(lastOutputPaths_.size()),
+                     frameBytes);
+      resultActiveRow_ = -1;
+    }
     updateStatus(QStringLiteral("Explode complete — %1 frame(s) written.")
                      .arg(vr.frames.size()));
     previewPanel_->clearAfter(QStringLiteral("Explode wrote frame files; see Output for the folder and names"));
@@ -1361,17 +2874,23 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
 
   // Verify the isolated write before replacing the user's previous output.
   if (!pendingOutput_.isEmpty()) {
+    // The container that was promised, not "whatever GIF looks like": an APNG
+    // that came out as a still PNG, or a WebP with one frame, is a failure.
     const std::string verificationError =
-        gs::verify_output(pendingPartial_.toStdString(), partialSnapshot_);
+        gs::verify_output_as(pendingPartial_.toStdString(), partialSnapshot_, activeFormat_);
     if (!verificationError.empty()) {
-      gs::discard_partial(pendingPartial_.toStdString());
+      discardPendingPartial();
       pendingPartial_.clear();
       setBusy(false);
       batchQueue_.clear();
       batchIndex_ = -1;
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("outputInvalid: %1")
+                         .arg(QString::fromStdString(verificationError).left(160)));
+      resultActiveRow_ = -1;
       updateStatus(QStringLiteral("Output verification failed."));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
-          QStringLiteral("The GIF engine exited 0, but its output was rejected:\n%1\n\n%2")
+          QStringLiteral("The encoder exited 0, but its output was rejected:\n%1\n\n%2")
               .arg(pendingOutput_, QString::fromStdString(verificationError)));
       return;
     }
@@ -1389,6 +2908,9 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       setBusy(false);
       batchQueue_.clear();
       batchIndex_ = -1;
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("outputUnverifiable: the verified file could not replace the destination"));
+      resultActiveRow_ = -1;
       updateStatus(QStringLiteral("Could not promote output - result kept."));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
           QStringLiteral("The verified output could not replace the destination:\n%1\n\n%2\n\n"
@@ -1399,11 +2921,20 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     pendingPartial_.clear();
   }
 
+  // W-32: reaching this point means the current job verified AND promoted, so
+  // its row becomes `succeeded` with the on-disk size.
+  if (resultActiveRow_ >= 0) {
+    const qint64 afterBytes = pendingOutput_.isEmpty() ? -1 : QFileInfo(pendingOutput_).size();
+    setResultState(resultActiveRow_, QStringLiteral("succeeded"), QString(), afterBytes);
+  }
+
   // Continue batch?
   if (batchIndex_ >= 0 && batchMode_ == gs::Mode::Batch) {
     ++batchIndex_;
     if (batchIndex_ < batchQueue_.size()) {
       if (progressBar_) progressBar_->setValue(batchIndex_);
+      resultActiveRow_ = batchIndex_;
+      setResultState(resultActiveRow_, QStringLiteral("running"), QStringLiteral("optimizing…"));
       appendLog(QStringLiteral("Finished file %1/%2; continuing with %3.")
                     .arg(batchIndex_).arg(batchQueue_.size())
                     .arg(batchQueue_.at(batchIndex_)));
@@ -1413,8 +2944,19 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       QString in = batchQueue_.at(batchIndex_);
       pendingOutput_ = batchTargets_.value(batchIndex_);  // from the plan
       pendingPartial_ = QString::fromStdString(
-          gs::partial_output_path(pendingOutput_.toStdString()));
-      gs::discard_partial(pendingPartial_.toStdString());
+          gs::claim_partial_output_path(pendingOutput_.toStdString()));  // AUD-01: never delete a file we do not own
+      if (pendingPartial_.isEmpty()) {
+        batchQueue_.clear();
+        batchIndex_ = -1;
+        setResultState(resultActiveRow_, QStringLiteral("refusedBeforeRun"),
+                       QStringLiteral("no free staging path beside the planned output"));
+        markRemainingSkipped(resultActiveRow_ + 1);
+        resultActiveRow_ = -1;
+        setBusy(false);
+        QMessageBox::warning(this, QStringLiteral("Gifscythe"),
+            QStringLiteral("Batch stopped — no free staging path beside %1").arg(pendingOutput_));
+        return;
+      }
       partialSnapshot_ = gs::snapshot_output(pendingPartial_.toStdString());
       // U-58 / P1-38: continuation jobs MUST come from the batch-start
       // snapshot frozen into batchSettings_ (runCommand), never from a
@@ -1425,11 +2967,21 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       one.mode = gs::Mode::Auto;
       one.inputs = {in.toStdString()};
       one.output = pendingPartial_.toStdString();
-      gs::GifsicleCommand cmd(one);
-      QStringList qargs;
-      for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
-      process_->setProgram(enginePath_);
-      process_->setArguments(qargs);
+      // Batch continuation keeps the format the batch STARTED with (declared
+      // above, frozen at runCommand time), never the live combo.
+      QString encodeError;
+      if (!configureEncoder(one, in, pendingPartial_, activeFormat_, &encodeError)) {
+        discardPendingPartial();
+        pendingPartial_.clear();
+        batchQueue_.clear();
+        batchIndex_ = -1;
+        setBusy(false);
+        setResultState(resultActiveRow_, QStringLiteral("failed"),
+                       QStringLiteral("encoderUnavailable: %1").arg(encodeError.left(120)));
+        resultActiveRow_ = -1;
+        QMessageBox::critical(this, QStringLiteral("Gifscythe"), encodeError);
+        return;
+      }
       appendLog(QStringLiteral("Optimizing %1/%2: %3")
                     .arg(batchIndex_ + 1).arg(batchQueue_.size()).arg(in));
       process_->start();
@@ -1438,6 +2990,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     // Batch complete.
     const int n = batchQueue_.size();
     lastOutputPaths_ = batchTargets_;
+    resultActiveRow_ = -1;
     batchQueue_.clear();
     batchIndex_ = -1;
     if (progressBar_) progressBar_->setValue(n);
@@ -1453,6 +3006,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
   }
 
   lastOutputPaths_ = {pendingOutput_};
+  resultActiveRow_ = -1;  // the single row was already marked succeeded above
   refreshOutputFiles();
   setBusy(false);
   appendLog(QStringLiteral("Output verified and written to disk: %1").arg(pendingOutput_));
@@ -1462,11 +3016,17 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
 
 void MainWindow::onProcessError(QProcess::ProcessError error) {
   if (error == QProcess::FailedToStart) {
-    gs::discard_partial(pendingPartial_.toStdString());
+    discardPendingPartial();
     pendingPartial_.clear();
     setBusy(false);
     batchQueue_.clear();
     batchIndex_ = -1;
+    if (resultActiveRow_ >= 0) {
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("engineNotStartable: %1").arg(process_->errorString()));
+      markRemainingSkipped(resultActiveRow_ + 1);
+      resultActiveRow_ = -1;
+    }
     appendLog(QStringLiteral("Could not start the GIF engine: %1").arg(process_->errorString()));
     updateStatus(QStringLiteral("Failed to start the GIF engine."));
   }
@@ -1484,6 +3044,7 @@ QString MainWindow::selectedInput() const {
 void MainWindow::onSelectionChanged() {
   forcePreview_ = false;
   const QString sel = selectedInput();
+  updateQueueDetails();
   previewPanel_->setBefore(sel);
   previewPanel_->clearAfter(sel.isEmpty() ? QStringLiteral("select a file to preview")
                                           : QStringLiteral("waiting for changes…"));
@@ -1549,6 +3110,18 @@ void MainWindow::startPreview() {
     return;
   }
   forcePreview_ = false;
+  // N-62: the After pane plays a GIF (QMovie). When the chosen output is APNG,
+  // WebP or a video, any GIF shown here would be a preview of a file that will
+  // never be written - so name what will happen instead of showing a decoy.
+  if (gs::output_format_needs_ffmpeg(selectedOutputFormat())) {
+    const gs::OutputFormat f = selectedOutputFormat();
+    previewPanel_->clearAfter(
+        QStringLiteral("no in-app preview for %1 — the result is written as .%2 and opens in "
+                       "your own viewer")
+            .arg(QString::fromLatin1(gs::output_format_name(f)),
+                 QString::fromLatin1(gs::output_format_extension(f))));
+    return;
+  }
   // U-70 / P1-42 (F:NF-13): the preview path re-probed the engine with a
   // bare toStdString(), bypassing the u8path_compat boundary that
   // ensureEngine() wraps — the one std::string -> fs::path conversion this
@@ -1692,6 +3265,16 @@ void MainWindow::showWrittenOutputPreview() {
     previewPanel_->clearAfter(QStringLiteral("run finished, but no output file is available to preview"));
     return;
   }
+  // N-62: the After pane is a GIF movie. Handing it an .mp4 would show a black
+  // rectangle and look like a failed run, so it states the outcome instead.
+  if (gs::output_format_needs_ffmpeg(activeFormat_)) {
+    previewPanel_->clearAfter(
+        QStringLiteral("%1 written (%2). No in-app preview for this format — open the file in "
+                       "your own viewer.")
+            .arg(QString::fromLatin1(gs::output_format_name(activeFormat_)),
+                 humanSize(outInfo.size())));
+    return;
+  }
   const QString input = selectedInput();
   const qint64 before = input.isEmpty() ? 0 : QFileInfo(input).size();
   previewPanel_->setAfter(
@@ -1743,6 +3326,8 @@ void MainWindow::loadSessionState() {
 
   settingsPanel_->readFrom(*loaded);
 
+  // Slice D: which actions are in the stack, which are on, which are folded.
+  // Applied AFTER the values, so a card that comes back keeps what it had.
   // GUI-only keys now arrive from the SAME parse as the core settings (audit
   // U-36 / P3-7): load_settings collects every key it does not recognize into
   // `guiKeys`. The former third parser (guiStateKey) re-opened and re-parsed
@@ -1751,10 +3336,15 @@ void MainWindow::loadSessionState() {
     const auto it = guiKeys.find(k);
     return it == guiKeys.end() ? QString() : QString::fromStdString(it->second);
   };
+  const QString cards = guiKey("card_state");
+  if (!cards.isEmpty()) settingsPanel_->setCardState(cards);
   const QString batch = guiKey("batch_dir");
   if (!batch.isEmpty()) batchDirEdit_->setText(batch);
   const QString tmpl = guiKey("name_template");
   if (!tmpl.isEmpty()) nameTemplateEdit_->setText(tmpl);
+  // Same round-trip for the session file: reopening the app must not quietly
+  // reset "MP4 (H.264)" to GIF and then produce a GIF the user did not ask for.
+  applyOutputFormatToken(guiKey("output_format"));
 
   // Surfaced, not discarded (S5 rule): a corrupt/partial file still applies
   // its valid keys, but the user sees that something was off.
@@ -1776,7 +3366,10 @@ bool MainWindow::saveSessionState() {
   }
 
   gs::Settings s;
-  settingsPanel_->writeInto(s);
+  // writeSessionInto, not writeInto: a card that is removed or switched off
+  // must still come back with the values the user typed into it. The card stack
+  // itself travels in the GUI key below.
+  settingsPanel_->writeSessionInto(s);
   // Persist ONLY the Actions state + GUI keys below. The queue is session-
   // scoped (files move between sessions) and Save-as is a per-run choice —
   // restoring it could silently overwrite a stale path next launch.
@@ -1791,6 +3384,17 @@ bool MainWindow::saveSessionState() {
   const QString tmpl = nameTemplateEdit_ ? nameTemplateEdit_->text().trimmed() : QString();
   if (!tmpl.isEmpty() && tmpl != QString::fromLatin1(kDefaultNameTemplate))
     oss << "name_template = " << tmpl.toStdString() << "\n";
+  // N-62: the chosen container survives a restart too. Default stays omitted, so
+  // the file is unchanged for GIF-only users.
+  const gs::OutputFormat sessionFormat = selectedOutputFormat();
+  if (sessionFormat != gs::OutputFormat::Gif)
+    oss << "output_format = " << gs::output_format_token(sessionFormat) << "\n";
+  // Slice D: the card stack survives a restart (presence / enabled / collapsed).
+  // A flat list of ids, so a future action can be appended without a format bump.
+  if (settingsPanel_) {
+    const QString cards = settingsPanel_->cardState();
+    if (!cards.isEmpty()) oss << "card_state = " << cards.toStdString() << "\n";
+  }
 
   const QByteArray data = QByteArray::fromStdString(oss.str());
   // Atomic save (audit U-16 / P1-18): QSaveFile writes a sibling temp file and

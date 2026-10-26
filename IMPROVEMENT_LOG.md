@@ -4,6 +4,330 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S45 — 2026-10-26: FFmpeg finished and proven; the Output form built, then reverted rather than left red
+
+**Landed:**
+
+- **Licensing shelved per the owner** (`f4cffb6`): the product reads **UNLICENSED**,
+  every notice moved into `legal/`, and the current-state docs were swept of
+  licence prose. Packaging still ships the third-party texts under `licenses/`,
+  and `test_package.sh` was corrected to look for them there (36/36).
+- **`N-62` DONE — FFmpeg bundled, portable, proven.** `FfmpegLocator.h` (34
+  checks) resolves `GS_FFMPEG` → the copy beside the executable → PATH → the
+  usual install folders, and refuses to fall through a broken override or to run
+  a 0-byte/non-exec candidate. `FfmpegCommand.h` (74 checks) pins `-f` because
+  the staging name is not a format hint, picks `libwebp_anim` over `libwebp` (the
+  still codec succeeds and writes one frame), tags H.265 `hvc1`, and scales to
+  even dimensions so an odd-width GIF does not fail only *sometimes*.
+  `MediaFormat.h` sniffs the produced container, so "file exists and is
+  non-empty" is no longer the test — a still PNG under APNG, a still WebP, VP9
+  under AV1, or a GIF renamed `.mp4` fails the run. `test_ffmpeg_roundtrip.cpp`
+  ran a real ffmpeg 7.0.2 and encoded all six formats from a 65×49 GIF; a real
+  79.8 MB sidecar was staged, packaged with `--require-ffmpeg`, audit-verified as
+  "FFmpeg bundled", and the round-trip then found `bundled: ./ffmpeg` **from
+  inside the package** and encoded all six again. The GUI enables a format only
+  when the encoder exists, says where it found it, freezes the format for the
+  run, refuses non-GIF Merge/Explode instead of faking it, and prints the real
+  command. `test_package.sh` 42/42.
+- **Two bugs my own tests caught before they shipped:** the locator skipped the
+  sidecar entirely when `app_dir` was empty (i.e. the copy in the folder — the
+  whole point — was invisible to any caller without an absolute path), and a
+  staging name that ate a `.part-` marker, which would have let two runs collide
+  on one temp file.
+- **One bug CI caught and this sandbox could not:** the doc-gate's comment masker
+  does not understand character literals, so `QLatin1Char('"')` desynchronised
+  its line map and made five old findings look new.
+
+**Reverted, deliberately:** `N-63` (the Output form: keep-folder-structure +
+the "already exists" control). The core was written and tested — `Collision.h`,
+45 checks, asking/renaming/overwriting/skipping as pure functions with the disk
+injected — but the GUI half **failed to compile on both CI jobs**, and with no
+Qt6 here I could not see it before pushing. The branch was reverted to the last
+green tree (`2f72a90` = `c0a868d`) rather than left red, and the owner's answers
+plus the exact shape he described are recorded in `WORKLIST.md` and
+`SESSION_HANDOFF.md` so the next session restores the proven core instead of
+rewriting it. **The lesson is in the handoff:** no GUI change goes out again
+without either a local Qt6 or a CI log that names the error.
+
+**Owner answers captured:** Keep folder structure = checkbox, **default on**,
+covering both the source-vs-designated choice and the original nesting; the
+size guard is **same-format only** (across containers a bigger file is not a
+worse one); the collision control is a **compact square** showing the current
+choice (longest option name + ⬇️⬆️, no dropdown tail), click to reveal the other
+choices; a skipped file gets its own tally row with name and location.
+
+## S44b — 2026-10-26: licence text consolidated, and FFmpeg becomes a portable sidecar with a real fallback
+
+**Changed:**
+
+- **The product is UNLICENSED until it works** (owner, same day). Every notice moved into `legal/`:
+  the root `LICENSE` and the four `COPYING.*` texts are gone from the top level, and `legal/README.md`
+  is the one place that explains the status (no grant, all rights reserved, owner decides after a
+  proven build), the third-party obligations that still ship (gifsicle GPLv2 subprocess, Qt LGPLv3 +
+  companion GPLv3), and the rationale that used to be scattered across a dozen docs. The S18 Ms-PL
+  notice survives as `legal/LICENSE.md-pl.proposed` — not active. Packaging copies them to
+  `<package>/licenses/`, and the generated package README says plainly that the first-party code is
+  unlicensed. `scripts/test_package.sh` 36/36.
+- **Docs swept:** licence sections, lines and dangling references to the old notice folder removed from the
+  current-state docs; dated history (audit rows, past log entries) keeps its wording because
+  rewriting a log would be a new falsehood, and its paths were re-pointed at `legal/` so the docs
+  gate still passes.
+- **FFmpeg sidecar (`N-62`, PARTIAL).** `src/core/FfmpegLocator.h`: the owner's precedence, exactly —
+  override, then the copy that travels with the app, then PATH, then the usual install folders.
+  `tests/test_ffmpeg_locator.cpp` = 31 checks, run by `build.sh` (now 421/35/54/60/31) and ctest. It
+  pins the two ways a locator goes wrong: a broken `GS_FFMPEG` is reported and never silently
+  replaced, and an empty PATH element is refused rather than run from the CWD. `fetch_ffmpeg.sh`
+  stages a pinned build into the git-ignored `vendor/ffmpeg/` and refuses anything whose SHA-256 is
+  not in `PINS.txt` (`--pin` is a deliberate second step). **Not wired yet:** the GUI does not call
+  the locator, `FfmpegCommand`, format-aware verification, the preview fallback and the per-format
+  Settings dialog are unwritten — so the formats stay honestly disabled.
+- **N-62 finished the same day, and proved itself by encoding.** `MediaFormat.h`
+  (container vocabulary + header sniffing), `FfmpegCommand.h` (argv per format,
+  `-f` pinned because the staging name is not a hint), format-aware
+  `verify_output_as`, the GUI wiring (locator at start-up, a format is enabled
+  only when the encoder is really there, the format is frozen for the run,
+  Merge/Explode refused for non-GIF, no fake preview), packaging of the sidecar
+  with a notice and an honest README, and `tests/test_ffmpeg_roundtrip.cpp`,
+  which ran a real ffmpeg 7.0.2 and encoded all six formats from a deliberately
+  odd 65x49 GIF. `test_package.sh` 42/42. Three of my own bugs were caught by
+  those tests before they shipped: the still-image `libwebp` codec, a staging
+  name that ate the `.part-` marker and would collide two runs, and a verifier
+  that accepted "file exists" as "file is what was promised".
+- **Then the package itself was checked with a real binary.** A 79.8 MB FFmpeg
+  was staged into `vendor/ffmpeg/linux64/bin/`, `package_portable.sh
+  --require-ffmpeg` staged it beside the app with its notice, `verify_audit`
+  reported "FFmpeg bundled", and running the round-trip **from inside the
+  package folder** found `bundled: ./ffmpeg` and encoded all six formats again.
+  That exposed a real locator bug: an empty `app_dir` skipped the sidecar step,
+  so the copy that ships in the folder was invisible to any caller without an
+  absolute path. Empty now means `.`, with a chdir test.
+
+## S44 — 2026-10-26: the Output tab's naming, measured against the shipped binary — the rule lands tested, the UI is next
+
+**Changed:**
+
+- **Two owner questions answered with measurement, not memory.** *"Do I just need to approve FFmpeg
+  sidecar?"* — approving it is the gate, but it is five code items, listed in the reply and in §3.1:
+  an `EngineLocator` twin, the (already frozen) FFmpeg recipes, a **format-aware** `OutputVerify`
+  (today it demands a `GIF87a/89a` signature, so it would reject a correct APNG), a preview that
+  says "no preview for this format" instead of showing a blank box, and the per-format Settings
+  dialog. License shape was checked too: the first-party code is Ms-PL and gifsicle is already a
+  separate GPLv2 subprocess, so a GPL FFmpeg build (needed for libx264) is the same "mere
+  aggregation" pattern — notices and a written source offer, never linked.
+- **`{Filename}_result`, tokens, numbering** (`N-61`, owner `OD-23`…`OD-26`). The 1.118.0 binary was
+  re-extracted and read for its own naming symbols (`leFilename`, `sbStartIndex`, `cbKeepFolder`,
+  `cbOverwrite`, `rbSrcFolder`/`rbDstFolder`, `xnconvert.ini`, `*.xbs`) and its token list, and the
+  result is `XN_CONVERT_TABS_RESEARCH.md` §9. `src/core/NameTemplate.h` implements that model as a
+  Qt-free rule: the token renderer, `{Filename}_result` as the default, **the Format owning the
+  extension** (`OD-24 = a`), `template_uses_index()`/`template_is_constant()`, and
+  `disambiguate_names()` for the owner's rule (`OD-23`: first processed keeps the plain name, later
+  collisions get `_1`, `_2`, case-insensitively, because Windows/macOS would lose one otherwise).
+- **The date letters are XnView's, not Qt's — measured.** Its four example templates
+  (`[m_d_Y]`, `[d_m_Y]`, `[Y-m-d_H-M-S]`, `[Y-m-d_H-M]`) are self-consistent under exactly one
+  reading: `m` = month, `M` = minute. Under Qt's letters the third would be
+  year-minute-day_hour-month-second. The header follows the measured reading and records why.
+- **Two real bugs caught before any GUI code existed**, both by `tests/test_name_template.cpp`
+  (60 checks, wired into `build.sh` and ctest): the date map above (my first version used Qt's
+  letters and rendered `2026-30-26`), and a numbering step that could steal a literal name —
+  `{a, a, a_1}` must produce `a, a_2, a_1`, not `a, a_1, a_1_1`.
+- **Honest scope:** `N-61` is **PARTIAL**. The Output tab still shows Save-as + `{name}_opt.gif`;
+  wiring the header into `renderedOutputName`/`plannedBatchTargets`, the `{`-triggered scrolling
+  completion popup, Start index, destination radios and the preset payload (`OD-26`) is the next
+  commit. The rule is frozen and tested, so that work is UI-only.
+
+## S43 — 2026-10-24: slice D — the Actions tab is the reference's card stack, and a disabled action contributes nothing
+
+**Changed:**
+
+- **The tab was researched before it was built.** The owner's instruction was to research Input,
+  Actions, Output and Status in the real program first and only then adapt it with ScreenToGif's
+  encoder functions. `docs/planning/XN_CONVERT_TABS_RESEARCH.md` is that research: per tab, the
+  `[OBS]` behaviour of the shipped XnConvert 1.118.0, the `[SRC]` ScreenToGif export pipeline it has
+  to be adapted to (the `ExportFormats` enum, the five `EncoderTypes`, and the verbatim FFmpeg
+  recipes for GIF/APNG/WebP), what gifscythe ships today, and a 1:1/divergence table. Two findings
+  drive the rest: the reference's `-` **deletes** a card (`[0/0]`) while `Enabled` keeps it
+  (`[0/1]`) — two verbs, not one — and its Multipage defaults silently *flatten* an animation
+  (`276.99 KiB -> 16.17 KiB`, -94%), which is why gifscythe inverts it into an on-by-default
+  `Animation` card instead of copying the checkbox.
+- **Slice D (`N-60`): the Actions tab is a card stack.** One card per gifsicle operation group
+  (`actionCard_0..7`: Mode, Optimize, Resize, Geometry, Crop, Animation, Colors/Transparency,
+  Metadata), each header carrying `actionCardChevron_<id>` (fold), `actionCardRemove_<id>` (the
+  reference's `-`), `actionCardReset_<id>` (`↺`) and `actionCardEnabled_<id>` (`Enabled`), over the
+  existing controls untouched — every objectName and tooltip the harness selects on is unchanged.
+  The toolbar is the reference's: `Add action >` (menu, greys out what is already in the stack,
+  plus `Add all actions`), the `Actions [on/total]` counter, and `Clear all`. The same counter rides
+  in the **tab title** (`MainWindow::refreshTabTitles`).
+- **"Disabled" is honoured where it counts, not where it shows.** `writeInto()` copies the *default*
+  of every field belonging to a card that is out of the stack or switched off, so a disabled card
+  contributes nothing the user typed and a stale `-O2` cannot re-enter the command; a new
+  `writeSessionInto()` deliberately bypasses the gate so persistence keeps those values. Removing a
+  card parks its body in `bodies_` (re-parented, hidden) and `Add action >` re-attaches the **same
+  widget**, values intact; `↺` restores the construction defaults captured once into `defaults_`
+  (a Settings round trip, not a second copy of 40 literals). `card_state =
+  id:present:enabled:collapsed;...` is written to the session file **and** to every preset, so a
+  preset is an action set, which is what an XnConvert preset is.
+- **Harness: T30 + T30b** — counter and tab title at `[8/8]`, all four affordances on every card,
+  fold (still contributes), disable (`-O2`/`--lossy` leave the command while `-d 7` stays, counter
+  `[7/8]`), reset (this card only, the other card's typed value survives), remove + re-add (values
+  intact), `Clear all` (`[0/0]`, no action flags at all), and a restart that restores presence,
+  enabled state, and the values inside a disabled card. 325 -> 331 `CHECK(` sites (532 -> 575
+  with `CHECK_MSG`).
+- **No Qt SDK in this sandbox, so CI is the only compiler** — the same standing constraint as
+  S41/S42. Pre-push evidence: `build.sh` engine + CLI + 421/35/54 unit checks green, and
+  `qt_lint src tests CMakeLists.txt --baseline ...` = 7 findings, 0 not in the baseline, exit 0
+  (the CI invocation, run verbatim). **Then CI, which is what compiles this:** PR run
+  `40078589701` is green on linux and windows (T1-T30 all pass), and both jobs uploaded
+  `ui-screenshots-linux` / `ui-screenshots-windows` for the owner's review. It took three rounds,
+  each naming a real defect rather than a flaky check: `byName()` takes a `const char*` (the T30
+  lookup passed a built QString), a card being added back refreshed the tab title but **not** the
+  command preview, and `removeCard()`'s deferred delete never ran under `processEvents()` (a real
+  event loop runs it) — the last two were found by the new tests, which is the point of them.
+
+## S42 — 2026-10-24: the shipped XnConvert was studied as a program, then slice C landed (Input grid + animation facts)
+
+**Changed:**
+
+- **The reference stopped being four photographs (`XN_CONVERT_PROGRAM_STUDY.md`).** The owner
+  supplied both XnConvert archives and asked for the *program* to be read, not inferred. Both were
+  unpacked outside the tree (py7zr; no `7z` binary here) and the genuine 1.118.0 Qt 6.8.9 build was
+  driven live on Qt's `vnc` platform plugin: 26 full-frame captures, plus its `.qm` catalogues
+  (4,637 rows), its logic strings, its `xnconvert.ini` and its own `batch_convert_log.txt`. The study
+  records the shell, the action-card stack (delete ≠ disable; slider+spin+reset), the Output form, the
+  Status grammar including the live-run footer, and the reconstructed state machine. **The decisive
+  finding is measured:** with both `Multipage` boxes off — the default — a 6-page GIF comes out as a
+  1-page GIF (`276.99 KiB -> 16.17 KiB`, -94%) because the frames were dropped, not compressed, which
+  is why its preview arrows step FILES and never frames. The study therefore separates *shell*
+  (adopt) from *model* (reject) and states the inversion slice E must make. Text only; `OD-22`/`N-36`
+  still keep every vendor binary, screenshot and asset out of the tree.
+- **Slice C (`N-58`): the Input tab is an animation-aware grid.** `queueList` stays a
+  `DropListWidget` (so T1–T27's contract is untouched) but is now an IconMode thumbnail grid:
+  per-cell first-frame thumbnail, name, and `frames · duration`. The reference's toolbar arrives
+  (`Add files…`, `Add folder…`, `Remove`, `Remove all`), with a Quick filter that **hides** rows and
+  never drops a queued file, a sort header (`Queue order · Name · Size · Modified · Frames ·
+  Duration`) that reorders the REAL queue because Merge concatenates in queue order, and a facts
+  strip for the selected file. `Queue order` restores the manual order a sort displaced
+  (`manualOrder_` tracks adds and Move Up/Down); ties keep insertion order in both directions.
+- **`src/core/GifFacts.h`: the animation facts are read from the bytes.** Frame count, summed GCE
+  delays, NETSCAPE/ANIMEXTS loop and fps, by a bounded block walk — no LZW, no Qt, no subprocess, so
+  the grid is correct even when the engine is missing and the values are pinned by
+  `tests/test_gif_facts.cpp` (54 checks; `build.sh` and ctest both run it). Cross-checked against the
+  engine on `build/fixtures/logo.gif`: 12 frames / 2400 ms / loop 0 / 5.00 fps vs gifsicle's
+  "12 images", "loop forever", 2.40 s delay sum. Three states the parser refuses to blur: no loop
+  block is `-1` ("plays once"), zero delays are "no delay" (not "0.00 s"), and a truncated file keeps
+  its partial counts with `ok=false`.
+- **Deliberately not built in C, and said so:** `Hot folders…` (a watcher is a feature with its own
+  failure modes, not a view) and the columns menu (no configurable column model yet). The reference's
+  still-image columns (EXIF Date Taken, Print size, Rating, Colour label) are dropped rather than
+  imitated — that column set is the still-image model the study warns against.
+- **Harness: T28.** Icon mode, a non-null thumbnail, the caption/duration text, filter-hides-not-
+  removes, and sort + `Queue order` restoring the real Merge order — the four claims a screenshot
+  cannot prove. Docs: reference §6/§7 (C delivered, E→D remaining), STATUS `N-58`, README net
+  (319 → 325 `CHECK(` sites, T1–T28).
+
+## S41 — 2026-10-22: the external audit's P0 data-loss set landed (AUD-01/04/02) plus the aqt install cache, and two items were deliberately held
+
+**Changed:**
+
+- **AUD-01 (`N-46`, P0 data loss).** `claim_partial_output_path()` replaces the
+  unconditional `discard_partial(<target>.gs-partial)` in the CLI and at all
+  three Qt staging sites: it returns the first `<target>.gs-partial[.N]` with no
+  file at that path and no `<cand>.*` entries, and deletes nothing. An input
+  literally named `<output>.gs-partial` used to be deleted; it now survives and
+  the run succeeds (smoke case + `test_output_verify.cpp` checks). The TOCTOU
+  window between claim and the engine opening `-o` remains — closing it means
+  changing how the engine is launched, held out. **Accepted trade-off:** a
+  staging file left by a hard kill is no longer swept up, because it is
+  indistinguishable from user data without an ownership marker.
+- **AUD-04 (`N-47`).** The C# spike verified the DESTINATION after exit 0, so an
+  engine that wrote nothing over a pre-existing valid GIF looked like a success.
+  It now creates an exclusive staging file, verifies that file, moves it into
+  place, and returns rc 6 when the move fails; `FakeEngine` honours `-o`, so the
+  new CI csharp-spike step proves it end to end (flood over an existing GIF ⇒
+  rc 5, sha unchanged, no `gs-partial` leftover).
+- **AUD-02 (`N-48`, P0 data loss).** Reproduced before the fix: explode to prefix
+  `fr` **deleted** a user file named `fr.gs-partial.000`. `claim_partial_explode_prefix()`
+  now claims a free prefix without deleting anything (CLI refuses when none is
+  free), and the Qt Explode mode — which had no partial guard at all, so a cancel
+  or failure truncated the previous frame set in place — now writes under the
+  claimed prefix, verifies there, promotes with `promote_explode_frames`, and
+  discards only its own set. Cancel reports the flat `Cancelled.`; the N-10
+  warning described the pre-guard behaviour. Proof: 6 new unit checks, smoke
+  65/65, harness T7/T21 assertions. Qt cannot be built in this sandbox, so the
+  CI offscreen harness is the proof for the GUI half.
+- **AUD-08 (`N-49`).** The Windows aqt step had no retry and no cache; one
+  network blip (`exit 254`) skipped every later step. `actions/cache@v4` on
+  `$RUNNER_TEMP/qt` (key `aqt-qt6.7.3-win64_mingw-tools_mingw1310-v1`, trusted
+  only when both the Qt and MinGW bin dirs exist) plus a bash `retry 3` with
+  15/30/60 s backoff around the pip and aqt/choco downloads. Action refs only;
+  no gate changed.
+- **AUD-06 `ci-ok` landed under a second recorded owner exception (`N-53`).** The owner
+  granted it alongside the Qt lint, so the audit's raw-CI finding is closed rather than
+  carried. The job needs all six jobs and runs `if: always()` — a failed dependency would
+  otherwise remove it and the required check would never report. A deduped push run passes
+  with a notice, since the PR's own run is the check of record. Four branches simulated
+  locally before pushing. **AUD-09** is unchanged: Qt evidence comes from CI. The
+  `verify_audit.sh` G18 gate fails on uncommitted work by design, so the commit precedes it.
+- **UI screenshots as evidence, not a gate (`N-54`).** `ui-redesign.md` §7 asks for
+  `QWidget::grab()` captures and none had ever been produced. `shootUi()` in the harness is
+  armed by `GS_SHOT_DIR` only; both GUI jobs upload the PNGs with `continue-on-error`. That
+  keeps it outside the U-89 freeze by construction — and means a failing run still shows the
+  UI it failed with.
+- **The dionysus drop-in was reviewed, digested and de-duplicated.** The owner's `gifscythe.zip` at
+  main is byte-identical to `dionysus@9b5e0e6:gifscythe/` (six files, no provenance manifest), so it
+  was removed from this repo and replaced by `docs/planning/SKILLS_INTAKE.md` (`N-50`), which keeps
+  the one reusable artifact — the qt_lint baseline, verbatim — plus the evidence. **The lint was run
+  as the intake's first action** (the externally-run route, no install): selftest PASS; 9 findings on
+  this tree, exactly the 2026-10-13 set (5x QL003 = U-12's five waits, 2x QL006 = the hard-coded
+  PreviewPanel colours, 2x QL002-info in tests); with the baseline, 0 not in baseline and exit 0.
+  The AUD-01/AUD-02 Qt changes add **zero** findings — an independent check on Qt code this sandbox
+  cannot compile. A mutation test on a scratch copy (`waitForFinished(9000)`) produced 1 new key and
+  exit 1, so the baseline is a gate and not decoration. Two stale rows in the drop-in are recorded
+  as traps (`GS-210` and `F-02` are DONE here; its table says open) and one skill rule is now
+  behind our code (§6 rule 4 expects the N-10 partial-frame warning that AUD-02 removed) — written up
+  as a ready-to-paste row for dionysus's own defect log, which this session cannot commit.
+  **Nothing was installed:** `OD-15` is open and `PLANNING.md` §3 forbids vendoring, submodule or
+  pip-install before it is answered, and CI wiring would be a new gate under the U-89 freeze.
+- **`OD-15` answered `= b`: the Qt lint is vendored, pinned, quarantined — and gated (`N-51`).**
+  The owner chose a blocking baselined check over a non-blocking print, knowing it lands during the
+  U-89 freeze; that makes it a **new gate by explicit owner exception**, now recorded in
+  `WORKLIST.md` beside the freeze text (and the reason AUD-06 stays held: no equivalent exception).
+  Shape: `tools/qt_lint/qt_lint.py` byte-identical to `dionysus@9b5e0e6` (`50194e4e…`, verified by
+  sha256), a README with provenance + sync rules, and the directory added as a fourth
+  `verify_reference_pins.sh` set so drift/deletion/addition all fail (111 files, 4 sets, no drift).
+  The `docs` job runs `--selftest` first (a vendored tool must prove it runs before it judges the
+  tree) then the baselined scan. The baseline is **this tree's**, regenerated after the fix below:
+  6 keys / 7 findings.
+- **QL006 ×2 fixed (`N-52`) — palette roles instead of hex, and the UI measurement earned its
+  keep.** `PreviewPanel.cpp` hard-coded `#202020` (canvas) and `#909090` (hint text). **The owner's call,
+  taken during the pre-merge review, was to keep the dark film strip** — so the final version
+  derives it: `mediaCanvasPalette()` takes the palette's darker role (WindowText in a light theme,
+  Base in a dark one) and lifts it 13% toward the other, giving `#212121` here (one step off the old
+  `#202020`) and a tone that moves with the theme when `D-06` lands; `Mid` supplies the hint text,
+  whose contrast rises 5.10:1 → 8.12:1. **Three attempts, and only the CI pixel measurement could
+  judge them** (no test asserts a pixel): two read `#000000` — `WA_OpaquePaintEvent` suppressing
+  `autoFillBackground`, then a QSS `palette(base)` that did not resolve to a fill. Final measurement
+  at `f5b7d7a` on **both** platforms: corners `#212121` ×4. This is precisely the gap `N-54` fills,
+  and why the screenshots/pixel facts are produced on every run.
+- **The XnConvert reference was re-read properly and the UI record corrected (`N-55`).** The owner
+  supplied four screenshots — Input, Actions, Output, and Status mid-run — after saying the UI work
+  had been aimed at the wrong model. It had: `UI_REVIEW_S41.md` §3 had recorded the `Guide` fourth
+  tab as "not a regression" and treated the audit's Status-tab claim as the thing to distrust, when
+  the reference shows **Status as a live tab** with `Processing list: n of m`, per-file
+  `loaded`/`saved` + size-delta lines, an ETA and a `Stop` button. `docs/planning/XN_CONVERT_REFERENCE.md`
+  transcribes all four tabs element by element (text-only: `OD-22` unanswered, `N-36` bans image
+  files), measures the gap against the code, and orders the work as six slices — A Status tab
+  (`W-32`, whose 14-case contract already exists), B tab titles + Settings/About, F Convert/Stop,
+  C Input grid, E Output form, D action cards; E and D need `OD-21`. **The real distance is
+  architectural:** the reference is an action-list model, this app has one settings set per run.
+- **Docs.** Register rows `N-46`–`N-49` (183 DONE · 7 PARTIAL · 14 OPEN · 0
+  UNTRIAGED = 204), base lines re-anchored to `9629d49` after the owner's
+  2026-10-20 upload moved main's tip past PR #16, and main merged into the branch
+  first so CI runs against the current base (workflow copies verified
+  byte-identical after the merge; the Node 24 action refs from S40 survive the
+  AUD-08 hunk).
+
+---
+
 ## S40 — 2026-10-13: the Node 20 → Node 24 Actions migration landed with a green run, and the universal context was consolidated to v4 (prior versions removed)
 
 **Changed:**
@@ -251,7 +575,7 @@ behaviour; it says the existing surfaces did not break.
   only GIF encoder; no editing/timeline/capture/playback; **argv subprocess
   only**, never linked into the Ms-PL UI; the FFmpeg build's licence (LGPL or GPL
   per configuration) identified at build time with its notices shipped
-  (`docs/legal/README.md` §5); and not on the 1.0.0 critical path. **The
+  (`legal/README.md` §5); and not on the 1.0.0 critical path. **The
   amendment is not a work order**: `U-90` stays OPEN until `P3-19` adds the
   deferred rows that own this scope by name, so no stills/video code starts yet.
   The XNConvert four-tab UI ask (Input = explorer-like
@@ -341,7 +665,7 @@ line, the U-91 note, the deferred bucket's `OD-20`, constraints note),
 `COMPILED_AUDIT.md` (base line), `docs/planning/PLANNING.md` (§2 header +
 state, §6.1/§6.2 wording), `docs/planning/OWNER_DECISIONS.md` (OD-20 asked **and answered `= a`**,
 `OD-C7 = resume`), `PROJECT_VISION.md` (the adopted conversion-endpoint
-amendment + the hard-scope bullet + the resumed C# lane), `docs/legal/README.md`
+amendment + the hard-scope bullet + the resumed C# lane), `legal/README.md`
 (new §5: the FFmpeg sidecar's three-licence rules), `COMPILED_AUDIT.md` (the
 `U-90` and `P3-19` rows re-stated around the answered question),
 `csharp/README.md`, `docs/ci/README.md` (csharp-spike now described as the
@@ -1864,36 +2188,36 @@ section, the verification table, the toolchain section), `WORKLIST.md` (road to
   suite green), transport's 79-case write-up in the handoff. The unpack merge
   itself changed nothing: `git diff ce5fd51..824bf20` is empty.
 - **The re-creation lost the four root license files — new finding U-97, found
-  AND fixed in-session (rule 2's strong form).** `COPYING.ms-pl`,
-  `COPYING.lgplv3`, `COPYING.gplv3`, `COPYING.gifsicle` were absent while
+  AND fixed in-session (rule 2's strong form).** `legal/COPYING.ms-pl`,
+  `legal/COPYING.lgplv3`, `legal/COPYING.gplv3`, `legal/COPYING.gifsicle` were absent while
   `package_common.sh` hard-requires the first three (`copy_required`, fail-closed
   since U-02/U-08; the fourth has an in-tree fallback). That is where CI windows
   "Package portable (Windows)" died (run 35684055250; every build/test step
   before it green, manifest assert + artifact upload skipped after). **Executed
   local repro** — the licence check is platform-independent, so no Windows
   runner was needed: real `package_portable.sh --engine-cli-only`, fixture
-  binaries on gitignored paths, REAL repo root → `ERROR: COPYING.ms-pl missing
+  binaries on gitignored paths, REAL repo root → `ERROR: legal/COPYING.ms-pl missing
   or empty (no usable same-target candidate)`, exit 1. The linux packaging step
   would have failed identically once the doc gate passed.
 - **Restored from canonical sources, provenance recorded here per the legal
   README's rule (6):**
-  - `COPYING.gplv3` — GNU GPLv3 text, 35147 B, sha256
+  - `legal/COPYING.gplv3` — GNU GPLv3 text, 35147 B, sha256
     `8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903`, fetched
     from `raw.githubusercontent.com/gcc-mirror/gcc/master/COPYING3` (gnu.org is
     unreachable from this sandbox; the gcc mirror carries the GNU text verbatim —
     size and head/tail match gnu.org's `gpl-3.0.txt`).
-  - `COPYING.lgplv3` — standalone GNU LGPLv3, 7639 B, sha256
+  - `legal/COPYING.lgplv3` — standalone GNU LGPLv3, 7639 B, sha256
     `a853c2ffec17057872340eee242ae4d96cbf2b520ae27d903e1b2fef1a5f9d1c`, same
     mirror, `COPYING3.LIB`. The SPDX `LGPL-3.0-only.txt` was fetched first and
     **rejected**: 42098 B because it concatenates the GPLv3 text at offset 7428 —
-    the canonical `COPYING.lgplv3` is the standalone text (the GPLv3 companion
-    ships separately as `COPYING.gplv3`, which is the repo's documented layout).
-  - `COPYING.ms-pl` — canonical Ms-PL, 2663 B, sha256
+    the canonical `legal/COPYING.lgplv3` is the standalone text (the GPLv3 companion
+    ships separately as `legal/COPYING.gplv3`, which is the repo's documented layout).
+  - `legal/COPYING.ms-pl` — canonical Ms-PL, 2663 B, sha256
     `7a162b1da10f1c22db4c68f07bec4a8355259f8d4aab5b00a2b2bbd423d833dd`, from
     `raw.githubusercontent.com/spdx/license-list-data/main/text/MS-PL.txt`;
     structure verified (sections 1 Definitions / 2 Grant of Rights / 3
     Conditions and Limitations, ending with the as-is clause (E)).
-  - `COPYING.gifsicle` — byte-copy of `reference_code/gifsicle/COPYING` (GPL v2,
+  - `legal/COPYING.gifsicle` — byte-copy of `reference_code/gifsicle/COPYING` (GPL v2,
     18092 B), sha256 `8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643`
     identical on both sides of the copy. Nothing was written INTO the read-only
     tree.
@@ -1945,7 +2269,7 @@ call, unchanged.
 (G10 ×2 docs, G11, G15) / 2 skipped; after the edits + `--emit`: see the S27
 handoff verification table for the final measurement · `scripts/sweep_stale.sh`
 5/0/0 · `python3 tests/test_sweep_stale.py` 20/20 · packager repro before
-(exit 1, `COPYING.ms-pl`) and after (exit 0, `Package created`) · engine-free
+(exit 1, `legal/COPYING.ms-pl`) and after (exit 0, `Package created`) · engine-free
 web suites green: numeric-honesty, request-guard, device-names (27 rows),
 body-limit, static-hygiene; server-bounds 3/5 here (its 2 failures need a
 discoverable engine — environmental, printed as `Engine [none]`) ·
@@ -1966,8 +2290,8 @@ Base line, §5 heading + U-97 row), `SESSION_HANDOFF.md` (header block, ledger
 separator + new-repo rows, S27 section, toolchain bullet, verification table,
 orientation counts), `WORKLIST.md` (U-97 line, 97-row), `STATUS.md`
 (regenerated via `--emit` — never hand-edited), `IMPROVEMENT_LOG.md` (this
-entry). Root license files restored: `COPYING.ms-pl`, `COPYING.lgplv3`,
-`COPYING.gplv3`, `COPYING.gifsicle`.
+entry). Root license files restored: `legal/COPYING.ms-pl`, `legal/COPYING.lgplv3`,
+`legal/COPYING.gplv3`, `legal/COPYING.gifsicle`.
 
 ---
 
@@ -2237,7 +2561,7 @@ parity/transport suites are unavailable in this sandbox.
   PROJECT_VISION.md (architecture + the flag-map table with VP-5's crop-form
   correction applied; verify_audit.sh E7 re-pointed — the only gate-script edit
   this session); WEB_FEASIBILITY → web/README.md §History; WHY_MSPL +
-  COPYING_RULES + WASM_LICENSE_QUESTION → docs/legal/README.md §1-§4;
+  COPYING_RULES + WASM_LICENSE_QUESTION → legal/README.md §1-§4;
   CLEAN_WINDOWS_SMOKE + DESKTOP_PROBES → docs/ci/README.md §2-§3 (its §1
   rewritten for the resolved drift); THIRD_PARTY_NOTICES → web/wasm/README.md;
   csharp/spike/README → csharp/README.md (spike exit-code collision with the
@@ -2320,7 +2644,7 @@ parity/transport suites are unavailable in this sandbox.
   (rewritten), README.md (rewritten), PROJECT_VISION.md (rewritten; absorbed
   the feasibility review), docs/archive/AUDIT_HISTORY.md (new),
   docs/planning/PLANNING.md (new), docs/ci/README.md (merged+rewritten),
-  docs/legal/README.md (merged), docs/release/RELEASE_PROCEDURE.md (blockers
+  legal/README.md (merged), docs/release/RELEASE_PROCEDURE.md (blockers
   table + refs), docs/planning/OWNER_DECISIONS.md (OD-08 resolved + refs),
   web/README.md (§History), web/WEB_PLAN_TEMPLATE.md (3 refs),
   web/wasm/README.md (notices folded), csharp/README.md (spike folded),
@@ -2329,7 +2653,7 @@ parity/transport suites are unavailable in this sandbox.
   (cygpath line re-synced); deleted: the four root review files,
   FEASIBILITY_REVIEW.md, the five docs/audit snapshots, the two docs/archive
   reviews, docs/web/WEB_FEASIBILITY.md, docs/ci/{CLEAN_WINDOWS_SMOKE,
-  DESKTOP_PROBES,PENDING_WORKFLOW_CHANGE}.md, docs/legal/{WHY_MSPL,
+  DESKTOP_PROBES,PENDING_WORKFLOW_CHANGE}.md, legal/{README,LICENSE.md-pl.proposed,COPYING.ms-pl,COPYING.gifsicle,COPYING.lgplv3,COPYING.gplv3} (formerly docs/legal/{WHY_MSPL,
   COPYING_RULES,WASM_LICENSE_QUESTION}.md, docs/planning/{CSHARP_SHELL_PLAN,
   OFFLINE_BUILD_REVIEW,SKILLOPT_INTEGRATION_QUERY,NEXT_SESSION_PROMPT,
   SEQUENTIAL_WORK_HANDOFF}.md, web/wasm/THIRD_PARTY_NOTICES.md,
@@ -2777,7 +3101,7 @@ upload dropped, Windows packaging gates),
   `PARKED`, `csharp/spike/` inert but still CI-run, offline-review §4
   reinstated. The S18 "Phase 2 GO" verdict is suspended, not deleted.
 - `U-08` closed (was the last licence-set remainder): verbatim
-  `COPYING.lgplv3` + `COPYING.gplv3` staged by both packagers
+  `legal/COPYING.lgplv3` + `legal/COPYING.gplv3` staged by both packagers
   (`package_common.sh`), generated `QT_NOTICE.txt` in GUI packages only
   (version via `qmake -query`, `unknown` fallback), packaging suite 36/36
   (4 new required-file negatives fire by name), CI manifest (live +
@@ -2786,7 +3110,7 @@ upload dropped, Windows packaging gates),
 - Owner answers executed: `OD-11 = a` (stay 0.1.0 — `W-29` stays OPEN, no
   version file touched) and `OD-12 = a` (two-way CLI out — `W-26` DONE, no
   code change). `OD-16` added for the wasm in-process licence question
-  (`docs/legal/WASM_LICENSE_QUESTION.md`, open, blocks shippable).
+  (`legal/README.md` §2, open, blocks shippable).
 - Desktop evidence docs: `docs/ci/CLEAN_WINDOWS_SMOKE.md` re-pointed at a
   green CI artifact (run id + commit recorded; banked snapshot disqualified
   — it cannot validate the current tree); new `docs/ci/DESKTOP_PROBES.md`
@@ -2795,7 +3119,7 @@ upload dropped, Windows packaging gates),
 - Wasm MVP scaffold (`web/wasm/`, additive — `web/command.mjs`,
   `web/validate.mjs`, server, page untouched): `build_wasm.sh` (emcc,
   single-threaded `config.wasm.h`, same source list as the native engine,
-  MEMFS only, stages `COPYING.gifsicle`), one-screen `index.html` +
+  MEMFS only, stages `legal/COPYING.gifsicle`), one-screen `index.html` +
   `wasm.js` (main-thread sync `callMain`, no Worker; 6 setting groups;
   live pane and run refusal via the verbatim builders), `prove_wasm.mjs`
   byte-proof script, `THIRD_PARTY_NOTICES.md`. Register now 89/7/26/0
@@ -2819,10 +3143,10 @@ blockers `GS-204`/`GS-208`/`U-09`/`DS-06`.
 
 - `./build.sh`: engine `LCDF Gifsicle 1.96` + CLI + unit suite
   **296 checks, 0 failures**; `test_engine.sh` 5/5; `smoke_cli.sh` 40/40;
-  `test_package.sh` **36 passed, 0 failed** (new `COPYING.lgplv3` /
-  `COPYING.gplv3` missing-cases fail by name, both kinds).
+  `test_package.sh` **36 passed, 0 failed** (new `legal/COPYING.lgplv3` /
+  `legal/COPYING.gplv3` missing-cases fail by name, both kinds).
 - Real packager: headless bundle carries both texts; hiding
-  `COPYING.lgplv3` makes `package_system.sh` ERROR with no stale
+  `legal/COPYING.lgplv3` makes `package_system.sh` ERROR with no stale
   directory; GUI-scope run generates `QT_NOTICE.txt` in both branches
   (`unknown` without qmake, `6.4.2` with a stub qmake6); headless runs
   omit the notice (pinned by the suite).
@@ -2865,12 +3189,12 @@ GS-204 count, parked spike, OD answers, wasm note), `SESSION_HANDOFF.md`
 `docs/planning/OWNER_DECISIONS.md` (OD-11/OD-12 answers, OD-16),
 `docs/planning/CSHARP_SHELL_PLAN.md` (PARKED + OD-C7),
 `docs/planning/SEQUENTIAL_WORK_HANDOFF.md` (GS-204 count),
-`docs/planning/NEXT_SESSION_PROMPT.md` (S19 refresh), `docs/legal/`
+`docs/planning/NEXT_SESSION_PROMPT.md` (S19 refresh), `legal/`
 (WASM_LICENSE_QUESTION.md new; WHY_MSPL.md pointer; README.md state),
 `docs/release/RELEASE_PROCEDURE.md` (blockers four, §4 file list),
 `docs/ci/CLEAN_WINDOWS_SMOKE.md` (CI-artifact asset),
 `docs/ci/DESKTOP_PROBES.md` (new), `README.md` (licence lines, parked
-spike), `LICENSE` (Qt texts pointer), `web/wasm/` (new track).
+spike), `legal/LICENSE.md-pl.proposed` (Qt texts pointer), `web/wasm/` (new track).
 
 ---
 
@@ -2902,11 +3226,11 @@ spike), `LICENSE` (Qt texts pointer), `web/wasm/` (new track).
 - Outcome pending: first CI run decides Phase 2 go/no-go. A red run is a
   valid, decision-grade result, not a failure to hide.
 
-## S18 follow-up — licence story consolidated into docs/legal/ (2026-09-14)
+## S18 follow-up — licence story consolidated into one folder (2026-09-14)
 
 **Changed:**
 
-- New `docs/legal/` folder (owner request): `README.md` (licence single source of truth + maintenance contract), `WHY_MSPL.md` (full OD-09 = b / OD-C6 rationale, rejected alternatives, accepted costs, one-way-door warning), `COPYING_RULES.md` (per-file fork-copying checklist). Live docs now point here instead of carrying their own rationale prose: vision UI-approach, plan §1.4, offline S18 note, OD-09 answer, `LICENSE` pointer line.
+- New notice folder (owner request; moved to `legal/` on 2026-10-26): `README.md` (licence single source of truth + maintenance contract), `WHY_MSPL.md` (full OD-09 = b / OD-C6 rationale, rejected alternatives, accepted costs, one-way-door warning), `COPYING_RULES.md` (per-file fork-copying checklist). Live docs now point here instead of carrying their own rationale prose: vision UI-approach, plan §1.4, offline S18 note, OD-09 answer, `legal/LICENSE.md-pl.proposed` pointer line.
 - Stale/confusing leftovers fixed: README auto-fetch line no longer lists the retired Caesium trees; nested `reference_code/.gitignore` drops `caesium-source/` (guard comment forbids re-add); manifest fetch note rewritten (retired absence is policy, not fetch-away). Dated history (old log entries, dated reviews, audit evidence, intake reports) deliberately left verbatim as evidence.
 
 **Partial:** none — docs only.
@@ -2921,7 +3245,7 @@ spike), `LICENSE` (Qt texts pointer), `web/wasm/` (new track).
 
 - CI's verdict on this commit (not yet pushed at write time).
 
-**Docs touched:** `docs/legal/README.md`, `docs/legal/WHY_MSPL.md`, `docs/legal/COPYING_RULES.md`, `LICENSE`, `PROJECT_VISION.md`, `README.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/planning/OWNER_DECISIONS.md`, `docs/planning/CSHARP_SHELL_PLAN.md`, `reference_code/REFERENCE_MANIFEST.md`, `reference_code/.gitignore`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`.
+**Docs touched:** `legal/README.md` (and, before the 2026-10-26 consolidation, `docs/legal/WHY_MSPL.md`, `docs/legal/COPYING_RULES.md`, `legal/LICENSE.md-pl.proposed`, `PROJECT_VISION.md`, `README.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/planning/OWNER_DECISIONS.md`, `docs/planning/CSHARP_SHELL_PLAN.md`, `reference_code/REFERENCE_MANIFEST.md`, `reference_code/.gitignore`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`.
 
 ---
 
@@ -2929,7 +3253,7 @@ spike), `LICENSE` (Qt texts pointer), `web/wasm/` (new track).
 
 **Changed:**
 
-- Run `34801397493` (relicense commit `161e862`) concluded success on both jobs (2026-09-14): the manifest step asserts `COPYING.ms-pl` in the package, and the packaging-negative step passes with both new required-file cases (fixture-pure, run before any artifact-dependent case in each kind), confirming the 30 — 32 count by construction plus the executed portable delta. Pre-push hook green 23/0/3. The `build.yml` push itself is the workflows-scope proof, so the pending marker now tracks only the 1-line cygpath drift.
+- Run `34801397493` (relicense commit `161e862`) concluded success on both jobs (2026-09-14): the manifest step asserts `legal/COPYING.ms-pl` in the package, and the packaging-negative step passes with both new required-file cases (fixture-pure, run before any artifact-dependent case in each kind), confirming the 30 — 32 count by construction plus the executed portable delta. Pre-push hook green 23/0/3. The `build.yml` push itself is the workflows-scope proof, so the pending marker now tracks only the 1-line cygpath drift.
 
 **Partial:** none — close-out entry.
 
@@ -2951,9 +3275,9 @@ spike), `LICENSE` (Qt texts pointer), `web/wasm/` (new track).
 
 **Changed:**
 
-- **Relicense executed (`OD-09 = b`, `OD-C6`):** first-party code is now Ms-PL. `LICENSE` rewritten (with revision note), full text added as `COPYING.ms-pl`, both packagers hard-require it (`package_common.sh` + fixture/negative case in `test_package.sh`), CI manifest (live + proposed) asserts it. No third-party code was in the tree (verified: no foreign copyright headers, empty `assets/`/`resources/`), so the relicense needed no outside permission. Engine untouched (GPLv2 subprocess); Qt LGPL line kept.
+- **Relicense executed (`OD-09 = b`, `OD-C6`):** first-party code is now Ms-PL. `legal/LICENSE.md-pl.proposed` rewritten (with revision note), full text added as `legal/COPYING.ms-pl`, both packagers hard-require it (`package_common.sh` + fixture/negative case in `test_package.sh`), CI manifest (live + proposed) asserts it. No third-party code was in the tree (verified: no foreign copyright headers, empty `assets/`/`resources/`), so the relicense needed no outside permission. Engine untouched (GPLv2 subprocess); Qt LGPL line kept.
 - **Caesium dropped:** the base was never incorporated (zero files in the tree; the 74 MB binary bundle was removed in S7 and only a packaging pattern was ever taken from it). Vision UI-approach rewritten to open-parts rebuild (system fonts, MIT/Apache icon sets); `reference_code/REFERENCE_MANIFEST.md` rows retired (provenance kept, re-fetch forbidden); `.gitignore` lines + README layout lines removed; dated reviews annotated, not rewritten.
-- **U-08 narrowed (stays PARTIAL):** "no full text / grant unstated" closed by the Ms-PL text + `LICENSE` grant; still missing: Qt LGPL notices. Packaging count 30 — 32 (one new required-file case per kind).
+- **U-08 narrowed (stays PARTIAL):** "no full text / grant unstated" closed by the Ms-PL text + `legal/LICENSE.md-pl.proposed` grant; still missing: Qt LGPL notices. Packaging count 30 — 32 (one new required-file case per kind).
 - **OD-C1 superseded:** fork is no longer reference-only — Ms-PL fork files may now be copied with notices retained (plan §1.4/§8 updated, OD-C6 recorded).
 
 **Partial:** Qt LGPL notices still unstaged (U-08 remainder); full 32-green packaging run needs real artifacts (CI).
@@ -2969,7 +3293,7 @@ spike), `LICENSE` (Qt texts pointer), `web/wasm/` (new track).
 
 - The full 32-case packaging green (needs `build/` artifacts); CI's verdict on this commit, including whether the granted `workflows` scope accepts the live `build.yml` change (if rejected, the change is reverted from live and the pending marker extended).
 
-**Docs touched:** `LICENSE`, `COPYING.ms-pl`, `COMPILED_AUDIT.md`, `STATUS.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`, `PROJECT_VISION.md`, `README.md`, `FEASIBILITY_REVIEW.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/planning/OWNER_DECISIONS.md`, `docs/planning/CSHARP_SHELL_PLAN.md`, `docs/release/RELEASE_PROCEDURE.md`, `reference_code/REFERENCE_MANIFEST.md`, `.gitignore`, `.github/workflows/build.yml`, `docs/ci/build.yml.proposed`, `working_code/gifscythe/scripts/package_common.sh`, `working_code/gifscythe/scripts/test_package.sh`.
+**Docs touched:** `legal/LICENSE.md-pl.proposed`, `legal/COPYING.ms-pl`, `COMPILED_AUDIT.md`, `STATUS.md`, `WORKLIST.md`, `SESSION_HANDOFF.md`, `IMPROVEMENT_LOG.md`, `PROJECT_VISION.md`, `README.md`, `FEASIBILITY_REVIEW.md`, `docs/planning/OFFLINE_BUILD_REVIEW.md`, `docs/planning/OWNER_DECISIONS.md`, `docs/planning/CSHARP_SHELL_PLAN.md`, `docs/release/RELEASE_PROCEDURE.md`, `reference_code/REFERENCE_MANIFEST.md`, `.gitignore`, `.github/workflows/build.yml`, `docs/ci/build.yml.proposed`, `working_code/gifscythe/scripts/package_common.sh`, `working_code/gifscythe/scripts/test_package.sh`.
 
 ---
 
@@ -4994,7 +5318,7 @@ without touching WebP/APNG.
 - Live command pane wired to all controls; `shell_quote` for display only.
 - `GifsicleCommand` stores `Settings` by value (no dangling ref).
 - Packaging probes `gifsicle`/`gifsicle.exe` and all GUI output dirs; ships
-  `COPYING.gifsicle` + `LICENSE`; optional `windeployqt`.
+  `legal/COPYING.gifsicle` + `legal/LICENSE.md-pl.proposed`; optional `windeployqt`.
 - `build.sh` honest GUI branch (fails non-zero when `--all` and Qt missing).
 - FEASIBILITY mapping table corrected (delay 1/100 s, crop `+` form); live pane
   doc descoped to honest **one-way** sync (two-way = optional later).

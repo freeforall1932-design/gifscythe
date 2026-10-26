@@ -28,7 +28,7 @@ re-synced with the pending marker deleted).
 | `U-59` cancel/failure truncates a pre-existing output | the only registered data-loss row (P0) | **P0-7** · `COMPILED_AUDIT.md` §5/§6 |
 | `GS-204` packaging (PARTIAL) | real Windows/Qt deployment, target architecture and clean-machine proof remain (Linux checks + Windows CI packaging are green) | **P1-26** · `STATUS.md` · `docs/planning/PLANNING.md` §4 |
 | `U-09` release re-cut | banked artifact SHA does not match the claimed source | **P0-4** · `STATUS.md` · `docs/ci/README.md` §2 |
-| `U-95` published Release predates the Ms-PL relicence | the one public artifact's licence story contradicts the repo's; owner release-notes edit (mark superseded/pre-release — never delete, per the rollback policy below) | **P1-45** · `COMPILED_AUDIT.md` §20.1 |
+| `U-95` published Release predates the current tree | the one public artifact's story contradicts the repo's; owner release-notes edit (mark superseded/pre-release — never delete, per the rollback policy below) | **P1-45** · `COMPILED_AUDIT.md` §20.1 |
 | Web-surface honesty rows (new S24 intake) | `U-78`/`U-87` (silent settings drops) are P1; the rest are P2/P3 hardening | **P1-44** + §6 lanes · `COMPILED_AUDIT.md` §20 |
 
 The per-finding evidence, proposed fix and verification limits for every
@@ -167,9 +167,9 @@ Every package **must** contain (the portable packager enforces/probes these):
 - `gifscythe-cli` and (when Qt was present) the `gifscythe` GUI;
 - on Windows: the `windeployqt` runtime for the GUI **and** the offscreen
   platform plugin if the harness will run there;
-- licenses: `LICENSE` (first-party notice, Ms-PL) + `COPYING.ms-pl` (full
-  Ms-PL text), `COPYING.gifsicle` (engine, GPL v2-only — always shipped next
-  to the engine), `COPYING.lgplv3` + `COPYING.gplv3` (Qt LGPLv3 + companion
+- notices: everything under `legal/` (see `legal/README.md`)
+  Ms-PL text), `legal/COPYING.gifsicle` (engine, GPL v2-only — always shipped next
+  to the engine), `legal/COPYING.lgplv3` + `legal/COPYING.gplv3` (Qt LGPLv3 + companion
   GPLv3 text), generated `QT_NOTICE.txt` in GUI packages, `VERSION.md`,
   `README.md`, generated `README.txt`.
 
