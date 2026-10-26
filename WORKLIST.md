@@ -99,6 +99,27 @@ reads them in a file, not in a conversation.
       old fields). Do it in the same pass as N-63: they touch the same widgets.
 - [ ] Then the **E2 UI wiring** the owner queued before FFmpeg came up.
 
+- [ ] **N-65** — per-format encoder settings (quality / frame rate) behind the
+      Settings… button; `FfmpegEncodeRequest::quality`/`fps` already exist and are
+      never set by the GUI, so this is UI + persistence + round-trip proof.
+- [ ] **Questions the next session MUST ask the owner directly** (his
+      instruction, 2026-10-26: "you don't specify what's the n 63 and n 64
+      problem question directly so maybe put it on next session burden to ask").
+      Ask in plain chat, in his terms, not as a register id:
+      1. *N-63* — "when you pick a designated output folder, should the result
+         keep the folders the source came from?" and "for the already-exists
+         button, is 'ask' the default you want, or rename?"
+      2. *N-64* — "if the result comes out bigger than the original GIF, should I
+         throw the result away and keep yours — only when the format is the same?"
+      Record the answers in `OWNER_DECISIONS.md` in the same session.
+- [ ] **Test-machine note (owner, 2026-10-26):** the machine under test is **his
+      laptop**, and he does not know whether its FFmpeg is global, local or
+      something else. Do not assume: the app already prints exactly that
+      (`Output ▸ Format ▸ "FFmpeg: <source>: <path>"`, and Format ▸ Settings…
+      lists the four places it looked). Next session: have him read that line
+      back, and treat "bundled" vs "PATH" vs "well-known" as three different
+      setups to test.
+
 **Definition of done for that pass:** `build.sh`, `test_package.sh`,
 `check_docs.sh`, `qt_lint --baseline` all green locally, the GUI compiling on
 both CI jobs, and the whole slice visible in the offscreen harness — the last
