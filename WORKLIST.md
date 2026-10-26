@@ -558,9 +558,13 @@ Tracked as **D-01…D-08** in `STATUS.md`. All `OPEN`: known, scoped, and
 deliberately not started until GIF 1.0.0 ships.
 
 - Common RGBA animation frame model (timing, disposal, blend, alpha, canvas, loop).
-- Animated WebP (libwebp AnimDecoder/AnimEncoder).
-- APNG (libpng/zlib with APNG support).
-- GIF ⇄ APNG ⇄ WebP convert, explode, merge, reorder, loop controls.
+- ~~Animated WebP~~ — **delivered S45** (`D-02` DONE) by the bundled FFmpeg
+  sidecar (`libwebp_anim`), not by linking libwebp.
+- ~~APNG~~ — **delivered S45** (`D-03` DONE through the same sidecar; a still PNG
+  is rejected by the verifier).
+- GIF → APNG/WebP/MP4/WebM **output** works (S45); what remains is APNG/WebP as
+  *inputs*, conversion between the new containers, and merge/explode/reorder
+  across them (`D-04` PARTIAL).
 - Frame editor, text/watermark overlays, presets, richer previews.
 - Optional: logging framework, i18n, dark mode, system tray.
 - **Web client-side wasm** (`web/wasm/`, D-07): scaffolded S19, unbuilt, and
@@ -571,10 +575,14 @@ deliberately not started until GIF 1.0.0 ships.
 - **Language migration (only if a trigger fires):** Rust + Tauri spike —
   `docs/planning/PLANNING.md` §1 triggers.
 - **Stills → animated / video endpoints** (owner request 2026-09-14, asked again
-  2026-10-08: "should we add ffmpeg too"): gated by U-90/P3-19 and now tracked as
-  **`OD-20`** — a PROJECT_VISION amendment (the owner's words, in writing) + a decode
-  sidecar (FFmpeg, with its own notice set) must land before any code.
-  The parked C# plan's item (4) already sketches this as conversion-endpoint-only.
+  2026-10-08): the *sidecar* half is no longer a blocker — **FFmpeg ships with the
+  program** (S45, `N-62` DONE: bundled copy first, PATH/usual folders only as the
+  fallback, `FFMPEG_NOTICE.txt` in every package). What still gates this feature is
+  **`OD-20`**, the PROJECT_VISION amendment in the owner's own words: turning a
+  still into an animation is a different product promise, and the standing rule
+  ("never turn this into a picture converter") is why it is not being smuggled in
+  under the encoder. The parked C# plan's item (4) sketches it as
+  conversion-endpoint-only.
 
 ## Build commands
 

@@ -131,7 +131,8 @@ want the full gifsicle terminal control underneath.
 not a tweak inside it. Two things were genuinely hard — keeping the engine at
 arm's length (solved by the subprocess boundary) and WebP/APNG codecs
 (gifsicle reads/writes GIF only; `grep webp|apng|png` over its source: zero
-hits — hence the deferred multi-format phase with its own codec subprocesses).
+hits — which is why multi-format output goes through a **separate codec
+subprocess**, FFmpeg, shipped with the program since S45 rather than deferred).
 
 ```
   +---------------------------------------------------------------+
