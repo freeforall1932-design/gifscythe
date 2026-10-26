@@ -38,3 +38,6 @@ reference_code/gifsicle-upstream/
 .tools/
 .env
 ui-shots/
+
+# FFmpeg sidecar (fetched, never committed: 60-120 MB per platform)
+vendor/ffmpeg/

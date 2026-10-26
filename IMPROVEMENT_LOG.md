@@ -4,6 +4,32 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S44b — 2026-10-26: licence text consolidated, and FFmpeg becomes a portable sidecar with a real fallback
+
+**Changed:**
+
+- **The product is UNLICENSED until it works** (owner, same day). Every notice moved into `legal/`:
+  the root `LICENSE` and the four `COPYING.*` texts are gone from the top level, and `legal/README.md`
+  is the one place that explains the status (no grant, all rights reserved, owner decides after a
+  proven build), the third-party obligations that still ship (gifsicle GPLv2 subprocess, Qt LGPLv3 +
+  companion GPLv3), and the rationale that used to be scattered across a dozen docs. The S18 Ms-PL
+  notice survives as `legal/LICENSE.md-pl.proposed` — not active. Packaging copies them to
+  `<package>/licenses/`, and the generated package README says plainly that the first-party code is
+  unlicensed. `scripts/test_package.sh` 36/36.
+- **Docs swept:** licence sections, lines and dangling references to the old notice folder removed from the
+  current-state docs; dated history (audit rows, past log entries) keeps its wording because
+  rewriting a log would be a new falsehood, and its paths were re-pointed at `legal/` so the docs
+  gate still passes.
+- **FFmpeg sidecar (`N-62`, PARTIAL).** `src/core/FfmpegLocator.h`: the owner's precedence, exactly —
+  override, then the copy that travels with the app, then PATH, then the usual install folders.
+  `tests/test_ffmpeg_locator.cpp` = 31 checks, run by `build.sh` (now 421/35/54/60/31) and ctest. It
+  pins the two ways a locator goes wrong: a broken `GS_FFMPEG` is reported and never silently
+  replaced, and an empty PATH element is refused rather than run from the CWD. `fetch_ffmpeg.sh`
+  stages a pinned build into the git-ignored `vendor/ffmpeg/` and refuses anything whose SHA-256 is
+  not in `PINS.txt` (`--pin` is a deliberate second step). **Not wired yet:** the GUI does not call
+  the locator, `FfmpegCommand`, format-aware verification, the preview fallback and the per-format
+  Settings dialog are unwritten — so the formats stay honestly disabled.
+
 ## S44 — 2026-10-26: the Output tab's naming, measured against the shipped binary — the rule lands tested, the UI is next
 
 **Changed:**

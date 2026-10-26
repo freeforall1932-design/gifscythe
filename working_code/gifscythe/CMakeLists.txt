@@ -61,6 +61,12 @@ add_executable(test_name_template tests/test_name_template.cpp)
 target_link_libraries(test_name_template PRIVATE gifscythe_core)
 add_test(NAME name_template COMMAND test_name_template)
 
+# The FFmpeg sidecar locator: bundled copy first, PATH/installed only as a
+# fallback. Fixture-driven so the precedence is proven, not assumed.
+add_executable(test_ffmpeg_locator tests/test_ffmpeg_locator.cpp)
+target_link_libraries(test_ffmpeg_locator PRIVATE gifscythe_core)
+add_test(NAME ffmpeg_locator COMMAND test_ffmpeg_locator)
+
 # Lying-engine fixture for the harness's U-17 explode-verification test:
 # exits 0 without writing anything. Tiny, dependency-free, built on every
 # platform so T7 finds it next to test_gui_offscreen (see tests/fake_engine_exit0.cpp).

@@ -11,7 +11,19 @@ Based on `main` commit `9629d49` (**S41 re-anchor:** the owner's 2026-10-20 "Add
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-### S44 — what just changed (current session)
+### S44b — what just changed (current session)
+
+- **UNLICENSED, and all notices in `legal/`** (owner decision, 2026-10-26). Root `LICENSE` and the
+  four `COPYING.*` files moved; `legal/README.md` is now the only document that discusses any of it,
+  including the third-party obligations that still must ship. Packaging stages them under
+  `<package>/licenses/` (`test_package.sh` 36/36). Docs swept of licence sections and dangling paths;
+  dated history deliberately keeps its wording.
+- **FFmpeg sidecar groundwork (`N-62`, PARTIAL):** `src/core/FfmpegLocator.h` implements bundled-copy
+  first, then PATH, then the usual install folders — pinned by 31 checks. `scripts/fetch_ffmpeg.sh`
+  stages a pinned, SHA-verified build into git-ignored `vendor/ffmpeg/`. **The GUI is not wired to it
+  yet**, so the video/APNG/WebP entries stay disabled and say so.
+
+### S44 — what changed (S44; kept for the written history)
 
 The owner's next priority was naming: *"the naming scheme and how it was stored/saved doesn't follow
 XnConvert"*. Two questions were answered and four decisions taken (`OD-23`…`OD-26`).
@@ -564,7 +576,7 @@ Qt evidence comes from CI and is now also captured as screenshots.
   row never shows byte figures. `W-32` is PARTIAL on purpose — the Qt half is done, the web
   surface has not moved. `N-57`: the four reference screenshots are committed under
   `docs/planning/reference/` (`OD-22 = yes`, explicit `N-36` exception).
-- **Register:** 193 DONE · 9 PARTIAL · 14 OPEN · 0 UNTRIAGED · 216 total (at S44 start: 193/8/14/0/215; at S43 start: 192/8/14/0/214; at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 193 DONE · 10 PARTIAL · 14 OPEN · 0 UNTRIAGED · 217 total (at S44b start: 193/9/14/0/216; at S44 start: 193/8/14/0/215; at S43 start: 192/8/14/0/214; at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -1576,8 +1588,8 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 193 DONE · 9 PARTIAL · 14 OPEN · 0
-   UNTRIAGED · 216 total — but `STATUS.md` itself always wins; sweep rule S2
+   its generated counts line (currently: 193 DONE · 10 PARTIAL · 14 OPEN · 0
+   UNTRIAGED · 217 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the

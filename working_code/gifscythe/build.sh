@@ -188,6 +188,12 @@ g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
   -o "$BUILD_DIR/test_name_template" "$self/tests/test_name_template.cpp" $STDCXXFS \
   || fail "name-template test compile failed"
 "$BUILD_DIR/test_name_template" || fail "name-template tests failed"
+# Sidecar: which ffmpeg the app would run, and why. Qt-free, fixture-driven, so
+# the precedence (bundled > PATH > installed) is pinned rather than hoped for.
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/test_ffmpeg_locator" "$self/tests/test_ffmpeg_locator.cpp" $STDCXXFS \
+  || fail "ffmpeg-locator test compile failed"
+"$BUILD_DIR/test_ffmpeg_locator" || fail "ffmpeg-locator tests failed"
 
 # 4. GUI (only when requested)
 echo "==> [4/4] Qt6 GUI..."
