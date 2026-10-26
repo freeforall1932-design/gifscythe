@@ -591,7 +591,7 @@ Qt evidence comes from CI and is now also captured as screenshots.
   row never shows byte figures. `W-32` is PARTIAL on purpose — the Qt half is done, the web
   surface has not moved. `N-57`: the four reference screenshots are committed under
   `docs/planning/reference/` (`OD-22 = yes`, explicit `N-36` exception).
-- **Register:** 194 DONE · 9 PARTIAL · 14 OPEN · 0 UNTRIAGED · 217 total (at S44c start: 193/10/14/0/217; at S44b start: 193/9/14/0/216; at S44 start: 193/8/14/0/215; at S43 start: 192/8/14/0/214; at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 194 DONE · 10 PARTIAL · 14 OPEN · 0 UNTRIAGED · 218 total (at S44d start: 193/10/14/0/217; at S44b start: 193/9/14/0/216; at S44 start: 193/8/14/0/215; at S43 start: 192/8/14/0/214; at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -1603,8 +1603,8 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 194 DONE · 9 PARTIAL · 14 OPEN · 0
-   UNTRIAGED · 217 total — but `STATUS.md` itself always wins; sweep rule S2
+   its generated counts line (currently: 194 DONE · 10 PARTIAL · 14 OPEN · 0
+   UNTRIAGED · 218 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High
    findings open, package-negative tests green, clean-Windows smoke against the

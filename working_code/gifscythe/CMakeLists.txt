@@ -73,6 +73,12 @@ add_executable(test_ffmpeg_command tests/test_ffmpeg_command.cpp)
 target_link_libraries(test_ffmpeg_command PRIVATE gifscythe_core)
 add_test(NAME ffmpeg_command COMMAND test_ffmpeg_command)
 
+# The "if an output file already exists" rules: ask/rename/overwrite/skip, and
+# the numbering that makes "rename" safe. Pure functions, fake disk, no I/O.
+add_executable(test_collision tests/test_collision.cpp)
+target_link_libraries(test_collision PRIVATE gifscythe_core)
+add_test(NAME collision COMMAND test_collision)
+
 # Runs the real FFmpeg when the machine has one and prints SKIP when it does not
 # (exit 0 either way), so "the formats work" is a measured claim, not a hope.
 add_executable(test_ffmpeg_roundtrip tests/test_ffmpeg_roundtrip.cpp)
