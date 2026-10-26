@@ -11,7 +11,22 @@ Based on `main` commit `9629d49` (**S41 re-anchor:** the owner's 2026-10-20 "Add
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-### S44b — what just changed (current session)
+### S44c — what just changed (current session)
+
+- **FFmpeg is bundled, portable, and PROVEN (`N-62` DONE).** Locator precedence is
+  the owner's: override, the copy beside the app, PATH, usual install folders.
+  Encoder argv lives in `src/core/FfmpegCommand.h`; the produced container is
+  sniffed by `src/core/MediaFormat.h`, so a still WebP or an HEVC file under an
+  H.264 label fails the run. `tests/test_ffmpeg_roundtrip.cpp` encoded all six
+  formats from a 65x49 GIF with a real ffmpeg 7.0.2, and prints SKIP when a
+  machine has none. The GUI enables a format only when the encoder exists, says
+  where it found it, freezes the format per run, refuses non-GIF Merge/Explode,
+  and shows the real command. Packages stage `ffmpeg` + `FFMPEG_NOTICE.txt` and
+  say plainly when it is absent; `--require-ffmpeg` is fatal for releases.
+- **Still open:** per-format quality/fps settings, and no CI/release job fetches
+  the sidecar yet (CI has no FFmpeg, so the round-trip prints SKIP there).
+
+### S44b — what changed (S44b; kept for the written history)
 
 - **UNLICENSED, and all notices in `legal/`** (owner decision, 2026-10-26). Root `LICENSE` and the
   four `COPYING.*` files moved; `legal/README.md` is now the only document that discusses any of it,
@@ -576,7 +591,7 @@ Qt evidence comes from CI and is now also captured as screenshots.
   row never shows byte figures. `W-32` is PARTIAL on purpose — the Qt half is done, the web
   surface has not moved. `N-57`: the four reference screenshots are committed under
   `docs/planning/reference/` (`OD-22 = yes`, explicit `N-36` exception).
-- **Register:** 193 DONE · 10 PARTIAL · 14 OPEN · 0 UNTRIAGED · 217 total (at S44b start: 193/9/14/0/216; at S44 start: 193/8/14/0/215; at S43 start: 192/8/14/0/214; at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
+- **Register:** 194 DONE · 9 PARTIAL · 14 OPEN · 0 UNTRIAGED · 217 total (at S44c start: 193/10/14/0/217; at S44b start: 193/9/14/0/216; at S44 start: 193/8/14/0/215; at S43 start: 192/8/14/0/214; at S40 start: 181/7/14/0; at S39: 179/7/14/0; at S38: 178/7/14/0; at S37: 177/6/13/0; at S36: 163/11/21/0; at S35: 160/14/21/0; at S34: 158/11/26/0; at S32: 149/9/30/0 — all historical)
   (`STATUS.md` is generated — quote its counts line, never a hand-typed copy,
   and re-run `check_docs.sh --emit` after any §5/hand-block edit).
 
@@ -1588,7 +1603,7 @@ count (**G9** compares like with like).
 
 0. **START HERE — `STATUS.md`**; `COMPILED_AUDIT.md` §5 is the detail behind
    every `U-nn` row; neither replaces the other. The register line to quote is
-   its generated counts line (currently: 193 DONE · 10 PARTIAL · 14 OPEN · 0
+   its generated counts line (currently: 194 DONE · 9 PARTIAL · 14 OPEN · 0
    UNTRIAGED · 217 total — but `STATUS.md` itself always wins; sweep rule S2
    compares any quoted tally against it).
 1. **What remains before 1.0.0** — criterion unchanged (*no Critical/High

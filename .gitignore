@@ -39,5 +39,7 @@ reference_code/gifsicle-upstream/
 .env
 ui-shots/
 
-# FFmpeg sidecar (fetched, never committed: 60-120 MB per platform)
-vendor/ffmpeg/
+# FFmpeg sidecar (fetched, never committed: 70-200 MB per platform).
+# PINS.txt IS tracked - a pin nobody can see pins nothing.
+vendor/ffmpeg/*
+!vendor/ffmpeg/PINS.txt

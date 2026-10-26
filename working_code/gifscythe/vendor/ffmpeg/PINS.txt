@@ -1,0 +1,9 @@
+# Accepted FFmpeg builds, by exact asset name.
+#
+# Format:  <release asset name>  <sha256>  <platform>
+#
+# `scripts/fetch_ffmpeg.sh` refuses to install anything whose name is missing
+# here, and refuses anything whose bytes do not match the hash. `--accept-unpinned`
+# records a hash after printing it, so a pin is always a decision somebody made.
+#
+# Empty on purpose: no build has been fetched and reviewed on this branch yet.

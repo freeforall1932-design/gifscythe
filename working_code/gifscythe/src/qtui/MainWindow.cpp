@@ -7,6 +7,8 @@
 #include "core/OutputName.h"
 #include "core/InputAdmission.h"
 #include "core/OutputPlan.h"
+#include "core/FfmpegCommand.h"
+#include "core/FfmpegLocator.h"
 #include "core/OutputVerify.h"
 #include "core/SettingsIO.h"
 #include "core/Validate.h"
@@ -52,6 +54,7 @@
 #include <QScrollBar>
 #include <QSignalBlocker>
 #include <QSplitter>
+#include <QStandardItem>
 #include <QStandardItemModel>
 #include <QStandardPaths>
 #include <QHeaderView>
@@ -92,6 +95,29 @@ void configureHeadless(QProcess* process) {
         args->startupInfo->wShowWindow = SW_HIDE;
       });
 #endif
+}
+
+// The Command pane must show the command that will ACTUALLY run. FFmpeg jobs
+// are a different program with a different argv (N-62), so the pane would be a
+// work of fiction if it kept printing the gifsicle line.
+QString shellishJoin(const QString& program, const std::vector<std::string>& args) {
+  QStringList parts;
+  if (program.contains(QLatin1Char(' ')))
+    parts << QStringLiteral("\"%1\"").arg(program);
+  else
+    parts << program;
+  // 0x22 rather than a character literal: the lint tool's comment masker does
+  // not understand chars and a bare double quote inside one desynchronises its
+  // line map (found the hard way - it made five old findings look new).
+  const QChar quote(0x22);
+  for (const auto& a : args) {
+    const QString arg = QString::fromStdString(a);
+    if (arg.isEmpty() || arg.contains(QLatin1Char(' ')) || arg.contains(quote))
+      parts << QStringLiteral("\"%1\"").arg(arg);
+    else
+      parts << arg;
+  }
+  return parts.join(QLatin1Char(' '));
 }
 
 QString humanSize(qint64 bytes) {
@@ -566,21 +592,30 @@ QWidget* MainWindow::buildOutputTab() {
   const FormatSpec formats[] = {
       {"Same as original (GIF)", true, nullptr},
       {"GIF", true, nullptr},
-      {"APNG", false, "needs the FFmpeg sidecar (not shipped yet)"},
-      {"WebP (animated)", false, "needs the FFmpeg sidecar (not shipped yet)"},
-      {"MP4 - H.264", false, "needs the FFmpeg sidecar (not shipped yet)"},
-      {"MP4 - H.265/HEVC", false, "needs the FFmpeg sidecar (not shipped yet)"},
-      {"WebM - VP9", false, "needs the FFmpeg sidecar (not shipped yet)"},
-      {"WebM - AV1", false, "needs the FFmpeg sidecar (not shipped yet)"},
+      {"APNG", false, "needs FFmpeg - not found (Settings... looks again)"},
+      {"WebP (animated)", false, "needs FFmpeg - not found (Settings... looks again)"},
+      {"MP4 - H.264", false, "needs FFmpeg - not found (Settings... looks again)"},
+      {"MP4 - H.265/HEVC", false, "needs FFmpeg - not found (Settings... looks again)"},
+      {"WebM - VP9", false, "needs FFmpeg - not found (Settings... looks again)"},
+      {"WebM - AV1", false, "needs FFmpeg - not found (Settings... looks again)"},
   };
+  // The token is what the run path reads (selectedOutputFormat()), so the order
+  // of this list is a presentation detail and can never change the meaning of
+  // a saved session or an enabled entry.
+  const char* const formatTokens[] = {"gif", "gif", "apng", "webp",
+                                      "mp4-h264", "mp4-h265", "webm-vp9", "webm-av1"};
+  static_assert(sizeof(formats) / sizeof(formats[0]) == sizeof(formatTokens) / sizeof(formatTokens[0]),
+                "every format entry needs a token");
   // Disable an unavailable ITEM (not the whole combo) by clearing its
   // ItemIsEnabled flag in the model: the list stays readable, the entry cannot
   // be chosen, and the reason is one hover away. Qt 5/6 draw a disabled item as
   // greyed and refuse the click; Qt 4's "Qt::UserRole - 1" data trick is gone.
   auto* model = qobject_cast<QStandardItemModel*>(formatCombo_->model());
-  for (const FormatSpec& spec : formats) {
+  for (int i = 0; i < static_cast<int>(sizeof(formats) / sizeof(formats[0])); ++i) {
+    const FormatSpec& spec = formats[i];
     formatCombo_->addItem(QString::fromLatin1(spec.label));
     const int row = formatCombo_->count() - 1;
+    formatCombo_->setItemData(row, QString::fromLatin1(formatTokens[i]), Qt::UserRole);
     if (!spec.available) {
       if (model) {
         if (QStandardItem* item = model->item(row)) {
@@ -593,30 +628,59 @@ QWidget* MainWindow::buildOutputTab() {
   formatCombo_->setToolTip(QStringLiteral(
       "Output container/codec.\n"
       "GIF is produced by the bundled gifsicle engine.\n"
-      "APNG, WebP and the video formats need an FFmpeg sidecar, which this build does not ship."));
+      "Everything else is produced by FFmpeg: the copy shipped beside this program if there "
+      "is one, otherwise one found on this computer."));
   formatForm->addRow(QStringLiteral("Output format"), formatCombo_);
   formatSettingsButton_ = new QPushButton(QStringLiteral("Settings…"), formatBox);
   formatSettingsButton_->setObjectName(QStringLiteral("formatSettingsButton"));
   formatSettingsButton_->setToolTip(
       QStringLiteral("Per-format encoder settings (the reference's Format > Settings…)"));
   connect(formatSettingsButton_, &QPushButton::clicked, this, [this]() {
-    QMessageBox::information(
-        this, QStringLiteral("Format settings"),
-        QStringLiteral("GIF settings live on the Actions tab, where every gifsicle option "
-                       "already is (colours, lossy, dither, optimise level).\n\n"
-                       "APNG, WebP and the video formats are not available in this build: "
-                       "they need an FFmpeg sidecar, which is not shipped yet."));
+    // "Where did it find FFmpeg?" is the first question anyone asks when a
+    // format is greyed out, and the honest answer is a path - so this button
+    // re-runs the search (people install FFmpeg while the app is open) and then
+    // says exactly what it found and in which of the four places.
+    refreshFfmpegStatus(true);
+    const gs::OutputFormat fmt = selectedOutputFormat();
+    QString body = QStringLiteral("FFmpeg: %1\n\n")
+                       .arg(QString::fromStdString(gs::ffmpeg_location_summary(ffmpegLocation_)));
+    if (ffmpegLocation_.found()) {
+      body += QStringLiteral("Places it looked, in order: GS_FFMPEG, the copy beside this "
+                             "program, PATH, then the usual install folders. The bundled copy "
+                             "always wins, so a package behaves the same on every machine.\n\n");
+    } else {
+      body += QStringLiteral("Without FFmpeg, GIF still works (the bundled gifsicle engine) but "
+                             "APNG, WebP and the video formats cannot be produced, so they stay "
+                             "disabled instead of failing at the end of a run.\n\n");
+    }
+    if (gs::output_format_needs_ffmpeg(fmt) && ffmpegLocation_.found()) {
+      body += QStringLiteral("Selected: %1 (%2). Encoder: %3.\n")
+                  .arg(QString::fromLatin1(gs::output_format_name(fmt)),
+                       QString::fromLatin1(gs::output_format_token(fmt)),
+                       QString::fromStdString(gs::ffmpeg_encode_label(fmt)));
+    } else {
+      body += QStringLiteral("GIF settings live on the Actions tab, where every gifsicle option "
+                             "already is (colours, lossy, dither, optimise level).");
+    }
+    QMessageBox::information(this, QStringLiteral("Format settings"), body);
   });
   formatForm->addRow(QString(), formatSettingsButton_);
   formatNoteLabel_ = new QLabel(formatBox);
   formatNoteLabel_->setObjectName(QStringLiteral("formatNote"));
   formatNoteLabel_->setWordWrap(true);
-  formatNoteLabel_->setText(QStringLiteral(
-      "This build writes GIF only. APNG / WebP / MP4 / WebM are listed so the target is "
-      "visible, but they are disabled until an FFmpeg sidecar is added — converting a moving "
-      "picture to a still one is exactly what we are not here to do."));
   formatForm->addRow(QString(), formatNoteLabel_);
+  ffmpegStatusLabel_ = new QLabel(formatBox);
+  ffmpegStatusLabel_->setObjectName(QStringLiteral("ffmpegStatus"));
+  ffmpegStatusLabel_->setWordWrap(true);
+  ffmpegStatusLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  formatForm->addRow(QString(), ffmpegStatusLabel_);
   lay->addWidget(formatBox);
+
+  // Locate the encoder NOW, before the user can pick a format, and keep the
+  // combo in step whenever the selection changes.
+  connect(formatCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+          [this](int) { refreshFfmpegStatus(false); });
+  refreshFfmpegStatus(true);  // the first search of the session
 
   outputSummaryLabel_ = new QLabel(page);
   outputSummaryLabel_->setObjectName(QStringLiteral("outputSummary"));
@@ -957,6 +1021,12 @@ void MainWindow::savePresetAs() {
   const QString tmpl = nameTemplateEdit_ ? nameTemplateEdit_->text().trimmed() : QString();
   if (!tmpl.isEmpty() && tmpl != QString::fromLatin1(kDefaultNameTemplate))
     oss << "name_template = " << tmpl.toStdString() << "\n";
+  // The output format is part of the naming/action state (owner: a preset must
+  // remember everything that changes the result). Written only when it is not
+  // the default, so old presets stay byte-identical and readable.
+  const gs::OutputFormat presetFormat = selectedOutputFormat();
+  if (presetFormat != gs::OutputFormat::Gif)
+    oss << "output_format = " << gs::output_format_token(presetFormat) << "\n";
   // Slice D: the stack is part of the preset (presence / enabled / collapsed),
   // the way an XnConvert preset is an action list and not just a bag of numbers.
   // A flat list of ids, so a future action can be appended without a format bump.
@@ -1016,6 +1086,7 @@ void MainWindow::loadSelectedPreset() {
   batchDirEdit_->setText(batch);
   const QString tmpl = guiKey("name_template");
   nameTemplateEdit_->setText(tmpl.isEmpty() ? QString::fromLatin1(kDefaultNameTemplate) : tmpl);
+  applyOutputFormatToken(guiKey("output_format"));
 
   lastOutputPaths_.clear();
   refreshCommand();
@@ -1154,6 +1225,139 @@ bool MainWindow::ensureEngine() {
   updateStatus(QStringLiteral("Engine not found — build with ./scripts/build_engine.sh"));
   runButton_->setEnabled(false);
   return false;
+}
+
+// ---------------------------------------------------------------------------
+// N-62: the FFmpeg sidecar, from the GUI's side.
+//
+// The owner's one sentence was "add ffmpeg directly into the project ... just
+// make it portable but add fallback if ffmpeg gone it will search for ffmpeg
+// program on computer ... only called when ffmpeg local into the folder not
+// found". All four of those steps live in core/FfmpegLocator.h; this is the part
+// that (a) tells the truth about the answer and (b) refuses to offer a format it
+// cannot write.
+// ---------------------------------------------------------------------------
+gs::OutputFormat MainWindow::selectedOutputFormat() const {
+  if (!formatCombo_ || formatCombo_->currentIndex() < 0) return gs::OutputFormat::Gif;
+  const QString token = formatCombo_->currentData(Qt::UserRole).toString();
+  // "gif" is both "Same as original" and "GIF": they are the same encoder and
+  // the same file, and pretending otherwise would be a lie in the session file.
+  return gs::output_format_from_token(token.toStdString());
+}
+
+void MainWindow::applyOutputFormatToken(const QString& token) {
+  if (!formatCombo_) return;
+  if (token.isEmpty()) return;
+  for (int row = 0; row < formatCombo_->count(); ++row) {
+    if (formatCombo_->itemData(row, Qt::UserRole).toString() != token) continue;
+    const QSignalBlocker block(formatCombo_);
+    formatCombo_->setCurrentIndex(row);
+    refreshFfmpegStatus(false);  // apply tooltips/notes for the restored choice
+    return;
+  }
+  // Unknown token: leave the current selection alone rather than guessing.
+}
+
+void MainWindow::refreshFfmpegStatus(bool relocate) {
+  if (!formatCombo_) return;
+  if (relocate || !ffmpegLocated_) {
+    // applicationDirPath(), not applicationFilePath(): the locator appends the
+    // executable's directory itself and the sidecar lives beside the binary.
+    ffmpegLocation_ = gs::locate_ffmpeg(QCoreApplication::applicationDirPath().toStdString());
+    ffmpegPath_ = QString::fromStdString(ffmpegLocation_.path);
+    ffmpegLocated_ = true;
+  }
+  const bool have = ffmpegLocation_.found();
+
+  auto* model = qobject_cast<QStandardItemModel*>(formatCombo_->model());
+  for (int row = 0; row < formatCombo_->count(); ++row) {
+    const gs::OutputFormat f = gs::output_format_from_token(
+        formatCombo_->itemData(row, Qt::UserRole).toString().toStdString());
+    if (!gs::output_format_needs_ffmpeg(f)) continue;
+    if (QStandardItem* item = model ? model->item(row) : nullptr) {
+      // Enable = the encoder is actually there. Nothing is enabled "in
+      // principle": a greyed entry that fails after a two-minute batch is the
+      // exact experience the owner asked us to delete.
+      item->setFlags(have ? (item->flags() | Qt::ItemIsEnabled)
+                          : (item->flags() & ~Qt::ItemIsEnabled));
+    }
+    formatCombo_->setItemData(
+        row,
+        have ? QStringLiteral("Encoded by FFmpeg: %1")
+                   .arg(QString::fromStdString(gs::ffmpeg_encode_label(f)))
+             : QStringLiteral("%1 needs FFmpeg, which was not found. Click Settings… to search "
+                              "again after installing it.").arg(QString::fromLatin1(
+                                   gs::output_format_name(f))),
+        Qt::ToolTipRole);
+  }
+  // A selection whose encoder vanished must not stay selected: the run path
+  // would have to refuse it, and refusing AFTER the user pressed Run is worse
+  // than moving the selection now.
+  if (!have && gs::output_format_needs_ffmpeg(selectedOutputFormat())) {
+    const QSignalBlocker block(formatCombo_);  // no re-entry; the state is already applied
+    formatCombo_->setCurrentIndex(1);          // plain GIF
+  }
+
+  if (ffmpegStatusLabel_) {
+    if (have) {
+      ffmpegStatusLabel_->setText(
+          QStringLiteral("FFmpeg: %1")
+              .arg(QString::fromStdString(gs::ffmpeg_location_summary(ffmpegLocation_))));
+    } else {
+      ffmpegStatusLabel_->setText(QStringLiteral(
+          "FFmpeg not found — GIF works; APNG, WebP, MP4 and WebM stay disabled. "
+          "Put an ffmpeg next to this program, or click Settings… after installing one."));
+    }
+  }
+  if (formatNoteLabel_) {
+    const gs::OutputFormat f = selectedOutputFormat();
+    if (gs::output_format_needs_ffmpeg(f)) {
+      formatNoteLabel_->setText(
+          QStringLiteral("Results will be written as .%1 (%2). The Actions-tab GIF settings do "
+                         "not apply to this format; FFmpeg encodes it directly.")
+              .arg(QString::fromLatin1(gs::output_format_extension(f)),
+                   QString::fromStdString(gs::ffmpeg_encode_label(f))));
+    } else {
+      formatNoteLabel_->setText(QStringLiteral(
+          "GIF is produced by the bundled gifsicle engine, with every Actions-tab setting "
+          "applied. Converting a moving picture to a still one is exactly what we are not "
+          "here to do."));
+    }
+  }
+}
+
+bool MainWindow::configureEncoder(const gs::Settings& one, const QString& input,
+                                  const QString& partial, gs::OutputFormat format,
+                                  QString* error) {
+  QStringList qargs;
+  if (!gs::output_format_needs_ffmpeg(format)) {
+    const gs::GifsicleCommand cmd(one);
+    for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
+    process_->setProgram(enginePath_);
+    process_->setArguments(qargs);
+    return true;
+  }
+  if (ffmpegPath_.isEmpty() || !ffmpegLocation_.found()) {
+    if (error) {
+      *error = QStringLiteral("No FFmpeg was found, so %1 cannot be written.\n%2")
+                   .arg(QString::fromLatin1(gs::output_format_name(format)),
+                        QString::fromStdString(gs::ffmpeg_location_summary(ffmpegLocation_)));
+    }
+    return false;
+  }
+  gs::FfmpegEncodeRequest request;
+  request.input = input.toStdString();
+  request.partial = partial.toStdString();
+  request.format = format;
+  const std::string refusal = gs::ffmpeg_request_refusal(request);
+  if (!refusal.empty()) {
+    if (error) *error = QString::fromStdString(refusal);
+    return false;
+  }
+  for (const auto& a : gs::ffmpeg_encode_args(request)) qargs << QString::fromStdString(a);
+  process_->setProgram(ffmpegPath_);
+  process_->setArguments(qargs);
+  return true;
 }
 
 void MainWindow::appendInputs(const QStringList& files) {
@@ -1748,9 +1952,20 @@ QString MainWindow::renderedOutputName(const QFileInfo& fi) const {
   // Empty render (e.g. the template was only separators) falls back to the
   // historical default instead of writing a nameless/"." file.
   name = safe.isEmpty() ? fi.completeBaseName() + QStringLiteral("_opt") : safe;
-  // The engine always writes GIF; keep the extension honest.
-  if (!name.endsWith(QStringLiteral(".gif"), Qt::CaseInsensitive))
-    name += QStringLiteral(".gif");
+  // The FORMAT owns the extension (owner's naming decision, 2026-10-26). A
+  // template never carries one, and a name typed with the wrong one must not
+  // produce "go_1.gif.mp4" or, worse, an .mp4 that is really a GIF: any known
+  // media extension is stripped and the encoder's own extension is appended.
+  const gs::OutputFormat fmt = selectedOutputFormat();
+  static const char* kKnownExtensions[] = {".gif", ".png", ".apng", ".webp", ".mp4", ".webm"};
+  for (const char* ext : kKnownExtensions) {
+    const QString suffix = QString::fromLatin1(ext);
+    if (name.endsWith(suffix, Qt::CaseInsensitive)) {
+      name.chop(suffix.size());
+      break;
+    }
+  }
+  name += QStringLiteral(".") + QString::fromLatin1(gs::output_format_extension(fmt));
   return name;
 }
 
@@ -1945,13 +2160,29 @@ void MainWindow::refreshCommand() {
       QString out = explicitOut;
       if (n > 1 || out.isEmpty()) out = defaultOutputFor(in);
       one.output = out.toStdString();
-      gs::GifsicleCommand cmd(one);
-      lines << engine + QLatin1Char(' ') + QString::fromStdString(cmd.toString());
+      if (gs::output_format_needs_ffmpeg(selectedOutputFormat())) {
+        gs::FfmpegEncodeRequest req;
+        req.input = in.toStdString();
+        req.partial = out.toStdString();
+        req.format = selectedOutputFormat();
+        lines << shellishJoin(ffmpegPath_, gs::ffmpeg_encode_args(req));
+      } else {
+        gs::GifsicleCommand cmd(one);
+        lines << engine + QLatin1Char(' ') + QString::fromStdString(cmd.toString());
+      }
     }
     commandPane_->setPlainText(lines.join(QLatin1Char('\n')));
     return;
   }
 
+  if (gs::output_format_needs_ffmpeg(selectedOutputFormat())) {
+    gs::FfmpegEncodeRequest req;
+    req.input = inputs_.value(0).toStdString();
+    req.partial = gs::ffmpeg_staging_name(settings.output, selectedOutputFormat());
+    req.format = selectedOutputFormat();
+    commandPane_->setPlainText(shellishJoin(ffmpegPath_, gs::ffmpeg_encode_args(req)));
+    return;
+  }
   gs::GifsicleCommand cmd(settings);
   commandPane_->setPlainText(
       engine + QLatin1Char(' ')
@@ -2178,6 +2409,39 @@ void MainWindow::runCommand() {
     return;
   }
 
+  // ---- N-62: which encoder runs, and may it? -------------------------------
+  // The format is frozen for the whole run here, exactly like batchSettings_
+  // (U-58): the plan below is computed against one format, so a batch must not
+  // change encoder halfway because the combo moved.
+  activeFormat_ = selectedOutputFormat();
+  if (gs::output_format_needs_ffmpeg(activeFormat_)) {
+    // People install FFmpeg while the app is open; re-look before refusing.
+    refreshFfmpegStatus(true);
+    if (!ffmpegLocation_.found()) {
+      QMessageBox::critical(
+          this, QStringLiteral("Gifscythe"),
+          QStringLiteral("%1 needs FFmpeg, and none was found.\n\n%2\n\n"
+                         "GIF still works: pick GIF, or put an ffmpeg next to this program "
+                         "and try again.")
+              .arg(QString::fromLatin1(gs::output_format_name(activeFormat_)),
+                   QString::fromStdString(gs::ffmpeg_location_summary(ffmpegLocation_))));
+      return;
+    }
+    // Merge and Explode are GIF operations on gifsicle's own frame model - they
+    // combine or split GIF frames, not encode a container. Running one as MP4
+    // would produce something that is not what the label says, so it is refused
+    // BEFORE anything is written.
+    if (settings.mode != gs::Mode::Auto && settings.mode != gs::Mode::Batch) {
+      QMessageBox::warning(
+          this, QStringLiteral("Gifscythe"),
+          QStringLiteral("%1 output is available for single-file and Batch runs only.\n\n"
+                         "Merge and Explode work on GIF frames and stay GIF: switch the output "
+                         "format back to GIF, or use a single file / a batch.")
+              .arg(QString::fromLatin1(gs::output_format_name(activeFormat_))));
+      return;
+    }
+  }
+
   batchMode_ = settings.mode;
   resetRunLog();
   lastOutputPaths_.clear();
@@ -2266,11 +2530,19 @@ void MainWindow::runCommand() {
     one.mode = gs::Mode::Auto;  // single-file, no -b needed
     one.inputs = {in.toStdString()};
     one.output = pendingPartial_.toStdString();
-    gs::GifsicleCommand cmd(one);
-    QStringList qargs;
-    for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
-    process_->setProgram(enginePath_);
-    process_->setArguments(qargs);
+    QString encodeError;
+    if (!configureEncoder(one, in, pendingPartial_, activeFormat_, &encodeError)) {
+      discardPendingPartial();
+      pendingPartial_.clear();
+      batchQueue_.clear();
+      batchIndex_ = -1;
+      setBusy(false);
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("encoderUnavailable: %1").arg(encodeError.left(120)));
+      resultActiveRow_ = -1;
+      QMessageBox::critical(this, QStringLiteral("Gifscythe"), encodeError);
+      return;
+    }
     appendLog(QStringLiteral("Optimizing %1/%2: %3")
                   .arg(batchIndex_ + 1).arg(batchQueue_.size()).arg(in));
     process_->start();
@@ -2361,9 +2633,6 @@ void MainWindow::runCommand() {
     explodeSnapshot_.clear();
   }
 
-  gs::GifsicleCommand cmd(settings);
-  QStringList qargs;
-  for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
 
   // W-32 cardinality: Merge/Auto are N->1 and Explode is 1->N, so each is ONE
   // row. Before is the sum of the inputs for a merge, the single input for an
@@ -2391,13 +2660,28 @@ void MainWindow::runCommand() {
     resultActiveRow_ = 0;
     setResultState(0, QStringLiteral("running"), QStringLiteral("optimizing…"));
   }
+  // One place decides engine vs FFmpeg for this job. It runs AFTER the result
+  // row exists, so a refusal lands in that row instead of in an empty status
+  // table (the row is the thing the user is looking at).
+  {
+    QString encodeError;
+    if (!configureEncoder(settings, inputs_.value(0), pendingPartial_, activeFormat_,
+                          &encodeError)) {
+      discardPendingPartial();
+      pendingPartial_.clear();
+      setBusy(false);
+      setResultState(resultActiveRow_, QStringLiteral("failed"),
+                     QStringLiteral("encoderUnavailable: %1").arg(encodeError.left(120)));
+      resultActiveRow_ = -1;
+      QMessageBox::critical(this, QStringLiteral("Gifscythe"), encodeError);
+      return;
+    }
+  }
   setBusy(true);
   updateStatus(QStringLiteral("Running…"));
   appendLog(QStringLiteral("Optimizing %1 → %2")
                 .arg(QString::fromStdString(settings.inputs.empty() ? std::string() : settings.inputs.front()),
                      QString::fromStdString(settings.output)));
-  process_->setProgram(enginePath_);
-  process_->setArguments(qargs);
   process_->start();
   if (!process_->waitForStarted(5000)) {
     discardPendingPartial();
@@ -2588,8 +2872,10 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
 
   // Verify the isolated write before replacing the user's previous output.
   if (!pendingOutput_.isEmpty()) {
+    // The container that was promised, not "whatever GIF looks like": an APNG
+    // that came out as a still PNG, or a WebP with one frame, is a failure.
     const std::string verificationError =
-        gs::verify_output(pendingPartial_.toStdString(), partialSnapshot_);
+        gs::verify_output_as(pendingPartial_.toStdString(), partialSnapshot_, activeFormat_);
     if (!verificationError.empty()) {
       discardPendingPartial();
       pendingPartial_.clear();
@@ -2602,7 +2888,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       resultActiveRow_ = -1;
       updateStatus(QStringLiteral("Output verification failed."));
       QMessageBox::warning(this, QStringLiteral("Gifscythe"),
-          QStringLiteral("The GIF engine exited 0, but its output was rejected:\n%1\n\n%2")
+          QStringLiteral("The encoder exited 0, but its output was rejected:\n%1\n\n%2")
               .arg(pendingOutput_, QString::fromStdString(verificationError)));
       return;
     }
@@ -2679,11 +2965,21 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
       one.mode = gs::Mode::Auto;
       one.inputs = {in.toStdString()};
       one.output = pendingPartial_.toStdString();
-      gs::GifsicleCommand cmd(one);
-      QStringList qargs;
-      for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
-      process_->setProgram(enginePath_);
-      process_->setArguments(qargs);
+      // Batch continuation keeps the format the batch STARTED with (declared
+      // above, frozen at runCommand time), never the live combo.
+      QString encodeError;
+      if (!configureEncoder(one, in, pendingPartial_, activeFormat_, &encodeError)) {
+        discardPendingPartial();
+        pendingPartial_.clear();
+        batchQueue_.clear();
+        batchIndex_ = -1;
+        setBusy(false);
+        setResultState(resultActiveRow_, QStringLiteral("failed"),
+                       QStringLiteral("encoderUnavailable: %1").arg(encodeError.left(120)));
+        resultActiveRow_ = -1;
+        QMessageBox::critical(this, QStringLiteral("Gifscythe"), encodeError);
+        return;
+      }
       appendLog(QStringLiteral("Optimizing %1/%2: %3")
                     .arg(batchIndex_ + 1).arg(batchQueue_.size()).arg(in));
       process_->start();
@@ -2812,6 +3108,18 @@ void MainWindow::startPreview() {
     return;
   }
   forcePreview_ = false;
+  // N-62: the After pane plays a GIF (QMovie). When the chosen output is APNG,
+  // WebP or a video, any GIF shown here would be a preview of a file that will
+  // never be written - so name what will happen instead of showing a decoy.
+  if (gs::output_format_needs_ffmpeg(selectedOutputFormat())) {
+    const gs::OutputFormat f = selectedOutputFormat();
+    previewPanel_->clearAfter(
+        QStringLiteral("no in-app preview for %1 — the result is written as .%2 and opens in "
+                       "your own viewer")
+            .arg(QString::fromLatin1(gs::output_format_name(f)),
+                 QString::fromLatin1(gs::output_format_extension(f))));
+    return;
+  }
   // U-70 / P1-42 (F:NF-13): the preview path re-probed the engine with a
   // bare toStdString(), bypassing the u8path_compat boundary that
   // ensureEngine() wraps — the one std::string -> fs::path conversion this
@@ -2955,6 +3263,16 @@ void MainWindow::showWrittenOutputPreview() {
     previewPanel_->clearAfter(QStringLiteral("run finished, but no output file is available to preview"));
     return;
   }
+  // N-62: the After pane is a GIF movie. Handing it an .mp4 would show a black
+  // rectangle and look like a failed run, so it states the outcome instead.
+  if (gs::output_format_needs_ffmpeg(activeFormat_)) {
+    previewPanel_->clearAfter(
+        QStringLiteral("%1 written (%2). No in-app preview for this format — open the file in "
+                       "your own viewer.")
+            .arg(QString::fromLatin1(gs::output_format_name(activeFormat_)),
+                 humanSize(outInfo.size())));
+    return;
+  }
   const QString input = selectedInput();
   const qint64 before = input.isEmpty() ? 0 : QFileInfo(input).size();
   previewPanel_->setAfter(
@@ -3022,6 +3340,9 @@ void MainWindow::loadSessionState() {
   if (!batch.isEmpty()) batchDirEdit_->setText(batch);
   const QString tmpl = guiKey("name_template");
   if (!tmpl.isEmpty()) nameTemplateEdit_->setText(tmpl);
+  // Same round-trip for the session file: reopening the app must not quietly
+  // reset "MP4 (H.264)" to GIF and then produce a GIF the user did not ask for.
+  applyOutputFormatToken(guiKey("output_format"));
 
   // Surfaced, not discarded (S5 rule): a corrupt/partial file still applies
   // its valid keys, but the user sees that something was off.
@@ -3061,6 +3382,11 @@ bool MainWindow::saveSessionState() {
   const QString tmpl = nameTemplateEdit_ ? nameTemplateEdit_->text().trimmed() : QString();
   if (!tmpl.isEmpty() && tmpl != QString::fromLatin1(kDefaultNameTemplate))
     oss << "name_template = " << tmpl.toStdString() << "\n";
+  // N-62: the chosen container survives a restart too. Default stays omitted, so
+  // the file is unchanged for GIF-only users.
+  const gs::OutputFormat sessionFormat = selectedOutputFormat();
+  if (sessionFormat != gs::OutputFormat::Gif)
+    oss << "output_format = " << gs::output_format_token(sessionFormat) << "\n";
   // Slice D: the card stack survives a restart (presence / enabled / collapsed).
   // A flat list of ids, so a future action can be appended without a format bump.
   if (settingsPanel_) {

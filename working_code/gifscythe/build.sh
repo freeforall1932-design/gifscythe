@@ -194,6 +194,19 @@ g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
   -o "$BUILD_DIR/test_ffmpeg_locator" "$self/tests/test_ffmpeg_locator.cpp" $STDCXXFS \
   || fail "ffmpeg-locator test compile failed"
 "$BUILD_DIR/test_ffmpeg_locator" || fail "ffmpeg-locator tests failed"
+# The encoder contract: argv per format, staging names, and the format-aware
+# postcondition. No FFmpeg binary is needed to prove what the command says.
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/test_ffmpeg_command" "$self/tests/test_ffmpeg_command.cpp" $STDCXXFS \
+  || fail "ffmpeg-command test compile failed"
+"$BUILD_DIR/test_ffmpeg_command" || fail "ffmpeg-command tests failed"
+# End-to-end: run the real encoder when this machine has one (it skips, loudly,
+# when it does not - a GIF-only checkout must still build green). This is the
+# only test that proves an argument list actually produces a playable file.
+g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
+  -o "$BUILD_DIR/test_ffmpeg_roundtrip" "$self/tests/test_ffmpeg_roundtrip.cpp" $STDCXXFS \
+  || fail "ffmpeg-roundtrip test compile failed"
+"$BUILD_DIR/test_ffmpeg_roundtrip" || fail "ffmpeg round-trip failed"
 
 # 4. GUI (only when requested)
 echo "==> [4/4] Qt6 GUI..."

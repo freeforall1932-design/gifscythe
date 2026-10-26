@@ -83,6 +83,8 @@ class SettingsPanel;
 #include "core/GifsicleCommand.h"
 #include "core/OutputPlan.h"
 #include "core/ExplodeVerify.h"
+#include "core/FfmpegCommand.h"
+#include "core/FfmpegLocator.h"
 #include "core/OutputVerify.h"
 
 class MainWindow : public QMainWindow {
@@ -189,6 +191,24 @@ class MainWindow : public QMainWindow {
   QString renderedOutputName(const QFileInfo& input) const;
   bool templateIsConstant() const;
   bool ensureEngine();
+  // ---- N-62: the FFmpeg sidecar -----------------------------------------
+  // Which container the Format combo is asking for. Read from the item's token
+  // data, not from a hard-coded index, so reordering the list cannot silently
+  // change what a run encodes.
+  gs::OutputFormat selectedOutputFormat() const;
+  // Update the Format controls from the cached locator answer. `relocate` also
+  // re-runs the search (start-up, and Format > Settings… after the user
+  // installed FFmpeg); a plain selection change must NOT re-scan the disk.
+  void refreshFfmpegStatus(bool relocate = false);
+  // Select a format by its stable token ("webp", "mp4-h264", ...). Unknown or
+  // absent tokens mean GIF: a preset written before formats existed must not
+  // suddenly encode something else.
+  void applyOutputFormatToken(const QString& token);
+  // Configure process_ for one job. GIF -> the bundled gifsicle engine with the
+  // Actions-tab settings; every other format -> FFmpeg argv from the core
+  // builder. Returns false with a reason when the job cannot be run at all.
+  bool configureEncoder(const gs::Settings& one, const QString& input, const QString& partial,
+                        gs::OutputFormat format, QString* error);
   void refreshQueueLabel();
   // ---- Slice C: the Input grid ------------------------------------------
   // Facts are read once per path (GifFacts.h, Qt-free) and cached; the grid,
@@ -251,6 +271,7 @@ class MainWindow : public QMainWindow {
   QComboBox* formatCombo_ = nullptr;
   QPushButton* formatSettingsButton_ = nullptr;
   QLabel* formatNoteLabel_ = nullptr;
+  QLabel* ffmpegStatusLabel_ = nullptr;
   QVector<QToolButton*> sortButtons_;
   QHash<QString, gs::GifFacts> factsCache_;
   QHash<QString, QPixmap> thumbCache_;
@@ -295,6 +316,15 @@ class MainWindow : public QMainWindow {
 
   // Engine / run state
   QString enginePath_;
+  // N-62: what the locator found (kept, not just the path, because "not found"
+  // and "found on PATH" are different stories the UI has to tell).
+  gs::FfmpegLocation ffmpegLocation_;
+  QString ffmpegPath_;
+  bool ffmpegLocated_ = false;  // has the search run at least once this session
+  // The format the IN-FLIGHT run encodes. Batch continuation jobs and the
+  // post-run verifier read this, never the live combo, for the same reason
+  // batchSettings_ exists (U-58): a plan must not mutate under the run.
+  gs::OutputFormat activeFormat_ = gs::OutputFormat::Gif;
   QStringList inputs_;
   QProcess* process_ = nullptr;        // objectName "engineProcess"
   bool busy_ = false;

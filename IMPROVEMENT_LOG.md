@@ -29,6 +29,18 @@ Chronological log of decisions and changes. **Newest at the top.**
   not in `PINS.txt` (`--pin` is a deliberate second step). **Not wired yet:** the GUI does not call
   the locator, `FfmpegCommand`, format-aware verification, the preview fallback and the per-format
   Settings dialog are unwritten — so the formats stay honestly disabled.
+- **N-62 finished the same day, and proved itself by encoding.** `MediaFormat.h`
+  (container vocabulary + header sniffing), `FfmpegCommand.h` (argv per format,
+  `-f` pinned because the staging name is not a hint), format-aware
+  `verify_output_as`, the GUI wiring (locator at start-up, a format is enabled
+  only when the encoder is really there, the format is frozen for the run,
+  Merge/Explode refused for non-GIF, no fake preview), packaging of the sidecar
+  with a notice and an honest README, and `tests/test_ffmpeg_roundtrip.cpp`,
+  which ran a real ffmpeg 7.0.2 and encoded all six formats from a deliberately
+  odd 65x49 GIF. `test_package.sh` 42/42. Three of my own bugs were caught by
+  those tests before they shipped: the still-image `libwebp` codec, a staging
+  name that ate the `.part-` marker and would collide two runs, and a verifier
+  that accepted "file exists" as "file is what was promised".
 
 ## S44 — 2026-10-26: the Output tab's naming, measured against the shipped binary — the rule lands tested, the UI is next
 

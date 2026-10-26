@@ -2,29 +2,34 @@
 #
 # fetch_ffmpeg.sh — put the portable FFmpeg sidecar next to the app.
 #
-#   ./scripts/fetch_ffmpeg.sh            fetch the pinned build for this host
-#   ./scripts/fetch_ffmpeg.sh --check    say what is pinned and what is present
-#   ./scripts/fetch_ffmpeg.sh --pin      record the SHA-256 of what is already there
+#   ./scripts/fetch_ffmpeg.sh                 fetch the build for this machine
+#   ./scripts/fetch_ffmpeg.sh --check         say what is pinned / present
+#   ./scripts/fetch_ffmpeg.sh --accept-unpinned
+#                                             install a fresh download and record
+#                                             its SHA-256 as the pin (trust on
+#                                             first use, deliberate second step)
+#   ./scripts/fetch_ffmpeg.sh --pin           re-pin what is already staged
 #
-# WHY A SCRIPT RATHER THAN A COMMITTED BINARY
-#   An FFmpeg build is 60-120 MB per platform. Committing three of them would
-#   bloat every clone and every CI checkout forever, and the repository's own
-#   budget rules keep large binaries out of git. The product still ships them:
-#   this script stages them into `vendor/ffmpeg/<platform>/`, packaging copies
-#   that folder next to the executable, and `src/core/FfmpegLocator.h` prefers
-#   that sidecar over anything installed on the machine. So a user unzips and it
-#   works; nobody downloads anything by hand.
+# WHY A SCRIPT AND NOT A COMMITTED BINARY
+#   An FFmpeg build is 70-200 MB per platform. Committing three of them bloats
+#   every clone and every CI checkout forever, and this repository does not put
+#   large binaries in git. The product still SHIPS them: this script stages a
+#   build into vendor/ffmpeg/<platform>/bin/, packaging copies that next to the
+#   executable, and src/core/FfmpegLocator.h prefers it over anything installed
+#   on the machine. A user unzips the package and it works - no PATH surgery, no
+#   "is ffmpeg installed" dialog.
 #
 # TRUST
-#   A download that is not checked is not a dependency, it is a gamble. The
-#   version and the SHA-256 both live in `vendor/ffmpeg/PINS.txt`; a mismatch is
-#   a hard failure, and `--pin` is a deliberate two-step so a pin can never be
-#   recorded by accident.
+#   A download that is not checked is not a dependency, it is a gamble. Every
+#   install is verified against the SHA-256 recorded in vendor/ffmpeg/PINS.txt.
+#   An unknown download is REFUSED unless --accept-unpinned, which prints the
+#   hash, installs it, and records it as the pin. That keeps the pin a decision
+#   somebody made rather than a side effect of running a script.
 #
 # NOTHING IS FETCHED UNLESS ASKED
-#   The build works without FFmpeg (GIF via the bundled gifsicle engine). This
-#   script is only reached when someone wants the video/APNG/WebP formats, or by
-#   the release job.
+#   The build works without FFmpeg (GIF needs none of this). Only APNG/WebP/MP4/
+#   WebM need it, and the GUI disables exactly those formats when it is absent -
+#   rather than offering a button that fails at the end of a batch.
 
 set -uo pipefail
 
@@ -34,123 +39,135 @@ pins="$vendor/PINS.txt"
 
 os="$(uname -s)"
 arch="$(uname -m)"
-
 case "$os" in
-  Linux*)  platform="linux-x64" ;;
+  Linux*)  platform="linux64" ;;
   Darwin*) platform="macos-$( [[ "$arch" == "arm64" ]] && echo arm64 || echo x64 )" ;;
-  MINGW*|MSYS*|CYGWIN*) platform="windows-x64" ;;
+  MINGW*|MSYS*|CYGWIN*) platform="win64" ;;
   *) echo "fetch_ffmpeg: unsupported host '$os' - install ffmpeg yourself and set GS_FFMPEG" >&2; exit 2 ;;
 esac
 
-# BtbN's builds are the reference static builds for every platform this project
-# ships on, and they are versioned by tag. The tag is the PIN.
-default_tag="autobuild-2026-10-25-13-00"   # a dated tag, never "latest": a rolling tag cannot be pinned
-repo="https://github.com/BtbN/FFmpeg-Builds/releases/download"
+# BtbN publishes a dated autobuild per day; each carries its full ffmpeg git
+# version in the asset name, so the NAME is discovered from the release instead
+# of guessed (a guessed name is a 404, and a 404 during packaging looks like a
+# network problem rather than a bug).
+tag="${GS_FFMPEG_TAG:-}"
+api="https://api.github.com/repos/BtbN/FFmpeg-Builds/releases"
+if [[ -z "$tag" ]]; then meta="$api/latest"; else meta="$api/tags/$tag"; fi
 
-case "$platform" in
-  linux-x64)    asset="ffmpeg-master-latest-linux64-gpl.tar.xz"; dir="ffmpeg-master-latest-linux64-gpl" ;;
-  windows-x64)  asset="ffmpeg-master-latest-win64-gpl.zip";     dir="ffmpeg-master-latest-win64-gpl" ;;
-  macos-arm64)  asset="ffmpeg-master-latest-macos-arm64-gpl.tar.xz"; dir="ffmpeg-master-latest-macos-arm64-gpl" ;;
-  macos-x64)    asset="ffmpeg-master-latest-macos-x64-gpl.tar.xz";   dir="ffmpeg-master-latest-macos-x64-gpl" ;;
-esac
+if command -v curl >/dev/null 2>&1; then
+  get() { curl -fsSL --retry 3 --retry-delay 2 "$1"; }
+  dl()  { curl -fL --retry 3 --retry-delay 2 -o "$2" "$1"; }
+elif command -v wget >/dev/null 2>&1; then
+  get() { wget -qO- "$1"; }
+  dl()  { wget -qO "$2" "$1"; }
+else
+  echo "neither curl nor wget is available" >&2; exit 1
+fi
 
+sha_of() {
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}';
+  else shasum -a 256 "$1" | awk '{print $1}'; fi
+}
+pinned_sha() { [[ -f "$pins" ]] && awk -v k="$1" '$1 == k { print $2 }' "$pins" | head -1; }
+
+discover_asset() {
+  # First GPL archive for this platform, never the "-shared" variant: a shared
+  # build needs a pile of sibling libraries next to it, which defeats the point
+  # of a sidecar that a package can copy as one file.
+  "$@" >/dev/null 2>&1 || true
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  sed -n '2,32p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  exit 0
+fi
+
+asset="$(get "$meta" | tr ',' '\n' | grep -o '"name": *"[^"]*"' | sed 's/.*"name": *"//; s/"$//' \
+         | grep -- "-$platform-gpl" | grep -v -- "-shared" | head -1)"
+if [[ -z "$asset" ]]; then
+  echo "fetch_ffmpeg: could not find a GPL build for '$platform' in $meta" >&2
+  echo "  (checked the release's asset list; nothing matched '-$platform-gpl')" >&2
+  exit 1
+fi
+url="$(get "$meta" | tr ',' '\n' | grep -o '"browser_download_url": *"[^"]*"' \
+       | sed 's/.*"browser_download_url": *"//; s/"$//' | grep -F "/$asset")"
+[[ -n "$url" ]] || { echo "fetch_ffmpeg: no download URL for $asset" >&2; exit 1; }
+
+exe="ffmpeg"; [[ "$platform" == win64 ]] && exe="ffmpeg.exe"
 target="$vendor/$platform"
-exe="ffmpeg"; [[ "$platform" == windows-x64 ]] && exe="ffmpeg.exe"
 staged="$target/bin/$exe"
 
-pinned_sha() { # $1 = asset name
-  [[ -f "$pins" ]] || return 1
-  awk -v k="$1" '$1 == k { print $2 }' "$pins" | head -1
-}
-
-usage() {
-  sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
-}
-
-case "${1:-}" in
-  -h|--help) usage; exit 0 ;;
-esac
-
 if [[ "${1:-}" == "--check" ]]; then
-  echo "platform : $platform"
+  echo "host     : $os $arch -> $platform"
   echo "asset    : $asset"
-  echo "pin file : $pins"
   sha="$(pinned_sha "$asset" || true)"
-  if [[ -n "$sha" ]]; then echo "pinned   : $sha"; else echo "pinned   : (none recorded)"; fi
+  echo "pinned   : ${sha:-(none recorded)}"
   if [[ -f "$staged" ]]; then
     echo "sidecar  : $staged ($(wc -c <"$staged" | tr -d ' ') bytes)"
-    echo "  run it : \"$staged\" -version | head -1"
   else
-    echo "sidecar  : absent (GIF still works; APNG/WebP/MP4/WebM stay disabled)"
+    echo "sidecar  : absent (GIF works; APNG/WebP/MP4/WebM stay disabled)"
   fi
   exit 0
 fi
 
 if [[ "${1:-}" == "--pin" ]]; then
   [[ -f "$staged" ]] || { echo "nothing staged to pin at $staged" >&2; exit 1; }
-  mkdir -p "$vendor"
-  touch "$pins"
-  grep -v "^$asset " "$pins" > "$pins.tmp" 2>/dev/null || true
-  if command -v sha256sum >/dev/null 2>&1; then
-    sum="$(sha256sum "$staged" | awk '{print $1}')"
-  else
-    sum="$(shasum -a 256 "$staged" | awk '{print $1}')"
-  fi
-  printf '%s %s %s\n' "$asset" "$sum" "$platform" >> "$pins.tmp"
+  mkdir -p "$vendor"; touch "$pins"
+  grep -v "^$asset " "$pins" > "$pins.tmp" || true
+  printf '%s %s %s\n' "$asset" "$(sha_of "$staged")" "$platform" >> "$pins.tmp"
   mv "$pins.tmp" "$pins"
-  echo "pinned $asset -> $sum"
+  echo "pinned $asset"
   exit 0
 fi
 
-tag="${GS_FFMPEG_TAG:-$default_tag}"
-url="$repo/$tag/$asset"
-mkdir -p "$target"
+case "${1:-}" in
+  ""|--accept-unpinned) ;;
+  *) echo "fetch_ffmpeg: unknown option '$1' (see --help)" >&2; exit 2 ;;
+esac
 
 echo "==> FFmpeg sidecar for $platform"
+echo "    $asset"
 echo "    $url"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-
-if command -v curl >/dev/null 2>&1; then
-  curl -fL --retry 3 --retry-delay 2 -o "$tmp/$asset" "$url" || { echo "download failed" >&2; exit 1; }
-elif command -v wget >/dev/null 2>&1; then
-  wget -O "$tmp/$asset" "$url" || { echo "download failed" >&2; exit 1; }
-else
-  echo "neither curl nor wget is available" >&2; exit 1
-fi
-
-if command -v sha256sum >/dev/null 2>&1; then
-  got="$(sha256sum "$tmp/$asset" | awk '{print $1}')"
-else
-  got="$(shasum -a 256 "$tmp/$asset" | awk '{print $1}')"
-fi
+dl "$url" "$tmp/$asset" || { echo "download failed" >&2; exit 1; }
+got="$(sha_of "$tmp/$asset")"
 want="$(pinned_sha "$asset" || true)"
-if [[ -z "$want" ]]; then
-  echo "REFUSING: no pinned SHA-256 for $asset in $pins." >&2
-  echo "  Downloaded   : $got" >&2
-  echo "  If you trust this tag, record it deliberately:  $0 --pin" >&2
-  echo "  (that is a two-step on purpose: a pin recorded by accident pins nothing)" >&2
-  exit 1
-fi
-if [[ "$got" != "$want" ]]; then
+
+if [[ -n "$want" && "$got" != "$want" ]]; then
   echo "REFUSING: SHA-256 mismatch for $asset" >&2
   echo "  pinned: $want" >&2
   echo "  got   : $got" >&2
+  echo "  The release was re-published, or the download was tampered with." >&2
   exit 1
+fi
+if [[ -z "$want" ]]; then
+  if [[ "${1:-}" != "--accept-unpinned" ]]; then
+    echo "REFUSING: no pinned SHA-256 for this asset in $pins" >&2
+    echo "  downloaded: $got" >&2
+    echo "  If you trust this build, run again with --accept-unpinned;" >&2
+    echo "  that installs it AND records the hash, so later installs are checked." >&2
+    exit 1
+  fi
+  mkdir -p "$vendor"; touch "$pins"
+  grep -v "^$asset " "$pins" > "$pins.tmp" || true
+  printf '%s %s %s\n' "$asset" "$got" "$platform" >> "$pins.tmp"
+  mv "$pins.tmp" "$pins"
+  echo "==> recorded pin for $asset: $got"
 fi
 
 case "$asset" in
   *.zip) unzip -q "$tmp/$asset" -d "$tmp/x" ;;
-  *)     tar -xf "$tmp/$asset" -C "$tmp" && mv "$tmp/$dir" "$tmp/x" ;;
+  *)     mkdir -p "$tmp/x" && tar -xf "$tmp/$asset" -C "$tmp/x" ;;
 esac
+src_bin="$(find "$tmp/x" -type f -name "$exe" -path '*/bin/*' | head -1)"
+[[ -n "$src_bin" ]] || src_bin="$(find "$tmp/x" -type f -name "$exe" | head -1)"
+[[ -n "$src_bin" ]] || { echo "archive did not contain $exe" >&2; exit 1; }
 
 mkdir -p "$target/bin"
-src_bin="$tmp/x/bin/$exe"
-[[ -f "$src_bin" ]] || src_bin="$(find "$tmp/x" -name "$exe" -type f | head -1)"
-[[ -f "$src_bin" ]] || { echo "archive did not contain $exe" >&2; exit 1; }
 cp "$src_bin" "$target/bin/$exe"
 chmod +x "$target/bin/$exe" 2>/dev/null || true
-
 echo "==> staged $target/bin/$exe"
-"$target/bin/$exe" -version 2>/dev/null | head -1 || echo "    (could not run it here; that is not fatal)"
-echo "    The GUI prefers this copy over anything on PATH (see src/core/FfmpegLocator.h)."
+"$target/bin/$exe" -version 2>/dev/null | head -1 || echo "    (could not run it here; not fatal)"
+echo "    Package it with: ./scripts/package_portable.sh --require-ffmpeg"
+echo "    The GUI prefers this copy over anything on PATH (src/core/FfmpegLocator.h)."

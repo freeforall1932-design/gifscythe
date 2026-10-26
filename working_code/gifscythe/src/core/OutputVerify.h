@@ -3,6 +3,7 @@
 // Identical rewrites within filesystem timestamp granularity fail conservatively.
 #ifndef GIFSCYTHE_CORE_OUTPUT_VERIFY_H
 #define GIFSCYTHE_CORE_OUTPUT_VERIFY_H
+#include "MediaFormat.h"
 #include "WinUnicode.h"
 #include <cstdint>
 #include <filesystem>
@@ -37,7 +38,13 @@ inline OutputSnapshot snapshot_output(const std::string& name) {
   if (ec) result.error = "cannot snapshot output metadata";
   return result;
 }
-inline std::string verify_output(const std::string& name, const OutputSnapshot& before) {
+// How much of the file the container probe is allowed to read. 64 KiB holds the
+// ftyp box, the PNG acTL chunk and the WEBP ANIM/ANMF chunks for every encoder
+// output we have measured; it is one read, not a scan of a 200 MB video.
+inline constexpr std::size_t kVerifyProbeBytes = 64u * 1024u;
+
+inline std::string verify_output_as(const std::string& name, const OutputSnapshot& before,
+                                    OutputFormat format) {
   if (!before.error.empty()) return before.error;
   const auto after = snapshot_output(name);
   if (!after.error.empty()) return after.error;
@@ -45,11 +52,18 @@ inline std::string verify_output(const std::string& name, const OutputSnapshot& 
   if (before.exists && before.size == after.size && before.mtime == after.mtime)
     return "output is unchanged since the pre-run snapshot";
   std::ifstream in(u8path_compat(name), std::ios::binary);
-  char header[6]{};
-  in.read(header, 6);
-  if (in.gcount() != 6 || (std::memcmp(header, "GIF87a", 6) != 0 && std::memcmp(header, "GIF89a", 6) != 0))
-    return "invalid GIF output (expected GIF87a or GIF89a signature)";
+  if (!in) return "cannot open the produced file to verify it";
+  std::vector<unsigned char> header(kVerifyProbeBytes);
+  in.read(reinterpret_cast<char*>(header.data()), static_cast<std::streamsize>(header.size()));
+  const auto got = static_cast<std::size_t>(in.gcount());
+  if (got < header.size()) header.resize(got);
+  const MediaProbe probe = probe_output_header(format, header);
+  if (!probe.ok) return "invalid " + std::string(output_format_name(format)) + " output: " + probe.problem;
   return {};
+}
+
+inline std::string verify_output(const std::string& name, const OutputSnapshot& before) {
+  return verify_output_as(name, before, OutputFormat::Gif);
 }
 
 // ---- U-59 / P0-7: a run must never write straight onto the user's file ----

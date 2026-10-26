@@ -106,5 +106,56 @@ if PATH="$TOOLS" "$t/scripts/package_system.sh" --windows >"$ROOT/log" 2>&1 \
    && [[ -s "$t/release/0.1.0/Gifscythe-system/gifscythe.exe" && ! -e "$t/release/0.1.0/Gifscythe-system/Qt6Core.dll" ]]; then
   ok "system Windows fixture deliberately does not deploy Qt"
 else bad "system Windows fixture"; fi
+echo "==> FFmpeg sidecar (N-62)"
+# The owner wants FFmpeg IN the package. It is optional only because a plain
+# checkout has no 156 MB sidecar; a release build says --require-ffmpeg and then
+# absence is fatal. What must NEVER happen is a package that silently lacks the
+# encoder while the app still advertises the formats.
+ff_platform=""
+case "$(uname -s)" in
+  Linux*)  ff_platform="linux-x64" ;;
+  Darwin*) ff_platform="macos-$( [[ "$(uname -m)" == arm64 ]] && echo arm64 || echo x64 )" ;;
+  *)       ff_platform="windows-x64" ;;
+esac
+sidecar() { # stage a plausible ffmpeg where the locator/package expect it
+  mkdir -p "$t/vendor/ffmpeg/$ff_platform/bin"
+  printf '#!/bin/sh\necho ffmpeg version fixture\n' > "$t/vendor/ffmpeg/$ff_platform/bin/ffmpeg"
+  chmod +x "$t/vendor/ffmpeg/$ff_platform/bin/ffmpeg"
+}
+fixture; sidecar
+if "$t/scripts/package_portable.sh" --engine-cli-only >"$ROOT/log" 2>&1 \
+   && [[ -x "$out/ffmpeg" && -s "$out/FFMPEG_NOTICE.txt" && -s "$out/MANIFEST.txt" ]] \
+   && grep -q '^ffmpeg$' "$out/MANIFEST.txt" \
+   && grep -q 'FFmpeg is bundled' "$out/README.txt" \
+   && grep -q 'GNU General Public License v3' "$out/FFMPEG_NOTICE.txt"; then
+  ok "bundled sidecar lands next to the app with a notice and an honest README"
+else bad "bundled sidecar staging"; fi
+fixture
+if "$t/scripts/package_portable.sh" --engine-cli-only >"$ROOT/log" 2>&1 \
+   && [[ ! -e "$out/ffmpeg" && ! -e "$out/FFMPEG_NOTICE.txt" ]] \
+   && grep -q 'FFmpeg is NOT bundled' "$out/README.txt";
+then ok "a package without the sidecar says so instead of implying the formats work"
+else bad "sidecar absence not disclosed"; fi
+fixture; mkdir -p "$out"; echo stale > "$out/STALE"
+label="require-ffmpeg without sidecar"; kind=portable; folder=Gifscythe
+refused --engine-cli-only --require-ffmpeg
+fixture; sidecar; : > "$t/vendor/ffmpeg/$ff_platform/bin/ffmpeg"
+chmod +x "$t/vendor/ffmpeg/$ff_platform/bin/ffmpeg"
+# A truncated/empty ffmpeg is worse than none: the app would pick it, fail to
+# encode, and the failure would point at the format instead of the file. It must
+# read as "absent" - and a release build must then refuse outright.
+if "$t/scripts/package_portable.sh" --engine-cli-only >"$ROOT/log" 2>&1 \
+   && [[ ! -e "$out/ffmpeg" && ! -e "$out/FFMPEG_NOTICE.txt" ]] \
+   && grep -q 'FFmpeg is NOT bundled' "$out/README.txt"; then
+  ok "0-byte sidecar is treated as absent, not bundled"
+else bad "0-byte sidecar mishandled"; fi
+if "$t/scripts/package_portable.sh" --engine-cli-only --require-ffmpeg >"$ROOT/log" 2>&1; then
+  bad "0-byte sidecar satisfied --require-ffmpeg"
+else ok "0-byte sidecar cannot satisfy --require-ffmpeg"; fi
+fixture
+if "$t/scripts/package_portable.sh" --engine-cli-only >"$ROOT/log" 2>&1 && grep -q 'FFmpeg is NOT bundled' "$out/README.txt"; then
+  ok "no sidecar is still a legal dev package (GIF needs no FFmpeg)"
+else bad "sidecar-free dev package"; fi
+
 echo "==> Done. $PASS passed, $FAIL failed."
 [[ "$FAIL" == 0 ]]

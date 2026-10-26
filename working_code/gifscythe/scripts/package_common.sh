@@ -6,17 +6,19 @@ repo_root="$(cd "$self/../.." && pwd)"
 engine_cli_only=0
 want_help=0
 windows=0
+require_ffmpeg=0
 case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) windows=1 ;; esac
 for arg in "$@"; do
   case "$arg" in
     --engine-cli-only) engine_cli_only=1 ;;
     --windows) windows=1 ;;
+    --require-ffmpeg) require_ffmpeg=1 ;;
     -h|--help) want_help=1 ;;
     *) echo "ERROR: unknown argument '$arg'" >&2; exit 2 ;;
   esac
 done
 if [[ "$want_help" == 1 ]]; then
-  echo "usage: package_${package_kind}.sh [--engine-cli-only] [--windows]"
+  echo "usage: package_${package_kind}.sh [--engine-cli-only] [--windows] [--require-ffmpeg]"
   exit 0
 fi
 fail() { echo "ERROR: $*" >&2; exit 1; }
@@ -75,6 +77,43 @@ copy_required licenses/COPYING.gifsicle "$repo_root/legal/COPYING.gifsicle" "$re
 copy_required licenses/COPYING.ms-pl "$repo_root/legal/COPYING.ms-pl"
 copy_required licenses/COPYING.lgplv3 "$repo_root/legal/COPYING.lgplv3"
 copy_required licenses/COPYING.gplv3 "$repo_root/legal/COPYING.gplv3"
+# ---------------------------------------------------------------------------
+# FFmpeg sidecar (N-62). The owner asked for FFmpeg IN the project, portable,
+# with a search fallback only when the local copy is missing. So the copy that
+# travels with the app is staged right next to the executable - exact path the
+# locator looks at first - and it is OPTIONAL only because a checkout without
+# vendor/ffmpeg/ must still be packageable (CI has no 156 MB sidecar and must
+# not download one on every push). A release build passes --require-ffmpeg and
+# then a missing sidecar is fatal.
+ffmpeg_ext=""; [[ "$windows" == 1 ]] && ffmpeg_ext=".exe"
+ffmpeg_platform=""
+case "$(uname -s)" in
+  Linux*)  ffmpeg_platform="linux-x64" ;;
+  Darwin*) ffmpeg_platform="macos-$( [[ "$(uname -m)" == arm64 ]] && echo arm64 || echo x64 )" ;;
+  MINGW*|MSYS*|CYGWIN*) ffmpeg_platform="windows-x64" ;;
+esac
+ffmpeg_bundled=0
+ffmpeg_src="$self/vendor/ffmpeg/$ffmpeg_platform/bin/ffmpeg$ffmpeg_ext"
+if [[ -f "$ffmpeg_src" && -s "$ffmpeg_src" && -x "$ffmpeg_src" ]]; then
+  cp "$ffmpeg_src" "$stage/ffmpeg$ffmpeg_ext"
+  required+=("ffmpeg$ffmpeg_ext")
+  ffmpeg_bundled=1
+  cat > "$stage/FFMPEG_NOTICE.txt" <<EOF
+FFmpeg notice (Gifscythe $version, $package_kind package)
+This package bundles FFmpeg as a separate program, next to the application
+(ffmpeg$ffmpeg_ext). The application runs it as a subprocess; it is not linked
+into the application binary.
+FFmpeg is licensed under the GNU General Public License v3 - see COPYING.gplv3
+in this folder, and https://ffmpeg.org/legal.html for the build options used.
+Corresponding source for the bundled FFmpeg build: https://ffmpeg.org/download.html
+The bundled build is a GPL build (no --enable-nonfree component is used).
+The application prefers this bundled copy; it only searches PATH and the usual
+install folders when this file is absent.
+EOF
+  required+=(FFMPEG_NOTICE.txt)
+elif [[ "$require_ffmpeg" == 1 ]]; then
+  fail "FFmpeg sidecar required but missing: $ffmpeg_src (run scripts/fetch_ffmpeg.sh)"
+fi
 runtime="Qt runtime is not bundled on this target; GUI requires system Qt6."
 if [[ "$package_kind" == portable && "$windows" == 1 && "$engine_cli_only" == 0 ]]; then
   runtime="Qt runtime deployed by windeployqt; clean-Windows smoke is still required."
@@ -105,6 +144,23 @@ Third-party notices are in licenses/: gifsicle is GPL v2-only (COPYING.gifsicle)
 The first-party code is UNLICENSED: no licence is granted, and licenses/LICENSE.md-pl.proposed
 is only a proposal (see the repository's legal/ folder).
 EOF
+# One README, two honest variants: a package either carries FFmpeg or it does
+# not, and it must say which (a silent missing encoder is exactly the bug the
+# owner called out).
+if [[ "$ffmpeg_bundled" == 1 ]]; then
+  cat >> "$stage/README.txt" <<EOF
+FFmpeg is bundled: ffmpeg$ffmpeg_ext sits next to the executable, so APNG, WebP, MP4,
+WebM and every other FFmpeg-backed format works without installing anything. The
+application only searches for a system FFmpeg if that bundled file is removed.
+EOF
+else
+  cat >> "$stage/README.txt" <<EOF
+FFmpeg is NOT bundled in this build. GIF output is fully supported (the packaged
+gifsicle engine needs no FFmpeg). The FFmpeg-backed formats will only appear as
+available if an FFmpeg is found in this folder, on PATH, or in a usual install
+location - see the application's own report of what it found and where.
+EOF
+fi
 required+=(README.txt)
 printf '%s\n' "${required[@]}" > "$stage/MANIFEST.txt"
 required+=(MANIFEST.txt)
