@@ -113,9 +113,9 @@ echo "==> FFmpeg sidecar (N-62)"
 # encoder while the app still advertises the formats.
 ff_platform=""
 case "$(uname -s)" in
-  Linux*)  ff_platform="linux-x64" ;;
+  Linux*)  ff_platform="linux64" ;;
   Darwin*) ff_platform="macos-$( [[ "$(uname -m)" == arm64 ]] && echo arm64 || echo x64 )" ;;
-  *)       ff_platform="windows-x64" ;;
+  *)       ff_platform="win64" ;;
 esac
 sidecar() { # stage a plausible ffmpeg where the locator/package expect it
   mkdir -p "$t/vendor/ffmpeg/$ff_platform/bin"

@@ -107,6 +107,27 @@ int main() {
     CHECK_MSG(std::string(ffmpeg_source_name(loc.source)) == "PATH", "the source is reported");
   }
 
+  // ---- an empty app_dir still means "the folder we are in" ---------------
+  // The first implementation skipped the sidecar step for an empty app_dir, so
+  // the copy that ships next to the program was invisible to exactly the callers
+  // most likely to pass no directory at all (tests, CI, a launcher that chdir'd).
+  {
+    const fs::path appA = root / "appA";
+    fs::create_directories(appA);
+    make_exe(appA, exe, "sidecar for the chdir case");
+    const FfmpegLocation explicitDir = locate_ffmpeg(appA.string(), "", "", {});
+    CHECK_MSG(explicitDir.source == FfmpegSource::Sidecar, ffmpeg_location_summary(explicitDir).c_str());
+
+    const fs::path saved = fs::current_path();
+    fs::current_path(appA);
+    const FfmpegLocation here = locate_ffmpeg("", "", "", {});
+    fs::current_path(saved);
+    CHECK_MSG(here.found() && here.source == FfmpegSource::Sidecar,
+              ffmpeg_location_summary(here).c_str());
+    // ... and it must beat PATH, because "the copy in the folder" is the point.
+    CHECK(same(here.path, appA / exe) || here.path == std::string(".") + dirSep + exe);
+  }
+
   // ---- PATH entries that hold nothing are skipped, not treated as found ----
   // (sysA deliberately still has its ffmpeg from the block above, so this uses
   // an EMPTY directory first: that is the "holds nothing" case being tested.)

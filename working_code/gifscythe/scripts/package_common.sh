@@ -88,9 +88,11 @@ copy_required licenses/COPYING.gplv3 "$repo_root/legal/COPYING.gplv3"
 ffmpeg_ext=""; [[ "$windows" == 1 ]] && ffmpeg_ext=".exe"
 ffmpeg_platform=""
 case "$(uname -s)" in
-  Linux*)  ffmpeg_platform="linux-x64" ;;
+  Linux*)  ffmpeg_platform="linux64" ;;   # names follow the FFmpeg build's own
   Darwin*) ffmpeg_platform="macos-$( [[ "$(uname -m)" == arm64 ]] && echo arm64 || echo x64 )" ;;
-  MINGW*|MSYS*|CYGWIN*) ffmpeg_platform="windows-x64" ;;
+  MINGW*|MSYS*|CYGWIN*) ffmpeg_platform="win64" ;;  # platform tags, so one
+                                                    # folder name works for both
+                                                    # fetch and packaging
 esac
 ffmpeg_bundled=0
 ffmpeg_src="$self/vendor/ffmpeg/$ffmpeg_platform/bin/ffmpeg$ffmpeg_ext"

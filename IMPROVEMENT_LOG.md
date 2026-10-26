@@ -41,6 +41,14 @@ Chronological log of decisions and changes. **Newest at the top.**
   those tests before they shipped: the still-image `libwebp` codec, a staging
   name that ate the `.part-` marker and would collide two runs, and a verifier
   that accepted "file exists" as "file is what was promised".
+- **Then the package itself was checked with a real binary.** A 79.8 MB FFmpeg
+  was staged into `vendor/ffmpeg/linux64/bin/`, `package_portable.sh
+  --require-ffmpeg` staged it beside the app with its notice, `verify_audit`
+  reported "FFmpeg bundled", and running the round-trip **from inside the
+  package folder** found `bundled: ./ffmpeg` and encoded all six formats again.
+  That exposed a real locator bug: an empty `app_dir` skipped the sidecar step,
+  so the copy that ships in the folder was invisible to any caller without an
+  absolute path. Empty now means `.`, with a chdir test.
 
 ## S44 — 2026-10-26: the Output tab's naming, measured against the shipped binary — the rule lands tested, the UI is next
 

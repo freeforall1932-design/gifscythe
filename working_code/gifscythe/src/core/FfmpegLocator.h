@@ -192,9 +192,15 @@ inline FfmpegLocation locate_ffmpeg(const std::string& app_dir,
   }
 
   // 2. the sidecar next to the executable
-  if (!app_dir.empty()) {
+  //
+  // An empty app_dir means "here": skipping the step entirely (the first version
+  // did) made the MOST important case - the copy shipped in the folder - vanish
+  // for any caller that did not have an absolute path to hand, and the test below
+  // then passed for the wrong reason.
+  {
+    const fs::path root = app_dir.empty() ? fs::path(".") : fs::path(app_dir);
     for (const std::string& rel : ffmpeg_sidecar_relative_paths()) {
-      if (try_file(fs::path(app_dir) / fs::path(rel), FfmpegSource::Sidecar)) return out;
+      if (try_file(root / fs::path(rel), FfmpegSource::Sidecar)) return out;
     }
   }
 

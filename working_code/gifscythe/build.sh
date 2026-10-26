@@ -206,6 +206,19 @@ g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
 g++ -std=c++17 -Wall -Wextra -pedantic -O2 -I"$self/src" \
   -o "$BUILD_DIR/test_ffmpeg_roundtrip" "$self/tests/test_ffmpeg_roundtrip.cpp" $STDCXXFS \
   || fail "ffmpeg-roundtrip test compile failed"
+# If a sidecar has been fetched into vendor/ffmpeg/, test THAT binary - the one
+# that will ship - rather than whatever happens to be on PATH.
+ffmpeg_sidecar_platform=""
+case "$(uname -s)" in
+  Linux*)  ffmpeg_sidecar_platform="linux64" ;;
+  Darwin*) ffmpeg_sidecar_platform="macos-$( [[ "$(uname -m)" == arm64 ]] && echo arm64 || echo x64 )" ;;
+  *)       ffmpeg_sidecar_platform="win64" ;;
+esac
+if [[ -z "${GS_FFMPEG:-}" && -x "$self/vendor/ffmpeg/$ffmpeg_sidecar_platform/bin/ffmpeg" ]]; then
+  GS_FFMPEG="$self/vendor/ffmpeg/$ffmpeg_sidecar_platform/bin/ffmpeg"
+  export GS_FFMPEG
+  echo "==> round-trip uses the staged sidecar: $GS_FFMPEG"
+fi
 "$BUILD_DIR/test_ffmpeg_roundtrip" || fail "ffmpeg round-trip failed"
 
 # 4. GUI (only when requested)
