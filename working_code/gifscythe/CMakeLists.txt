@@ -61,6 +61,12 @@ add_executable(test_name_template tests/test_name_template.cpp)
 target_link_libraries(test_name_template PRIVATE gifscythe_core)
 add_test(NAME name_template COMMAND test_name_template)
 
+# N-63 / N-64: existing-file collision policy, relative folder nesting, and
+# same-format size guard, proven with no filesystem races.
+add_executable(test_collision tests/test_collision.cpp)
+target_link_libraries(test_collision PRIVATE gifscythe_core)
+add_test(NAME collision COMMAND test_collision)
+
 # The FFmpeg sidecar locator: bundled copy first, PATH/installed only as a
 # fallback. Fixture-driven so the precedence is proven, not assumed.
 add_executable(test_ffmpeg_locator tests/test_ffmpeg_locator.cpp)

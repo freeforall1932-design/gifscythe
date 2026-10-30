@@ -55,82 +55,41 @@ reads them in a file, not in a conversation.
    flip both **G16** lines to **WORKING PLAN** in the same commit (one-way).
    The gate never auto-edits.
 
-## Next session (S46) — pick up here
+## S47 — owner UI redirection (verified locally, 2026-10-30)
 
-> Written at the end of S45 by the agent, from the owner's own words. The two
-> items are ONE slice (the Output form) and they are already spec'd far enough
-> that no further questions are needed. **Read the owner's answers verbatim
-> first** (`SESSION_HANDOFF.md` §S45 "Owner's answers"), because the UI shape he
-> described is unusual and guessing it will waste a session.
+- [x] **Screenshot harness:** activate and lay out Actions before capturing the
+      whole preview frame and window, including the explicitly generated After.
+- [x] **Output:** remove Start index from the UI while preserving legacy preset
+      numbering, put the collision button before its explanation, align the
+      checkboxes, remove duplicated labels and use one changing pointer tip.
+- [x] **Input:** inline Filter placeholder, blue funnel with two queue-only
+      deletion actions, and one menu for thumbnail sizes. Verify queue order,
+      selection, source safety and remembered folder roots.
+- [x] **Actions preview:** a single aspect-fitted Before/After frame, manual
+      Apply, no automatic encodes, stale-result indication and temp cleanup.
+- [x] **Verification:** Qt 6.8.3 offscreen suite plus actual screenshot review,
+      unit, engine, packaging, oracle and lint checks (see S47 log).
+- [ ] Confirm the new GitHub Actions checks and an owner Windows visual smoke;
+      the local Qt result is not a substitute for either.
 
-- [ ] **N-63 — the Output form's two remaining rows.** *(S45 built it, CI red,
-      commit `7490cb9` **reverted** by `2f72a90`; `Collision.h` + its
-      45-check suite are in that commit's history and should be restored rather
-      than rewritten: `git show 7490cb9 -- Collision.h (restorable from 7490cb9) test_collision.cpp (restorable from 7490cb9)`.)*
-      - **Keep folder structure** — a checkbox, **default ON**. It means BOTH
-        things the owner listed: (a) the two-place choice between *source folder*
-        and *designated folder*, and (b) when a designated folder is used, the
-        source's own nesting is recreated inside it (`in/a/b/c.gif` →
-        `<dest>/a/b/c_result.gif`). A file picked on its own has no tree and
-        stays flat; never invent one.
-      - **If an output file already exists** — NOT a list of four radio buttons
-        (that is what failed to compile and what he corrected). He wants
-        XnConvert's control: one compact **square button** that shows the current
-        choice, sized to the **longest of the option names**, with a ⬇️⬆️ glyph
-        and **no dropdown arrow/tail**; clicking it reveals the other choices,
-        and you pick one by clicking it. Default: **Ask each time** (the owner's
-        earlier answer; in the dialog the choices are Rename / Overwrite / Skip
-        plus "… all"). Overwrite still means replace-after-verify.
-      - **Tally** — a skipped file must appear as its own row in the Status
-        table: `skipped, file already exists` **plus the file name and its full
-        location** (owner: "show in tallying in error segment this file name at
-        this location or straight location/name").
-      - Persist the checkbox and the choice in the session file **and** presets.
-- [ ] **N-64 — "discard the result if it is larger than the original".** He asked
-      for it explicitly *and* for the exception in the same breath: it applies
-      **only when the output format equals the source format**, because GIF,
-      APNG, WebP and MP4 "have different purpose" and a bigger file is not
-      automatically a worse one across containers. Implement as a checkbox in
-      the same Output block, off by default, and only enabled when the selected
-      format is the source's own; when the check fires, the verified result is
-      discarded, the original stays, and the row says so with both sizes.
-- [ ] **N-61 remainder** — the naming/template wiring on the Output tab
-      (`src/core/NameTemplate.h` is written and tested; the tab still uses the
-      old fields). Do it in the same pass as N-63: they touch the same widgets.
-- [ ] Then the **E2 UI wiring** the owner queued before FFmpeg came up.
+## Completed in S46 — Output form & per-format FFmpeg settings (historical; S47 supersedes UI details) (`N-61`, `N-63`, `N-64`, `N-65`)
 
-- [ ] **N-65** — per-format encoder settings (quality / frame rate) behind the
-      Settings… button; `FfmpegEncodeRequest::quality`/`fps` already exist and are
-      never set by the GUI, so this is UI + persistence + round-trip proof.
-- [ ] **Questions the next session MUST ask the owner directly** (his
-      instruction, 2026-10-26: "you don't specify what's the n 63 and n 64
-      problem question directly so maybe put it on next session burden to ask").
-      Ask in plain chat, in his terms, not as a register id:
-      1. *N-63* — "when you pick a designated output folder, should the result
-         keep the folders the source came from?" and "for the already-exists
-         button, is 'ask' the default you want, or rename?"
-      2. *N-64* — "if the result comes out bigger than the original GIF, should I
-         throw the result away and keep yours — only when the format is the same?"
-      Record the answers in `OWNER_DECISIONS.md` in the same session.
-- [ ] **Test-machine note (owner, 2026-10-26):** the machine under test is **his
-      laptop**, and he does not know whether its FFmpeg is global, local or
-      something else. Do not assume: the app already prints exactly that
-      (`Output ▸ Format ▸ "FFmpeg: <source>: <path>"`, and Format ▸ Settings…
-      lists the four places it looked). Next session: have him read that line
-      back, and treat "bundled" vs "PATH" vs "well-known" as three different
-      setups to test.
+- [x] **N-63 — the Output form's two remaining rows** (`DONE`, S46): restored and extended `src/core/Collision.h` + `tests/test_collision.cpp` (60 checks), built `keepFolderCheck` (**default ON**: `Source folder` vs designated `Folder` + nested sub-folder recreation via `InputEntry::rootDir` & `relative_under_root`, flat for standalone files) and `collisionButton` (`NoArrowButton`: single compact clickable square sized to the longest option label + `⇅` with `QMenu::NoArrow` and **no dropdown tail**, default `Ask each time`, modal Rename / Overwrite / Skip + `… all`, replace-after-verify), added `skipped, file already exists` Status `resultTable` rows with filename + full path, and persisted both keys in session and presets (`T32`).
+- [x] **N-64 — "discard the result if it is larger than the original"** (`DONE`, S46): `discardLargerCheck` (**default OFF**, enabled and applied **only when the resolved output format equals the source format**), discards verified output when `produced_bytes > source_bytes`, keeps original untouched, reports both byte sizes on the Status row, and persists in session and presets (`T33`).
+- [x] **N-61 remainder** (`DONE`, S46): Output tab wired to `NameTemplate.h` (`nameTemplateEdit`, default `{Filename}_result`, `{name}` alias preserved, Format owns extension per `OD-24 = a`, `{`-triggered scrolling `QCompleter` popup + `▶` token-insert menu, `startIndexSpin`, `destSourceRadio` / `destFolderRadio` + `batchOutEdit`, `outputEdit` dropped per `OD-25 = a`, `disambiguate_names()` per `OD-23`, session + preset persistence per `OD-26`; `T31`).
+- [x] **E2 UI wiring + N-65** (`DONE`, S46): per-format encoder settings dialog behind `Format ▸ Settings…` (`quality` `0..100` or `-1` codec default; `fps` `1..120` or `-1` keep source timing; lossless APNG note; FFmpeg location readout + `Re-scan`), live Command-pane preview of `FfmpegEncodeRequest` argv, and per-format session + preset persistence (`T34`).
 
-**Definition of done for that pass:** `build.sh`, `test_package.sh`,
-`check_docs.sh`, `qt_lint --baseline` all green locally, the GUI compiling on
-both CI jobs, and the whole slice visible in the offscreen harness — the last
-attempt failed exactly there (GUI compiled neither on Linux nor on Windows).
+## Remaining owner-machine follow-up
+
+- [ ] **Owner plain-language confirmation check-in** (asked directly in S46 chat per the owner's S45 instruction; record any adjustment in `docs/planning/OWNER_DECISIONS.md`):
+      1. *N-63* — confirm designated output folder keeps nested source sub-folders (`Keep folder structure` default ON) and whether `Ask each time` (shipped default) or `Rename` is preferred for the compact already-exists button (now `▼` / `▲` in S47).
+      2. *N-64* — confirm throwing away a result that comes out bigger than the original GIF and keeping the original **only when the output format is the same** (`Discard result if larger than original (same format only)`, default OFF).
+- [ ] **Test-machine FFmpeg readout (owner's Windows laptop):** record the owner's read-back of `Output ▸ Format ▸ Settings…` (`"FFmpeg: <source>: <path>"`) and treat `"bundled"` vs `"PATH"` vs `"well-known"` as distinct setups when verifying on his laptop (`W-18` / `W-19`).
+- [ ] **Release FFmpeg sidecar packaging workflow** (optional follow-up noted in `N-62`): release job / runbook step running `scripts/fetch_ffmpeg.sh` + `package_* --require-ffmpeg` once `vendor/ffmpeg/PINS.txt` hashes are pinned.
 
 ## Found this session — pending lines (rule 2)
 
-- **N-61** (S44, the owner's naming priority): `src/core/NameTemplate.h` + its 60-check suite
-  landed; the Output tab still names files the old way. **Next:** wire it in (filename field +
-  `{` popup + Start index + destination), delete `outputEdit`, persist template + destination, then
-  flip the row to DONE.
+- **N-61** (S44 core, **S46 DONE**): `src/core/NameTemplate.h` + its 60-check suite landed in S44; Output-tab wiring (`nameTemplateEdit`, `{` popup, `startIndexSpin`, `Source folder` / `Folder` radios, dropping `outputEdit`, duplicate disambiguation, session + preset persistence) completed and proven in S46 (`T31`).
 
 - **W-33** (S39, found by the `GUI_REUSE_REVIEW.md` handoff from the
   DiscordChatExporter session): the Phase-1 C# spike read the engine's stderr to

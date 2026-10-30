@@ -40,6 +40,13 @@ HEADERS += \
     src/core/GifsicleCommand.h \
     src/core/SettingsIO.h \
     src/core/EngineLocator.h \
+    src/core/InputAdmission.h \
+    src/core/NameTemplate.h \
+    src/core/Collision.h \
+    src/core/MediaFormat.h \
+    src/core/FfmpegLocator.h \
+    src/core/FfmpegCommand.h \
+    src/core/OutputVerify.h \
     src/core/OutputName.h \
     src/core/OutputPlan.h \
     src/core/Validate.h \

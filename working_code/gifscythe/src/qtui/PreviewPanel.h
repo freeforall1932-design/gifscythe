@@ -1,10 +1,8 @@
-// PreviewPanel.h - Before/after animation preview (eZgif feel).
+// PreviewPanel.h - single-viewport Before/After animation preview.
 //
-// "Before" plays the selected original file. "After" plays either the result
-// of a DEBOUNCED, ASYNC single-file engine run or, after a real run, the exact
-// file that was written to disk. MainWindow owns the QProcess; this panel only
-// displays. Captions and playback controls live outside the GIF canvas so text
-// can never be painted over an animation.
+// Before is the selected source; After is an explicitly requested settings
+// preview or a verified output. MainWindow owns the encoder process; this
+// widget only displays movies and playback/status controls.
 
 #ifndef GIFSCYTHE_PREVIEWPANEL_H
 #define GIFSCYTHE_PREVIEWPANEL_H
@@ -15,6 +13,8 @@ class QCheckBox;
 class QLabel;
 class QMovie;
 class QPushButton;
+class QStackedWidget;
+class QTabBar;
 
 class PreviewPanel : public QWidget {
   Q_OBJECT
@@ -22,26 +22,21 @@ class PreviewPanel : public QWidget {
   explicit PreviewPanel(QWidget* parent = nullptr);
 
   void setBefore(const QString& gifPath);
-  // context is optional. The default describes a temporary settings preview;
-  // callers can say "Showing the file written to disk" after a real run.
-  void setAfter(const QString& gifPath, qint64 beforeBytes, qint64 afterBytes,
+  bool setAfter(const QString& gifPath, qint64 beforeBytes, qint64 afterBytes,
                 const QString& context = QString());
   void clearAfter(const QString& reason);
   void setGenerating(bool generating);
-  void setStatus(const QString& status);  // appended to the base caption
-  // Explicit playback controls. Stop pauses at the beginning without deleting
-  // the movie object, so Play can resume/restart without another encode.
+  void setStatus(const QString& status);
+  void setPreviewAvailable(bool available);
   void playMovies();
   void stopMovies();
   void setAutoPlay(bool enabled);
   bool autoPlay() const;
-  // Stop and delete both movies immediately, releasing their file handles
-  // (Windows delete-locks the file of a live QMovie; the owner's temp-dir
-  // sweep needs the handles gone first).
+  // Release file handles synchronously before sweeping preview files (Windows).
   void releaseMovies();
 
  signals:
-  void previewRequested();  // user explicitly asks for a fresh settings preview
+  void previewRequested();
 
  private:
   void stopMovie(QMovie** movie);
@@ -53,6 +48,8 @@ class PreviewPanel : public QWidget {
   QLabel* afterLabel_ = nullptr;
   QLabel* savingsLabel_ = nullptr;
   QLabel* captionLabel_ = nullptr;
+  QTabBar* viewTabs_ = nullptr;
+  QStackedWidget* viewportPages_ = nullptr;
   QMovie* beforeMovie_ = nullptr;
   QMovie* afterMovie_ = nullptr;
   QPushButton* previewButton_ = nullptr;
