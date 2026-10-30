@@ -4,6 +4,24 @@ Chronological log of decisions and changes. **Newest at the top.**
 
 ---
 
+## S47 — 2026-10-30: Owner-directed Input, Output and on-demand mirror preview
+
+- **Changed:**
+  - Screenshot harness now activates and settles Actions before grabbing the complete preview and window, both before and after applying settings.
+  - Input uses the `Filter` placeholder, a blue funnel with exactly two queue-only removal actions, and a single small/medium/large thumbnail menu. Empty filters cannot accidentally remove the queue; bulk removal keeps order, folder roots, cache and selection in sync without deleting source files.
+  - Output removes the Start index control, removes duplicate field labels, aligns checkboxes and places the collision button before its explanation. One pointer shows `▼` closed / `▲` open; action-card pointers follow the same rule. Old saved `start_index` values remain functional and are disclosed in the filename note.
+  - Actions now has one aspect-fitted Before/After viewport and **Apply setting preview**. Selection and edits never start encoders. Settings changes invalidate in-flight work and label an older After stale; conversion interrupts an in-flight preview. Temporary files are cleaned after cancellation, failure and replacement.
+  - Visual review found a subtle hidden-tab issue that size-property-only tests missed: `QMovie::setScaledSize` leaves the already-decoded frame tiny. The viewer now paints the complete native frame fitted at display time, including when paused or resized; a real painted 3:1 fixture and an extreme 1600×1 GIF guard against cropping and distortion.
+  - Added `docs/planning/XNCONVERT_SCREENTOGIF_SYNTHESIS.md` distinguishing shipped features from reference ideas.
+- **Partial:** No new register items. In-app After remains GIF-only; cross-format and Explode preview limitations are stated explicitly.
+- **Left:** Fresh PR #18 CI and an owner Windows visual smoke; neither is implied by a Linux offscreen run. The real FFmpeg round-trip was skipped locally because FFmpeg is absent.
+- **Verified:**
+  - Locally source-built Qt **6.8.3**, full GUI/offscreen harness **813 checks, 0 failures** across 39 test blocks (T1–T38 plus T30b), 454 `CHECK(` sites in source. `GS_SHOT_DIR` captures verified visually: preview 482×679, full Actions window 1180×780.
+  - `ctest --test-dir build-cmake --output-on-failure -j2`: 9/9 passed (the FFmpeg round-trip itself reports SKIP). Core `build.sh`: 421/35/54/60/60/34/74 checks, all zero failures.
+  - Engine 5/5, CLI smoke 65/65, packaging 42/42, seeded oracle quick 24/24, reference pins OK, U-58/U-70/U-72 sentinels + mutations PASS, `qt_lint --selftest` PASS and 7 baselined findings / 0 new.
+- **Not verifiable here:** Native Windows execution and interactive owner-machine appearance, real FFmpeg encoding, and the CI status until the new commit is pushed and checks complete.
+- **Docs touched:** `STATUS.md`, `SESSION_HANDOFF.md`, `COMPILED_AUDIT.md`, `WORKLIST.md`, this log, the product and screenshot READMEs, and the synthesis document.
+
 ## S46 — 2026-10-26: Local Qt 6.8.3 built; Output tab completed (`N-61`, `N-63`, `N-64`, `N-65` DONE) and proven in 697-check offscreen harness
 
 - **Changed:**

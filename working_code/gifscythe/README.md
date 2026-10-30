@@ -195,29 +195,28 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   install still finds `gifsicle` next to the real executable (U-65), and prefers
   `release/current` over `release/<version>` in lockstep with the web server (U-66).
 
-## GUI layout (S4b retrofit + S7 polish)
-- **Input** tab — queue with drag-drop, per-file size, count/total label,
-  **Move Up/Move Down reorder** (merge order = queue order), the Batch file-name
-  pattern, and the prominent **Start** button.
-- **Actions** tab — every whole-GIF gifsicle control (value lists taken from
-  the engine source: dither/resize/color methods, disposal, gamma), with
-  plain-language descriptions beside the unfamiliar controls.
-- **Output** tab — Save-as, batch output folder, verified files-on-disk list,
-  Open-file/Open-folder actions, and an honest per-mode summary. Naming belongs
-  to the Input workflow; this tab is for destinations and results. The list is the real destination; the preview is not a
-  substitute for writing a file.
-- **Guide** tab — an in-app glossary explaining optimization, lossy
-  compression, palettes, dithering, resizing, timing, looping, disposal,
-  threads, modes and output verification.
-- **Preview** pane — separate Before/After canvases (status text never paints
-  over a GIF), Play/Stop controls, optional autoplay, and a debounced (1.2 s)
-  async settings preview. Automatic re-encoding is paused for GIFs over 32 MB;
-  **Preview changes** is available when the user explicitly wants one. After a
-  successful run shows the verified file written to disk, avoiding a second
-  full encode of a large GIF.
-- Bottom bar — one-way live command pane, bounded activity log, determinate
-  per-file Batch progress or an honest indeterminate bar for one large engine
-  run, run/cancel, and status.
+## GUI layout
+- **Input** — add files or folders, drag and drop GIFs, reorder and sort the
+  actual processing queue. `Filter` hides nonmatches without changing the job;
+  the blue funnel menu removes matching or nonmatching entries **from the queue
+  only**, never from disk. Its actions are disabled when the filter is empty.
+  One thumbnail-size menu offers small, medium and large cells.
+- **Actions** — collapsible action cards and one large Preview frame with
+  **Before** / **After** tabs. The full GIF is fitted without cropping or
+  stretching. **Apply setting preview** explicitly starts an asynchronous
+  single-file GIF encode; selecting files and changing settings do not start
+  one. The previous After is marked stale after a change until Apply is pressed.
+  Play, Stop and Auto-play affect playback only. A successful conversion shows
+  the verified output in After. Explode and non-GIF outputs are explicitly
+  reported as unavailable for an in-app settings preview.
+- **Output** — source or chosen folder, filename template and token picker,
+  format and encoder settings, collision policy, folder-structure and
+  same-format size safeguards, and verified files-on-disk. No Start index
+  control is shown: new templates use a 1-based `{File Index}`. A legacy
+  session or preset containing `start_index` keeps its saved numbering.
+- **Status** — per-file results, honest progress, activity log and the
+  read-only command preview. **Settings** and **About** hold configuration
+  paths and the in-app guide. Convert and Stop are in the footer.
 - The Windows desktop target uses the GUI subsystem, so double-clicking
   `gifscythe.exe` does not create a console window. Engine and preview
   subprocesses are also started with `CREATE_NO_WINDOW`/hidden startup flags,
@@ -242,9 +241,10 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   (`outputEdit` Save-as field removed per `OD-25 = a`), `Filename` template
   (`{Filename}_result` default, `{name}` alias preserved, Format owns extension
   per `OD-24 = a`) with a `{`-triggered scrolling token-completion popup and
-  `▶` token-insert menu (`src/core/NameTemplate.h`), `Start index`, duplicate
-  disambiguation (`_1`, `_2`, `OD-23`), `If an output file already exists` as a
-  compact clickable square button (`Ask each time ⇅` default, `QMenu::NoArrow`,
+  `▶` token-insert menu (`src/core/NameTemplate.h`), 1-based file numbering
+  (legacy saved indices are retained), duplicate disambiguation (`_1`, `_2`,
+  `OD-23`), `If an output file already exists` as a compact clickable button
+  (`Ask each time ▼` when closed and `▲` when open, no Qt dropdown tail,
   modal Rename / Overwrite / Skip + `… all`), `Keep folder structure` checkbox
   (default ON, recreating nested subfolders under designated `Folder` while
   standalone files stay flat), `Discard result if larger than original (same
@@ -253,11 +253,10 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   FFmpeg location dialog (`N-65`). Skipped existing files appear as rows in the
   Status `resultTable` (`skipped, file already exists` + filename + full path).
   All fields persist in `gifscythe.conf` and in presets (`OD-26`).
-- Regression net: `tests/test_gui_offscreen.cpp` — T1–T34 plus `T30b` and the S23 desktop
-  round-trip block, 397 `CHECK(` sites in source (which is more runtime
-  assertions than sites, because several groups loop). T21 (S31, finding N-10)
-  asserts that cancelling an Explode run reports the frame set as possibly
-  incomplete; T22–T24 (S36) are the behavioural cases for the three S35 patch
+- Regression net: `tests/test_gui_offscreen.cpp` — T1–T38 plus `T30b` and the S23 desktop
+  round-trip block. The runtime count is printed by the harness itself; it is
+  greater than the source-site count because several groups loop. T21 (S31, finding N-10)
+  asserts that a cancelled guarded Explode run preserves the previous frame set; T22–T24 (S36) are the behavioural cases for the three S35 patch
   rows — the U-72 cancel latch (idle cancel arms nothing, a cancelled run's
   completion consumes the latch, the NEXT genuine failure still surfaces), the
   U-70 non-ASCII `GS_ENGINE` path (preview must reach the engine), and the U-58
@@ -266,18 +265,17 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   watches for UI-thread stalls across the five blocking waits U-12 names, using
   `tests/fake_engine_orphan_pipe.cpp` — a fixture whose forked child keeps the
   inherited pipes open after the parent is killed, i.e. the worst case a
-  kill-first wait can face. On current code the gaps are 0-11 ms against
-  1000-5000 ms deadlines (measured, with the target provably alive), so the row's
+  kill-first wait can face. In the S37 measurement the gaps were 0-11 ms against
+  1000-5000 ms deadlines (with the target provably alive), so the row's
   freeze is not reachable through these sites; the leg bounds are half a
   deadline, so any future change that starts consuming them fails the harness.
   T31–T34 (S46) cover the Output tab end to end (`N-61` template + `{` popup +
   disambiguation + presets, `N-63` compact collision button + Ask/Skip/Rename/Overwrite
   + Keep folder structure nesting + Status tally rows, `N-64` same-format size
   guard, and `N-65` `Format ▸ Settings…` quality/fps + persistence).
-  Last measured at
-  **697 runtime checks** in the S46 sandbox (Qt 6.8.3 built from source; 436 in
-  S37) —
-  figure rises with every added case, so read it as a measurement, not a target;
+  Last measured at **813 runtime checks, 0 failures** in S47 on locally built
+  Qt 6.8.3 (697 in S46; 436 in S37). The figure rises with every added case,
+  so read it as a measurement, not a target;
   324 in the S11 sandbox (Qt 6.4.2) before T21 existed, 306 in S10. Runs in CI
   and in any Qt6-equipped sandbox — and `scripts/build_qt6_local.sh` lets a
   sandbox with no Qt6 and no apt/root build one from source and run the

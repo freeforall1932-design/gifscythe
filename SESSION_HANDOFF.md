@@ -1,6 +1,6 @@
 # Session Handoff
 
-**Session:** S46 · **Date:** 2026-10-26
+**Session:** S47 · **Date:** 2026-10-30
 **Branch:** arena/e34ff6ad-gifscythe
 **Repo re-created 2026-09-22:** the GitHub repo was rebuilt from a zip upload; the old remote's history (S1–S26, PRs #1–#33, shas like `5c93680`) does not exist in this clone — every such sha below is an old-remote record kept for the written history. The new remote: `04a1cd4` (initial) → `60d3df4` (zip upload) → `ce5fd51` (unpack to root) → PR #1 merge `824bf20`, whose tree is the S26 state minus the four root license files (loss = finding **U-97**, restored in S27 with executed proof). The ledger carries a separator: rows #1–#33 are the OLD repo's; the new repo's numbering restarts at #1. This session's own PR number is *not* written in this header: a session cannot know it at write time, and guessing it is how stale claims get born — the ledger row below is appended when `gh pr create` (or the API) returns the number. This records the merged baseline, not a claim about current CI health.
 **Docs synced through:** PR #18 · branch `arena/e34ff6ad-gifscythe` · merged as: OPEN — this branch's own PR, pre-synced per the S34 rule; the merge sha lands in its ledger row when it merges
@@ -11,7 +11,33 @@ Based on `main` commit `499cb28` (**S46 re-anchor:** PR #17's merge commit — m
 **Web plan template:** SKELETON
 *(mirror of `web/WEB_PLAN_TEMPLATE.md`; the flip to `WORKING PLAN` happens **once**, when the owner's draft is refitted into that template's slots — move both lines in the same commit. Gate **G16** compares the two tokens **and** the template's §1–§10 content: leftover slot placeholders = `SKELETON`; filled content = flip both lines. The gate never auto-edits and never flips back. Inspect that content at every new-session start.)*
 
-### S46 — what changed (current session, 2026-10-26)
+### S47 — owner UI corrections (current session, 2026-10-30)
+
+- **Preview:** one expanding, aspect-preserving Before/After frame in Actions.
+  A new render happens only on **Apply setting preview**, never on selection or
+  option changes. The last After is marked stale after a change; a selection
+  change or superseding request cancels and invalidates in-flight work. Playing
+  and resizing do not encode. GIF-only preview and Explode/cross-format limits
+  are stated rather than simulated.
+- **Screenshots:** the helper activates and settles Actions before grabbing the
+  preview and the full window. The first capture revealed a real hidden-tab
+  sizing bug: `QMovie::setScaledSize()` did not repaint an already-decoded
+  frame. The viewport now fits each current frame at paint time, including when
+  paused; T38 checks a real rendered rectangle, not only a size property.
+- **Input/Output:** blue funnel with two queue-only filter actions, one
+  thumbnail-size menu, no visible Start index control, aligned checkboxes,
+  button-first collision row and one stateful `▼`/`▲` tip. Legacy saved
+  `start_index` values are retained and disclosed in the filename note.
+- **Local proof:** Qt **6.8.3** source-built with the offscreen and GIF plugins;
+  full harness **813 checks, 0 failures** across 39 test blocks; CTest 9/9;
+  screenshot frames 482×679 and full windows 1180×780 visually reviewed;
+  `qt_lint` 7 baselined / 0 new; unit suites 421/35/54/60/60/34/74, engine
+  5/5, CLI smoke 65/65, packaging 42/42, seeded oracle 24/24 and U-58/U-70/U-72
+  sentinels green. FFmpeg round-trip was skipped locally (no FFmpeg installed).
+- **Follow-up:** PR #18 is the delivery target. Inspect fresh GitHub checks and
+  request an interactive Windows visual smoke; the Linux run proves neither.
+
+### S46 — what changed (previous session, 2026-10-26)
 
 **Register at this write-up: 200 DONE · 9 PARTIAL · 11 OPEN · 0 UNTRIAGED · 220 total.**
 
@@ -21,7 +47,7 @@ Based on `main` commit `499cb28` (**S46 re-anchor:** PR #17's merge commit — m
   `7490cb9`'s exact compiler errors (`'QCheckBox'` / `'QButtonGroup'` missing
   forward declarations in `MainWindow.h`, plus the wrong four-radio UI shape),
   and compiled + ran the entire GUI and offscreen test harness locally (**697
-  checks, 0 failures** across 35 `== T` blocks, `397` `CHECK(` sites in source,
+  checks, 0 failures** across 35 `== T` blocks, 397 source occurrences of `CHECK(`,
   `GS_SHOT_DIR` visual capture verified with real fonts).
 - **PR #17 post-merge sync completed.** PR #17 merged as `499cb28` (main run
   `40261712118` green); row #17's *Merged as* cell is filled with `499cb28` and

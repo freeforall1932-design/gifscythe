@@ -55,17 +55,34 @@ reads them in a file, not in a conversation.
    flip both **G16** lines to **WORKING PLAN** in the same commit (one-way).
    The gate never auto-edits.
 
-## Completed in S46 — Output form & per-format FFmpeg settings (`N-61`, `N-63`, `N-64`, `N-65`)
+## S47 — owner UI redirection (verified locally, 2026-10-30)
+
+- [x] **Screenshot harness:** activate and lay out Actions before capturing the
+      whole preview frame and window, including the explicitly generated After.
+- [x] **Output:** remove Start index from the UI while preserving legacy preset
+      numbering, put the collision button before its explanation, align the
+      checkboxes, remove duplicated labels and use one changing pointer tip.
+- [x] **Input:** inline Filter placeholder, blue funnel with two queue-only
+      deletion actions, and one menu for thumbnail sizes. Verify queue order,
+      selection, source safety and remembered folder roots.
+- [x] **Actions preview:** a single aspect-fitted Before/After frame, manual
+      Apply, no automatic encodes, stale-result indication and temp cleanup.
+- [x] **Verification:** Qt 6.8.3 offscreen suite plus actual screenshot review,
+      unit, engine, packaging, oracle and lint checks (see S47 log).
+- [ ] Confirm the new GitHub Actions checks and an owner Windows visual smoke;
+      the local Qt result is not a substitute for either.
+
+## Completed in S46 — Output form & per-format FFmpeg settings (historical; S47 supersedes UI details) (`N-61`, `N-63`, `N-64`, `N-65`)
 
 - [x] **N-63 — the Output form's two remaining rows** (`DONE`, S46): restored and extended `src/core/Collision.h` + `tests/test_collision.cpp` (60 checks), built `keepFolderCheck` (**default ON**: `Source folder` vs designated `Folder` + nested sub-folder recreation via `InputEntry::rootDir` & `relative_under_root`, flat for standalone files) and `collisionButton` (`NoArrowButton`: single compact clickable square sized to the longest option label + `⇅` with `QMenu::NoArrow` and **no dropdown tail**, default `Ask each time`, modal Rename / Overwrite / Skip + `… all`, replace-after-verify), added `skipped, file already exists` Status `resultTable` rows with filename + full path, and persisted both keys in session and presets (`T32`).
 - [x] **N-64 — "discard the result if it is larger than the original"** (`DONE`, S46): `discardLargerCheck` (**default OFF**, enabled and applied **only when the resolved output format equals the source format**), discards verified output when `produced_bytes > source_bytes`, keeps original untouched, reports both byte sizes on the Status row, and persists in session and presets (`T33`).
 - [x] **N-61 remainder** (`DONE`, S46): Output tab wired to `NameTemplate.h` (`nameTemplateEdit`, default `{Filename}_result`, `{name}` alias preserved, Format owns extension per `OD-24 = a`, `{`-triggered scrolling `QCompleter` popup + `▶` token-insert menu, `startIndexSpin`, `destSourceRadio` / `destFolderRadio` + `batchOutEdit`, `outputEdit` dropped per `OD-25 = a`, `disambiguate_names()` per `OD-23`, session + preset persistence per `OD-26`; `T31`).
 - [x] **E2 UI wiring + N-65** (`DONE`, S46): per-format encoder settings dialog behind `Format ▸ Settings…` (`quality` `0..100` or `-1` codec default; `fps` `1..120` or `-1` keep source timing; lossless APNG note; FFmpeg location readout + `Re-scan`), live Command-pane preview of `FfmpegEncodeRequest` argv, and per-format session + preset persistence (`T34`).
 
-## Next session (S47) — pick up here
+## Remaining owner-machine follow-up
 
 - [ ] **Owner plain-language confirmation check-in** (asked directly in S46 chat per the owner's S45 instruction; record any adjustment in `docs/planning/OWNER_DECISIONS.md`):
-      1. *N-63* — confirm designated output folder keeps nested source sub-folders (`Keep folder structure` default ON) and whether `Ask each time` (shipped default) or `Rename` is preferred for the compact `⇅` already-exists button.
+      1. *N-63* — confirm designated output folder keeps nested source sub-folders (`Keep folder structure` default ON) and whether `Ask each time` (shipped default) or `Rename` is preferred for the compact already-exists button (now `▼` / `▲` in S47).
       2. *N-64* — confirm throwing away a result that comes out bigger than the original GIF and keeping the original **only when the output format is the same** (`Discard result if larger than original (same format only)`, default OFF).
 - [ ] **Test-machine FFmpeg readout (owner's Windows laptop):** record the owner's read-back of `Output ▸ Format ▸ Settings…` (`"FFmpeg: <source>: <path>"`) and treat `"bundled"` vs `"PATH"` vs `"well-known"` as distinct setups when verifying on his laptop (`W-18` / `W-19`).
 - [ ] **Release FFmpeg sidecar packaging workflow** (optional follow-up noted in `N-62`): release job / runbook step running `scripts/fetch_ffmpeg.sh` + `package_* --require-ffmpeg` once `vendor/ffmpeg/PINS.txt` hashes are pinned.
