@@ -16,7 +16,7 @@ Chronological log of decisions and changes. **Newest at the top.**
 - **Partial:** No new register items. In-app After remains GIF-only; cross-format and Explode preview limitations are stated explicitly.
 - **Left:** Fresh PR #18 CI and an owner Windows visual smoke; neither is implied by a Linux offscreen run. The real FFmpeg round-trip was skipped locally because FFmpeg is absent.
 - **Verified:**
-  - Locally source-built Qt **6.8.3**, full GUI/offscreen harness **813 checks, 0 failures** across 39 test blocks (T1–T38 plus T30b), 454 `CHECK(` sites in source. `GS_SHOT_DIR` captures verified visually: preview 482×679, full Actions window 1180×780.
+  - Measured locally with source-built Qt **6.8.3**: full GUI/offscreen harness **813 checks, 0 failures** across 39 test blocks (T1–T38 plus T30b), 454 `CHECK(` sites in source. `GS_SHOT_DIR` captures verified visually: preview 482×679, full Actions window 1180×780.
   - `ctest --test-dir build-cmake --output-on-failure -j2`: 9/9 passed (the FFmpeg round-trip itself reports SKIP). Core `build.sh`: 421/35/54/60/60/34/74 checks, all zero failures.
   - Engine 5/5, CLI smoke 65/65, packaging 42/42, seeded oracle quick 24/24, reference pins OK, U-58/U-70/U-72 sentinels + mutations PASS, `qt_lint --selftest` PASS and 7 baselined findings / 0 new.
 - **Not verifiable here:** Native Windows execution and interactive owner-machine appearance, real FFmpeg encoding, and the CI status until the new commit is pushed and checks complete.

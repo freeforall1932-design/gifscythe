@@ -29,7 +29,7 @@ Based on `main` commit `499cb28` (**S46 re-anchor:** PR #17's merge commit — m
   button-first collision row and one stateful `▼`/`▲` tip. Legacy saved
   `start_index` values are retained and disclosed in the filename note.
 - **Local proof:** Qt **6.8.3** source-built with the offscreen and GIF plugins;
-  full harness **813 checks, 0 failures** across 39 test blocks; CTest 9/9;
+  full harness **813 checks, 0 failures**, measured here across 39 test blocks; CTest 9/9;
   screenshot frames 482×679 and full windows 1180×780 visually reviewed;
   `qt_lint` 7 baselined / 0 new; unit suites 421/35/54/60/60/34/74, engine
   5/5, CLI smoke 65/65, packaging 42/42, seeded oracle 24/24 and U-58/U-70/U-72
