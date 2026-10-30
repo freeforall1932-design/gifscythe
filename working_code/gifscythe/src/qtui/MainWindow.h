@@ -3,9 +3,9 @@
 // Layout (XNConvert-style flow):
 //   Tab 1 "Input"   — animation queue (add / folder / drag-drop / remove /
 //                     clear / move up-down / sort / filter)
-//   Tab 2 "Actions" — SettingsPanel + live Before/After Preview splitter
+//   Tab 2 "Actions" — SettingsPanel + on-demand Before/After Preview splitter
 //   Tab 3 "Output"  — Destination (Source folder vs Folder), Filename template
-//                     with `{` token popup + Start index, Format + Settings…,
+//                     with `{` token popup, Format + Settings…,
 //                     Options (collision policy, keep folder structure,
 //                     same-format size guard), and verified Files on disk
 //   Tab 4 "Status"  — W-32 per-operation result table, command preview, log
@@ -40,6 +40,7 @@
 #include <ostream>
 #include <string>
 
+class QAction;
 class QCheckBox;
 class QComboBox;
 class QEvent;
@@ -56,7 +57,6 @@ class QRadioButton;
 class QSpinBox;
 class QTabWidget;
 class QTableWidget;
-class QTimer;
 class QToolButton;
 class DropListWidget;
 class PreviewPanel;
@@ -115,6 +115,8 @@ class MainWindow : public QMainWindow {
   void removeSelected();
   void clearQueue();
   void applyQueueFilter();
+  void removeFilteredItems(bool matching);
+  void removeQueueRows(QList<int> rows);
   void applyQueueSort();
   void refreshCommand();
   void runCommand();
@@ -224,7 +226,7 @@ class MainWindow : public QMainWindow {
   void showWrittenOutputPreview();
 
   // Preview pipeline
-  void schedulePreview();
+  void markPreviewStale();
   void startPreview();
   void onSelectionChanged();
   void killPreview();
@@ -238,6 +240,11 @@ class MainWindow : public QMainWindow {
   QLabel* queueCountLabel_ = nullptr;
   QPushButton* addFolderButton_ = nullptr;
   QLineEdit* queueFilterEdit_ = nullptr;
+  QToolButton* queueFilterMenuButton_ = nullptr;
+  QMenu* queueFilterMenu_ = nullptr;
+  QAction* deleteFilteredAction_ = nullptr;
+  QAction* deleteNonFilteredAction_ = nullptr;
+  QToolButton* thumbnailSizeButton_ = nullptr;
   QLabel* queueSelectionDetails_ = nullptr;
   QToolButton* previewToggleButton_ = nullptr;
   QComboBox* presetCombo_ = nullptr;
@@ -265,11 +272,13 @@ class MainWindow : public QMainWindow {
   QLineEdit* nameTemplateEdit_ = nullptr;
   QToolButton* tokenMenuButton_ = nullptr;
   QListWidget* tokenPopup_ = nullptr;
-  QSpinBox* startIndexSpin_ = nullptr;
+  // Old preset/session files may contain this; new UI defaults to 1.
+  int legacyStartIndex_ = 1;
   QLabel* templateNoteLabel_ = nullptr;
 
   QPushButton* collisionButton_ = nullptr;
   QMenu* collisionMenu_ = nullptr;
+  bool collisionMenuOpen_ = false;
   gs::CollisionPolicy collisionPolicy_ = gs::CollisionPolicy::Ask;
   QCheckBox* keepStructureCheck_ = nullptr;
   QCheckBox* discardLargerCheck_ = nullptr;
@@ -329,11 +338,8 @@ class MainWindow : public QMainWindow {
 
   // Preview state
   QProcess* previewProcess_ = nullptr;
-  QTimer* previewTimer_ = nullptr;
   int previewSeq_ = 0;
-  bool forcePreview_ = false;
   QString previewDir_;
-  QString lastPreviewPath_;
 };
 
 #endif  // GIFSCYTHE_MAINWINDOW_H

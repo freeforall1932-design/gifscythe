@@ -203,7 +203,9 @@ void ActionCard::setCollapsed(bool collapsed) {
 
 void ActionCard::updateChevron() {
   if (!chevron_) return;
-  chevron_->setText(collapsed_ ? QStringLiteral("▶") : QStringLiteral("▼"));
+  chevron_->setText(collapsed_ ? QStringLiteral("▼") : QStringLiteral("▲"));
+  chevron_->setToolTip(collapsed_ ? QStringLiteral("Expand this action")
+                                  : QStringLiteral("Collapse this action"));
 }
 
 SettingsPanel::SettingsPanel(QWidget* parent) : QWidget(parent) {

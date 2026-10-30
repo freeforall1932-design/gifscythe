@@ -58,6 +58,7 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QPlainTextEdit>
+#include <QPolygon>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
@@ -74,7 +75,6 @@
 #include <QStandardPaths>
 #include <QTabWidget>
 #include <QTableWidget>
-#include <QTimer>
 #include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -200,11 +200,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   // previewProcess_ is created fresh per preview run (see startPreview) so a
   // killed stale run can never be misread as the newest run's completion.
 
-  previewTimer_ = new QTimer(this);
-  previewTimer_->setSingleShot(true);
-  previewTimer_->setInterval(1200);  // debounce: never re-encode per keystroke
-  connect(previewTimer_, &QTimer::timeout, this, &MainWindow::startPreview);
-
   previewDir_ = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
                     .filePath(QStringLiteral("gifscythe-preview-%1")
                                   .arg(QCoreApplication::applicationPid()));
@@ -235,10 +230,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   // here so buildActionsTab() can place it, and it lives nowhere else.
   previewPanel_ = new PreviewPanel(central);
   previewPanel_->setObjectName(QStringLiteral("previewPanel"));
-  connect(previewPanel_, &PreviewPanel::previewRequested, this, [this]() {
-    forcePreview_ = true;
-    schedulePreview();
-  });
+  connect(previewPanel_, &PreviewPanel::previewRequested, this, &MainWindow::startPreview);
 
   tabs_ = new QTabWidget(central);
   tabs_->setObjectName(QStringLiteral("mainTabs"));
@@ -259,25 +251,23 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   buildBottomBar(central, root);
   setCentralWidget(central);
 
-  // ---- Wiring: everything that changes settings refreshes the live pane,
-  //      the output summary, and (debounced) the preview. ----
+  // Settings still refresh the command and summary immediately. They only
+  // mark the last preview stale; encoding is exclusively user initiated.
   connect(settingsPanel_, &SettingsPanel::changed, this, [this]() {
-    forcePreview_ = false;
     lastOutputPaths_.clear();
     refreshCommand();
     refreshOutputSummary();
-    schedulePreview();
+    markPreviewStale();
   });
   // Slice D: the Actions tab carries "Actions [enabled/total]" in its title, the
   // way the reference does, and adding/removing/disabling a card DOES change the
   // generated command (a card that is out or off contributes defaults), so this
   // signal refreshes the same three surfaces changed() does - plus the title.
   connect(settingsPanel_, &SettingsPanel::actionCountsChanged, this, [this]() {
-    forcePreview_ = false;
     lastOutputPaths_.clear();
     refreshCommand();
     refreshOutputSummary();
-    schedulePreview();
+    markPreviewStale();
     refreshTabTitles();
   });
   connect(batchDirEdit_, &QLineEdit::textChanged, this, [this](const QString& text) {
@@ -307,14 +297,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   connect(nameTemplateEdit_, &QLineEdit::cursorPositionChanged, this, [this](int, int) {
     if (tokenPopup_ && tokenPopup_->isVisible()) updateTokenPopup();
   });
-  if (startIndexSpin_) {
-    connect(startIndexSpin_, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
-      lastOutputPaths_.clear();
-      refreshTemplateNote();
-      refreshCommand();
-      refreshOutputSummary();
-    });
-  }
   connect(inputList_, &DropListWidget::filesDropped, this, &MainWindow::onFilesDropped);
   connect(inputList_, &QListWidget::itemSelectionChanged, this,
           &MainWindow::onSelectionChanged);
@@ -381,18 +363,48 @@ QWidget* MainWindow::buildInputTab() {
   queueBtns->addWidget(clearButton_);
   queueBtns->addStretch();
 
-  // ---- Quick filter (reference: a funnel + a "Quick filter" line edit) ----
-  // It hides rows; it never removes them, so the queue — and the batch plan —
-  // is unchanged by typing. Hidden rows keep their row index, which is what
-  // keeps inputs_ index-aligned with the list.
-  auto* filterLabel = new QLabel(QStringLiteral("Filter"), page);
+  // Typing filters the view only. The funnel menu explicitly removes matched
+  // or unmatched rows from the queue; neither action deletes source files.
+  queueFilterMenuButton_ = new QToolButton(page);
+  queueFilterMenuButton_->setObjectName(QStringLiteral("queueFilterMenuButton"));
+  queueFilterMenuButton_->setAccessibleName(QStringLiteral("Filter actions"));
+  queueFilterMenuButton_->setToolTip(QStringLiteral("Filter actions (remove from queue only)"));
+  queueFilterMenuButton_->setAutoRaise(true);
+  QPixmap funnel(24, 24);
+  funnel.fill(Qt::transparent);
+  {
+    QPainter painter(&funnel);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(45, 129, 204));
+    QPolygonF shape;
+    shape << QPointF(2, 4) << QPointF(22, 4) << QPointF(14, 13)
+          << QPointF(14, 19) << QPointF(10, 21) << QPointF(10, 13);
+    painter.drawPolygon(shape);
+  }
+  queueFilterMenuButton_->setIcon(QIcon(funnel));
+  queueFilterMenuButton_->setIconSize(QSize(24, 24));
+  queueFilterMenu_ = new QMenu(queueFilterMenuButton_);
+  queueFilterMenu_->setObjectName(QStringLiteral("queueFilterMenu"));
+  deleteFilteredAction_ = queueFilterMenu_->addAction(QStringLiteral("Delete filtered items"));
+  deleteFilteredAction_->setObjectName(QStringLiteral("deleteFilteredAction"));
+  deleteNonFilteredAction_ = queueFilterMenu_->addAction(QStringLiteral("Delete non-filtered items"));
+  deleteNonFilteredAction_->setObjectName(QStringLiteral("deleteNonFilteredAction"));
+  deleteFilteredAction_->setEnabled(false);
+  deleteNonFilteredAction_->setEnabled(false);
+  connect(deleteFilteredAction_, &QAction::triggered, this, [this]() { removeFilteredItems(true); });
+  connect(deleteNonFilteredAction_, &QAction::triggered, this, [this]() { removeFilteredItems(false); });
+  connect(queueFilterMenuButton_, &QToolButton::clicked, this, [this]() {
+    if (!busy_) queueFilterMenu_->popup(queueFilterMenuButton_->mapToGlobal(
+        QPoint(0, queueFilterMenuButton_->height())));
+  });
   queueFilterEdit_ = new QLineEdit(page);
   queueFilterEdit_->setObjectName(QStringLiteral("queueFilterEdit"));
-  queueFilterEdit_->setPlaceholderText(QStringLiteral("Quick filter"));
+  queueFilterEdit_->setPlaceholderText(QStringLiteral("Filter"));
   queueFilterEdit_->setClearButtonEnabled(true);
   queueFilterEdit_->setMaximumWidth(220);
   connect(queueFilterEdit_, &QLineEdit::textChanged, this, [this]() { applyQueueFilter(); });
-  queueBtns->addWidget(filterLabel);
+  queueBtns->addWidget(queueFilterMenuButton_);
   queueBtns->addWidget(queueFilterEdit_);
   left->addLayout(queueBtns);
 
@@ -437,6 +449,41 @@ QWidget* MainWindow::buildInputTab() {
     sortRow->addWidget(button);
   }
   sortRow->addStretch();
+  // One scrolling menu replaces separate thumbnail-size controls.
+  thumbnailSizeButton_ = new QToolButton(page);
+  thumbnailSizeButton_->setObjectName(QStringLiteral("thumbnailSizeButton"));
+  thumbnailSizeButton_->setText(QStringLiteral("Thumbnail size ▼"));
+  thumbnailSizeButton_->setToolTip(QStringLiteral("Choose the queue thumbnail size"));
+  auto* sizeMenu = new QMenu(thumbnailSizeButton_);
+  sizeMenu->setObjectName(QStringLiteral("thumbnailSizeMenu"));
+  auto* sizeGroup = new QActionGroup(sizeMenu);
+  sizeGroup->setExclusive(true);
+  struct ThumbnailSize { const char* name; int pixels; };
+  const ThumbnailSize sizes[] = {{"Small", 64}, {"Medium", 96}, {"Large", 128}};
+  for (const ThumbnailSize& size : sizes) {
+    QAction* action = sizeMenu->addAction(
+        QStringLiteral("%1 (%2 × %2)").arg(QString::fromLatin1(size.name)).arg(size.pixels));
+    action->setObjectName(QStringLiteral("thumbnailSize_%1").arg(size.pixels));
+    action->setCheckable(true);
+    action->setChecked(size.pixels == 96);
+    sizeGroup->addAction(action);
+    connect(action, &QAction::triggered, this, [this, pixels = size.pixels]() {
+      if (!inputList_ || busy_) return;
+      inputList_->setIconSize(QSize(pixels, pixels));
+      inputList_->setGridSize(QSize(pixels + 36, pixels + 56));
+    });
+  }
+  connect(sizeMenu, &QMenu::aboutToShow, this, [this]() {
+    thumbnailSizeButton_->setText(QStringLiteral("Thumbnail size ▲"));
+  });
+  connect(sizeMenu, &QMenu::aboutToHide, this, [this]() {
+    thumbnailSizeButton_->setText(QStringLiteral("Thumbnail size ▼"));
+  });
+  connect(thumbnailSizeButton_, &QToolButton::clicked, this, [this, sizeMenu]() {
+    if (!busy_) sizeMenu->popup(thumbnailSizeButton_->mapToGlobal(
+        QPoint(0, thumbnailSizeButton_->height())));
+  });
+  sortRow->addWidget(thumbnailSizeButton_);
   left->addLayout(sortRow);
 
   // ---- the grid ----
@@ -640,7 +687,7 @@ QWidget* MainWindow::buildOutputTab() {
   });
   tmplRow->addWidget(nameTemplateEdit_, 1);
   tmplRow->addWidget(tokenMenuButton_);
-  filenameForm->addRow(QStringLiteral("Filename"), tmplRow);
+  filenameForm->addRow(tmplRow);
 
   // `{`-triggered scrolling completion popup (N-61). WindowDoesNotAcceptFocus
   // keeps keystrokes flowing into nameTemplateEdit_ so typing `{fi` filters
@@ -658,19 +705,10 @@ QWidget* MainWindow::buildOutputTab() {
     acceptSelectedToken();
   });
 
-  startIndexSpin_ = new QSpinBox(filenameBox);
-  startIndexSpin_->setObjectName(QStringLiteral("startIndexSpin"));
-  startIndexSpin_->setRange(0, 999999);
-  startIndexSpin_->setValue(1);
-  startIndexSpin_->setMaximumWidth(120);
-  startIndexSpin_->setToolTip(
-      QStringLiteral("Starting number for the {File Index} token"));
-  filenameForm->addRow(QStringLiteral("Start index"), startIndexSpin_);
-
   templateNoteLabel_ = new QLabel(filenameBox);
   templateNoteLabel_->setObjectName(QStringLiteral("templateNoteLabel"));
   templateNoteLabel_->setWordWrap(true);
-  filenameForm->addRow(QString(), templateNoteLabel_);
+  filenameForm->addRow(templateNoteLabel_);
   middleRow->addWidget(filenameBox, 3);
 
   // ---- Format (the reference's Output > Format + Settings...) --------------
@@ -726,29 +764,26 @@ QWidget* MainWindow::buildOutputTab() {
   auto* fmtRow = new QHBoxLayout();
   fmtRow->addWidget(formatCombo_, 1);
   fmtRow->addWidget(formatSettingsButton_);
-  formatForm->addRow(QStringLiteral("Output format"), fmtRow);
+  formatForm->addRow(fmtRow);
   formatNoteLabel_ = new QLabel(formatBox);
   formatNoteLabel_->setObjectName(QStringLiteral("formatNote"));
   formatNoteLabel_->setWordWrap(true);
-  formatForm->addRow(QString(), formatNoteLabel_);
+  formatForm->addRow(formatNoteLabel_);
   ffmpegStatusLabel_ = new QLabel(formatBox);
   ffmpegStatusLabel_->setObjectName(QStringLiteral("ffmpegStatus"));
   ffmpegStatusLabel_->setWordWrap(true);
   ffmpegStatusLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
-  formatForm->addRow(QString(), ffmpegStatusLabel_);
+  formatForm->addRow(ffmpegStatusLabel_);
   middleRow->addWidget(formatBox, 2);
   lay->addLayout(middleRow);
 
   // ---- Options (N-63 + N-64: existing file square, keep structure, size guard)
   auto* optionsBox = new QGroupBox(QStringLiteral("Options"), page);
   optionsBox->setObjectName(QStringLiteral("outputOptionsGroup"));
-  auto* optionsForm = new QFormLayout(optionsBox);
+  auto* optionsLayout = new QVBoxLayout(optionsBox);
 
-  // Owner (2026-10-26): a single compact clickable square sized to the longest
-  // option name plus a ⇅ glyph, with NO dropdown tail; displays the current
-  // answer ("Ask each time" by default) and reveals the other options on click.
-  // Deliberately NOT calling setMenu() so Qt's style paints zero menu-indicator
-  // arrow/tail while keeping native palette rendering (QL006 = 0).
+  // One compact button and one pointer tip. No Qt menu-indicator tail is
+  // attached; the tip changes direction when the menu opens or closes.
   collisionButton_ = new QPushButton(optionsBox);
   collisionButton_->setObjectName(QStringLiteral("collisionButton"));
   collisionButton_->setAutoDefault(false);
@@ -771,7 +806,7 @@ QWidget* MainWindow::buildOutputTab() {
   for (gs::CollisionPolicy pol : kPolicies) {
     const QString label = QString::fromUtf8(gs::collision_policy_name(pol));
     const QString token = QString::fromUtf8(gs::collision_policy_token(pol));
-    const QString display = label + QStringLiteral("  \u21c5");
+    const QString display = label + QStringLiteral("  ▲");
     maxPolicyWidth = std::max(maxPolicyWidth, fm.horizontalAdvance(display));
     QAction* act = collisionMenu_->addAction(label);
     act->setObjectName(QStringLiteral("collisionAction_") + token);
@@ -783,13 +818,26 @@ QWidget* MainWindow::buildOutputTab() {
     });
   }
   collisionButton_->setFixedWidth(maxPolicyWidth + 28);
+  connect(collisionMenu_, &QMenu::aboutToShow, this, [this]() {
+    collisionMenuOpen_ = true;
+    refreshCollisionButton();
+  });
+  connect(collisionMenu_, &QMenu::aboutToHide, this, [this]() {
+    collisionMenuOpen_ = false;
+    refreshCollisionButton();
+  });
   connect(collisionButton_, &QPushButton::clicked, this, [this]() {
     if (!collisionButton_ || !collisionMenu_ || busy_) return;
     collisionMenu_->popup(
         collisionButton_->mapToGlobal(QPoint(0, collisionButton_->height())));
   });
-  optionsForm->addRow(QStringLiteral("If an output file already exists"),
-                      collisionButton_);
+  auto* collisionRow = new QHBoxLayout();
+  collisionRow->addWidget(collisionButton_);
+  auto* collisionExplanation = new QLabel(QStringLiteral("If an output file already exists"), optionsBox);
+  collisionExplanation->setObjectName(QStringLiteral("collisionExplanation"));
+  collisionRow->addWidget(collisionExplanation);
+  collisionRow->addStretch();
+  optionsLayout->addLayout(collisionRow);
 
   keepStructureCheck_ = new QCheckBox(
       QStringLiteral("Keep folder structure (recreate sub-folders inside designated Folder)"),
@@ -805,7 +853,7 @@ QWidget* MainWindow::buildOutputTab() {
     refreshCommand();
     refreshOutputSummary();
   });
-  optionsForm->addRow(QString(), keepStructureCheck_);
+  optionsLayout->addWidget(keepStructureCheck_, 0, Qt::AlignLeft);
 
   discardLargerCheck_ = new QCheckBox(
       QStringLiteral("Discard result if larger than original (same format only)"),
@@ -815,7 +863,7 @@ QWidget* MainWindow::buildOutputTab() {
   discardLargerCheck_->setToolTip(QStringLiteral(
       "Applies only when output format matches source format (GIF → GIF).\n"
       "Disabled for APNG, WebP, MP4, and WebM because those formats serve different purposes."));
-  optionsForm->addRow(QString(), discardLargerCheck_);
+  optionsLayout->addWidget(discardLargerCheck_, 0, Qt::AlignLeft);
   lay->addWidget(optionsBox);
 
   // Locate the encoder NOW, before the user can pick a format, and keep the
@@ -828,6 +876,7 @@ QWidget* MainWindow::buildOutputTab() {
             lastOutputPaths_.clear();
             refreshCommand();
             refreshOutputSummary();
+            markPreviewStale();
           });
   refreshCollisionButton();
   refreshFfmpegStatus(true);  // the first search of the session
@@ -1098,8 +1147,8 @@ QWidget* MainWindow::buildAboutTab() {
       "engine errors. A moving progress bar means the engine is still working; for Batch, the bar advances once per file."));
   addSection(QStringLiteral("Preview controls"), QStringLiteral(
       "Before is the selected source. After is either a settings preview or, after a successful run, the actual file "
-      "written to disk. Play and Stop only control playback; they never start another optimization. Turn off Auto-play "
-      "if you are working with a very large GIF."));
+      "written to disk. Click Apply setting preview to encode a temporary After; changing settings never re-encodes "
+      "automatically. Play and Stop only control playback. Turn off Auto-play for very large GIFs."));
   lay->addStretch();
   scroll->setWidget(content);
   outer->addWidget(scroll);
@@ -1156,9 +1205,9 @@ void MainWindow::serializeGuiState(std::ostream& oss, const char* headerComment)
   if (!tmpl.isEmpty() && tmpl != QString::fromUtf8(kDefaultNameTemplate)) {
     oss << "name_template = " << gs::encode_line_value(tmpl.toStdString()) << "\n";
   }
-  if (startIndexSpin_ && startIndexSpin_->value() != 1) {
-    oss << "start_index = " << startIndexSpin_->value() << "\n";
-  }
+  // Preserve a non-default index loaded from an older session/preset, even
+  // though new workflows no longer expose a Start index control.
+  if (legacyStartIndex_ != 1) oss << "start_index = " << legacyStartIndex_ << "\n";
 
   const gs::OutputFormat fmt = selectedOutputFormat();
   if (fmt != gs::OutputFormat::Gif) {
@@ -1229,9 +1278,7 @@ void MainWindow::applyGuiState(const gs::Settings& loaded,
     const QString tmpl = guiKey("name_template");
     nameTemplateEdit_->setText(tmpl.isEmpty() ? QString::fromUtf8(kDefaultNameTemplate) : tmpl);
   }
-  if (startIndexSpin_) {
-    startIndexSpin_->setValue(parseBoundedInt("start_index", 1, 0, 999999));
-  }
+  legacyStartIndex_ = parseBoundedInt("start_index", 1, 0, 999999);
 
   FfmpegFormatPrefs prefs;
   prefs.webpQuality = parseBoundedInt("webp_quality", -1, -1, 100);
@@ -1331,7 +1378,7 @@ void MainWindow::loadSelectedPreset() {
   lastOutputPaths_.clear();
   refreshCommand();
   refreshOutputSummary();
-  schedulePreview();
+  markPreviewStale();
   updateStatus(warnings.empty()
                    ? QStringLiteral("Preset applied: %1").arg(name)
                    : QStringLiteral("Preset applied: %1 — %2 warning(s), see the log")
@@ -1843,9 +1890,7 @@ void MainWindow::appendInputs(const QStringList& files) {
     refreshQueueLabel();
     refreshCommand();
     refreshOutputSummary();
-    if (inputList_->currentRow() < 0) inputList_->setCurrentRow(0);
     updateQueueDetails();
-    schedulePreview();
   }
   if (!refused.isEmpty()) {
     // Never a silent drop: the status line always names the count and the
@@ -1911,7 +1956,7 @@ void MainWindow::refreshQueueLabel() {
 //
 // Everything below is deliberately cheap and synchronous: the facts come from
 // a header walk (no LZW), thumbnails are scaled by QImageReader BEFORE decode
-// (so a 1200x1200 GIF costs a 96x96 allocation, not a 5 MB one), and both are
+// (so a 1200x1200 GIF costs at most a 128x128 allocation), and both are
 // cached per path. A queue of hundreds of files must still feel like a list.
 // ---------------------------------------------------------------------------
 
@@ -1940,7 +1985,7 @@ QPixmap MainWindow::thumbnailFor(const QString& path) {
   reader.setAutoTransform(true);
   const QSize native = reader.size();
   if (native.isValid()) {
-    const QSize target = native.scaled(QSize(96, 96), Qt::KeepAspectRatio);
+    const QSize target = native.scaled(QSize(128, 128), Qt::KeepAspectRatio);
     if (!target.isEmpty()) reader.setScaledSize(target);
   }
   const QImage image = reader.read();
@@ -1949,7 +1994,7 @@ QPixmap MainWindow::thumbnailFor(const QString& path) {
   } else {
     // No Qt image plugin, or a GIF whose first frame will not decode: a
     // labelled placeholder, never an empty cell that looks like a bug.
-    pixmap = QPixmap(96, 96);
+    pixmap = QPixmap(128, 128);
     pixmap.fill(Qt::transparent);
     QPainter painter(&pixmap);
     painter.setPen(palette().color(QPalette::Mid));
@@ -2140,6 +2185,7 @@ void MainWindow::applyQueueSort() {
 
   const int restored = inputs_.indexOf(keepSelected);
   if (restored >= 0) inputList_->setCurrentRow(restored);
+  applyQueueFilter();  // re-adding items must not make filtered-out rows visible
   lastOutputPaths_.clear();
   refreshQueueLabel();
   refreshCommand();
@@ -2169,8 +2215,17 @@ void MainWindow::applyQueueFilter() {
   // Never leave the selection on a hidden row: the preview and the facts strip
   // would describe a file the user cannot see.
   QListWidgetItem* current = inputList_->currentItem();
-  if (current && current->isHidden() && firstVisible >= 0) {
+  if (firstVisible >= 0 && (!current || current->isHidden())) {
     inputList_->setCurrentRow(firstVisible);
+  } else if (firstVisible < 0 && current) {
+    inputList_->setCurrentRow(-1);
+    inputList_->clearSelection();
+  }
+  // With no query, all rows match; disable both operations rather than make an
+  // accidental click behave like Remove all. They never delete from disk.
+  if (deleteFilteredAction_) deleteFilteredAction_->setEnabled(!needle.isEmpty() && visible > 0);
+  if (deleteNonFilteredAction_) {
+    deleteNonFilteredAction_->setEnabled(!needle.isEmpty() && visible < inputList_->count());
   }
   if (visible == 0 && !needle.isEmpty()) {
     queueSelectionDetails_->setText(
@@ -2239,25 +2294,49 @@ void MainWindow::onFilesDropped(const QStringList& files) {
 }
 
 void MainWindow::removeSelected() {
-  const auto selected = inputList_->selectedItems();
-  if (selected.isEmpty()) return;
+  if (busy_ || !inputList_) return;
   QList<int> rows;
-  for (QListWidgetItem* item : selected) {
+  for (QListWidgetItem* item : inputList_->selectedItems()) {
     const int row = inputList_->row(item);
     if (row >= 0) rows.append(row);
   }
-  std::sort(rows.begin(), rows.end(), std::greater<int>());
-  lastOutputPaths_.clear();
-  for (int row : rows) {
-    if (row >= 0 && row < inputs_.size()) {
-      inputRoots_.remove(cleanFilePath(inputs_.at(row)));
-      manualOrder_.removeAll(inputs_.at(row));
-      inputs_.removeAt(row);
-    }
-    delete inputList_->takeItem(row);
+  removeQueueRows(rows);
+}
+
+void MainWindow::removeFilteredItems(bool matching) {
+  if (busy_ || !inputList_ || !queueFilterEdit_ ||
+      queueFilterEdit_->text().trimmed().isEmpty()) return;
+  QList<int> rows;
+  for (int row = 0; row < inputList_->count(); ++row) {
+    if (inputList_->item(row)->isHidden() != matching) rows.append(row);
   }
+  removeQueueRows(rows);
+}
+
+void MainWindow::removeQueueRows(QList<int> rows) {
+  if (busy_ || rows.isEmpty()) return;
+  std::sort(rows.begin(), rows.end(), std::greater<int>());
+  rows.erase(std::unique(rows.begin(), rows.end()), rows.end());
+  lastOutputPaths_.clear();
+  {
+    // A bulk removal can delete the current item several times as Qt picks its
+    // successor. Update the preview only once, after list and model agree.
+    QSignalBlocker blocker(inputList_);
+    for (int row : rows) {
+      if (row < 0 || row >= inputs_.size() || row >= inputList_->count()) continue;
+      const QString path = inputs_.at(row);
+      inputRoots_.remove(cleanFilePath(path));
+      manualOrder_.removeAll(path);
+      factsCache_.remove(path);
+      inputs_.removeAt(row);
+      delete inputList_->takeItem(row);
+    }
+  }
+  // Thumbnails are keyed by path plus mtime/size; discard the bounded cache so
+  // removing and later re-adding a file cannot retain a stale thumbnail.
+  thumbCache_.clear();
+  applyQueueFilter();
   runButton_->setEnabled(!busy_ && !inputs_.isEmpty() && ensureEngine());
-  refreshQueueLabel();
   updateStatus(QStringLiteral("%1 GIF file(s) in queue.").arg(inputs_.size()));
   refreshTemplateNote();
   refreshCommand();
@@ -2277,6 +2356,7 @@ void MainWindow::clearQueue() {
     QSignalBlocker blocker(queueFilterEdit_);
     queueFilterEdit_->clear();
   }
+  applyQueueFilter();
   runButton_->setEnabled(false);
   refreshQueueLabel();
   updateStatus(QStringLiteral("Queue cleared."));
@@ -2284,10 +2364,11 @@ void MainWindow::clearQueue() {
   refreshCommand();
   refreshOutputSummary();
   invalidatePreview();
-  cleanupPreviewFiles();
-  lastPreviewPath_.clear();
+  killPreview();
   previewPanel_->setBefore(QString());
   previewPanel_->clearAfter(QStringLiteral("queue empty"));
+  previewPanel_->setPreviewAvailable(false);
+  cleanupPreviewFiles();
 }
 
 void MainWindow::chooseBatchDir() {
@@ -2367,7 +2448,7 @@ gs::NameContext MainWindow::templateContextFor(const QString& input,
   ctx.folder_name = QFileInfo(fi.absolutePath()).fileName().toStdString();
   ctx.format = gs::output_format_name(fmt);
   ctx.index = index;
-  ctx.start_index = startIndexSpin_ ? startIndexSpin_->value() : 1;
+  ctx.start_index = legacyStartIndex_;
   if (const std::tm* lt = std::localtime(&now)) {
     ctx.now = *lt;
   }
@@ -2707,7 +2788,7 @@ void MainWindow::refreshTemplateNote() {
     sampleCtx.folder_name = "folder";
     sampleCtx.format = gs::output_format_name(fmt);
     sampleCtx.index = 0;
-    sampleCtx.start_index = startIndexSpin_ ? startIndexSpin_->value() : 1;
+    sampleCtx.start_index = legacyStartIndex_;
     sampleCtx.width = 320;
     sampleCtx.height = 240;
     sampleCtx.dst_width = 320;
@@ -2722,6 +2803,9 @@ void MainWindow::refreshTemplateNote() {
   if (safeStem.empty()) safeStem = "clip_result";
   QStringList notes;
   notes << QStringLiteral("Preview: %1.%2").arg(QString::fromStdString(safeStem), ext);
+  if (legacyStartIndex_ != 1) {
+    notes << QStringLiteral("Legacy saved file index begins at %1.").arg(legacyStartIndex_);
+  }
   for (const std::string& w : sample.warnings) {
     notes << QString::fromStdString(w);
   }
@@ -2740,7 +2824,8 @@ void MainWindow::setCollisionPolicy(gs::CollisionPolicy policy) {
 void MainWindow::refreshCollisionButton() {
   if (!collisionButton_) return;
   const QString label = QString::fromUtf8(gs::collision_policy_name(collisionPolicy_));
-  collisionButton_->setText(label + QStringLiteral("  \u21c5"));
+  collisionButton_->setText(label + (collisionMenuOpen_ ? QStringLiteral("  ▲")
+                                                        : QStringLiteral("  ▼")));
   if (collisionMenu_) {
     const QString token = QString::fromUtf8(gs::collision_policy_token(collisionPolicy_));
     for (QAction* act : collisionMenu_->actions()) {
@@ -3160,6 +3245,9 @@ void MainWindow::setBusy(bool busy) {
   moveDownButton_->setEnabled(!busy);
   if (addFolderButton_) addFolderButton_->setEnabled(!busy);
   if (queueFilterEdit_) queueFilterEdit_->setEnabled(!busy);
+  if (queueFilterMenuButton_) queueFilterMenuButton_->setEnabled(!busy);
+  if (thumbnailSizeButton_) thumbnailSizeButton_->setEnabled(!busy);
+  if (previewPanel_) previewPanel_->setPreviewAvailable(!busy && !selectedInput().isEmpty());
   for (QToolButton* button : sortButtons_) {
     if (button) button->setEnabled(!busy);
   }
@@ -3171,7 +3259,6 @@ void MainWindow::setBusy(bool busy) {
   if (batchDirBrowse_) batchDirBrowse_->setEnabled(!busy);
   if (nameTemplateEdit_) nameTemplateEdit_->setEnabled(!busy);
   if (tokenMenuButton_) tokenMenuButton_->setEnabled(!busy);
-  if (startIndexSpin_) startIndexSpin_->setEnabled(!busy);
   if (formatCombo_) formatCombo_->setEnabled(!busy);
   if (formatSettingsButton_) formatSettingsButton_->setEnabled(!busy);
   if (collisionButton_) collisionButton_->setEnabled(!busy);
@@ -3189,9 +3276,12 @@ void MainWindow::setBusy(bool busy) {
       progressBar_->setRange(0, 0);
       progressBar_->setFormat(QStringLiteral("Working…"));
     }
-    previewTimer_->stop();
     invalidatePreview();
     killPreview();
+    previewPanel_->setGenerating(false);
+    previewPanel_->setStatus(QStringLiteral("Preview paused during conversion."));
+  } else if (previewPanel_ && !selectedInput().isEmpty()) {
+    previewPanel_->setStatus(QStringLiteral("Click Apply setting preview to refresh After."));
   }
 }
 
@@ -3745,6 +3835,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     updateStatus(QStringLiteral("Explode complete — %1 frame(s) written.")
                      .arg(vr.frames.size()));
     previewPanel_->clearAfter(QStringLiteral("Explode wrote frame files; see Output for the folder and names"));
+    cleanupPreviewFiles();
     return;
   }
 
@@ -3918,6 +4009,7 @@ void MainWindow::onProcessFinished(int exitCode, QProcess::ExitStatus status) {
     updateStatus(QStringLiteral("Result discarded — output was larger than original."));
     previewPanel_->clearAfter(
         QStringLiteral("Result discarded because it was larger than the original GIF."));
+    cleanupPreviewFiles();
     return;
   }
 
@@ -3951,34 +4043,39 @@ void MainWindow::onProcessError(QProcess::ProcessError error) {
 // ===================== Preview pipeline =====================
 
 QString MainWindow::selectedInput() const {
+  if (!inputList_) return {};
   const int row = inputList_->currentRow();
   if (row < 0 || row >= inputs_.size()) return {};
+  const QListWidgetItem* item = inputList_->item(row);
+  if (!item || item->isHidden()) return {};
   return inputs_.at(row);
 }
 
 void MainWindow::onSelectionChanged() {
-  forcePreview_ = false;
+  // Invalidate BEFORE stopping: a synchronous finished signal from a killed
+  // encoder may otherwise publish a preview for the previous selection.
+  invalidatePreview();
+  killPreview();
   const QString sel = selectedInput();
   updateQueueDetails();
-  previewPanel_->setBefore(sel);
   previewPanel_->clearAfter(sel.isEmpty() ? QStringLiteral("select a file to preview")
-                                          : QStringLiteral("waiting for changes…"));
-  schedulePreview();
+                                          : QStringLiteral("click Apply setting preview to update After"));
+  cleanupPreviewFiles();  // QMovie has released the old temp file first
+  previewPanel_->setBefore(sel);
+  previewPanel_->setPreviewAvailable(!busy_ && !sel.isEmpty());
 }
 
-void MainWindow::schedulePreview() {
-  // P1-10 / U-47: a selection/settings/queue change invalidates any in-flight
-  // preview IMMEDIATELY — the old code advanced previewSeq_ only when a new
-  // eligible preview started, so a stale completion that arrived during the
-  // debounce window (or after an Explode/clear early-return) still passed the
-  // seq guard and displayed a result for settings that no longer exist.
+void MainWindow::markPreviewStale() {
+  // Never silently show a finished result as current after a change, and
+  // never start an encoder here. Retain the last After with a stale warning so
+  // it can still be compared until the user explicitly applies new settings.
   invalidatePreview();
-  // Never leave an old animation under a new setting while the debounce timer
-  // is waiting. The status text has its own caption area; it cannot overlay the
-  // GIF canvas.
-  previewPanel_->clearAfter(QStringLiteral("waiting for changes…"));
-  if (busy_) return;  // main run active; preview is replaced by the real output
-  previewTimer_->start();  // restart debounce
+  killPreview();
+  if (!previewPanel_) return;
+  previewPanel_->setGenerating(false);
+  previewPanel_->setStatus(selectedInput().isEmpty()
+      ? QStringLiteral("Select a file to preview.")
+      : QStringLiteral("Settings changed — click Apply setting preview to refresh After."));
 }
 
 void MainWindow::invalidatePreview() {
@@ -4000,7 +4097,6 @@ void MainWindow::cleanupPreviewFiles(const QString& keep) {
 }
 
 void MainWindow::killPreview() {
-  previewTimer_->stop();
   if (previewProcess_ && previewProcess_->state() != QProcess::NotRunning) {
     previewProcess_->kill();
     previewProcess_->waitForFinished(1000);
@@ -4009,22 +4105,16 @@ void MainWindow::killPreview() {
 
 void MainWindow::startPreview() {
   if (busy_) return;
+  // A second Apply replaces an in-flight request; mere settings changes never
+  // start another process. Stale completions may not update the viewport.
+  invalidatePreview();
+  killPreview();
   const QString input = selectedInput();
   if (input.isEmpty() || !QFileInfo::exists(input)) {
     previewPanel_->clearAfter(QStringLiteral("select an existing file to preview"));
+    cleanupPreviewFiles();
     return;
   }
-  // Re-encoding a 64 MB animation just because a spin box changed makes the
-  // UI feel stuck and duplicates the real run. Large files therefore opt out
-  // of automatic settings previews; the explicit Preview changes button is
-  // still available when the user really wants one.
-  constexpr qint64 kLargePreviewBytes = 32LL * 1024LL * 1024LL;
-  if (QFileInfo(input).size() > kLargePreviewBytes && !forcePreview_) {
-    previewPanel_->clearAfter(QStringLiteral(
-        "large GIF: automatic preview is paused to keep the UI responsive — click Preview changes or run"));
-    return;
-  }
-  forcePreview_ = false;
   // N-62: the After pane plays a GIF (QMovie). When the chosen output is APNG,
   // WebP or a video, any GIF shown here would be a preview of a file that will
   // never be written - so name what will happen instead of showing a decoy.
@@ -4035,6 +4125,7 @@ void MainWindow::startPreview() {
                        "your own viewer")
             .arg(QString::fromLatin1(gs::output_format_name(f)),
                  QString::fromLatin1(gs::output_format_extension(f))));
+    cleanupPreviewFiles();
     return;
   }
   // U-70 / P1-42 (F:NF-13): the preview path re-probed the engine with a
@@ -4045,11 +4136,13 @@ void MainWindow::startPreview() {
   // fs::path boundary goes through u8path_compat.
   if (!gs::path_is_executable(gs::u8path_compat(enginePath_.toStdString()))) {
     previewPanel_->clearAfter(QStringLiteral("engine not found — preview unavailable"));
+    cleanupPreviewFiles();
     return;
   }
   if (settingsPanel_->mode() == gs::Mode::Explode) {
     previewPanel_->clearAfter(
         QStringLiteral("preview not available in Explode mode (writes many frame files)"));
+    cleanupPreviewFiles();
     return;
   }
 
@@ -4063,8 +4156,6 @@ void MainWindow::startPreview() {
   gs::GifsicleCommand cmd(settings);
   QStringList qargs;
   for (const auto& a : cmd.args()) qargs << QString::fromStdString(a);
-
-  killPreview();  // any previous run becomes stale (its captured seq < previewSeq_)
 
   // Fresh QProcess per run: the finished-lambda captures THIS run's seq, so a
   // killed stale process can never be misread as the newest run's completion.
@@ -4092,13 +4183,13 @@ void MainWindow::startPreview() {
               previewPanel_->clearAfter(
                   QStringLiteral("preview failed (engine exit %1) — check the command pane")
                       .arg(exitCode));
+              cleanupPreviewFiles();
               return;
             }
-            previewPanel_->setAfter(outPath, QFileInfo(input).size(), outFi.size());
-            // U-34: sweep every older preview file (not just "seq-1"), keeping
-            // only the one now on display.
-            lastPreviewPath_ = outPath;
-            cleanupPreviewFiles(outPath);
+            const bool displayed = previewPanel_->setAfter(outPath, QFileInfo(input).size(), outFi.size());
+            // Keep only a playable file currently on display. A successful
+            // encoder that wrote an invalid GIF must not leak a temp file.
+            cleanupPreviewFiles(displayed ? outPath : QString());
           });
   connect(p, &QProcess::errorOccurred, this, [this, p, seq](QProcess::ProcessError err) {
     if (err == QProcess::FailedToStart) {
@@ -4106,6 +4197,7 @@ void MainWindow::startPreview() {
       if (previewProcess_ == p) previewProcess_ = nullptr;
       if (seq == previewSeq_) {
         previewPanel_->clearAfter(QStringLiteral("preview could not start the engine"));
+        cleanupPreviewFiles();
       }
     }
   });
@@ -4166,6 +4258,7 @@ void MainWindow::resetRunLog() {
 void MainWindow::showWrittenOutputPreview() {
   if (batchMode_ == gs::Mode::Explode) {
     previewPanel_->clearAfter(QStringLiteral("Explode wrote frame files; see Output for the folder and names"));
+    cleanupPreviewFiles();
     return;
   }
   QString output;
@@ -4186,6 +4279,7 @@ void MainWindow::showWrittenOutputPreview() {
   const QFileInfo outInfo(output);
   if (!outInfo.exists() || !outInfo.isFile()) {
     previewPanel_->clearAfter(QStringLiteral("run finished, but no output file is available to preview"));
+    cleanupPreviewFiles();
     return;
   }
   // N-62: the After pane is a GIF movie. Handing it an .mp4 would show a black
@@ -4196,6 +4290,7 @@ void MainWindow::showWrittenOutputPreview() {
                        "your own viewer.")
             .arg(QString::fromLatin1(gs::output_format_name(activeFormat_)),
                  humanSize(outInfo.size())));
+    cleanupPreviewFiles();
     return;
   }
   const QString input = selectedInput();
@@ -4203,11 +4298,11 @@ void MainWindow::showWrittenOutputPreview() {
   previewPanel_->setAfter(
       output, before, outInfo.size(),
       QStringLiteral("After = the verified file written to disk. Play/Stop only control playback."));
+  cleanupPreviewFiles();  // the previous temporary movie has been released
 }
 
 void MainWindow::updateStatus(const QString& message) {
   if (statusLabel_) statusLabel_->setText(message);
-  if (previewPanel_ && !busy_) previewPanel_->setStatus(message);
 }
 
 // ===================== Session persistence (S7) =====================

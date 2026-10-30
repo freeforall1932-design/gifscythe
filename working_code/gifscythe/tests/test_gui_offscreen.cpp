@@ -20,7 +20,7 @@
 //   T11 Actions-tab controls map to the right gifsicle flags (S3-4 /
 //       U-MISS-13) incl. VP-1 loopcount=0, VP-2 -O0, VP-5 crop plus-form,
 //       E7 delay unit label (1/100 s, never ms)
-//   T12 before/after preview pipeline: debounced, async, honest captions,
+//   T12 before/after preview pipeline: on-demand, async, honest captions,
 //       savings display, Explode-mode refusal (S3-7)
 //   T13 Output tab: batch folder honored; summary honest
 //   T14 settings persistence (S7): close saves, relaunch restores (Actions
@@ -54,7 +54,7 @@
 //       "one completion, one consumption" contract the fix names
 //   T23 non-ASCII engine path (U-70 / P1-42): GS_ENGINE under a non-ASCII
 //       directory survives the u8path_compat boundary, so the preview
-//       re-probe finds the engine and the debounced preview runs
+//       re-probe finds the engine and the on-demand preview runs
 //   T27 Status tab result rows (N-55 slice A / W-32): one row per operation,
 //       byte figures only on `succeeded`, stop-on-first-failure leaves later
 //       rows `skipped`, a plan refusal is `refusedBeforeRun`, and the tab
@@ -94,6 +94,7 @@
 #include <QFileInfo>
 #include <QFrame>
 #include <QImage>
+#include <QImageReader>
 #include <QIODevice>
 #include <QLabel>
 #include <QLineEdit>
@@ -114,6 +115,8 @@
 #include <QSpinBox>
 #include <QStandardItemModel>
 #include <QStandardPaths>
+#include <QStackedWidget>
+#include <QTabBar>
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QTemporaryDir>
@@ -122,6 +125,7 @@
 #include <QToolButton>
 #include <QUrl>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -282,6 +286,18 @@ void spinEvents(int ms) {
   }
 }
 
+bool waitForCondition(const std::function<bool()>& condition, int timeoutMs = 25000) {
+  QElapsedTimer el;
+  el.start();
+  while (el.elapsed() < timeoutMs) {
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    if (condition()) return true;
+    QThread::msleep(2);
+  }
+  return condition();
+}
+
 // ---- File / engine helpers ----
 // Absolute path of a CMake-built fixture: built next to the harness, ".exe" on
 // Windows. Same convention as the inline lookups in T7/T8.
@@ -315,6 +331,30 @@ QString findRefDir() {
 bool copyFile(const QString& src, const QString& dst) {
   QFile::remove(dst);
   return QFile::copy(src, dst);
+}
+
+// A valid opaque red 1x1 GIF; gifsicle can resize it into deterministic
+// aspect-ratio fixtures without relying on an external image-writing plugin.
+bool writeSolidGif(const QString& path) {
+  const QByteArray data = QByteArray::fromHex(
+      "47494638396101000100800000f0141e0000002c00000000010001000002024401003b");
+  QFile file(path);
+  return file.open(QIODevice::WriteOnly) && file.write(data) == data.size();
+}
+
+QRect redPixelBounds(const QImage& image) {
+  int left = image.width(), top = image.height(), right = -1, bottom = -1;
+  for (int y = 0; y < image.height(); ++y) {
+    for (int x = 0; x < image.width(); ++x) {
+      const QColor color = image.pixelColor(x, y);
+      if (color.red() > 150 && color.red() > color.green() * 2 &&
+          color.red() > color.blue() * 2) {
+        left = std::min(left, x); top = std::min(top, y);
+        right = std::max(right, x); bottom = std::max(bottom, y);
+      }
+    }
+  }
+  return right >= left ? QRect(QPoint(left, top), QPoint(right, bottom)) : QRect();
 }
 
 int frameCount(const QString& file) {
@@ -416,7 +456,10 @@ void shootUi(const QString& logo) {
         const QString n = QStringLiteral("02-tab-%1.png").arg(i + 1);
         save(w, n.toUtf8().constData());
       }
-      tabs->setCurrentIndex(0);
+      // The preview is inside Actions. Settle its layout before grabbing it;
+      // an inactive tab has only a tiny, unlaid-out widget geometry.
+      tabs->setCurrentIndex(1);
+      settle(120);
     }
     // 3. Preview panel alone: the QL006 palette change lives here, so the
     //    placeholder text and canvas colour are judged at full size.
@@ -431,7 +474,7 @@ void shootUi(const QString& logo) {
                       QApplication::palette().color(QPalette::WindowText).name());
     if (auto* lbl = byName<QLabel>(w, "previewBefore"))
       facts << QStringLiteral("label text=%1 px=%2").arg(lbl->text(), samplePixels(lbl));
-    if (auto* canvas = byName<QFrame>(w, "previewBeforeCanvas"))
+    if (auto* canvas = byName<QFrame>(w, "previewCanvas"))
       facts << QStringLiteral("canvas px=%1").arg(samplePixels(canvas));
     std::printf("  (ui) %s\n", facts.join(QStringLiteral(" | ")).toUtf8().constData());
     delete w;
@@ -444,8 +487,17 @@ void shootUi(const QString& logo) {
     dropFiles(w, {logo});
     settle(150);
     save(w, "04-with-input.png");
+    if (auto* tabs = byName<QTabWidget>(w, "mainTabs")) tabs->setCurrentIndex(1);
+    settle(150);
     if (QWidget* preview = w->findChild<QWidget*>(QStringLiteral("previewGroup"))) {
       save(preview, "05-preview-with-input.png");
+      save(w, "06-actions-with-input.png");
+      if (auto* apply = byName<QPushButton>(w, "previewGenerateButton")) apply->click();
+      if (waitForLabel(byName<QLabel>(w, "previewSavings"), QStringLiteral("→"), 25000)) {
+        settle(100);
+        save(preview, "07-preview-after.png");
+        save(w, "08-actions-after.png");
+      }
     }
     delete w;
   }
@@ -1437,40 +1489,97 @@ int main(int argc, char** argv) {
     delete w;
   }
 
-  // ================= T12: preview pipeline (S3-7) ========================
+  // ================= T12: on-demand preview pipeline ======================
   {
-    g_stage = "T12"; std::printf("== T12 preview ==\n");
+    g_stage = "T12"; std::printf("== T12 on-demand preview ==\n");
     QTemporaryDir tmp;
     const QString a = tmp.path() + QStringLiteral("/a.gif");
     CHECK(copyFile(logo, a));
 
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
+    auto* apply = byName<QPushButton>(w, "previewGenerateButton");
+    auto* viewTabs = byName<QTabBar>(w, "previewViewTabs");
+    auto* viewport = byName<QStackedWidget>(w, "previewViewport");
+    auto* canvas = byName<QFrame>(w, "previewCanvas");
+    CHECK(apply && viewTabs && viewport && canvas);
+    CHECK_MSG(apply && apply->text() == QStringLiteral("Apply setting preview"),
+              "the requested manual Apply setting preview button is present");
+    CHECK_MSG(apply && !apply->isEnabled(), "Apply is disabled without a selection");
+    x.tabs->setCurrentIndex(1);
+    w->resize(1180, 780);
+    byName<QCheckBox>(w, "previewAutoPlay")->setChecked(false);
     dropFiles(w, {a});
-    // appendInputs auto-selects row 0 -> before movie should load
     spinEvents(150);
     CHECK(x.previewBefore && x.previewAfter && x.previewSavings && x.previewCaption);
-    if (!x.previewBefore) { delete w; return 1; }
-    CHECK_MSG(x.previewBefore->movie() != nullptr, "before pane plays the selected original");
+    if (!x.previewBefore || !x.previewAfter || !apply || !viewTabs || !viewport || !canvas) {
+      delete w; return 1;
+    }
+    CHECK_MSG(x.previewBefore->movie() != nullptr, "Before plays the selected original");
+    CHECK_MSG(!x.previewCaption->text().contains(QStringLiteral("Settings changed")),
+              "selecting a file does not falsely claim settings changed");
+    CHECK_MSG(viewTabs->count() == 2 && viewTabs->tabText(0) == QStringLiteral("Before") &&
+                  viewTabs->tabText(1) == QStringLiteral("After"), "one viewport has Before and After tabs");
+    CHECK_MSG(canvas->isAncestorOf(x.previewBefore) && canvas->isAncestorOf(x.previewAfter),
+              "both pages share one media frame");
+    CHECK_MSG(viewTabs->currentIndex() == 0 && x.previewBefore->isVisible() && !x.previewAfter->isVisible(),
+              "only Before is displayed after selection");
+    CHECK_MSG(canvas->width() >= 240 && canvas->height() >= 180,
+              "the active Actions preview has a laid-out full-size frame");
 
-    // Debounced async run: after ~1.2s + engine time the savings appear.
+    // The source is deliberately non-square: the fitted image must preserve
+    // the entire canvas at both window sizes, rather than crop or stretch it.
+    const QSize native = QImageReader(a).size();
+    CHECK(native.isValid() && native.width() != native.height());
+    CHECK_MSG(x.previewBefore->movie()->currentImage().size() == native,
+              "the movie retains the whole native GIF canvas");
+    const QImage firstShot = x.previewBefore->grab().toImage();
+    const QRect firstRed = redPixelBounds(firstShot);
+    CHECK_MSG(firstRed.height() > firstShot.height() / 2 && firstRed.width() > firstShot.width() / 8,
+              "the non-square image is actually painted large in the viewport");
+    w->resize(970, 700);
+    spinEvents(120);
+    const QImage resizedShot = x.previewBefore->grab().toImage();
+    const QRect resizedRed = redPixelBounds(resizedShot);
+    CHECK_MSG(resizedRed.height() > resizedShot.height() / 2 && resizedRed.width() > resizedShot.width() / 8,
+              "resizing repaints the full image immediately");
+
+    // No encoder is started on selection, even after the old 1.2 s debounce.
+    spinEvents(1450);
+    CHECK_MSG(!byName<QProcess>(w, "previewProcess") && !x.previewAfter->movie(),
+              "selection alone never starts a background preview encode");
+    CHECK(apply->isEnabled());
+    apply->click();
     CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("→"), 25000),
-              "preview produced after-image with size comparison");
+              "Apply generated an After with a size comparison");
     CHECK(x.previewAfter->movie() != nullptr);
-    // Caption stays honest about single-file semantics
+    CHECK_MSG(viewTabs->currentIndex() == 1 && x.previewAfter->isVisible() && !x.previewBefore->isVisible(),
+              "successful Apply shows After in the same frame");
+    viewTabs->setCurrentIndex(0);
+    spinEvents(30);
+    CHECK_MSG(x.previewBefore->isVisible() && !x.previewAfter->isVisible(),
+              "Before tab switches without another encode");
+    viewTabs->setCurrentIndex(1);
     CHECK_MSG(x.previewCaption->text().contains(QStringLiteral("selected"), Qt::CaseInsensitive),
               "temporary preview caption identifies the selected file");
 
-    // Changing a control re-triggers the debounced preview (savings updates)
+    const QString previous = x.previewAfter->movie() ? x.previewAfter->movie()->fileName() : QString();
     x.optimize->setValue(1);
-    CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("→"), 25000),
-              "preview regenerates after control change");
+    spinEvents(1450);
+    CHECK_MSG(!byName<QProcess>(w, "previewProcess") && x.previewAfter->movie() &&
+                  x.previewAfter->movie()->fileName() == previous,
+              "changing settings keeps the last result without automatically encoding");
+    CHECK_MSG(x.previewCaption->text().contains(QStringLiteral("Settings changed")),
+              "the retained After is clearly marked stale");
+    apply->click();
+    CHECK_MSG(waitForCondition([&]() {
+      return x.previewAfter->movie() && x.previewAfter->movie()->fileName() != previous;
+    }), "a second Apply generates an updated After");
 
-    // Explode mode: preview honestly refuses (multi-file output)
     x.mode->setCurrentIndex(2);
-    CHECK_MSG(waitForLabel(x.previewCaption, QStringLiteral("Explode"), 25000),
-              "preview honestly unavailable in Explode mode");
-    x.mode->setCurrentIndex(0);
+    apply->click();
+    CHECK_MSG(waitForLabel(x.previewCaption, QStringLiteral("Explode"), 1000),
+              "manual preview honestly refuses Explode mode");
     delete w;
   }
 
@@ -1912,6 +2021,9 @@ int main(int argc, char** argv) {
     CHECK_MSG(!browseDir->isEnabled(), "batch-folder Browse locked during the run");
     CHECK_MSG(!collBtn->isEnabled() && !fmtSettingsBtn->isEnabled(),
               "collision and format Settings locked during the run");
+    CHECK_MSG(!byName<QToolButton>(w, "queueFilterMenuButton")->isEnabled() &&
+                  !byName<QPushButton>(w, "previewGenerateButton")->isEnabled(),
+              "filter deletion and manual preview are locked during a run");
     CHECK(!x.batchDir->isEnabled());
     browseDir->click();                     // a click on a locked button is a no-op
     x.batchDir->setText(otherDir);          // what the old picker path could still do
@@ -2027,7 +2139,9 @@ int main(int argc, char** argv) {
       QElapsedTimer el; el.start();
       while (el.elapsed() < timeoutMs) {
         spinEvents(25);
-        if (!byName<QProcess>(w, "previewProcess")) return true;
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        auto* pp = byName<QProcess>(w, "previewProcess");
+        if (!pp || pp->state() == QProcess::NotRunning) return true;
       }
       return false;
     };
@@ -2035,7 +2149,10 @@ int main(int argc, char** argv) {
     // (a) Clear the queue while a preview is in flight. Its completion must
     //     NOT repopulate the panes, and its (partial) file must be gone.
     dropFiles(w, {big});
-    CHECK_MSG(waitPreviewRunning(30000), "first preview is in flight");
+    auto* apply = byName<QPushButton>(w, "previewGenerateButton");
+    CHECK(apply && apply->isEnabled());
+    apply->click();
+    CHECK_MSG(waitPreviewRunning(30000), "first requested preview is in flight");
     x.clear->click();
     CHECK_MSG(waitPreviewIdle(60000), "in-flight preview settles after clear");
     spinEvents(400);
@@ -2044,8 +2161,10 @@ int main(int argc, char** argv) {
 
     // (b) Switch to Explode while a preview is in flight: same contract.
     dropFiles(w, {big});
-    CHECK_MSG(waitPreviewRunning(30000), "second preview is in flight");
-    x.mode->setCurrentIndex(2);  // Explode: preview refuses (multi-file output)
+    apply->click();
+    CHECK_MSG(waitPreviewRunning(30000), "second requested preview is in flight");
+    x.mode->setCurrentIndex(2);  // invalidates the in-flight preview immediately
+    apply->click();              // an explicit request reports the refusal
     CHECK_MSG(waitForLabel(x.previewCaption, QStringLiteral("Explode"), 30000),
               "Explode mode still refuses the preview");
     CHECK_MSG(waitPreviewIdle(60000), "superseded preview settles after Explode switch");
@@ -2056,20 +2175,30 @@ int main(int argc, char** argv) {
     // (c) Back to Batch: a normal preview completes and exactly ONE file —
     //     the displayed one — remains.
     x.mode->setCurrentIndex(0);
-    spinEvents(1600);  // let the debounce fire and the run start
+    spinEvents(1450);
+    CHECK_MSG(previewFiles().isEmpty(), "switching back to Batch does not automatically encode");
+    apply->click();
+    CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("→"), 60000),
+              "explicit preview shows the size comparison again");
     CHECK_MSG(waitPreviewIdle(60000), "third preview settles");
-    spinEvents(400);
+    spinEvents(100);
     CHECK_MSG(previewFiles().size() == 1, "exactly the displayed preview file remains");
-    CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("→"), 30000),
-              "preview shows the size comparison again");
 
     // (d) One more settings change: the superseded file is swept on success,
     //     so the directory does not grow within a session (the old seq-1 rule
     //     only worked while every completion was non-stale).
+    const QStringList previousFiles = previewFiles();
+    const QString previous = x.previewAfter->movie() ? x.previewAfter->movie()->fileName() : QString();
     x.lossy->setValue(x.lossy->value() + 5);
-    spinEvents(1600);
+    spinEvents(1450);
+    CHECK_MSG(previewFiles() == previousFiles && !byName<QProcess>(w, "previewProcess"),
+              "settings changes neither write nor start another preview");
+    apply->click();
+    CHECK_MSG(waitForCondition([&]() {
+      return x.previewAfter->movie() && x.previewAfter->movie()->fileName() != previous;
+    }, 60000), "fourth explicitly requested preview completes");
     CHECK_MSG(waitPreviewIdle(60000), "fourth preview settles");
-    spinEvents(400);
+    spinEvents(100);
     CHECK_MSG(previewFiles().size() == 1, "temp dir holds exactly one preview after re-encode");
     delete w;
     CHECK_MSG(!QFileInfo::exists(previewDir), "window teardown removes the preview dir");
@@ -2336,9 +2465,10 @@ int main(int argc, char** argv) {
       }
       CHECK_MSG(x.status->text().contains(QStringLiteral("gifsicle-test-engine")),
                 "the engine in use IS the copy under the non-ASCII directory");
-      dropFiles(w, {a});  // appendInputs selects row 0 -> debounced preview
+      dropFiles(w, {a});
+      byName<QPushButton>(w, "previewGenerateButton")->click();
       CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("\u2192"), 25000),
-                "debounced preview RAN with a non-ASCII engine path (U-70 site)");
+                "on-demand preview RAN with a non-ASCII engine path (U-70 site)");
       CHECK_MSG(!x.previewCaption->text().contains(QStringLiteral("engine not found")),
                 "no false 'engine not found' from the preview re-probe");
       delete w;
@@ -2532,16 +2662,17 @@ int main(int argc, char** argv) {
       dropFiles(w, {input});
 
       // ---- Leg A: preview supersede --------------------------------------
-      // debounce is 1200 ms: the first settle starts preview run #1, the settings
-      // change re-arms the debounce, and the next startPreview() kills run #1.
-      heartbeatSettle(1500);
+      // Explicitly start preview run #1; a settings change invalidates and
+      // kills it immediately, without scheduling a replacement encode.
+      byName<QPushButton>(w, "previewGenerateButton")->click();
+      heartbeatSettle(400);
       auto* pv = byName<QProcess>(w, "previewProcess");
       const bool previewAlive = (pv && pv->state() != QProcess::NotRunning);
       CHECK_MSG(previewAlive, "leg A: a preview run is provably alive when the change supersedes it");
       heartbeatReset();
       auto* opt = x.optimize;
       opt->setValue(opt->value() == 3 ? 2 : 3);
-      heartbeatSettle(2900);
+      heartbeatSettle(700);
       const qint64 gapA = g_hb.maxGap;
       std::printf("  (A) preview supersede (killPreview waits 1000): gap %lld ms\n",
                   static_cast<long long>(gapA));
@@ -2999,14 +3130,17 @@ int main(int argc, char** argv) {
 
     // ---- collapse hides the body, and only the body ----
     if (chevron && optimizeGroup) {
+      CHECK_MSG(chevron->text() == QStringLiteral("▲"), "expanded card uses a single up pointer");
       chevron->click();
       spinEvents(20);
       CHECK_MSG(optimizeGroup->isHidden(), "the chevron folds the card's body away");
+      CHECK_MSG(chevron->text() == QStringLiteral("▼"), "collapsed card uses a single down pointer");
       CHECK_MSG(paneText().contains(QStringLiteral("-O3")),
                 "a folded card still contributes to the command");
       chevron->click();
       spinEvents(20);
       CHECK_MSG(!optimizeGroup->isHidden(), "a second click unfolds it");
+      CHECK_MSG(chevron->text() == QStringLiteral("▲"), "expanded card restores the up pointer");
     }
 
     // ---- Enabled: off contributes NOTHING, on restores everything ----
@@ -3208,11 +3342,11 @@ int main(int argc, char** argv) {
     MainWindow* w = makeWindow();
     auto x = findWidgets(w);
     auto* popup = byName<QListWidget>(w, "tokenPopup");
-    auto* startIdx = byName<QSpinBox>(w, "startIndexSpin");
     auto* note = byName<QLabel>(w, "templateNoteLabel");
     auto* tokenBtn = byName<QToolButton>(w, "tokenMenuButton");
-    CHECK(popup && startIdx && note && tokenBtn);
-    CHECK(startIdx && startIdx->value() == 1);
+    CHECK(popup && note && tokenBtn);
+    CHECK_MSG(byName<QSpinBox>(w, "startIndexSpin") == nullptr,
+              "Start index is not an Output control");
 
     dropFiles(w, {a, b});
     spinEvents(30);
@@ -3243,17 +3377,16 @@ int main(int argc, char** argv) {
     CHECK_MSG(x.tmpl->text() == QStringLiteral("{Filename}"),
               "accepting inserts the full token in place of '{fi'");
 
-    // Start index + {Frames} + {Width}x{Height} + Format-owned extension (OD-24).
-    startIdx->setValue(10);
+    // File Index starts at 1; dimensions/frames and the Format-owned extension remain supported.
     x.tmpl->setText(QStringLiteral("{Filename}_{Frames}f_{Width}x{Height}_{File Index}.mp4"));
     spinEvents(30);
     CHECK_MSG(note->text().contains(QStringLiteral("ignored")),
               "OD-24 warns when a typed media extension is stripped");
     const gs::GifFacts fa = gs::read_gif_facts(a.toStdString());
     const gs::GifFacts fb = gs::read_gif_facts(b.toStdString());
-    const QString wantA = tmp.path() + QStringLiteral("/alpha_%1f_%2x%3_10.gif")
+    const QString wantA = tmp.path() + QStringLiteral("/alpha_%1f_%2x%3_1.gif")
                                            .arg(fa.frames).arg(fa.width).arg(fa.height);
-    const QString wantB = tmp.path() + QStringLiteral("/beta_%1f_%2x%3_11.gif")
+    const QString wantB = tmp.path() + QStringLiteral("/beta_%1f_%2x%3_2.gif")
                                            .arg(fb.frames).arg(fb.width).arg(fb.height);
     CHECK(x.pane->toPlainText().contains(wantA));
     CHECK(x.pane->toPlainText().contains(wantB));
@@ -3262,14 +3395,13 @@ int main(int argc, char** argv) {
     CHECK(QFileInfo::exists(wantA));
     CHECK(QFileInfo::exists(wantB));
 
-    // Preset round-trip (OD-26): destination, template, start_index, collision,
-    // keep_folder_structure, and discard_if_larger all survive preset save/load.
+    // Preset round-trip (OD-26): destination, template, collision, folder
+    // structure, and size guard all survive preset save/load.
     const QString customFolder = tmp.path() + QStringLiteral("/preset_out");
     CHECK(QDir().mkpath(customFolder));
     x.destFolder->setChecked(true);
     x.batchDir->setText(customFolder);
     x.tmpl->setText(QStringLiteral("{Filename}_preset_{File Index}"));
-    startIdx->setValue(42);
     w->setCollisionPolicy(gs::CollisionPolicy::Skip);
     byName<QCheckBox>(w, "keepStructureCheck")->setChecked(false);
     byName<QCheckBox>(w, "discardLargerCheck")->setChecked(true);
@@ -3277,11 +3409,21 @@ int main(int argc, char** argv) {
     CHECK_MSG(w->savePresetByName(QStringLiteral("workflow_n61")),
               "preset saved cleanly");
 
+    // Old presets may contain the removed control's setting. It is still
+    // honored and re-saved so a previously chosen filename does not change.
+    const QString presetPath = cfg.path() + QStringLiteral("/presets/workflow_n61.conf");
+    {
+      QFile preset(presetPath);
+      CHECK(preset.open(QIODevice::ReadOnly));
+      CHECK_MSG(!preset.readAll().contains("start_index"), "new preset defaults to index 1");
+      preset.close();
+      CHECK(preset.open(QIODevice::Append | QIODevice::Text));
+      CHECK(preset.write("start_index = 42\n") > 0);
+    }
     // Mutate everything away, then reload preset from presetCombo.
     x.destSource->setChecked(true);
     x.batchDir->clear();
     x.tmpl->setText(QStringLiteral("{Filename}_result"));
-    startIdx->setValue(1);
     w->setCollisionPolicy(gs::CollisionPolicy::Ask);
     byName<QCheckBox>(w, "keepStructureCheck")->setChecked(true);
     byName<QCheckBox>(w, "discardLargerCheck")->setChecked(false);
@@ -3299,7 +3441,17 @@ int main(int argc, char** argv) {
     CHECK(x.destFolder->isChecked());
     CHECK(x.batchDir->text() == customFolder);
     CHECK(x.tmpl->text() == QStringLiteral("{Filename}_preset_{File Index}"));
-    CHECK(startIdx->value() == 42);
+    CHECK_MSG(x.pane->toPlainText().contains(QStringLiteral("alpha_preset_42.gif")) &&
+                  x.pane->toPlainText().contains(QStringLiteral("beta_preset_43.gif")),
+              "legacy preset index continues to render the same filenames");
+    CHECK_MSG(note->text().contains(QStringLiteral("Legacy saved file index begins at 42")),
+              "a retained legacy index is disclosed without restoring the removed control");
+    CHECK(w->savePresetByName(QStringLiteral("legacy_roundtrip")));
+    {
+      QFile saved(cfg.path() + QStringLiteral("/presets/legacy_roundtrip.conf"));
+      CHECK(saved.open(QIODevice::ReadOnly));
+      CHECK(saved.readAll().contains("start_index = 42"));
+    }
     CHECK(w->collisionPolicy() == gs::CollisionPolicy::Skip);
     CHECK(!byName<QCheckBox>(w, "keepStructureCheck")->isChecked());
     CHECK(byName<QCheckBox>(w, "discardLargerCheck")->isChecked());
@@ -3321,14 +3473,34 @@ int main(int argc, char** argv) {
     auto* collBtn = byName<QPushButton>(w, "collisionButton");
     auto* keepCheck = byName<QCheckBox>(w, "keepStructureCheck");
     CHECK(optGroup && collBtn && keepCheck);
-    // Owner UI shape rule (S45): single clickable square button with ⇅ glyph,
-    // NO dropdown menu indicator (menu() == nullptr), NO radio buttons in Options,
-    // default "Ask each time", and Keep folder structure default ON.
+    // One compact button, one stateful pointer tip and no Qt dropdown tail.
+    x.tabs->setCurrentIndex(2);
+    spinEvents(40);
     CHECK_MSG(collBtn->menu() == nullptr,
               "collisionButton has no attached QPushButton::menu() tail");
     CHECK_MSG(collBtn->text().contains(QStringLiteral("Ask each time")) &&
-                  collBtn->text().contains(QStringLiteral("\u21c5")),
-              "collisionButton displays 'Ask each time' + ⇅ by default");
+                  collBtn->text().endsWith(QStringLiteral("▼")),
+              "the closed collision menu displays one down pointer");
+    auto* collisionMenu = byName<QMenu>(w, "collisionMenu");
+    CHECK(collisionMenu != nullptr);
+    collBtn->click();
+    spinEvents(30);
+    CHECK_MSG(collisionMenu && collisionMenu->isVisible() && collBtn->text().endsWith(QStringLiteral("▲")),
+              "opening the menu changes the pointer to up");
+    if (collisionMenu) collisionMenu->hide();
+    spinEvents(30);
+    CHECK_MSG(collBtn->text().endsWith(QStringLiteral("▼")), "closing the menu restores the down pointer");
+    auto* explanation = byName<QLabel>(w, "collisionExplanation");
+    auto* discard = byName<QCheckBox>(w, "discardLargerCheck");
+    CHECK(explanation && discard);
+    if (explanation && discard) {
+      const int left = collBtn->mapTo(optGroup, QPoint(0, 0)).x();
+      CHECK_MSG(left < explanation->mapTo(optGroup, QPoint(0, 0)).x(),
+                "collision button precedes its explanation");
+      CHECK_MSG(keepCheck->mapTo(optGroup, QPoint(0, 0)).x() == left &&
+                    discard->mapTo(optGroup, QPoint(0, 0)).x() == left,
+                "both checkboxes align with the far-left button edge");
+    }
     CHECK_MSG(optGroup->findChildren<QRadioButton*>().isEmpty(),
               "Options group contains zero radio buttons (compact square only)");
     CHECK_MSG(keepCheck->isChecked(), "Keep folder structure is ON by default");
@@ -3667,6 +3839,276 @@ int main(int argc, char** argv) {
     if (prevFf.isNull()) qunsetenv("GS_FFMPEG");
     else qputenv("GS_FFMPEG", prevFf);
     qputenv("GS_SETTINGS_PATH", prevCfg);
+    g_dialogs.clear();
+  }
+
+  // ===== T35: filter actions, queue bookkeeping and thumbnail size ========
+  {
+    g_stage = "T35"; std::printf("== T35 filter actions + thumbnail sizing ==\n");
+    QTemporaryDir tmp;
+    CHECK(tmp.isValid());
+    const QString root = tmp.path() + QStringLiteral("/root");
+    CHECK(QDir().mkpath(root + QStringLiteral("/a")));
+    CHECK(QDir().mkpath(root + QStringLiteral("/b")));
+    const QString alpha = root + QStringLiteral("/a/alpha.gif");
+    const QString beta = root + QStringLiteral("/b/beta.gif");
+    const QString gamma = tmp.path() + QStringLiteral("/gamma.gif");
+    CHECK(copyFile(logo, alpha));
+    CHECK(copyFile(logo1, beta));
+    CHECK(copyFile(logo, gamma));
+    const QString out = tmp.path() + QStringLiteral("/out");
+    CHECK(QDir().mkpath(out));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* filter = byName<QLineEdit>(w, "queueFilterEdit");
+    auto* filterButton = byName<QToolButton>(w, "queueFilterMenuButton");
+    auto* filterMenu = byName<QMenu>(w, "queueFilterMenu");
+    auto* matched = byName<QAction>(w, "deleteFilteredAction");
+    auto* unmatched = byName<QAction>(w, "deleteNonFilteredAction");
+    auto* sizeButton = byName<QToolButton>(w, "thumbnailSizeButton");
+    auto* sizeMenu = byName<QMenu>(w, "thumbnailSizeMenu");
+    CHECK(filter && filterButton && filterMenu && matched && unmatched && sizeButton && sizeMenu);
+    if (!filter || !filterButton || !filterMenu || !matched || !unmatched || !sizeButton || !sizeMenu) {
+      delete w; return 1;
+    }
+    CHECK_MSG(filter->placeholderText() == QStringLiteral("Filter"),
+              "the filter instruction is inside the empty input");
+    CHECK_MSG(filterMenu->actions().size() == 2 &&
+                  matched->text() == QStringLiteral("Delete filtered items") &&
+                  unmatched->text() == QStringLiteral("Delete non-filtered items"),
+              "the blue funnel menu contains exactly the two requested actions");
+    CHECK(!filterButton->icon().isNull());
+    const QImage icon = filterButton->icon().pixmap(24, 24).toImage();
+    bool blue = false;
+    for (int y = 0; y < icon.height(); ++y) {
+      for (int xPixel = 0; xPixel < icon.width(); ++xPixel) {
+        const QColor color = icon.pixelColor(xPixel, y);
+        if (color.alpha() > 128 && color.blue() > color.red() && color.blue() > color.green()) blue = true;
+      }
+    }
+    CHECK_MSG(blue, "the filter icon is a blue funnel");
+    CHECK_MSG(!matched->isEnabled() && !unmatched->isEnabled(),
+              "an empty filter cannot accidentally remove the entire queue");
+    filterButton->click();
+    spinEvents(25);
+    CHECK_MSG(filterMenu->isVisible(), "the funnel opens its action menu");
+    filterMenu->hide();
+
+    CHECK_MSG(sizeMenu->actions().size() == 3, "one size menu contains small, medium and large");
+    auto* small = byName<QAction>(w, "thumbnailSize_64");
+    auto* medium = byName<QAction>(w, "thumbnailSize_96");
+    auto* large = byName<QAction>(w, "thumbnailSize_128");
+    CHECK(small && medium && large);
+    CHECK(medium && medium->isChecked());
+    sizeButton->click();
+    spinEvents(25);
+    CHECK_MSG(sizeMenu->isVisible() && sizeButton->text().endsWith(QStringLiteral("▲")),
+              "one button opens the thumbnail-size selector and points up");
+    sizeMenu->hide();
+    CHECK_MSG(sizeButton->text().endsWith(QStringLiteral("▼")), "closed size selector points down");
+    if (small && medium && large) {
+      small->trigger();
+      CHECK(x.list->iconSize() == QSize(64, 64) && x.list->gridSize() == QSize(100, 120));
+      large->trigger();
+      CHECK(x.list->iconSize() == QSize(128, 128) && x.list->gridSize() == QSize(164, 184));
+      CHECK(large->isChecked() && !small->isChecked());
+      medium->trigger();
+      CHECK(x.list->iconSize() == QSize(96, 96) && x.list->gridSize() == QSize(132, 152));
+    }
+
+    w->appendInputFolder(root);
+    dropFiles(w, {gamma});
+    CHECK(x.list->count() == 3);
+    matched->trigger();
+    unmatched->trigger();
+    CHECK_MSG(x.list->count() == 3, "an empty filter makes both removal actions no-ops");
+    x.destFolder->setChecked(true);
+    x.batchDir->setText(out);
+    filter->setText(QStringLiteral("alpha"));
+    spinEvents(40);
+    CHECK(matched->isEnabled() && unmatched->isEnabled());
+    CHECK(!x.list->item(0)->isHidden() && x.list->item(1)->isHidden() && x.list->item(2)->isHidden());
+    matched->trigger();
+    spinEvents(30);
+    CHECK_MSG(x.list->count() == 2 && rowPath(x.list, 0) == beta && rowPath(x.list, 1) == gamma,
+              "Delete filtered removes matched rows from the real queue in order");
+    CHECK_MSG(QFileInfo::exists(alpha) && QFileInfo::exists(beta) && QFileInfo::exists(gamma),
+              "filter deletion never deletes source files from disk");
+    CHECK_MSG(x.countLabel->text().contains(QStringLiteral("2 file(s)")), "queue count updates");
+    filter->clear();
+    dropFiles(w, {alpha});  // re-adding individually must not retain its removed folder root
+    spinEvents(30);
+    CHECK(x.list->count() == 3);
+    const QString command = x.pane->toPlainText();
+    CHECK_MSG(command.contains(out + QStringLiteral("/b/beta_result.gif")) &&
+                  command.contains(out + QStringLiteral("/alpha_result.gif")) &&
+                  !command.contains(out + QStringLiteral("/a/alpha_result.gif")),
+              "folder roots survive for retained rows but are forgotten for removed rows");
+
+    filter->setText(QStringLiteral("alpha"));
+    unmatched->trigger();
+    spinEvents(30);
+    CHECK_MSG(x.list->count() == 1 && rowPath(x.list, 0) == alpha,
+              "Delete non-filtered keeps only the matching row in the engine queue");
+    CHECK(QFileInfo::exists(beta) && QFileInfo::exists(gamma));
+    CHECK_MSG(x.pane->toPlainText().contains(alpha) && !x.pane->toPlainText().contains(beta),
+              "the live command contains only the remaining input");
+    filter->setText(QStringLiteral("no such matching GIF"));
+    spinEvents(30);
+    CHECK_MSG(x.list->currentRow() == -1 && !byName<QPushButton>(w, "previewGenerateButton")->isEnabled(),
+              "a filter with no matches cannot preview a hidden selection");
+    CHECK(!matched->isEnabled() && unmatched->isEnabled());
+    unmatched->trigger();
+    CHECK(x.list->count() == 0);
+    CHECK_MSG(QFileInfo::exists(alpha), "removing the last hidden row still preserves the file");
+    dropFiles(w, {gamma});
+    CHECK_MSG(x.list->count() == 1 && x.list->item(0)->isHidden() && x.list->currentRow() == -1,
+              "new arrivals respect the still-active filter");
+    filter->clear();
+    CHECK_MSG(!x.list->item(0)->isHidden() && x.list->currentRow() == 0,
+              "clearing the filter restores a visible selection");
+    x.clear->click();
+    CHECK(!matched->isEnabled() && !unmatched->isEnabled());
+    delete w;
+    g_dialogs.clear();
+  }
+
+  // ===== T36: extreme-aspect images still fit the single viewport ========
+  {
+    g_stage = "T36"; std::printf("== T36 extreme aspect-ratio preview ==\n");
+    QTemporaryDir tmp;
+    CHECK(tmp.isValid());
+    const QString source = tmp.path() + QStringLiteral("/solid.gif");
+    const QString wide = tmp.path() + QStringLiteral("/wide.gif");
+    CHECK(writeSolidGif(source));
+    QProcess maker;
+    maker.start(g_engine, {QStringLiteral("--resize"), QStringLiteral("1600x1"),
+                           source, QStringLiteral("-o"), wide});
+    CHECK(maker.waitForStarted(15000));
+    CHECK(maker.waitForFinished(30000));
+    CHECK(maker.exitStatus() == QProcess::NormalExit && maker.exitCode() == 0);
+    CHECK(QImageReader(wide).size() == QSize(1600, 1));
+
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* viewport = byName<QStackedWidget>(w, "previewViewport");
+    auto* tabs = byName<QTabBar>(w, "previewViewTabs");
+    auto* apply = byName<QPushButton>(w, "previewGenerateButton");
+    CHECK(viewport && tabs && apply);
+    x.tabs->setCurrentIndex(1);
+    w->resize(1000, 700);
+    dropFiles(w, {wide});
+    spinEvents(100);
+    CHECK(x.previewBefore && x.previewBefore->movie());
+    if (viewport && tabs && apply && x.previewBefore && x.previewBefore->movie()) {
+      CHECK(x.previewBefore->movie()->currentImage().size() == QSize(1600, 1));
+      const QImage beforeShot = x.previewBefore->grab().toImage();
+      const QRect beforeRed = redPixelBounds(beforeShot);
+      CHECK_MSG(beforeRed.width() > beforeShot.width() * 9 / 10 && beforeRed.height() <= 2,
+                "an extreme wide image paints the full width as a one-pixel sliver");
+      apply->click();
+      CHECK_MSG(waitForLabel(x.previewSavings, QStringLiteral("→"), 25000),
+                "extreme-aspect After is generated on request");
+      CHECK(x.previewAfter && x.previewAfter->movie());
+      if (x.previewAfter && x.previewAfter->movie()) {
+        CHECK(x.previewAfter->movie()->currentImage().size() == QSize(1600, 1));
+        const QImage afterShot = x.previewAfter->grab().toImage();
+        CHECK_MSG(redPixelBounds(afterShot).width() > afterShot.width() * 9 / 10,
+                  "After uses the same full-image fitting as Before");
+        w->resize(1200, 800);
+        spinEvents(100);
+        const QImage resizedAfter = x.previewAfter->grab().toImage();
+        CHECK_MSG(redPixelBounds(resizedAfter).width() > resizedAfter.width() * 9 / 10,
+                  "After refits on window resize");
+        tabs->setCurrentIndex(0);
+        const QImage resizedBefore = x.previewBefore->grab().toImage();
+        CHECK_MSG(redPixelBounds(resizedBefore).width() > resizedBefore.width() * 9 / 10,
+                  "Before also refits on window resize");
+      }
+    }
+    delete w;
+    g_dialogs.clear();
+  }
+
+  // ===== T37: conversion interrupts an in-flight manual preview ===========
+  {
+    g_stage = "T37"; std::printf("== T37 preview interrupted by conversion ==\n");
+    const QByteArray oldEngine = qgetenv("GS_ENGINE");
+    const QByteArray oldSleep = qgetenv("GS_FAKE_SLEEP_MS");
+    const QString fake = fixturePath("fake_engine_argv_sleep");
+    CHECK(QFileInfo::exists(fake));
+    qputenv("GS_ENGINE", QFile::encodeName(fake));
+    qputenv("GS_FAKE_SLEEP_MS", QByteArray("3000"));
+    QTemporaryDir tmp;
+    const QString input = tmp.path() + QStringLiteral("/input.gif");
+    CHECK(copyFile(logo, input));
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* apply = byName<QPushButton>(w, "previewGenerateButton");
+    dropFiles(w, {input});
+    CHECK(apply && apply->isEnabled());
+    if (apply) {
+      apply->click();
+      CHECK_MSG(waitForCondition([&]() {
+        auto* p = byName<QProcess>(w, "previewProcess");
+        return p && p->state() != QProcess::NotRunning;
+      }, 10000), "manual preview is in flight before conversion starts");
+      CHECK(x.previewCaption->text().contains(QStringLiteral("Generating preview")));
+      x.run->click();
+      CHECK_MSG(!apply->isEnabled() && !x.previewCaption->text().contains(QStringLiteral("Generating preview")),
+                "starting a conversion cancels the preview and clears the generating caption");
+      CHECK(x.process->state() != QProcess::NotRunning);
+      x.cancel->click();
+      spinEvents(100);
+      CHECK_MSG(apply->isEnabled() && !x.previewCaption->text().contains(QStringLiteral("Generating preview")),
+                "cancelled conversion leaves Apply usable and no phantom generating status");
+    }
+    delete w;
+    if (oldEngine.isNull()) qunsetenv("GS_ENGINE"); else qputenv("GS_ENGINE", oldEngine);
+    if (oldSleep.isNull()) qunsetenv("GS_FAKE_SLEEP_MS"); else qputenv("GS_FAKE_SLEEP_MS", oldSleep);
+    g_dialogs.clear();
+  }
+
+  // ===== T38: showing or resizing a paused hidden preview fits immediately ==
+  {
+    g_stage = "T38"; std::printf("== T38 paused hidden-to-visible preview ==\n");
+    QTemporaryDir tmp;
+    const QString source = tmp.path() + QStringLiteral("/solid.gif");
+    const QString rectangle = tmp.path() + QStringLiteral("/rectangle.gif");
+    CHECK(writeSolidGif(source));
+    QProcess maker;
+    maker.start(g_engine, {QStringLiteral("--resize"), QStringLiteral("120x40"),
+                           source, QStringLiteral("-o"), rectangle});
+    CHECK(maker.waitForStarted(15000));
+    CHECK(maker.waitForFinished(30000));
+    CHECK(maker.exitStatus() == QProcess::NormalExit && maker.exitCode() == 0);
+    CHECK(QImageReader(rectangle).size() == QSize(120, 40));
+    MainWindow* w = makeWindow();
+    auto x = findWidgets(w);
+    auto* autoplay = byName<QCheckBox>(w, "previewAutoPlay");
+    CHECK(autoplay != nullptr);
+    if (autoplay) autoplay->setChecked(false);
+    dropFiles(w, {rectangle});  // Actions is still hidden when the first frame is decoded
+    spinEvents(30);
+    CHECK(x.previewBefore && x.previewBefore->movie());
+    x.tabs->setCurrentIndex(1);
+    spinEvents(100);
+    if (x.previewBefore && x.previewBefore->movie()) {
+      const auto assertPaintedRectangle = [&](const char* message) {
+        const QImage shot = x.previewBefore->grab().toImage();
+        const QRect red = redPixelBounds(shot);
+        const bool fits = red.width() > shot.width() * 9 / 10 &&
+                          std::abs(red.width() - red.height() * 3) <= 4;
+        CHECK_MSG(fits, message);
+      };
+      assertPaintedRectangle("paused first frame fills the viewport at its correct 3:1 ratio on tab activation");
+      w->resize(960, 620);
+      spinEvents(100);
+      assertPaintedRectangle("paused first frame refits immediately after resize without an encoder run");
+      CHECK(!byName<QProcess>(w, "previewProcess"));
+    }
+    delete w;
     g_dialogs.clear();
   }
 
