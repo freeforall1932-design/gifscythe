@@ -69,8 +69,8 @@ reads them in a file, not in a conversation.
       Apply, no automatic encodes, stale-result indication and temp cleanup.
 - [x] **Verification:** Qt 6.8.3 offscreen suite plus actual screenshot review,
       unit, engine, packaging, oracle and lint checks (see S47 log).
-- [ ] Confirm the new GitHub Actions checks and an owner Windows visual smoke;
-      the local Qt result is not a substitute for either.
+- [x] **GitHub Actions + Windows smoke:** run 41108310504 success (all jobs green, `ci-ok` gate passed) on the PR #18 merge `53965e0`; local Qt 813/0 remains local proof only. Owner Windows visual smoke still outstanding (see “Remaining” below).
+
 
 ## Completed in S46 — Output form & per-format FFmpeg settings (historical; S47 supersedes UI details) (`N-61`, `N-63`, `N-64`, `N-65`)
 
@@ -86,6 +86,20 @@ reads them in a file, not in a conversation.
       2. *N-64* — confirm throwing away a result that comes out bigger than the original GIF and keeping the original **only when the output format is the same** (`Discard result if larger than original (same format only)`, default OFF).
 - [ ] **Test-machine FFmpeg readout (owner's Windows laptop):** record the owner's read-back of `Output ▸ Format ▸ Settings…` (`"FFmpeg: <source>: <path>"`) and treat `"bundled"` vs `"PATH"` vs `"well-known"` as distinct setups when verifying on his laptop (`W-18` / `W-19`).
 - [ ] **Release FFmpeg sidecar packaging workflow** (optional follow-up noted in `N-62`): release job / runbook step running `scripts/fetch_ffmpeg.sh` + `package_* --require-ffmpeg` once `vendor/ffmpeg/PINS.txt` hashes are pinned.
+
+## S48 — post-merge audit (2026-10-31, base `53965e0`)
+
+PR #18 merged as `53965e0` (run 41108310504 success). Docs sweep fixed 10 stale claims (GIF-only wording, install branch, testing tabs, project-vision APNG/WebP status, `X N_CONVERT` historical gap). Code audit in `docs/planning/S48_AUDIT_REVIEW.md` found 12 issues; none were registered before, tasks below are that audit’s handoff.
+
+- [ ] **S48-01/02 — Explode overwrite/promotion (HIGH):** `promote_explode_frames` can replace source `x.000` and promotes garbage frames; snapshot destinations before run and promote only verified frames.
+- [ ] **S48-03 — Batch time rollover (MEDIUM):** `plannedBatchTargets()` re-renders with `time()` twice; freeze timestamp/batched targets once per run.
+- [ ] **S48-04 — Single-output Rename exhaustion (MEDIUM):** single path ignores `Skip` on 10k-exhausted namespace and overwrites original.
+- [ ] **S48-05 — Late collision TOCTOU (MEDIUM):** `Skip` pre-check then `rename` has no re-check at promotion.
+- [ ] **S48-06 — Destination persistence swap (MEDIUM):** `Source` with non-empty `batch_dir` reloads as `Folder`.
+- [ ] **S48-07 — FFmpeg Auto N>1 (MEDIUM):** non-GIF Auto with 2 inputs encodes only first but labels “merged”.
+- [ ] **S48-08/09/10 — Template/FPS/preview mismatches (MEDIUM/LOW):** `DstWidth` for Fit reports bounding box; `fps` global vs per-format claim; preview savings on skipped selection compares wrong files.
+- [ ] **S48-11/12 — Probe/root edge (LOW):** 12-byte `acTL` passes as APNG; `relative_under_root("/a/b", "/")` empty.
+- [ ] Sweep remaining `SWE_s`/`G10` wording (see `SESSION_HANDOFF.md` S48) and close or answer `OD-26` fps per-format vs global.
 
 ## Found this session — pending lines (rule 2)
 
@@ -500,21 +514,21 @@ Still open from the audit intake (state lives in `STATUS.md`):
 8. **The UI-parity route** (`docs/planning/XN_CONVERT_REFERENCE.md` §7, researched in
    `XN_CONVERT_TABS_RESEARCH.md`): slices **A + B + F** (Status tab, tab titles/Settings, Convert/Stop)
    landed S41, **C** (Input grid) S42, **E** (Output form + honest Format selector) and **D** (Actions
-   card stack, `N-60`) S43. **What is left on this route is the owner's UI review, then nothing —
-   unless he asks for the FFmpeg sidecar**, which is the only way APNG/WebP/MP4/WebM stop being
-   listed-but-disabled (no ffmpeg in the agent sandbox; the encoder recipes are frozen in the
-   research doc §3.1).
+   card stack, `N-60`) S43. The S47 UI corrections are delivered; owner Windows visual review and the
+   S48 safety/integration findings remain. FFmpeg output support landed in S45
+   and requires a suitable bundled or installed executable.
 7. **Owner decisions** — `docs/planning/OWNER_DECISIONS.md`: remaining
    OD-03…OD-07, OD-10, OD-13…OD-16 (OD-16 blocks `web/wasm/`). **OD-18 was
    answered `= a` in S37** — the un-prefixed CLI explode keeps writing into the
    CWD, documented and tested, which closed U-76. Version decision (0.2.0 vs
    1.0.0) last, per `OD-11 = a`.
-8. WebP/APNG stay blocked until all of the above ships (D-01..D-04).
+8. APNG/WebP output exists on desktop via FFmpeg; non-GIF inputs and broader
+   conversion remain incomplete (`D-04`).
 
 ## Deferred bucket list — after GIF `1.0.0`
 
-Tracked as **D-01…D-08** in `STATUS.md`. All `OPEN`: known, scoped, and
-deliberately not started until GIF 1.0.0 ships.
+Tracked as **D-01…D-08** in `STATUS.md`. This list mixes delivered output
+formats with remaining deferred work; consult each row for its state.
 
 - Common RGBA animation frame model (timing, disposal, blend, alpha, canvas, loop).
 - ~~Animated WebP~~ — **delivered S45** (`D-02` DONE) by the bundled FFmpeg
@@ -534,14 +548,11 @@ deliberately not started until GIF 1.0.0 ships.
 - **Language migration (only if a trigger fires):** Rust + Tauri spike —
   `docs/planning/PLANNING.md` §1 triggers.
 - **Stills → animated / video endpoints** (owner request 2026-09-14, asked again
-  2026-10-08): the *sidecar* half is no longer a blocker — **FFmpeg ships with the
-  program** (S45, `N-62` DONE: bundled copy first, PATH/usual folders only as the
-  fallback, `FFMPEG_NOTICE.txt` in every package). What still gates this feature is
-  **`OD-20`**, the PROJECT_VISION amendment in the owner's own words: turning a
-  still into an animation is a different product promise, and the standing rule
-  ("never turn this into a picture converter") is why it is not being smuggled in
-  under the encoder. The parked C# plan's item (4) sketches it as
-  conversion-endpoint-only.
+  2026-10-08): `OD-20 = a` adopted decode-only conversion endpoints; `U-90` /
+  `P3-19` still require explicit rows before that input work. The implementation
+  currently encodes GIF to non-GIF output instead, and the owner must reconcile
+  that discrepancy before the vision is rewritten. FFmpeg is optional in current
+  CI/development packages; a suitable bundled or installed executable is needed.
 
 ## Build commands
 
