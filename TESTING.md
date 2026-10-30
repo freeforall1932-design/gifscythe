@@ -1,14 +1,13 @@
 # Testing the current Gifscythe desktop build
 
-Use this checklist after building from `INSTALL.md`. It is intended for the
-current branch:
+Use this checklist after building from `INSTALL.md`. PR #18 is merged into
+`main`; record the exact commit or follow-up branch under test. Do not treat an
+older portable release as proof of current GUI changes.
 
-```text
-arena/dde1f972-gifscythe
-```
-
-Do not record a test against an older portable release as a test of the current
-GUI changes.
+**Safety first:** the S48 audit found unresolved collision and verification
+issues. Test with disposable copies and use a separate empty output folder,
+especially for Explode. See the current `WORKLIST.md` before testing an existing
+file, a time-dependent output name, or Source-folder persistence.
 
 ## 1. Confirm the build identity
 
@@ -48,20 +47,25 @@ The GUI and engine must come from the same portable build folder.
 
 1. Start `gifscythe.exe` by double-clicking it, not only from a developer shell.
 2. Confirm there is no second command-prompt window for gifsicle.
-3. Confirm the application opens with the `Input`, `Actions`, `Output`, and
-   `Guide` tabs.
+3. Confirm the tabs are `Input`, `Actions`, `Output`, `Status`, `Settings`,
+   and `About`; the guide is inside About. The footer has `Convert` and a
+   cancel control that says `Stop` during a run.
 4. Confirm the status bar does not report that the engine is missing.
-5. Add a small animated GIF by using the add button or dragging it onto the
-   Input queue.
-6. Confirm the Before preview shows the selected source GIF.
-7. Confirm the Input tab contains the **File name pattern** control and a
-   prominent **Start** button. The naming pattern should not be hidden in the
-   Output tab.
-8. Confirm the Preview controls are visible: `Preview changes`, `Play`, `Stop`,
-   and `Auto-play previews`.
-9. Turn off autoplay, change an Action, click `Preview changes`, and confirm
-   that the preview is generated without starting playback automatically.
-10. Click `Play` and `Stop` and confirm that both preview panes respond.
+5. Add a small animated GIF using `Add files…` or drag-and-drop. Check the
+   `Filter` placeholder, its two queue-only removal options, and the single
+   thumbnail-size menu. Do not run removal tests on valuable originals.
+6. Open Actions and confirm the selected source appears in the one large
+   aspect-fitted viewport. Switch its `Before` and `After` tabs; the full image
+   should remain visible without stretching or cropping.
+7. The filename template and token picker belong on **Output**; there is no
+   visible Start index control. Check the `▼`/`▲` collision button and
+   left-aligned options.
+8. Turn off `Auto-play previews`, change an Action, then click **Apply setting
+   preview**. Confirm a preview is generated without starting playback
+   automatically; changing settings alone must not start an encoder.
+9. Click `Play` and `Stop` and check playback. These controls must not start
+   another encode. Explode and non-GIF settings previews are unavailable and
+   should say so rather than display a simulated result.
 
 ## 3. Settings and Guide test
 
@@ -76,8 +80,8 @@ only tooltips. In particular, inspect:
 - loop count
 - threads and metadata
 
-Open the Guide tab and confirm that it explains the terms without requiring the
-user to already know gifsicle terminology.
+Open **About** and confirm that its guide explains the terms without requiring
+the user to already know gifsicle terminology.
 
 ## 4. Output and progress test
 
@@ -101,17 +105,16 @@ user to already know gifsicle terminology.
 Use the large GIF that motivated the UI work, or another GIF larger than 32 MB.
 The expected behavior is:
 
-- selecting or changing a setting does not repeatedly force a full temporary
-  re-encode;
-- the preview area explains that automatic preview is paused for a large GIF;
-- clicking `Preview changes` explicitly starts a preview when requested;
+- selecting or changing a setting does not start a temporary re-encode;
+- clicking **Apply setting preview** explicitly starts one preview when
+  requested (this manual-only rule applies to GIFs of every size);
 - the normal Run operation still processes the GIF;
 - progress, status, and activity log remain understandable;
 - the verified output appears in the selected destination;
 - the After preview loads the verified destination file.
 
-Do not judge a large file as failed merely because automatic settings preview
-is paused. That pause is intentional to keep the UI responsive.
+Do not judge the lack of an automatic settings preview as a failure: preview
+encoding is deliberately on demand for all GIF sizes.
 
 ## 6. Cancellation and repeat-run test
 
@@ -123,8 +126,10 @@ is paused. That pause is intentional to keep the UI responsive.
 6. Confirm the second run does not reuse the first run's stale output, log, or
    progress state.
 
-For Explode mode, confirm that the Output tab identifies the frame folder and
-that a cancelled run is not presented as a complete frame set.
+For Explode mode, use disposable copies and a separate empty output folder;
+confirm that Output identifies the frame folder and a cancelled run is not
+presented as a complete frame set. Existing frame/source protection remains an
+open S48 finding, not a safety claim.
 
 ## 7. Command-line regression checks
 

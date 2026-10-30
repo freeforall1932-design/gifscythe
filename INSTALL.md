@@ -3,11 +3,10 @@
 This is the installation guide for the **current source tree**. It builds the
 Qt6 GUI from source; it does not point at an older prebuilt release.
 
-The current Arena development branch is:
-
-```text
-arena/dde1f972-gifscythe
-```
+PR #18 is merged into `main`. These instructions use the current `main`
+source; to test an unmerged follow-up, use that branch's source instead and
+record its exact commit. An old portable release does not contain current
+source changes.
 
 Gifscythe has two different things that are often called a "ZIP":
 
@@ -35,9 +34,12 @@ install Qt manually when using this script.
 
 ### 1. Get the current source
 
-For this development branch, download the source archive from:
+Download the current main source archive from:
 
-<https://github.com/freeforall1932-design/gifscythe/archive/refs/heads/arena/dde1f972-gifscythe.zip>
+<https://github.com/freeforall1932-design/gifscythe/archive/refs/heads/main.zip>
+
+For a follow-up that has not been merged, use the source archive for that
+specific branch instead.
 
 Extract it. The examples below assume the extracted folder is:
 
@@ -181,7 +183,11 @@ Start-Process `
 ```
 
 The GUI should have `gifsicle.exe` beside it. If it does not, the package is
-incomplete and the GUI may report that the engine cannot be found.
+incomplete and the GUI may report that the engine cannot be found. GIF does not
+need FFmpeg. APNG, animated WebP, MP4 and WebM output need a suitable FFmpeg
+executable beside the app or installed on the machine; current CI/development
+packages do not automatically include one. `Output ▸ Format ▸ Settings…`
+shows where FFmpeg was found.
 
 ## Linux: build the Qt GUI
 
@@ -233,8 +239,8 @@ available in local caches. The practical offline workflow is:
 4. Run `gifscythe.exe` from the extracted folder.
 
 Do not use an older release package to test current source changes; build the
-branch named at the top of this document or use a portable package produced by
-that branch's successful CI run.
+exact source/commit you intend to check, or use a portable package produced
+by that commit's successful CI run.
 
 ## Common failures
 

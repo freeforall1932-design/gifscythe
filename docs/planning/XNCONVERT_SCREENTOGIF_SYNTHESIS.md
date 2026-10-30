@@ -83,19 +83,20 @@ Gifscythe couples:
 
 ### A. Modular Encoder Abstraction
 * **Gifsicle Core**: Native, low-overhead GIF optimization, color reduction, and frame disposal tuning.
-* **FFmpeg Pipeline**: Multi-container video and animated image encoding with explicit parameter mapping (libwebp-anim, libx264, libx265, libvpx-vp9, libsvtav1).
-* **Frame Analysis & Metadata**: Ingestion inspection (`GifFacts`) reading duration, canvas geometry, transparency flags, and color table depth before dispatching encoder processes.
+* **FFmpeg Pipeline**: Multi-container encoding using `libwebp_anim`, libx264, libx265, libvpx-vp9 and libaom-av1 when those encoders are available.
+* **Frame Analysis & Metadata**: `GifFacts` reads canvas dimensions, frame count, duration and loop information without decoding pixels. It does not report transparency flags or color-table depth.
 
 ### B. Safe Staging & Non-Destructive Operations
-* Atomic writes using staging files (`.gs-partial`) to protect original files from crash-induced corruption.
-* Size-guard validation comparing byte sizes before final promotion.
+* Ordinary outputs use staging files (`.gs-partial`) before promotion; this protects against several failure/cancel paths but is not a complete collision or integrity guarantee. Explode stages a set of frames and may partially promote it on error.
+* Optional same-format size-guard validation compares byte sizes before promotion; the S48 audit lists the unprotected cases in `WORKLIST.md`.
 
 
 ### C. Delivered versus reference ideas
 
 The shipped desktop accepts GIF inputs and uses gifsicle for GIF output, with
-FFmpeg-backed formats available when a suitable sidecar is found. The preview
-plays GIFs; it does not simulate APNG, WebP, video or multi-file Explode output.
+FFmpeg-backed formats available when a suitable executable is found. FFmpeg
+output does not apply the Actions-tab GIF settings, as the Output tab notes. The
+preview plays GIFs; it does not simulate APNG, WebP, video or multi-file Explode output.
 The ScreenToGif research is an inspiration for future animation tooling, **not**
 a claim that its frame editor, recording, quantizers or encoders are implemented
 here. See `STATUS.md` and `WORKLIST.md` for the actual scope and remaining work.

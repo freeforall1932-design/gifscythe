@@ -24,11 +24,13 @@ for **animated (moving) images only**: **GIF, APNG, and WebP**. It should let a
 *normal person* edit, optimize, and convert animated images without ever seeing
 "a pile of code scrap."
 
-**Scope honesty (external review J:F-17, dispositioned S24):** today the product
-is GIF-only — APNG/WebP are 0% built and formally deferred to 2.0.0+ (see the
-format plan below and `STATUS.md` D-01..D-03). The README title carries
-"work-in-progress" and both the README roadmap and this file state the
-deferral, so the pitch is a mission statement, not a ship promise.
+**Current implementation (S48 audit):** all surfaces accept GIF input; the
+Qt desktop additionally encodes GIF to APNG, animated WebP, MP4 and WebM when
+suitable FFmpeg is available. The CLI and web remain GIF-only; APNG/WebP and
+video inputs and cross-format merge/explode are not implemented (`D-04`).
+The earlier J:F-17 GIF-only description was true in S24, not now. The current
+FFmpeg encoder direction differs from the adopted decode-only wording below;
+this is an open owner-scope question, not an assumed amendment.
 
 **2026-09-12 (S14) — direction amendment (owner):** the `web/` build is a
 **supported product surface** — an alternative to the `.exe`/portable build for
@@ -56,7 +58,7 @@ boundaries below.
    timeline, capture or playback UI — this is a converter, not an editor, and
    ScreenToGif's recorder/editor scope is explicitly OUT.
 2. **Subprocess only.** The sidecar is a separate executable invoked over argv,
-   exactly like gifsicle — never linked into the Ms-PL UI, never vendored
+   exactly like gifsicle — never linked into the UI, never vendored
    in-process. (The in-process carve-out in this file belongs to the
    experimental `web/wasm/` track alone and does not extend here.)
 3. **Its own notice ships with it.** FFmpeg builds are LGPL **or** GPL
@@ -110,7 +112,7 @@ want the full gifsicle terminal control underneath.
 - Retain gifsicle terminal-level control for power users (live command pane,
   honest **one-way** through 1.0.0 per `OD-12 = a`; argv execution — never
   shell injection).
-- gifsicle stays a **subprocess** (GPL v2-only engine vs Ms-PL UI). The one
+- gifsicle stays a **subprocess**. The one
   carve-out is the experimental `web/wasm/` in-process track, which is exactly
   why `OD-16` blocks it from shipping (`legal/README.md` §3–§4).
 - **Never call it 1.0.0** until the UI/UX task is done and the release criteria
@@ -120,10 +122,13 @@ want the full gifsicle terminal control underneath.
 ## Format support plan
 
 - **GIF:** gifsicle (existing, native) — current focus through 1.0.0.
-- **APNG + animated WebP:** **bucket-list / future task** — only after the
-  GIF UI/UX retrofit is complete and 1.0.0 ships, via the common frame model
-  (`STATUS.md` D-01..D-04), as separate subprocess helpers to keep the
-  boundary. See `WORKLIST.md` deferred bucket.
+- **APNG + animated WebP output:** the Qt desktop can encode from GIF through
+  FFmpeg (S45; `D-02`/`D-03`). The original plan deferred these outputs until
+  after 1.0.0; implementation arrived earlier and needs the owner-scope
+  reconciliation above.
+- **Non-GIF input, conversion between containers and cross-format
+  merge/explode:** not implemented (`D-04`); the shared frame-model work
+  remains open (`D-01`).
 
 ## Architecture (of record — from the 2026-09-06 feasibility review)
 
@@ -132,12 +137,13 @@ not a tweak inside it. Two things were genuinely hard — keeping the engine at
 arm's length (solved by the subprocess boundary) and WebP/APNG codecs
 (gifsicle reads/writes GIF only; `grep webp|apng|png` over its source: zero
 hits — which is why multi-format output goes through a **separate codec
-subprocess**, FFmpeg, shipped with the program since S45 rather than deferred).
+subprocess**, FFmpeg, available to the desktop since S45 when a suitable
+executable is bundled or installed).
 
 ```
   +---------------------------------------------------------------+
   |  UI surfaces: Qt6 Widgets desktop (shipped) · web browser UI   |
-  |   (self-hosted, supported) · C#/WPF shell (PARKED)             |
+  |   (self-hosted, supported) · C# core lane (WPF not started)    |
   |   file queue · per-file settings · before/after preview ·      |
   |   live one-way command pane (shows exactly what runs)          |
   +-------------------------------+-------------------------------+
@@ -151,7 +157,7 @@ subprocess**, FFmpeg, shipped with the program since S45 rather than deferred).
   +-------------------------------+-------------------------------+
                                   v
   |  ENGINE: gifsicle 1.96 (GPL v2-only) as a SEPARATE SUBPROCESS  |
-  |  Future multi-format: libwebp / libpng+APNG helper processes   |
+  |  Desktop non-GIF outputs: optional FFmpeg subprocess         |
   +---------------------------------------------------------------+
 ```
 

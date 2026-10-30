@@ -1,9 +1,17 @@
 # Gifscythe — work-in-progress (GIF / APNG / WebP animation tool)
 
 **Current product version:** 0.1.0 (see `working_code/gifscythe/VERSION.md`)
-**Status:** engine + control layer + CLI + Qt GUI + web app shippable as a
-pre-release; **GIF is the only format implemented today** — APNG/WebP are
-formally deferred to 2.0.0+ (roadmap below).
+**Status:** 0.1.0 pre-release. GIF input and output are supported across the
+desktop, CLI and web surfaces. The desktop can also encode GIF input to APNG,
+animated WebP, MP4 and WebM when a suitable FFmpeg is available; the other
+surfaces remain GIF-only. Non-GIF input and cross-format merge/explode are not
+implemented. Current CI/development packages do not automatically include
+FFmpeg. See `STATUS.md` D-02–D-04 and `PROJECT_VISION.md` for the unresolved
+scope/decision discrepancy.
+
+**Safety:** the S48 audit found open output-collision risks (see `WORKLIST.md`).
+For Explode, use copies of input files and a separate, empty output folder until
+the collision and verification fixes are proven.
 
 **Where state lives (read these, not prose):** **`STATUS.md`** is the single
 generated status register — one row per tracked item, four states, counts you
@@ -52,10 +60,12 @@ repo root, then open http://localhost:8000 — see `web/README.md`.
 
 ## Screenshots
 
-The repository holds **no image files** (the owner removed them all in `fe4f0a7`, 2026-10-02), so the three
-UI screenshots that used to be shown here are gone. They can be regenerated on any Qt machine from the recipe
-in `docs/screenshots/README.md` (offscreen `MainWindow`, one `grab()` per tab). The two upstream test images
-the suites need are kept as text and rebuilt on demand (`working_code/gifscythe/scripts/fixtures.sh`).
+The old product screenshots were removed in `fe4f0a7` (2026-10-02); regenerate
+them using `docs/screenshots/README.md`. Owner-supplied reference images,
+including later extracted guide images, are committed under
+`docs/planning/reference/` and are not product screenshots. The two upstream
+test images remain text fixtures, rebuilt on demand by
+`working_code/gifscythe/scripts/fixtures.sh`.
 
 ## Repo layout (post-S24 consolidation: one file per topic)
 
@@ -118,7 +128,7 @@ gifscythe/                        (repo root)
 6. **`docs/release/RELEASE_PROCEDURE.md`** — how to cut a snapshot or version
    release (gates, packaging, publishing, post-publish verification).
 7. **`docs/planning/OWNER_DECISIONS.md`** — the open owner questions
-   (`OD-01`…`OD-18`), each with options + a recommendation and what it unblocks.
+   each with its recorded options, decision status and what it unblocks.
 8. **`docs/archive/AUDIT_HISTORY.md`** — the condensed index of every dated
    audit snapshot this repo has produced (full texts in git history).
 
@@ -126,5 +136,7 @@ gifscythe/                        (repo root)
 The *product* version lives in `working_code/gifscythe/VERSION.md`; `build.sh`
 syncs it into the committed `src/core/version.h` fallback, while CMake
 generates its own copy inside the build tree only (S11, audit U-15).
-0.1.0 (now) → 1.0.0–1.9.9 (finished GIF product) → 2.0.0–3.0.0 (WebP + APNG).
-**Never call it 1.0.0 until the UI/UX task is done.**
+The planned release path is 0.1.0 → a finished 1.0.0 GIF product → later
+multi-format work. APNG/WebP *output* arrived earlier than that original plan;
+input and broader conversion work remain incomplete. **Never call it 1.0.0
+until the UI/UX task and release criteria are done.**
