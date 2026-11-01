@@ -2,10 +2,13 @@
 
 **Version:** 0.1.0 (see `VERSION.md`)
 
-Gifscythe is the *actual working product* — a portable, click-and-use desktop app
-for **animated (moving) images only**: GIF now; APNG and WebP later. It is built
-on top of the gifsicle engine with an XNConvert-feel GUI, while retaining the
-full gifsicle terminal control underneath.
+Gifscythe is the *actual working product* — a portable desktop app around the
+gifsicle engine with an XnConvert-inspired GUI and gifsicle terminal controls.
+GIF is the only input format today. GIF output works without FFmpeg; the desktop
+also offers GIF → APNG, animated WebP, MP4 and WebM with a suitable FFmpeg
+executable. CLI and web remain GIF-only. Non-GIF input and cross-format
+merge/explode remain open; the adopted product scope and current implementation
+need the owner reconciliation recorded in `STATUS.md`.
 
 This folder is the **working source code**. Reference material lives in the repo
 root `reference_code/` (read-only).
@@ -14,7 +17,11 @@ Installation and current-branch Qt build instructions are in the repo root:
 [`INSTALL.md`](../../INSTALL.md). The desktop verification checklist is
 [`TESTING.md`](../../TESTING.md).
 
-## Status (2026-09-10, session S9)
+## Status (historical S9 snapshot, 2026-09-10)
+
+The bullets in this section preserve the S9 evidence, not today's UI or format
+availability. Current status and open safety findings are in `../../STATUS.md`
+and `../../WORKLIST.md`.
 - **Status register:** `../../STATUS.md` — the roll-up of everything this repo
   tracks, in four states. This file is the product-level summary; `STATUS.md` is
   the register and `COMPILED_AUDIT.md` is the per-finding detail.
@@ -41,7 +48,8 @@ Installation and current-branch Qt build instructions are in the repo root:
   (workflow now calls `build_engine.sh`).
 - Remaining before **1.0.0**: clean-Windows windeployqt smoke (C4/D3/D4 —
   `docs/ci/README.md` §2), desktop probes (B5/B6/B14 — §3), owner
-  decisions (two-way CLI pane, version). WebP/APNG deferred.
+  decisions (two-way CLI pane, version). WebP/APNG output was deferred at that
+  date; it arrived through FFmpeg in S45.
 
 ## Build and test
 ```bash
@@ -61,7 +69,7 @@ Installation and current-branch Qt build instructions are in the repo root:
 # Packaging NEGATIVE tests — an incomplete package must fail (audit U-02/U-14)
 ./scripts/test_package.sh
 
-# Offscreen GUI harness (T1–T17; needs Qt6). The check count is printed by the
+# Offscreen GUI harness (needs Qt6). The check count is printed by the
 # harness itself; it is not restated here so it cannot go stale.
 cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release
 cmake --build build-cmake
@@ -249,10 +257,12 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   (default ON, recreating nested subfolders under designated `Folder` while
   standalone files stay flat), `Discard result if larger than original (same
   format only)` checkbox (default OFF, enabled only when target format matches
-  source format), and `Format ▸ Settings…` per-format quality / frame-rate +
-  FFmpeg location dialog (`N-65`). Skipped existing files appear as rows in the
-  Status `resultTable` (`skipped, file already exists` + filename + full path).
-  All fields persist in `gifscythe.conf` and in presets (`OD-26`).
+  source format), and `Format ▸ Settings…` quality / frame-rate + FFmpeg
+  location dialog (`N-65`). Quality is saved per codec; fps and loop currently
+  share one setting across formats. Skipped existing files appear as rows in
+  Status. Source-folder persistence and the promised per-format fps persistence
+  have open S48 follow-ups; see `../../STATUS.md` rather than assuming every
+  Output field round-trips correctly.
 - Regression net: `tests/test_gui_offscreen.cpp` — T1–T38 plus `T30b` and the S23 desktop
   round-trip block. The runtime count is printed by the harness itself; it is
   greater than the source-site count because several groups loop. T21 (S31, finding N-10)
@@ -292,5 +302,7 @@ be silently dropped it is refused with a warning instead — see `Validate.h`.
   copies its input to `-o` so the U-59 verification accepts it like real output.
 
 ## Versioning
-0.1.0 → 1.0.0–1.9.9 (finished GIF product) → 2.0.0–3.0.0 (WebP + APNG).  
-**Do not call it 1.0.0 until the UI/UX task is done.**
+0.1.0 remains the current version. The original roadmap put WebP/APNG after
+the finished GIF product; output support arrived earlier, while non-GIF input
+and broader conversion remain incomplete. **Do not call it 1.0.0 until the
+UI/UX task and release criteria are done.**

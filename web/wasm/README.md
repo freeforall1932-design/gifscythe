@@ -50,7 +50,8 @@ output dir — every build ships it. Notices: §Third-party notices below
 ## Prove (bytes, not a green build)
 
 `prove_wasm.mjs [input.gif]` (default: the upstream `logo.gif`, rebuilt from
-`working_code/gifscythe/tests/fixtures/logo.gif.b64` — the repo holds no image files)
+`working_code/gifscythe/tests/fixtures/logo.gif.b64`; design reference images
+under `docs/planning/reference/` are separate)
 loads the same module factory the page uses, runs `-O3` through the
 virtual FS, and prints input bytes, output bytes, the output GIF magic,
 and `--info`. It exits non-zero unless the module produced a non-empty

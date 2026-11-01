@@ -3,7 +3,9 @@
 **Why this file exists.** On 2026-10-22 the owner supplied four screenshots of XnConvert — Input,
 Actions, Output, and Status mid-run — after stating that the UI work had been aimed at "the wrong
 model". This file is the authoritative transcription of *that* model, and the measured gap between
-it and Gifscythe today. It is text-only on purpose (see §5).
+it and Gifscythe at the original 2026-10-22 review. The reference images
+are committed (see §5); for current delivered behavior see
+`XNCONVERT_SCREENTOGIF_SYNTHESIS.md`, `STATUS.md`, and the S48 audit.
 
 **Correction to the record.** `UI_REVIEW_S41.md` §3 said the fourth tab being **Guide** rather than
 **Status** was "not a regression", and treated the Status tab as a mere future item. That was
@@ -81,11 +83,17 @@ their original names, so a future session can look at the same pixels this file 
 | `docs/planning/reference/4806388_6.jpg` | Output |
 | `docs/planning/reference/xnconvert-big-3.png` | Status, mid-run |
 
-This is the **only** image material in the tree. `N-36` still stands for everything else: test images
-stay text (`scripts/fixtures.sh` rebuilds them), and no new screenshots or icons get committed without
-a fresh decision. The exception is these four reference artefacts and nothing else.
+The four originals are not the only reference images now: PR #18 added extracted
+guide images under `docs/planning/reference/mhtml_extracted_images/`. Test images
+remain text (`scripts/fixtures.sh` rebuilds them); generated product screenshots
+stay outside Git.
 
-## 6. The gap, measured against the code
+## 6. The original gap, measured in October 2026 (historical snapshot)
+
+The table and slice plan below record the S41 assessment, not the present UI:
+slices C, D and E and the S47 owner corrections have since landed. Check the
+current synthesis and the S48 safety follow-ups before treating a row as open
+or a delivered feature as defect-free.
 
 | Reference element | Gifscythe today | Gap |
 |---|---|---|
@@ -98,7 +106,7 @@ a fresh decision. The exception is these four reference artefacts and nothing el
 | Status: per-file log with size deltas, `n of m`, ETA, progress, Stop | `resultTable` — one row per operation (File · Before · After · Change · State · Detail), `Processing list: n of m files`, succeeded/failed/skipped/cancelled summary | **DELIVERED in the contract's terms** (N-56, slice A). Still missing vs the reference: ETA and the green progress bar **inside** the tab (the bar remains in the bottom strip) |
 | `Stop` while running | Footer reads `Convert`; the cancel control reads `Stop` while a run is in flight, `Cancel` when idle (cancel latch, U-72) | **DELIVERED** — N-56, slice F. Semantics unchanged: the latch means "stop this file", so the UI never claims the whole run is being cancelled |
 
-**The honest summary:** two of the four reference tabs are close in *spirit* (Actions+Preview,
+**The original S41 summary:** two of the four reference tabs were close in *spirit* (Actions+Preview,
 Output) and far in *detail*; two (Input grid, Status) do not exist as designed. This is not a
 restyle — the reference assumes an **action-list processing model** (N actions applied to N files,
 reported per file), where Gifscythe today has **one settings set per run**. That is the real
